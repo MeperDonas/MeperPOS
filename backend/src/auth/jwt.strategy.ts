@@ -64,11 +64,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Organization membership not found');
     }
 
+    // Mapear OWNER (legacy) a ADMIN para compatibilidad
+    const role = orgUser.role === 'OWNER' ? 'ADMIN' : orgUser.role;
+
     return {
       userId: payload.sub,
       email: payload.email,
       organizationId: orgUser.organizationId,
-      role: orgUser.role,
+      role,
       tokenVersion: payload.tokenVersion,
       isSuperAdmin: false,
     };

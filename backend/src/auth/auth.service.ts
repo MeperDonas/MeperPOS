@@ -130,7 +130,7 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: '15m',
+      expiresIn: '8h',
     });
 
     const rawRefreshToken = crypto.randomBytes(40).toString('hex');
@@ -241,7 +241,29 @@ export class AuthService {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _password, ...result } = user;
-    return result;
+
+    if (user.isSuperAdmin) {
+      return {
+        ...result,
+        role: 'SUPER_ADMIN',
+        isSuperAdmin: true,
+      };
+    }
+
+    const orgUser = await this.prisma.organizationUser.findFirst({
+      where: { userId },
+      orderBy: { joinedAt: 'asc' },
+    });
+
+    // Mapear OWNER (legacy) a ADMIN para compatibilidad
+    const role = orgUser?.role === 'OWNER' ? 'ADMIN' : (orgUser?.role ?? 'MEMBER');
+
+    return {
+      ...result,
+      role,
+      organizationId: orgUser?.organizationId ?? null,
+      isSuperAdmin: false,
+    };
   }
 
   async revokeOrganizationTokens(organizationId: string) {

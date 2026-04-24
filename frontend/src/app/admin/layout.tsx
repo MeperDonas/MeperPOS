@@ -3,13 +3,15 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/Button";
+import { LogOut, User } from "lucide-react";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -38,20 +40,35 @@ export default function AdminLayout({
             <h1 className="text-xl font-bold text-foreground">SuperAdmin</h1>
             <p className="text-sm text-muted-foreground">Panel de administración del sistema</p>
           </div>
-          <nav className="flex gap-2">
-            <a
-              href="/admin"
-              className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              Dashboard
-            </a>
-            <a
-              href="/admin/organizations"
-              className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              Organizaciones
-            </a>
-          </nav>
+          <div className="flex items-center gap-4">
+            <nav className="flex gap-2">
+              <a
+                href="/admin"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                Dashboard
+              </a>
+              <a
+                href="/admin/organizations"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                Organizaciones
+              </a>
+            </nav>
+            <div className="flex items-center gap-2 border-l border-border pl-4">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{user.email}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="h-4 w-4 mr-1" />
+                Cerrar sesión
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
       <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>

@@ -66,19 +66,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (email: string, password: string) => {
       try {
-        const response = await api.post<{ access_token: string }>("/auth/login", {
+        const response = await api.post<{ accessToken: string }>("/auth/login", {
           email,
           password,
         });
 
-        const token = response.data.access_token;
+        const token = response.data.accessToken;
         safeSetItem("token", token);
 
         const profileResponse = await api.get<User>("/auth/profile");
         setUser(profileResponse.data);
         safeSetItem("user", JSON.stringify(profileResponse.data));
 
-        router.push("/dashboard");
+        if (profileResponse.data.role === "SUPER_ADMIN") {
+          router.push("/admin");
+        } else {
+          router.push("/dashboard");
+        }
       } catch (error) {
         console.error("Login error:", error);
         throw error;

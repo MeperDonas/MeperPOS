@@ -10,6 +10,11 @@ class CreateAdminDto {
 
   @IsEmail()
   email: string;
+
+  @IsString()
+  @IsOptional()
+  @MinLength(6)
+  password?: string;
 }
 
 export class CreateOrganizationDto {

@@ -6,6 +6,7 @@ import { AdminService } from './admin.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationStatusDto } from './dto/update-organization-status.dto';
 import { UpdateOrganizationPlanDto } from './dto/update-organization-plan.dto';
+import { TransferPrimaryOwnerDto } from './dto/transfer-primary-owner.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -36,6 +37,18 @@ export class AdminController {
   @Patch('organizations/:id/plan')
   updatePlan(@Param('id') id: string, @Body() dto: UpdateOrganizationPlanDto) {
     return this.adminService.updatePlan(id, dto);
+  }
+
+  @Post('organizations/:id/transfer-owner')
+  transferPrimaryOwner(
+    @Param('id') organizationId: string,
+    @Body() dto: TransferPrimaryOwnerDto,
+  ) {
+    return this.adminService.transferPrimaryOwner(
+      organizationId,
+      dto.currentOwnerId,
+      dto.newOwnerId,
+    );
   }
 
   @Get('metrics')

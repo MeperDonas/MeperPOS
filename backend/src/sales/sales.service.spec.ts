@@ -49,6 +49,7 @@ describe('SalesService', () => {
     organizationId: 'org-1',
     role: 'MEMBER' as const,
     tokenVersion: 1,
+    isSuperAdmin: false,
     ...overrides,
   });
 

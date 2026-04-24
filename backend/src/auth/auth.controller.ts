@@ -49,8 +49,8 @@ export class AuthController {
   @Get('profile')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })
-  async getProfile(@Request() req: { user: { sub: string } }) {
-    return this.authService.validateUser(req.user.sub);
+  async getProfile(@Request() req: { user: { userId: string } }) {
+    return this.authService.validateUser(req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -59,9 +59,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Update user profile' })
   async updateProfile(
     @Body() updateProfileDto: UpdateProfileDto,
-    @Request() req: { user: { sub: string } },
+    @Request() req: { user: { userId: string } },
   ) {
-    return this.authService.updateProfile(req.user.sub, updateProfileDto);
+    return this.authService.updateProfile(req.user.userId, updateProfileDto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -70,9 +70,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Change user password' })
   async changePassword(
     @Body() changePasswordDto: ChangePasswordDto,
-    @Request() req: { user: { sub: string } },
+    @Request() req: { user: { userId: string } },
   ) {
-    return this.authService.changePassword(req.user.sub, changePasswordDto);
+    return this.authService.changePassword(req.user.userId, changePasswordDto);
   }
 
   @Post('refresh')
@@ -87,10 +87,10 @@ export class AuthController {
   @ApiOperation({ summary: 'Select active organization and re-issue JWT' })
   async selectOrg(
     @Body() selectOrgDto: SelectOrgDto,
-    @Request() req: { user: { sub: string } },
+    @Request() req: { user: { userId: string } },
   ) {
     return this.authService.selectOrg(
-      req.user.sub,
+      req.user.userId,
       selectOrgDto.organizationId,
     );
   }

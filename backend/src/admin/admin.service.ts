@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -35,7 +35,7 @@ export class AdminService {
       if (existingUser) {
         adminUser = existingUser;
       } else {
-        tempPassword = crypto.randomBytes(8).toString('hex');
+        tempPassword = dto.admin.password || crypto.randomBytes(8).toString('hex');
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
         adminUser = await this.prisma.user.create({
@@ -80,6 +80,14 @@ export class AdminService {
           currentNumber: 0,
         },
       ],
+    });
+
+    await this.prisma.cashRegister.create({
+      data: {
+        organizationId: organization.id,
+        name: 'Caja Principal',
+        isDefault: true,
+      },
     });
 
     return {
@@ -174,6 +182,59 @@ export class AdminService {
       where: { id },
       data: { plan: dto.plan },
     });
+  }
+
+  async transferPrimaryOwner(
+    organizationId: string,
+    currentOwnerId: string,
+    newOwnerId: string,
+  ) {
+    if (currentOwnerId === newOwnerId) {
+      throw new BadRequestException('Current owner and new owner must be different');
+    }
+
+    const currentOwner = await this.prisma.organizationUser.findFirst({
+      where: {
+        organizationId,
+        userId: currentOwnerId,
+        isPrimaryOwner: true,
+      },
+    });
+
+    if (!currentOwner) {
+      throw new ForbiddenException('Current user is not the primary owner of this organization');
+    }
+
+    const newOwner = await this.prisma.organizationUser.findFirst({
+      where: {
+        organizationId,
+        userId: newOwnerId,
+        role: OrgRole.ADMIN,
+      },
+    });
+
+    if (!newOwner) {
+      throw new ForbiddenException('New owner must be an ADMIN member of this organization');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.organizationUser.update({
+        where: { id: currentOwner.id },
+        data: { isPrimaryOwner: false },
+      }),
+      this.prisma.organizationUser.update({
+        where: { id: newOwner.id },
+        data: { isPrimaryOwner: true },
+      }),
+    ]);
+
+    return {
+      success: true,
+      message: 'Primary ownership transferred successfully',
+      organizationId,
+      previousOwnerId: currentOwnerId,
+      newOwnerId,
+    };
   }
 
   async getMetrics() {

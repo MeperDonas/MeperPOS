@@ -32,6 +32,7 @@ describe('TasksService', () => {
     organizationId: 'org-1',
     role: OrgRole.MEMBER,
     tokenVersion: 1,
+    isSuperAdmin: false,
   };
 
   beforeEach(() => {

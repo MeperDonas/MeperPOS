@@ -83,9 +83,9 @@ export class ImportsController {
   @ApiOperation({ summary: 'Get import job status for polling' })
   getImportStatus(
     @Param('jobId') jobId: string,
-    @Request() req: { user: { sub: string } },
+    @Request() req: { user: { userId: string } },
   ): any {
-    return this.importsService.getImportStatus(jobId, req.user.sub);
+    return this.importsService.getImportStatus(jobId, req.user.userId);
   }
 
   @Post(':jobId/retry-row')
@@ -94,8 +94,8 @@ export class ImportsController {
   retryImportRow(
     @Param('jobId') jobId: string,
     @Body() dto: RetryImportRowDto,
-    @Request() req: { user: { sub: string } },
+    @Request() req: { user: { userId: string } },
   ): Promise<any> {
-    return this.importsService.retryImportRow(jobId, req.user.sub, dto);
+    return this.importsService.retryImportRow(jobId, req.user.userId, dto);
   }
 }

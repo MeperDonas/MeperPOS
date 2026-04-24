@@ -106,6 +106,15 @@ async function createDemoOrg(
     ],
   });
 
+  // 5. CashRegister default
+  await prisma.cashRegister.create({
+    data: {
+      organizationId: org.id,
+      name: 'Caja Principal',
+      isDefault: true,
+    },
+  });
+
   console.log(`  ✅ Org "${name}" creada (${plan})`);
 
   return { orgId: org.id, adminUserId: adminUser.id };
@@ -328,6 +337,12 @@ async function createDemoSales(
   }
 
   console.log(`  🧾 ${count} ventas creadas`);
+
+  // Actualizar OrganizationSequence para que las ventas reales no choquen
+  await prisma.organizationSequence.updateMany({
+    where: { organizationId: orgId, type: 'SALE' },
+    data: { currentNumber: count },
+  });
 }
 
 async function seedDemoOrganization(

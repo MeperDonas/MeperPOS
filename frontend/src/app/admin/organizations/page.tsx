@@ -50,6 +50,7 @@ export default function OrganizationsPage() {
     plan: "BASIC",
     adminName: "",
     adminEmail: "",
+    adminPassword: "",
     hasAdmin: false,
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -65,6 +66,7 @@ export default function OrganizationsPage() {
     if (formData.hasAdmin) {
       if (!formData.adminName.trim()) errors.adminName = "El nombre del admin es obligatorio";
       if (!formData.adminEmail.trim()) errors.adminEmail = "El email del admin es obligatorio";
+      if (formData.adminPassword && formData.adminPassword.length < 6) errors.adminPassword = "Mínimo 6 caracteres";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -82,6 +84,7 @@ export default function OrganizationsPage() {
       payload.admin = {
         name: formData.adminName,
         email: formData.adminEmail,
+        password: formData.adminPassword || undefined,
       };
     }
 
@@ -94,6 +97,7 @@ export default function OrganizationsPage() {
         plan: "BASIC",
         adminName: "",
         adminEmail: "",
+        adminPassword: "",
         hasAdmin: false,
       });
     } catch {
@@ -237,6 +241,17 @@ export default function OrganizationsPage() {
                 error={formErrors.adminEmail}
                 required={formData.hasAdmin}
               />
+              <Input
+                label="Contraseña del admin"
+                type="password"
+                placeholder="Dejar vacío para generar automáticamente"
+                value={formData.adminPassword}
+                onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
+                error={formErrors.adminPassword}
+              />
+              <p className="text-xs text-muted-foreground">
+                Si dejas este campo vacío, se generará una contraseña temporal automáticamente.
+              </p>
             </div>
           )}
 

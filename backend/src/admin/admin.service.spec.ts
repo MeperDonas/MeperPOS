@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { OrgRole, OrgStatus, PlanType } from '@prisma/client';
 
@@ -6,6 +6,7 @@ describe('AdminService', () => {
   let service: AdminService;
 
   const prismaMock = {
+    $transaction: jest.fn((ops: unknown[]) => Promise.resolve(ops)),
     organization: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -25,9 +26,14 @@ describe('AdminService', () => {
     organizationUser: {
       create: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
     },
     organizationSequence: {
       createMany: jest.fn(),
+    },
+    cashRegister: {
+      create: jest.fn(),
     },
     refreshToken: {
       updateMany: jest.fn(),
@@ -63,6 +69,12 @@ describe('AdminService', () => {
         status: OrgStatus.TRIAL,
       });
       prismaMock.organizationSequence.createMany.mockResolvedValue({ count: 2 });
+      prismaMock.cashRegister.create.mockResolvedValue({
+        id: 'cr-1',
+        organizationId: 'org-1',
+        name: 'Caja Principal',
+        isDefault: true,
+      });
 
       const result = await service.createOrganization({
         name: 'Test Org',
@@ -93,6 +105,15 @@ describe('AdminService', () => {
           }),
         }),
       );
+      expect(prismaMock.cashRegister.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            organizationId: 'org-1',
+            name: 'Caja Principal',
+            isDefault: true,
+          }),
+        }),
+      );
       expect(result.organization.slug).toBe('test-org');
       expect(result.tempPassword).toBeDefined();
     });
@@ -112,6 +133,12 @@ describe('AdminService', () => {
         status: OrgStatus.TRIAL,
       });
       prismaMock.organizationSequence.createMany.mockResolvedValue({ count: 2 });
+      prismaMock.cashRegister.create.mockResolvedValue({
+        id: 'cr-1',
+        organizationId: 'org-1',
+        name: 'Caja Principal',
+        isDefault: true,
+      });
 
       const result = await service.createOrganization({
         name: 'Test Org',
@@ -123,6 +150,7 @@ describe('AdminService', () => {
       });
 
       expect(prismaMock.user.create).not.toHaveBeenCalled();
+      expect(prismaMock.cashRegister.create).toHaveBeenCalled();
       expect(result.tempPassword).toBeUndefined();
       expect(result.message).toContain('Existing user assigned');
     });
@@ -268,6 +296,69 @@ describe('AdminService', () => {
       await expect(
         service.updatePlan('non-existent', { plan: PlanType.PRO }),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('transferPrimaryOwner', () => {
+    it('transfers primary ownership successfully', async () => {
+      prismaMock.organizationUser.findFirst
+        .mockResolvedValueOnce({
+          id: 'ou-current',
+          organizationId: 'org-1',
+          userId: 'user-current',
+          isPrimaryOwner: true,
+          role: OrgRole.ADMIN,
+        })
+        .mockResolvedValueOnce({
+          id: 'ou-new',
+          organizationId: 'org-1',
+          userId: 'user-new',
+          isPrimaryOwner: false,
+          role: OrgRole.ADMIN,
+        });
+
+      prismaMock.organizationUser.update.mockResolvedValue({} as never);
+
+      const result = await service.transferPrimaryOwner(
+        'org-1',
+        'user-current',
+        'user-new',
+      );
+
+      expect(prismaMock.organizationUser.findFirst).toHaveBeenCalledTimes(2);
+      expect(prismaMock.organizationUser.update).toHaveBeenCalledTimes(2);
+      expect(result.success).toBe(true);
+      expect(result.newOwnerId).toBe('user-new');
+    });
+
+    it('fails if current owner is not primary owner', async () => {
+      prismaMock.organizationUser.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        service.transferPrimaryOwner('org-1', 'user-current', 'user-new'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('fails if new owner is not an ADMIN', async () => {
+      prismaMock.organizationUser.findFirst
+        .mockResolvedValueOnce({
+          id: 'ou-current',
+          organizationId: 'org-1',
+          userId: 'user-current',
+          isPrimaryOwner: true,
+          role: OrgRole.ADMIN,
+        })
+        .mockResolvedValueOnce(null);
+
+      await expect(
+        service.transferPrimaryOwner('org-1', 'user-current', 'user-new'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('fails if current and new owner are the same', async () => {
+      await expect(
+        service.transferPrimaryOwner('org-1', 'user-same', 'user-same'),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 

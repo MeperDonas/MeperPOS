@@ -164,7 +164,7 @@ describe('AuthService', () => {
           role: OrgRole.ADMIN,
           tokenVersion: 1,
         }),
-        { expiresIn: '15m' },
+        { expiresIn: '8h' },
       );
     });
 

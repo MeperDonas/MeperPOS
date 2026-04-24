@@ -26,7 +26,7 @@ describe('AuthController after users boundary centralization', () => {
       currentPassword: 'ClaveActual1',
       newPassword: 'NuevaClaveSegura123',
     };
-    const req = { user: { sub: 'admin-1' } };
+    const req = { user: { userId: 'admin-1' } };
     const expected = { message: 'Password changed successfully' };
 
     authServiceMock.changePassword.mockResolvedValue(expected);
@@ -65,7 +65,7 @@ describe('AuthController after users boundary centralization', () => {
     it('should delegate to authService.selectOrg with correct params', async () => {
       const controller = new AuthController(authServiceMock as never);
       const dto = { organizationId: 'org-1' };
-      const req = { user: { sub: 'user-1' } };
+      const req = { user: { userId: 'user-1' } };
       const expected = {
         accessToken: 'new-token',
         refreshToken: 'new-refresh',

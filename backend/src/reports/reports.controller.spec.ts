@@ -17,6 +17,7 @@ const mockUser: RequestUser = {
   organizationId: 'org-1',
   role: OrgRole.ADMIN,
   tokenVersion: 1,
+  isSuperAdmin: false,
 };
 
 describe('ReportsController', () => {

@@ -49,6 +49,7 @@ describe('TasksController', () => {
       organizationId: 'org-1',
       role: OrgRole.MEMBER,
       tokenVersion: 1,
+      isSuperAdmin: false,
     };
     const expected = { id: 'task-1', ...dto };
 
@@ -66,6 +67,7 @@ describe('TasksController', () => {
       organizationId: 'org-1',
       role: OrgRole.ADMIN,
       tokenVersion: 1,
+      isSuperAdmin: false,
     };
     const statusDto = {
       status: 'IN_PROGRESS' as const,

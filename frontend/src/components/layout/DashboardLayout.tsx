@@ -45,13 +45,16 @@ export const DashboardLayout = memo(function DashboardLayout({
   useEffect(() => {
     if (loading || !isAuthenticated || !userRole) return;
 
+    if (userRole === "SUPER_ADMIN") {
+      router.replace("/admin");
+      return;
+    }
+
     const routeConfig = routeRoleMap.find(
       (route) => pathname === route.prefix || pathname.startsWith(`${route.prefix}/`)
     );
 
     if (!routeConfig) return;
-
-    if (userRole === "SUPER_ADMIN") return;
 
     if (!routeConfig.roles.includes(userRole)) {
       router.replace(userRole === "CASHIER" ? "/pos" : "/dashboard");
