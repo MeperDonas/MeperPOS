@@ -1,4 +1,4 @@
-import { OrgRole } from '@prisma/client';
+import { OrgRole, OrgStatus } from '@prisma/client';
 
 export interface RequestUser {
   userId: string;
@@ -7,4 +7,5 @@ export interface RequestUser {
   role: OrgRole | 'SUPER_ADMIN';
   tokenVersion: number;
   isSuperAdmin: boolean;
+  orgStatus?: OrgStatus;
 }

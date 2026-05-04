@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { OrgRole } from '@prisma/client';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -22,21 +23,30 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
+import { PlanLimitGuard } from '../plan-limits/plan-limits.guard';
+import { PlanLimit } from '../plan-limits/plan-limits.decorator';
 
 @ApiTags('Users')
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
+@UseGuards(JwtAuthGuard, RolesGuard, PlanLimitGuard)
+@Roles(OrgRole.ADMIN)
 @ApiBearerAuth()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @PlanLimit('users')
   @UseInterceptors(AuditInterceptor)
   @AuditAction('USER_CREATE')
   @ApiOperation({ summary: 'Create a new user (Admin only)' })
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  create(
+    @Body() createUserDto: CreateUserDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.usersService.create(
+      createUserDto,
+      user.organizationId ?? undefined,
+    );
   }
 
   @Get()

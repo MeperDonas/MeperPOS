@@ -19,10 +19,21 @@ export interface User {
   role: "ADMIN" | "CASHIER" | "INVENTORY_USER" | "SUPER_ADMIN";
   active: boolean;
   isSuperAdmin?: boolean;
+  organizationId?: string | null;
+  organization?: Organization | null;
+}
+
+export interface Organization {
+  id: string;
+  plan: "BASIC" | "PRO";
+  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED";
+  trialEndsAt: string | null;
+  billingStatus: "PENDING" | "PAID" | "OVERDUE";
 }
 
 interface AuthContextType {
   user: User | null;
+  organization: Organization | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -102,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       user,
+      organization: user?.organization ?? null,
       loading,
       login,
       logout,

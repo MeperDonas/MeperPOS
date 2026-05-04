@@ -15,6 +15,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { OrgRole } from '@prisma/client';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
@@ -22,23 +23,28 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
-import { OrgRole } from '@prisma/client';
+import { PlanLimitGuard } from '../plan-limits/plan-limits.guard';
+import { PlanLimit } from '../plan-limits/plan-limits.decorator';
 
 @ApiTags('Customers')
 @Controller('customers')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PlanLimitGuard)
 @ApiBearerAuth()
 export class CustomersController {
   constructor(private customersService: CustomersService) {}
 
   @Post()
   @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+  @PlanLimit('customers')
   @ApiOperation({ summary: 'Create a new customer' })
   create(
     @Body() createCustomerDto: CreateCustomerDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.customersService.create(createCustomerDto, user.organizationId!);
+    return this.customersService.create(
+      createCustomerDto,
+      user.organizationId!,
+    );
   }
 
   @Get()
@@ -85,7 +91,7 @@ export class CustomersController {
   }
 
   @Put(':id')
-  @Roles('ADMIN')
+  @Roles(OrgRole.ADMIN)
   @ApiOperation({ summary: 'Update a customer' })
   update(
     @Param('id') id: string,
@@ -100,7 +106,7 @@ export class CustomersController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles(OrgRole.ADMIN)
   @ApiOperation({ summary: 'Delete a customer' })
   remove(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.customersService.remove(id, user.organizationId!);

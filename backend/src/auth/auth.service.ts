@@ -14,7 +14,7 @@ import {
   UpdateProfileDto,
   ChangePasswordDto,
 } from './dto/auth.dto';
-import { OrgRole } from '@prisma/client';
+import { OrgRole, OrgStatus } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -77,6 +77,7 @@ export class AuthService {
     }
 
     let orgUser;
+    let targetOrgId: string | null = null;
 
     if (organizationId) {
       orgUser = await this.prisma.organizationUser.findFirst({
@@ -89,6 +90,7 @@ export class AuthService {
       if (!orgUser) {
         throw new UnauthorizedException('Organization membership not found');
       }
+      targetOrgId = organizationId;
     } else {
       orgUser = await this.prisma.organizationUser.findFirst({
         where: {
@@ -101,6 +103,19 @@ export class AuthService {
 
       if (!orgUser) {
         throw new UnauthorizedException('User has no organizations');
+      }
+      targetOrgId = orgUser.organizationId;
+    }
+
+    // Check organization status
+    if (targetOrgId) {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: targetOrgId },
+        select: { status: true },
+      });
+
+      if (org?.status === OrgStatus.SUSPENDED) {
+        throw new UnauthorizedException('Organization is suspended');
       }
     }
 
@@ -192,14 +207,14 @@ export class AuthService {
       throw new UnauthorizedException('User inactive');
     }
 
-    // Revocar token anterior
-    await this.prisma.refreshToken.update({
-      where: { id: refreshToken.id },
-      data: { revokedAt: new Date() },
-    });
-
     // SuperAdmin bypass
     if (refreshToken.user.isSuperAdmin) {
+      // Revocar token anterior
+      await this.prisma.refreshToken.update({
+        where: { id: refreshToken.id },
+        data: { revokedAt: new Date() },
+      });
+
       return this.generateTokenPair(refreshToken.user, {
         organizationId: null,
         role: 'SUPER_ADMIN' as const,
@@ -214,6 +229,22 @@ export class AuthService {
     if (!orgUser) {
       throw new UnauthorizedException('User has no organizations');
     }
+
+    // Check organization status
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgUser.organizationId },
+      select: { status: true },
+    });
+
+    if (org?.status === OrgStatus.SUSPENDED) {
+      throw new UnauthorizedException('Organization is suspended');
+    }
+
+    // Revocar token anterior
+    await this.prisma.refreshToken.update({
+      where: { id: refreshToken.id },
+      data: { revokedAt: new Date() },
+    });
 
     return this.generateTokenPair(refreshToken.user, orgUser);
   }
@@ -252,16 +283,29 @@ export class AuthService {
 
     const orgUser = await this.prisma.organizationUser.findFirst({
       where: { userId },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            plan: true,
+            status: true,
+            trialEndsAt: true,
+            billingStatus: true,
+          },
+        },
+      },
       orderBy: { joinedAt: 'asc' },
     });
 
     // Mapear OWNER (legacy) a ADMIN para compatibilidad
-    const role = orgUser?.role === 'OWNER' ? 'ADMIN' : (orgUser?.role ?? 'MEMBER');
+    const role =
+      orgUser?.role === 'OWNER' ? 'ADMIN' : (orgUser?.role ?? 'MEMBER');
 
     return {
       ...result,
       role,
       organizationId: orgUser?.organizationId ?? null,
+      organization: orgUser?.organization ?? null,
       isSuperAdmin: false,
     };
   }
@@ -364,6 +408,16 @@ export class AuthService {
 
     if (!orgUser) {
       throw new UnauthorizedException('Organization membership not found');
+    }
+
+    // Check organization status
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { status: true },
+    });
+
+    if (org?.status === OrgStatus.SUSPENDED) {
+      throw new UnauthorizedException('Organization is suspended');
     }
 
     return this.generateTokenPair(user, orgUser);

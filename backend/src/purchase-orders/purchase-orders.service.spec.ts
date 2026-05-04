@@ -14,7 +14,7 @@ describe('PurchaseOrdersService', () => {
 
   const txMock = {
     product: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
       updateMany: jest.fn(),
     },
     inventoryMovement: {
@@ -46,10 +46,10 @@ describe('PurchaseOrdersService', () => {
       update: jest.fn(),
     },
     supplier: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
     product: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
   };
 
@@ -142,7 +142,7 @@ describe('PurchaseOrdersService', () => {
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
 
-    expect(txMock.product.findUnique).not.toHaveBeenCalled();
+    expect(txMock.product.findFirst).not.toHaveBeenCalled();
     expect(txMock.inventoryMovement.create).not.toHaveBeenCalled();
     expect(txMock.purchaseOrderItem.update).not.toHaveBeenCalled();
   });
@@ -210,11 +210,11 @@ describe('PurchaseOrdersService', () => {
       number: 99,
       formatted: 'OC-99',
     });
-    prismaMock.supplier.findUnique.mockResolvedValue({
+    prismaMock.supplier.findFirst.mockResolvedValue({
       id: 'supplier-1',
       active: true,
     });
-    prismaMock.product.findUnique.mockResolvedValue({
+    prismaMock.product.findFirst.mockResolvedValue({
       id: 'prod-1',
       active: true,
       taxRate: 19,
@@ -285,11 +285,11 @@ describe('PurchaseOrdersService', () => {
       },
     );
     prismaMock.$transaction.mockRejectedValue(error);
-    prismaMock.supplier.findUnique.mockResolvedValue({
+    prismaMock.supplier.findFirst.mockResolvedValue({
       id: 'supplier-1',
       active: true,
     });
-    prismaMock.product.findUnique.mockResolvedValue({
+    prismaMock.product.findFirst.mockResolvedValue({
       id: 'prod-1',
       active: true,
       taxRate: 19,
@@ -358,7 +358,7 @@ describe('PurchaseOrdersService', () => {
       qtyReceived: 0,
       unitCost: 100,
     });
-    txMock.product.findUnique.mockResolvedValue({
+    txMock.product.findFirst.mockResolvedValue({
       id: 'prod-1',
       stock: 10,
       version: 1,

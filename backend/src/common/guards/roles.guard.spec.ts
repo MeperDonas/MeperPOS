@@ -82,9 +82,7 @@ describe('RolesGuard', () => {
   });
 
   it('should allow access for SuperAdmin regardless of required roles', () => {
-    jest
-      .spyOn(reflector, 'getAllAndOverride')
-      .mockReturnValue([OrgRole.ADMIN]);
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([OrgRole.ADMIN]);
 
     const context = createMockContext({
       role: 'SUPER_ADMIN',
@@ -94,9 +92,7 @@ describe('RolesGuard', () => {
   });
 
   it('should allow access for user with isSuperAdmin flag', () => {
-    jest
-      .spyOn(reflector, 'getAllAndOverride')
-      .mockReturnValue([OrgRole.ADMIN]);
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([OrgRole.ADMIN]);
 
     const context = createMockContext({
       role: OrgRole.MEMBER,

@@ -22,6 +22,10 @@ import { SuppliersModule } from './suppliers/suppliers.module';
 import { PurchaseOrdersModule } from './purchase-orders/purchase-orders.module';
 import { SequenceModule } from './common/sequences/sequence.module';
 import { AdminModule } from './admin/admin.module';
+import { PlanLimitsModule } from './plan-limits/plan-limits.module';
+import { OrganizationStatusGuard } from './common/guards/organization-status.guard';
+import { CashRegistersModule } from './cash-registers/cash-registers.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -52,13 +56,21 @@ import { AdminModule } from './admin/admin.module';
     PurchaseOrdersModule,
     SequenceModule,
     AdminModule,
+    PlanLimitsModule,
+    CashRegistersModule,
+    BillingModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    OrganizationStatusGuard,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: OrganizationStatusGuard,
     },
   ],
 })

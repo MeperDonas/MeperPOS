@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -15,7 +15,7 @@ import {
   useUpdateOrganizationPlan,
 } from "@/hooks/useAdmin";
 import { formatDate } from "@/lib/utils";
-import { Building2, Eye, Loader2 } from "lucide-react";
+import { Building2, Eye } from "lucide-react";
 
 const statusOptions = [
   { value: "TRIAL", label: "Trial" },

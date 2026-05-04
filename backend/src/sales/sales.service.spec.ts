@@ -1,5 +1,7 @@
 import {
   ForbiddenException,
+  BadRequestException,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -14,6 +16,9 @@ describe('SalesService', () => {
 
   const prismaMock = {
     $transaction: jest.fn(),
+    organization: {
+      findUnique: jest.fn(),
+    },
     sale: {
       findMany: jest.fn(),
       count: jest.fn(),
@@ -22,10 +27,10 @@ describe('SalesService', () => {
       update: jest.fn(),
     },
     product: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
     customer: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
   };
 
@@ -298,7 +303,7 @@ describe('SalesService', () => {
       sale: { create: jest.fn() },
       saleItem: { create: jest.fn() },
       product: {
-        findUnique: jest.fn().mockResolvedValue({ stock: 10 }),
+        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       inventoryMovement: { create: jest.fn() },
@@ -315,7 +320,7 @@ describe('SalesService', () => {
       number: 42,
       formatted: '42',
     });
-    prismaMock.product.findUnique.mockResolvedValue({
+    prismaMock.product.findFirst.mockResolvedValue({
       id: 'prod-1',
       name: 'Test Product',
       active: true,
@@ -324,7 +329,7 @@ describe('SalesService', () => {
       stock: 10,
       category: { defaultTaxRate: null },
     });
-    prismaMock.customer.findUnique.mockResolvedValue({ id: 'cust-1' });
+    prismaMock.customer.findFirst.mockResolvedValue({ id: 'cust-1' });
     txMock.sale.create.mockResolvedValue({ id: 'sale-new', saleNumber: 42 });
 
     // Mock findOne call inside create
@@ -383,7 +388,7 @@ describe('SalesService', () => {
       },
     );
     prismaMock.$transaction.mockRejectedValue(error);
-    prismaMock.product.findUnique.mockResolvedValue({
+    prismaMock.product.findFirst.mockResolvedValue({
       id: 'prod-1',
       name: 'Test Product',
       active: true,
@@ -392,7 +397,7 @@ describe('SalesService', () => {
       stock: 10,
       category: { defaultTaxRate: null },
     });
-    prismaMock.customer.findUnique.mockResolvedValue({ id: 'cust-1' });
+    prismaMock.customer.findFirst.mockResolvedValue({ id: 'cust-1' });
 
     const createSaleDto = {
       customerId: 'cust-1',
@@ -429,10 +434,90 @@ describe('SalesService', () => {
     );
   });
 
+  describe('forceClose', () => {
+    it('closes open sale on PRO plan', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({ plan: 'PRO' });
+      prismaMock.sale.findFirst
+        .mockResolvedValueOnce({
+          id: 'sale-open',
+          status: 'OPEN',
+        })
+        .mockResolvedValueOnce({
+          id: 'sale-open',
+          status: 'CLOSED',
+          userId: 'user-1',
+          user: { id: 'user-1', name: 'User', email: 'user@example.com' },
+          customer: null,
+          items: [],
+          payments: [],
+        });
+      prismaMock.sale.update.mockResolvedValue({
+        id: 'sale-open',
+        status: 'CLOSED',
+      });
+
+      const result = await service.forceClose(
+        'sale-open',
+        'org-1',
+        'Cierre forzoso',
+      );
+
+      expect(prismaMock.sale.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'sale-open' },
+          data: expect.objectContaining({
+            status: 'CLOSED',
+            cancelReason: 'Cierre forzoso',
+          }),
+        }),
+      );
+      expect(result).toEqual(
+        expect.objectContaining({ id: 'sale-open', status: 'CLOSED' }),
+      );
+    });
+
+    it('rejects forceClose on BASIC plan', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({ plan: 'BASIC' });
+
+      await expect(
+        service.forceClose('sale-open', 'org-1'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects forceClose if sale is not OPEN', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({ plan: 'PRO' });
+      prismaMock.sale.findFirst.mockResolvedValue({
+        id: 'sale-closed',
+        status: 'COMPLETED',
+      });
+
+      await expect(
+        service.forceClose('sale-closed', 'org-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws NotFoundException if sale does not exist', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({ plan: 'PRO' });
+      prismaMock.sale.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.forceClose('non-existent', 'org-1'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException if organization does not exist', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.forceClose('sale-open', 'org-missing'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
   it('update validates ownership with organizationId and applies cancel fields', async () => {
     const txMock = {
       product: {
-        findUnique: jest.fn().mockResolvedValue({ stock: 5 }),
+        findFirst: jest.fn().mockResolvedValue({ stock: 5 }),
         update: jest.fn(),
       },
       inventoryMovement: { create: jest.fn() },

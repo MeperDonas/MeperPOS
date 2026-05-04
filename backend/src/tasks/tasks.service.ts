@@ -299,7 +299,9 @@ export class TasksService {
   }
 
   private buildVisibilityWhere(user: RequestUser): Prisma.TaskWhereInput {
-    const base: Prisma.TaskWhereInput = { organizationId: user.organizationId! };
+    const base: Prisma.TaskWhereInput = {
+      organizationId: user.organizationId!,
+    };
 
     if (user.role === OrgRole.ADMIN || user.role === OrgRole.OWNER) {
       return base;

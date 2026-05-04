@@ -22,6 +22,7 @@ model Organization {
   logoUrl            String?
   status             OrgStatus              @default(TRIAL)
   trialEndsAt        DateTime?
+  pastDueAt          DateTime?
   billingStatus      BillingStatus          @default(PENDING)
   plan               PlanType               @default(BASIC)
   auditLogs          AuditLog[]
@@ -32,6 +33,7 @@ model Organization {
   sequences          OrganizationSequence[]
   users              OrganizationUser[]
   payments           Payment[]
+  paymentRecords     PaymentRecord[]
   products           Product[]
   purchaseOrders     PurchaseOrder[]
   purchaseOrderItems PurchaseOrderItem[]
@@ -40,6 +42,8 @@ model Organization {
   suppliers          Supplier[]
   tasks              Task[]
   taskEvents         TaskEvent[]
+
+  @@index([status, trialEndsAt])
 }
 
 model User {
@@ -177,14 +181,14 @@ model InventoryMovement {
   previousStock  Int
   newStock       Int
   reason         String
-  userId         String
+  userId         String?
   saleId         String?
   createdAt      DateTime     @default(now())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   product        Product      @relation(fields: [productId], references: [id])
   sale           Sale?        @relation(fields: [saleId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, productId, createdAt])
 }
@@ -221,7 +225,7 @@ model Sale {
   amountPaid         Decimal             @db.Decimal(10, 2)
   change             Decimal?            @db.Decimal(10, 2)
   status             SaleStatus          @default(COMPLETED)
-  userId             String
+  userId             String?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   cancelReason       String?
@@ -232,7 +236,7 @@ model Sale {
   payments           Payment[]
   customer           Customer?           @relation(fields: [customerId], references: [id])
   organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user               User                @relation(fields: [userId], references: [id])
+  user               User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   items              SaleItem[]
 
   @@unique([organizationId, saleNumber])
@@ -392,11 +396,27 @@ model AuditLog {
   createdAt      DateTime     @default(now())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User?        @relation(fields: [userId], references: [id])
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, createdAt])
   @@index([organizationId, action])
   @@index([organizationId, resource])
+}
+
+model PaymentRecord {
+  id             String           @id @default(uuid())
+  organizationId String
+  amount         Decimal          @db.Decimal(10, 2)
+  method         PaymentMethod
+  date           DateTime
+  status         PaymentRecordStatus @default(PENDING)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([organizationId, date])
 }
 
 enum OrgStatus {
@@ -447,7 +467,15 @@ enum PaymentMethod {
   TRANSFER
 }
 
+enum PaymentRecordStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
 enum SaleStatus {
+  OPEN
+  CLOSED
   COMPLETED
   CANCELLED
   RETURNED_PARTIAL

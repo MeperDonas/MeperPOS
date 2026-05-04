@@ -11,6 +11,7 @@ import { OrgRole } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
+import { PlanLimitService } from '../plan-limits/plan-limits.service';
 
 type AuditContext = {
   resource?: string;
@@ -43,10 +44,13 @@ function attachAuditContext<T extends object>(
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planLimitService: PlanLimitService,
+  ) {}
 
-  async create(createUserDto: CreateUserDto) {
-    const { email, password, name } = createUserDto;
+  async create(createUserDto: CreateUserDto, organizationId?: string) {
+    const { email, password, name, role } = createUserDto;
 
     await this.ensureEmailAvailable(email);
 
@@ -57,9 +61,23 @@ export class UsersService {
         email,
         password: hashedPassword,
         name,
+        ...(organizationId
+          ? {
+              organizationUsers: {
+                create: {
+                  organizationId,
+                  role: role ?? OrgRole.CASHIER,
+                },
+              },
+            }
+          : {}),
       },
       select: userAdminSelect,
     });
+
+    if (organizationId) {
+      this.planLimitService.invalidateCache('users', organizationId);
+    }
 
     return attachAuditContext(createdUser, {
       resource: 'User',
@@ -69,16 +87,15 @@ export class UsersService {
         targetUserEmail: createdUser.email,
         targetUserName: createdUser.name,
         active: createdUser.active,
+        organizationId: organizationId ?? null,
+        role: role ?? OrgRole.CASHIER,
       },
     });
   }
 
   async findAll(organizationId?: string) {
     if (!organizationId) {
-      return this.prisma.user.findMany({
-        orderBy: { createdAt: 'desc' },
-        select: userAdminSelect,
-      });
+      return [];
     }
 
     return this.prisma.user.findMany({
@@ -220,11 +237,7 @@ export class UsersService {
     return { message: 'Contraseña restablecida exitosamente' };
   }
 
-  async remove(
-    adminUserId: string,
-    userId: string,
-    organizationId?: string,
-  ) {
+  async remove(adminUserId: string, userId: string, organizationId?: string) {
     if (adminUserId === userId) {
       throw new BadRequestException('Admins cannot delete their own account');
     }
@@ -296,10 +309,7 @@ export class UsersService {
     }
   }
 
-  private async findUserOrThrow(
-    userId: string,
-    organizationId?: string,
-  ) {
+  private async findUserOrThrow(userId: string, organizationId?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });

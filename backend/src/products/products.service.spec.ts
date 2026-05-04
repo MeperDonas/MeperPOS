@@ -7,7 +7,7 @@ describe('ProductsService — Tax Precedence', () => {
   // ── Mocks ──────────────────────────────────────────────────────────
   const prismaMock = {
     category: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
     product: {
       findUnique: jest.fn(),
@@ -29,6 +29,10 @@ describe('ProductsService — Tax Precedence', () => {
   };
 
   const cloudinaryServiceMock = {};
+
+  const planLimitServiceMock = {
+    invalidateCache: jest.fn(),
+  };
 
   const USER_ID = 'user-1';
   const ORG_ID = 'org-1';
@@ -72,6 +76,7 @@ describe('ProductsService — Tax Precedence', () => {
       prismaMock as never,
       cloudinaryServiceMock as never,
       settingsServiceMock as never,
+      planLimitServiceMock as never,
     );
   });
 
@@ -90,7 +95,7 @@ describe('ProductsService — Tax Precedence', () => {
     };
 
     it('uses explicit taxRate when provided — ignores category default and settings', async () => {
-      prismaMock.category.findUnique.mockResolvedValue(categoryWithDefault(16));
+      prismaMock.category.findFirst.mockResolvedValue(categoryWithDefault(16));
       prismaMock.product.findUnique.mockResolvedValue(null); // no SKU/barcode conflict
       prismaMock.product.create.mockResolvedValue(
         buildProduct({ taxRate: 8, category: categoryWithDefault(16) }),
@@ -116,7 +121,7 @@ describe('ProductsService — Tax Precedence', () => {
     });
 
     it('falls back to category defaultTaxRate when product has no override', async () => {
-      prismaMock.category.findUnique.mockResolvedValue(categoryWithDefault(16));
+      prismaMock.category.findFirst.mockResolvedValue(categoryWithDefault(16));
       prismaMock.product.findUnique.mockResolvedValue(null);
       prismaMock.product.create.mockResolvedValue(
         buildProduct({ taxRate: 16, category: categoryWithDefault(16) }),
@@ -149,7 +154,7 @@ describe('ProductsService — Tax Precedence', () => {
     });
 
     it('falls back to settings taxRate when category has no defaultTaxRate', async () => {
-      prismaMock.category.findUnique.mockResolvedValue(
+      prismaMock.category.findFirst.mockResolvedValue(
         categoryWithDefault(null),
       );
       prismaMock.product.findUnique.mockResolvedValue(null);
@@ -182,7 +187,7 @@ describe('ProductsService — Tax Precedence', () => {
     });
 
     it('falls back to settings when category defaultTaxRate is zero', async () => {
-      prismaMock.category.findUnique.mockResolvedValue(categoryWithDefault(0));
+      prismaMock.category.findFirst.mockResolvedValue(categoryWithDefault(0));
       prismaMock.product.findUnique.mockResolvedValue(null);
       prismaMock.product.create.mockResolvedValue(
         buildProduct({ taxRate: 19, category: categoryWithDefault(0) }),
@@ -212,7 +217,7 @@ describe('ProductsService — Tax Precedence', () => {
     });
 
     it('throws NotFoundException when category does not exist', async () => {
-      prismaMock.category.findUnique.mockResolvedValue(null);
+      prismaMock.category.findFirst.mockResolvedValue(null);
 
       await expect(
         service.create(
@@ -232,7 +237,7 @@ describe('ProductsService — Tax Precedence', () => {
     });
 
     it('throws ConflictException when SKU already exists', async () => {
-      prismaMock.category.findUnique.mockResolvedValue(categoryWithDefault(16));
+      prismaMock.category.findFirst.mockResolvedValue(categoryWithDefault(16));
       prismaMock.product.findUnique.mockResolvedValue({ id: 'existing' });
 
       await expect(
@@ -361,7 +366,7 @@ describe('ProductsService — Tax Precedence', () => {
   describe('Category Reassignment', () => {
     it('applies new category default when product has no override — via create', async () => {
       // Product created without explicit taxRate in category with default 10
-      prismaMock.category.findUnique.mockResolvedValue(categoryWithDefault(10));
+      prismaMock.category.findFirst.mockResolvedValue(categoryWithDefault(10));
       prismaMock.product.findUnique.mockResolvedValue(null);
       prismaMock.product.create.mockResolvedValue(
         buildProduct({ taxRate: 10, category: categoryWithDefault(10) }),
@@ -454,7 +459,7 @@ describe('ProductsService — Tax Precedence', () => {
   // ════════════════════════════════════════════════════════════════════
   describe('Precedence consistency', () => {
     it('enrichWithEffectiveTax returns stored taxRate as effectiveTaxRate (create+read match)', async () => {
-      prismaMock.category.findUnique.mockResolvedValue(categoryWithDefault(16));
+      prismaMock.category.findFirst.mockResolvedValue(categoryWithDefault(16));
       prismaMock.product.findUnique.mockResolvedValue(null);
       prismaMock.product.create.mockResolvedValue(
         buildProduct({ taxRate: 16, category: categoryWithDefault(16) }),

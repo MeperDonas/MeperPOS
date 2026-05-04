@@ -120,14 +120,14 @@ async function createDemoOrg(
   return { orgId: org.id, adminUserId: adminUser.id };
 }
 
-async function createDemoUsers(orgId: string, count: number): Promise<string[]> {
+async function createDemoUsers(orgId: string, slug: string, count: number): Promise<string[]> {
   const userIds: string[] = [];
 
   for (let i = 0; i < count; i++) {
     const password = await bcrypt.hash('cajero123', 10);
     const user = await prisma.user.create({
       data: {
-        email: `cajero${i + 1}@${faker.internet.domainName()}`.toLowerCase(),
+        email: `cajero${i + 1}@${slug}.com`.toLowerCase(),
         password,
         name: faker.person.fullName(),
         tokenVersion: 0,
@@ -138,7 +138,7 @@ async function createDemoUsers(orgId: string, count: number): Promise<string[]> 
       data: {
         organizationId: orgId,
         userId: user.id,
-        role: OrgRole.MEMBER,
+        role: OrgRole.CASHIER,
       },
     });
 
@@ -356,7 +356,7 @@ async function seedDemoOrganization(
 
   // Usuarios adicionales (miembros)
   const memberCount = plan === PlanType.PRO ? 5 : 3;
-  const memberIds = await createDemoUsers(orgId, memberCount);
+  const memberIds = await createDemoUsers(orgId, slug, memberCount);
   const allUserIds = [adminUserId, ...memberIds];
 
   // Categorías

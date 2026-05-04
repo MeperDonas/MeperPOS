@@ -16,6 +16,9 @@ describe('JwtStrategy', () => {
     organizationUser: {
       findFirst: jest.fn(),
     },
+    organization: {
+      findUnique: jest.fn(),
+    },
   };
 
   const mockConfigService = {
@@ -110,6 +113,9 @@ describe('JwtStrategy', () => {
         organizationId: 'org-1',
         role: OrgRole.ADMIN,
       });
+      mockPrisma.organization.findUnique.mockResolvedValue({
+        status: 'ACTIVE',
+      });
 
       const result = await strategy.validate(payload);
 
@@ -120,6 +126,7 @@ describe('JwtStrategy', () => {
         role: OrgRole.ADMIN,
         tokenVersion: 1,
         isSuperAdmin: false,
+        orgStatus: 'ACTIVE',
       });
 
       expect(mockPrisma.organizationUser.findFirst).toHaveBeenCalledWith({
@@ -130,7 +137,7 @@ describe('JwtStrategy', () => {
       });
     });
 
-    it('should use role from OrganizationUser when it differs from payload', async () => {
+    it('should preserve MEMBER role without mapping', async () => {
       mockPrisma.user.findUnique.mockResolvedValue({
         id: 'user-1',
         email: 'test@example.com',
@@ -143,10 +150,14 @@ describe('JwtStrategy', () => {
         organizationId: 'org-1',
         role: OrgRole.MEMBER,
       });
+      mockPrisma.organization.findUnique.mockResolvedValue({
+        status: 'ACTIVE',
+      });
 
       const result = await strategy.validate(payload);
 
       expect(result.role).toBe(OrgRole.MEMBER);
+      expect(result.orgStatus).toBe('ACTIVE');
     });
 
     it('should bypass org lookup for SuperAdmin', async () => {

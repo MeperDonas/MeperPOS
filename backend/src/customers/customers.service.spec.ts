@@ -14,9 +14,16 @@ describe('CustomersService', () => {
     },
   };
 
+  const planLimitServiceMock = {
+    invalidateCache: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new CustomersService(prismaMock as never);
+    service = new CustomersService(
+      prismaMock as never,
+      planLimitServiceMock as never,
+    );
   });
 
   describe('findAll', () => {
@@ -97,7 +104,7 @@ describe('CustomersService', () => {
   });
 
   describe('findByDocumentNumber', () => {
-    it('returns customer scoped to organization', async () => {
+    it('returns active customer scoped to organization', async () => {
       prismaMock.customer.findFirst.mockResolvedValue({
         id: 'c1',
         documentNumber: '123',
@@ -106,7 +113,7 @@ describe('CustomersService', () => {
       const result = await service.findByDocumentNumber('123', orgId);
 
       expect(prismaMock.customer.findFirst).toHaveBeenCalledWith({
-        where: { documentNumber: '123', organizationId: orgId },
+        where: { documentNumber: '123', organizationId: orgId, active: true },
       });
       expect(result).toEqual(expect.objectContaining({ id: 'c1' }));
     });

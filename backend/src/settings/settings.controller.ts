@@ -14,6 +14,7 @@ import {
   ApiBearerAuth,
   ApiConsumes,
 } from '@nestjs/swagger';
+import { OrgRole } from '@prisma/client';
 import { SettingsService } from './settings.service';
 import { UpdateSettingsDto } from './dto/settings.dto';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
@@ -31,20 +32,21 @@ export class SettingsController {
   constructor(private settingsService: SettingsService) {}
 
   @Get()
-  @Roles('ADMIN')
+  @Roles(OrgRole.ADMIN)
   @ApiOperation({ summary: 'Get current system settings' })
   async getSettings(@CurrentUser() user: RequestUser) {
     return this.settingsService.find(user.organizationId!);
   }
 
   @Get('default')
+  @Roles(OrgRole.ADMIN)
   @ApiOperation({ summary: 'Get default settings values' })
   getDefaultSettings() {
     return this.settingsService.getDefaultSettings();
   }
 
   @Put()
-  @Roles('ADMIN')
+  @Roles(OrgRole.ADMIN)
   @ApiOperation({ summary: 'Update system settings' })
   async updateSettings(
     @Body() updateSettingsDto: UpdateSettingsDto,
@@ -54,7 +56,7 @@ export class SettingsController {
   }
 
   @Post('logo')
-  @Roles('ADMIN')
+  @Roles(OrgRole.ADMIN)
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload company logo' })

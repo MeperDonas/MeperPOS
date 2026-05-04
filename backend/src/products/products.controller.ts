@@ -33,16 +33,19 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { PlanLimitGuard } from '../plan-limits/plan-limits.guard';
+import { PlanLimit } from '../plan-limits/plan-limits.decorator';
 
 @ApiTags('Products')
 @Controller('products')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PlanLimitGuard)
 export class ProductsController {
   constructor(private productsService: ProductsService) {}
 
   @Post()
   @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+  @PlanLimit('products')
   @UseInterceptors(AuditInterceptor)
   @AuditAction('PRODUCT_CREATE')
   @ApiOperation({ summary: 'Create a new product' })

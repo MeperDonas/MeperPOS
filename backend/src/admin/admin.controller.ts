@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -30,7 +38,10 @@ export class AdminController {
   }
 
   @Patch('organizations/:id/status')
-  updateStatus(@Param('id') id: string, @Body() dto: UpdateOrganizationStatusDto) {
+  updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrganizationStatusDto,
+  ) {
     return this.adminService.updateStatus(id, dto);
   }
 

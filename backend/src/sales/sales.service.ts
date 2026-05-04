@@ -20,6 +20,7 @@ import { SettingsService } from '../settings/settings.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { SequenceService } from '../common/sequences/sequence.service';
+import { PLAN_LIMITS } from '../plan-limits/plan-limits.constants';
 
 interface SaleItem {
   taxRate: unknown;
@@ -87,8 +88,8 @@ export class SalesService {
     }> = [];
 
     for (const item of items) {
-      const product = await this.prisma.product.findUnique({
-        where: { id: item.productId },
+      const product = await this.prisma.product.findFirst({
+        where: { id: item.productId, organizationId },
         include: { category: true },
       });
 
@@ -158,8 +159,8 @@ export class SalesService {
     const change = cashPaid > total ? cashPaid - total : null;
 
     if (customerId) {
-      const customer = await this.prisma.customer.findUnique({
-        where: { id: customerId },
+      const customer = await this.prisma.customer.findFirst({
+        where: { id: customerId, organizationId },
       });
       if (!customer) {
         throw new NotFoundException('Customer not found');
@@ -226,8 +227,8 @@ export class SalesService {
               );
             }
 
-            const productAfterUpdate = await tx.product.findUnique({
-              where: { id: saleItem.productId },
+            const productAfterUpdate = await tx.product.findFirst({
+              where: { id: saleItem.productId, organizationId },
               select: { stock: true },
             });
 
@@ -469,8 +470,11 @@ export class SalesService {
     if (updateSaleDto.status === 'CANCELLED') {
       await this.prisma.$transaction(async (tx) => {
         for (const item of existingSale.items) {
-          const product = await tx.product.findUnique({
-            where: { id: item.productId },
+          const product = await tx.product.findFirst({
+            where: {
+              id: item.productId,
+              organizationId: existingSale.organizationId,
+            },
           });
 
           if (product) {
@@ -518,6 +522,55 @@ export class SalesService {
         data: { status: updateSaleDto.status },
       });
     }
+
+    return this.findOne(id, organizationId);
+  }
+
+  /**
+   * Force-closes an OPEN sale. Currently disabled because the application
+   * does not support creating sales with status OPEN (all sales are created
+   * as COMPLETED). This method is preserved for future use when open-sale
+   * workflows are implemented.
+   */
+  async forceClose(id: string, organizationId: string, reason?: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { plan: true },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    if (!['BASIC', 'PRO'].includes(organization.plan)) {
+      throw new BadRequestException('Invalid organization plan');
+    }
+
+    if (!PLAN_LIMITS[organization.plan].hasForceClose) {
+      throw new ForbiddenException('Force close is only available on PRO plan');
+    }
+
+    const sale = await this.prisma.sale.findFirst({
+      where: { id, organizationId },
+    });
+
+    if (!sale) {
+      throw new NotFoundException('Sale not found');
+    }
+
+    if ((sale.status as string) !== 'OPEN') {
+      throw new BadRequestException('Only open sales can be force closed');
+    }
+
+    await this.prisma.sale.update({
+      where: { id },
+      data: {
+        status: 'CLOSED' as never,
+        ...(reason ? { cancelReason: reason } : {}),
+      },
+    });
+
+    this.cache.clear('dashboard:');
 
     return this.findOne(id, organizationId);
   }

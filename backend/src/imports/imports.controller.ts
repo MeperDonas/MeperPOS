@@ -20,6 +20,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { OrgRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -36,14 +37,14 @@ export class ImportsController {
   constructor(private readonly importsService: ImportsService) {}
 
   @Get('products/template')
-  @Roles('ADMIN', 'MEMBER')
+  @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Download products import template' })
   async downloadTemplate(@Res() res: any): Promise<void> {
     return this.importsService.downloadTemplate(res);
   }
 
   @Post('products')
-  @Roles('ADMIN', 'MEMBER')
+  @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -79,7 +80,7 @@ export class ImportsController {
   }
 
   @Get(':jobId/status')
-  @Roles('ADMIN', 'MEMBER')
+  @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Get import job status for polling' })
   getImportStatus(
     @Param('jobId') jobId: string,
@@ -89,7 +90,7 @@ export class ImportsController {
   }
 
   @Post(':jobId/retry-row')
-  @Roles('ADMIN', 'MEMBER')
+  @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Retry a failed row with corrected data' })
   retryImportRow(
     @Param('jobId') jobId: string,

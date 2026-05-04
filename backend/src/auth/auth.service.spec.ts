@@ -20,6 +20,9 @@ describe('AuthService', () => {
     organizationUser: {
       findFirst: jest.fn(),
     },
+    organization: {
+      findUnique: jest.fn(),
+    },
     refreshToken: {
       create: jest.fn(),
     },
@@ -139,6 +142,9 @@ describe('AuthService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       mockPrisma.organizationUser.findFirst.mockResolvedValue(mockOrgUser);
+      mockPrisma.organization.findUnique.mockResolvedValue({
+        status: 'ACTIVE',
+      });
       mockPrisma.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
 
       const result = await service.login({
@@ -172,6 +178,9 @@ describe('AuthService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       mockPrisma.organizationUser.findFirst.mockResolvedValue(mockOrgUser);
+      mockPrisma.organization.findUnique.mockResolvedValue({
+        status: 'ACTIVE',
+      });
       mockPrisma.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
 
       const result = await service.login(loginDto);
@@ -189,6 +198,9 @@ describe('AuthService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       mockPrisma.organizationUser.findFirst.mockResolvedValue(mockOrgUser);
+      mockPrisma.organization.findUnique.mockResolvedValue({
+        status: 'ACTIVE',
+      });
       mockPrisma.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
 
       await service.login(loginDto, '127.0.0.1', 'Mozilla/5.0');

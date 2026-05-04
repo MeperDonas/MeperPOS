@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/Button";
@@ -42,18 +43,18 @@ export default function AdminLayout({
           </div>
           <div className="flex items-center gap-4">
             <nav className="flex gap-2">
-              <a
+              <Link
                 href="/admin"
                 className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 Dashboard
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/admin/organizations"
                 className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 Organizaciones
-              </a>
+              </Link>
             </nav>
             <div className="flex items-center gap-2 border-l border-border pl-4">
               <User className="h-4 w-4 text-muted-foreground" />

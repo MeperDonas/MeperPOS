@@ -1,4 +1,10 @@
-import { Injectable, ConflictException, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,102 +12,108 @@ import { AuthService } from '../auth/auth.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationStatusDto } from './dto/update-organization-status.dto';
 import { UpdateOrganizationPlanDto } from './dto/update-organization-plan.dto';
-import { OrgRole, OrgStatus, PlanType } from '@prisma/client';
+import { OrgRole, OrgStatus, PlanType, Prisma } from '@prisma/client';
+import { PlanLimitService } from '../plan-limits/plan-limits.service';
+import { PLAN_LIMITS, LimitType } from '../plan-limits/plan-limits.constants';
 
 @Injectable()
 export class AdminService {
   constructor(
     private prisma: PrismaService,
     private authService: AuthService,
+    private planLimitService: PlanLimitService,
   ) {}
 
   async createOrganization(dto: CreateOrganizationDto) {
-    const existingOrg = await this.prisma.organization.findFirst({
-      where: { slug: dto.slug },
-    });
-
-    if (existingOrg) {
-      throw new ConflictException('Organization slug already exists');
-    }
-
-    let adminUser: { id: string; email: string; name: string } | null = null;
-    let tempPassword: string | null = null;
-
-    if (dto.admin) {
-      const existingUser = await this.prisma.user.findUnique({
-        where: { email: dto.admin.email },
+    return this.prisma.$transaction(async (tx) => {
+      const existingOrg = await tx.organization.findFirst({
+        where: { slug: dto.slug },
       });
 
-      if (existingUser) {
-        adminUser = existingUser;
-      } else {
-        tempPassword = dto.admin.password || crypto.randomBytes(8).toString('hex');
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+      if (existingOrg) {
+        throw new ConflictException('Organization slug already exists');
+      }
 
-        adminUser = await this.prisma.user.create({
+      let adminUser: { id: string; email: string; name: string } | null = null;
+      let tempPassword: string | null = null;
+
+      if (dto.admin) {
+        const existingUser = await tx.user.findUnique({
+          where: { email: dto.admin.email },
+        });
+
+        if (existingUser) {
+          adminUser = existingUser;
+        } else {
+          tempPassword =
+            dto.admin.password || crypto.randomBytes(8).toString('hex');
+          const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+          adminUser = await tx.user.create({
+            data: {
+              email: dto.admin.email,
+              name: dto.admin.name,
+              password: hashedPassword,
+            },
+          });
+        }
+      }
+
+      const organization = await tx.organization.create({
+        data: {
+          name: dto.name,
+          slug: dto.slug,
+          plan: dto.plan ?? PlanType.BASIC,
+        },
+      });
+
+      if (adminUser) {
+        await tx.organizationUser.create({
           data: {
-            email: dto.admin.email,
-            name: dto.admin.name,
-            password: hashedPassword,
+            userId: adminUser.id,
+            organizationId: organization.id,
+            role: OrgRole.ADMIN,
+            isPrimaryOwner: true,
           },
         });
       }
-    }
 
-    const organization = await this.prisma.organization.create({
-      data: {
-        name: dto.name,
-        slug: dto.slug,
-        plan: dto.plan ?? PlanType.BASIC,
-      },
-    });
+      await tx.organizationSequence.createMany({
+        data: [
+          {
+            organizationId: organization.id,
+            type: 'SALE',
+            currentNumber: 0,
+          },
+          {
+            organizationId: organization.id,
+            type: 'PO',
+            currentNumber: 0,
+          },
+        ],
+      });
 
-    if (adminUser) {
-      await this.prisma.organizationUser.create({
+      await tx.cashRegister.create({
         data: {
-          userId: adminUser.id,
           organizationId: organization.id,
-          role: OrgRole.ADMIN,
-          isPrimaryOwner: true,
+          name: 'Caja Principal',
+          isDefault: true,
         },
       });
-    }
 
-    await this.prisma.organizationSequence.createMany({
-      data: [
-        {
-          organizationId: organization.id,
-          type: 'SALE',
-          currentNumber: 0,
-        },
-        {
-          organizationId: organization.id,
-          type: 'PO',
-          currentNumber: 0,
-        },
-      ],
+      return {
+        organization,
+        adminUser: adminUser
+          ? { id: adminUser.id, email: adminUser.email, name: adminUser.name }
+          : undefined,
+        tempPassword: tempPassword ?? undefined,
+        message: adminUser
+          ? tempPassword
+            ? 'Organization created successfully with a new admin user. Temporary password provided.'
+            : 'Organization created successfully. Existing user assigned as admin.'
+          : 'Organization created successfully. No admin assigned.',
+      };
     });
-
-    await this.prisma.cashRegister.create({
-      data: {
-        organizationId: organization.id,
-        name: 'Caja Principal',
-        isDefault: true,
-      },
-    });
-
-    return {
-      organization,
-      adminUser: adminUser
-        ? { id: adminUser.id, email: adminUser.email, name: adminUser.name }
-        : undefined,
-      tempPassword: tempPassword ?? undefined,
-      message: adminUser
-        ? tempPassword
-          ? 'Organization created successfully with a new admin user. Temporary password provided.'
-          : 'Organization created successfully. Existing user assigned as admin.'
-        : 'Organization created successfully. No admin assigned.',
-    };
   }
 
   async findAllOrganizations() {
@@ -178,10 +190,64 @@ export class AdminService {
       throw new NotFoundException('Organization not found');
     }
 
+    const existingSettings =
+      organization.settings && typeof organization.settings === 'object'
+        ? (organization.settings as Record<string, unknown>)
+        : {};
+
+    const data: {
+      plan: PlanType;
+      settings?: Prisma.InputJsonValue;
+    } = { plan: dto.plan };
+
+    if (organization.plan === PlanType.PRO && dto.plan === PlanType.BASIC) {
+      const downgradeFlags = await this.calculateDowngradeFlags(id);
+      data.settings = {
+        ...existingSettings,
+        downgradeFlags,
+      } as Prisma.InputJsonObject;
+    }
+
     return this.prisma.organization.update({
       where: { id },
-      data: { plan: dto.plan },
+      data,
     });
+  }
+
+  private async calculateDowngradeFlags(organizationId: string) {
+    const basicLimits = PLAN_LIMITS.BASIC;
+    const limitTypes: LimitType[] = [
+      'users',
+      'products',
+      'customers',
+      'cashRegisters',
+    ];
+
+    const counts = Object.fromEntries(
+      await Promise.all(
+        limitTypes.map(async (type) => [
+          type,
+          await this.planLimitService.count(type, organizationId),
+        ]),
+      ),
+    ) as Record<LimitType, number>;
+
+    const excessCashRegisters =
+      counts.cashRegisters > basicLimits.maxCashRegisters
+        ? await this.prisma.cashRegister.findMany({
+            where: { organizationId, active: true },
+            orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+            skip: basicLimits.maxCashRegisters,
+            select: { id: true },
+          })
+        : [];
+
+    return {
+      usersOverLimit: counts.users > basicLimits.maxUsers,
+      productsOverLimit: counts.products > basicLimits.maxProducts,
+      customersOverLimit: counts.customers > basicLimits.maxCustomers,
+      cashRegistersDisabled: excessCashRegisters.map((register) => register.id),
+    };
   }
 
   async transferPrimaryOwner(
@@ -190,7 +256,9 @@ export class AdminService {
     newOwnerId: string,
   ) {
     if (currentOwnerId === newOwnerId) {
-      throw new BadRequestException('Current owner and new owner must be different');
+      throw new BadRequestException(
+        'Current owner and new owner must be different',
+      );
     }
 
     const currentOwner = await this.prisma.organizationUser.findFirst({
@@ -202,7 +270,9 @@ export class AdminService {
     });
 
     if (!currentOwner) {
-      throw new ForbiddenException('Current user is not the primary owner of this organization');
+      throw new ForbiddenException(
+        'Current user is not the primary owner of this organization',
+      );
     }
 
     const newOwner = await this.prisma.organizationUser.findFirst({
@@ -214,7 +284,9 @@ export class AdminService {
     });
 
     if (!newOwner) {
-      throw new ForbiddenException('New owner must be an ADMIN member of this organization');
+      throw new ForbiddenException(
+        'New owner must be an ADMIN member of this organization',
+      );
     }
 
     await this.prisma.$transaction([
@@ -249,7 +321,9 @@ export class AdminService {
       this.prisma.organization.count(),
       this.prisma.organization.count({ where: { status: OrgStatus.ACTIVE } }),
       this.prisma.organization.count({ where: { status: OrgStatus.TRIAL } }),
-      this.prisma.organization.count({ where: { status: OrgStatus.SUSPENDED } }),
+      this.prisma.organization.count({
+        where: { status: OrgStatus.SUSPENDED },
+      }),
       this.prisma.user.count(),
       this.prisma.organization.groupBy({
         by: ['plan'],

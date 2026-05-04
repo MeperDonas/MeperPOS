@@ -9,6 +9,7 @@ import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { SettingsService } from '../settings/settings.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
+import { PlanLimitService } from '../plan-limits/plan-limits.service';
 
 @Injectable()
 export class ProductsService {
@@ -16,6 +17,7 @@ export class ProductsService {
     private prisma: PrismaService,
     private cloudinaryService: CloudinaryService,
     private settingsService: SettingsService,
+    private planLimitService: PlanLimitService,
   ) {}
 
   async create(
@@ -25,8 +27,8 @@ export class ProductsService {
   ) {
     const { sku, barcode, categoryId, taxRate, ...rest } = createProductDto;
 
-    const category = await this.prisma.category.findUnique({
-      where: { id: categoryId },
+    const category = await this.prisma.category.findFirst({
+      where: { id: categoryId, organizationId },
     });
 
     if (!category) {
@@ -77,6 +79,8 @@ export class ProductsService {
       },
       include: { category: true },
     });
+
+    this.planLimitService.invalidateCache('products', organizationId);
 
     await this.createInventoryMovement(
       product.id,

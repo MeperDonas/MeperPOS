@@ -4,11 +4,15 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PlanLimitService } from '../plan-limits/plan-limits.service';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 
 @Injectable()
 export class CustomersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private planLimitService: PlanLimitService,
+  ) {}
 
   async create(createCustomerDto: CreateCustomerDto, organizationId: string) {
     const { documentNumber } = createCustomerDto;
@@ -23,9 +27,13 @@ export class CustomersService {
       );
     }
 
-    return this.prisma.customer.create({
+    const customer = await this.prisma.customer.create({
       data: { ...createCustomerDto, organizationId },
     });
+
+    this.planLimitService.invalidateCache('customers', organizationId);
+
+    return customer;
   }
 
   async findAll(
@@ -93,7 +101,7 @@ export class CustomersService {
 
   async findByDocumentNumber(documentNumber: string, organizationId: string) {
     const customer = await this.prisma.customer.findFirst({
-      where: { documentNumber, organizationId },
+      where: { documentNumber, organizationId, active: true },
     });
 
     return customer;

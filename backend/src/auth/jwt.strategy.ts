@@ -64,16 +64,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Organization membership not found');
     }
 
-    // Mapear OWNER (legacy) a ADMIN para compatibilidad
-    const role = orgUser.role === 'OWNER' ? 'ADMIN' : orgUser.role;
+    // Fetch organization status for status guard
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: orgUser.organizationId },
+      select: { status: true },
+    });
 
     return {
       userId: payload.sub,
       email: payload.email,
       organizationId: orgUser.organizationId,
-      role,
+      role: orgUser.role,
       tokenVersion: payload.tokenVersion,
       isSuperAdmin: false,
+      orgStatus: organization?.status,
     };
   }
 }

@@ -926,6 +926,21 @@ Al CREAR: si se supera el límite, devuelve `warning: 'PLAN_LIMIT_REACHED'` con 
 - **SUSPENDED:** Readonly por 5 años (Estatuto Tributario colombiano). Después de 5 años, se puede purgar.
 - **Revocación JWT:** Al suspender, `revokeAllUserTokens()` para todos los usuarios de la org.
 
+### 3.4 Endpoints de Billing (implementados)
+
+**Endpoints de organización (requieren JWT con org seleccionada):**
+```
+GET  /billing/status    → Estado de billing de la org activa
+GET  /billing/payments  → Historial de pagos de la org activa
+```
+
+**Endpoints de administración (requieren SUPER_ADMIN):**
+```
+POST /billing/payments  → Registrar un pago manual (reactiva org si está PAST_DUE)
+```
+
+> **Nota de implementación:** Los endpoints de pago quedaron bajo el prefijo `/billing/payments` en lugar del prefijo `/payment-records` originalmente especificado.
+
 ### Archivos Fase 3
 
 | Acción | Ruta |

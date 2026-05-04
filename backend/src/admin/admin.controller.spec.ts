@@ -47,7 +47,9 @@ describe('AdminController', () => {
     const guard = new RolesGuard(new Reflector());
 
     expect(
-      guard.canActivate(createContext(controller.getMetrics, 'SUPER_ADMIN', true)),
+      guard.canActivate(
+        createContext(controller.getMetrics, 'SUPER_ADMIN', true),
+      ),
     ).toBe(true);
   });
 
@@ -82,7 +84,9 @@ describe('AdminController', () => {
 
     adminServiceMock.findOrganizationById.mockResolvedValue(expected);
 
-    await expect(controller.findOrganizationById('org-1')).resolves.toEqual(expected);
+    await expect(controller.findOrganizationById('org-1')).resolves.toEqual(
+      expected,
+    );
     expect(adminServiceMock.findOrganizationById).toHaveBeenCalledWith('org-1');
   });
 
@@ -93,7 +97,9 @@ describe('AdminController', () => {
 
     adminServiceMock.updateStatus.mockResolvedValue(expected);
 
-    await expect(controller.updateStatus('org-1', dto)).resolves.toEqual(expected);
+    await expect(controller.updateStatus('org-1', dto)).resolves.toEqual(
+      expected,
+    );
     expect(adminServiceMock.updateStatus).toHaveBeenCalledWith('org-1', dto);
   });
 
@@ -104,7 +110,9 @@ describe('AdminController', () => {
 
     adminServiceMock.updatePlan.mockResolvedValue(expected);
 
-    await expect(controller.updatePlan('org-1', dto)).resolves.toEqual(expected);
+    await expect(controller.updatePlan('org-1', dto)).resolves.toEqual(
+      expected,
+    );
     expect(adminServiceMock.updatePlan).toHaveBeenCalledWith('org-1', dto);
   });
 

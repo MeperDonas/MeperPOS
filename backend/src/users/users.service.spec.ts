@@ -26,9 +26,16 @@ describe('UsersService', () => {
     },
   };
 
+  const planLimitServiceMock = {
+    invalidateCache: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new UsersService(prismaMock as never);
+    service = new UsersService(
+      prismaMock as never,
+      planLimitServiceMock as never,
+    );
   });
 
   it('creates users without returning password fields', async () => {

@@ -16,6 +16,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { OrgRole } from '@prisma/client';
 import { SalesService } from './sales.service';
 import {
   CreateSaleDto,
@@ -36,7 +37,7 @@ export class SalesController {
   constructor(private salesService: SalesService) {}
 
   @Post()
-  @Roles('ADMIN', 'MEMBER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Create a new sale' })
   create(
     @Body() createSaleDto: CreateSaleDto,
@@ -50,7 +51,7 @@ export class SalesController {
   }
 
   @Get()
-  @Roles('ADMIN', 'MEMBER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Get all sales with pagination' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 10 })
@@ -84,7 +85,7 @@ export class SalesController {
   }
 
   @Get('number/:saleNumber')
-  @Roles('ADMIN', 'MEMBER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Find sale by sale number' })
   findBySaleNumber(
     @Param('saleNumber') saleNumber: number,
@@ -94,14 +95,14 @@ export class SalesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'MEMBER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Get a sale by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.salesService.findOne(id, user.organizationId!, user);
   }
 
   @Put(':id')
-  @Roles('ADMIN')
+  @Roles(OrgRole.ADMIN)
   @ApiOperation({ summary: 'Update a sale' })
   update(
     @Param('id') id: string,
@@ -117,8 +118,19 @@ export class SalesController {
     );
   }
 
+  @Post(':id/force-close')
+  @Roles(OrgRole.ADMIN)
+  @ApiOperation({ summary: 'Force close an open sale (PRO plan only)' })
+  forceClose(
+    @Param('id') id: string,
+    @Body('reason') reason: string | undefined,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.salesService.forceClose(id, user.organizationId!, reason);
+  }
+
   @Post(':id/receipt')
-  @Roles('ADMIN', 'MEMBER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Generate sale receipt PDF' })
   generateReceipt(
     @Param('id') id: string,

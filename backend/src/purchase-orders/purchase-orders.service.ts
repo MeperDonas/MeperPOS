@@ -69,7 +69,10 @@ export class PurchaseOrdersService {
     );
   }
 
-  private async computeItems(items: CreatePurchaseOrderItemDto[]): Promise<{
+  private async computeItems(
+    items: CreatePurchaseOrderItemDto[],
+    organizationId: string,
+  ): Promise<{
     computed: ComputedItem[];
     subtotal: number;
     taxAmount: number;
@@ -80,8 +83,8 @@ export class PurchaseOrdersService {
     let taxAmount = 0;
 
     for (const item of items) {
-      const product = await this.prisma.product.findUnique({
-        where: { id: item.productId },
+      const product = await this.prisma.product.findFirst({
+        where: { id: item.productId, organizationId },
       });
       if (!product) {
         throw new NotFoundException(
@@ -124,8 +127,8 @@ export class PurchaseOrdersService {
     userId: string,
     organizationId: string,
   ) {
-    const supplier = await this.prisma.supplier.findUnique({
-      where: { id: dto.supplierId },
+    const supplier = await this.prisma.supplier.findFirst({
+      where: { id: dto.supplierId, organizationId },
     });
     if (!supplier) {
       throw new NotFoundException('Proveedor no encontrado');
@@ -136,6 +139,7 @@ export class PurchaseOrdersService {
 
     const { computed, subtotal, taxAmount, total } = await this.computeItems(
       dto.items,
+      organizationId,
     );
 
     const year = new Date().getFullYear();
@@ -302,8 +306,8 @@ export class PurchaseOrdersService {
     const supplierId = dto.supplierId ?? existing.supplierId;
 
     if (dto.supplierId) {
-      const supplier = await this.prisma.supplier.findUnique({
-        where: { id: dto.supplierId },
+      const supplier = await this.prisma.supplier.findFirst({
+        where: { id: dto.supplierId, organizationId },
       });
       if (!supplier) {
         throw new NotFoundException('Proveedor no encontrado');
@@ -316,6 +320,7 @@ export class PurchaseOrdersService {
     if (dto.items) {
       const { computed, subtotal, taxAmount, total } = await this.computeItems(
         dto.items,
+        organizationId,
       );
 
       await this.prisma.$transaction(async (tx) => {
@@ -447,8 +452,8 @@ export class PurchaseOrdersService {
           );
         }
 
-        const product = await tx.product.findUnique({
-          where: { id: item.productId },
+        const product = await tx.product.findFirst({
+          where: { id: item.productId, organizationId },
         });
         if (!product) {
           throw new NotFoundException(

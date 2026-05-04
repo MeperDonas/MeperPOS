@@ -1,4 +1,9 @@
-import { ConflictException, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { OrgRole, OrgStatus, PlanType } from '@prisma/client';
 
@@ -6,7 +11,12 @@ describe('AdminService', () => {
   let service: AdminService;
 
   const prismaMock = {
-    $transaction: jest.fn((ops: unknown[]) => Promise.resolve(ops)),
+    $transaction: jest.fn((arg: unknown) => {
+      if (typeof arg === 'function') {
+        return arg(prismaMock);
+      }
+      return Promise.resolve(arg);
+    }),
     organization: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -34,6 +44,7 @@ describe('AdminService', () => {
     },
     cashRegister: {
       create: jest.fn(),
+      findMany: jest.fn(),
     },
     refreshToken: {
       updateMany: jest.fn(),
@@ -44,11 +55,16 @@ describe('AdminService', () => {
     revokeOrganizationTokens: jest.fn(),
   };
 
+  const planLimitServiceMock = {
+    count: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     service = new AdminService(
       prismaMock as never,
       authServiceMock as never,
+      planLimitServiceMock as never,
     );
   });
 
@@ -68,7 +84,9 @@ describe('AdminService', () => {
         plan: PlanType.BASIC,
         status: OrgStatus.TRIAL,
       });
-      prismaMock.organizationSequence.createMany.mockResolvedValue({ count: 2 });
+      prismaMock.organizationSequence.createMany.mockResolvedValue({
+        count: 2,
+      });
       prismaMock.cashRegister.create.mockResolvedValue({
         id: 'cr-1',
         organizationId: 'org-1',
@@ -132,7 +150,9 @@ describe('AdminService', () => {
         plan: PlanType.BASIC,
         status: OrgStatus.TRIAL,
       });
-      prismaMock.organizationSequence.createMany.mockResolvedValue({ count: 2 });
+      prismaMock.organizationSequence.createMany.mockResolvedValue({
+        count: 2,
+      });
       prismaMock.cashRegister.create.mockResolvedValue({
         id: 'cr-1',
         organizationId: 'org-1',
@@ -214,7 +234,12 @@ describe('AdminService', () => {
         users: [
           {
             id: 'ou-1',
-            user: { id: 'user-1', email: 'a@example.com', name: 'A', active: true },
+            user: {
+              id: 'user-1',
+              email: 'a@example.com',
+              name: 'A',
+              active: true,
+            },
           },
         ],
         sequences: [{ id: 'seq-1', type: 'SALE', currentNumber: 0 }],
@@ -234,9 +259,9 @@ describe('AdminService', () => {
     it('throws NotFoundException if organization does not exist', async () => {
       prismaMock.organization.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOrganizationById('non-existent')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.findOrganizationById('non-existent'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
@@ -251,7 +276,9 @@ describe('AdminService', () => {
         status: OrgStatus.ACTIVE,
       });
 
-      const result = await service.updateStatus('org-1', { status: OrgStatus.ACTIVE });
+      const result = await service.updateStatus('org-1', {
+        status: OrgStatus.ACTIVE,
+      });
 
       expect(result.status).toBe(OrgStatus.ACTIVE);
       expect(authServiceMock.revokeOrganizationTokens).not.toHaveBeenCalled();
@@ -267,10 +294,14 @@ describe('AdminService', () => {
         status: OrgStatus.SUSPENDED,
       });
 
-      const result = await service.updateStatus('org-1', { status: OrgStatus.SUSPENDED });
+      const result = await service.updateStatus('org-1', {
+        status: OrgStatus.SUSPENDED,
+      });
 
       expect(result.status).toBe(OrgStatus.SUSPENDED);
-      expect(authServiceMock.revokeOrganizationTokens).toHaveBeenCalledWith('org-1');
+      expect(authServiceMock.revokeOrganizationTokens).toHaveBeenCalledWith(
+        'org-1',
+      );
     });
   });
 
@@ -296,6 +327,110 @@ describe('AdminService', () => {
       await expect(
         service.updatePlan('non-existent', { plan: PlanType.PRO }),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('sets downgradeFlags when downgrading PRO to BASIC', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        plan: PlanType.PRO,
+        settings: { someExisting: true },
+      });
+      prismaMock.organization.update.mockResolvedValue({
+        id: 'org-1',
+        plan: PlanType.BASIC,
+      });
+      planLimitServiceMock.count.mockImplementation((type: string) => {
+        const counts: Record<string, number> = {
+          users: 5,
+          products: 200,
+          customers: 60,
+          cashRegisters: 3,
+        };
+        return Promise.resolve(counts[type] ?? 0);
+      });
+      prismaMock.cashRegister.findMany.mockResolvedValue([
+        { id: 'cr-2' },
+        { id: 'cr-3' },
+      ]);
+
+      await service.updatePlan('org-1', { plan: PlanType.BASIC });
+
+      expect(prismaMock.organization.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            settings: expect.objectContaining({
+              someExisting: true,
+              downgradeFlags: expect.objectContaining({
+                usersOverLimit: true,
+                productsOverLimit: true,
+                customersOverLimit: true,
+                cashRegistersDisabled: ['cr-2', 'cr-3'],
+              }),
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('does not set downgradeFlags when upgrading BASIC to PRO', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        plan: PlanType.BASIC,
+        settings: {},
+      });
+      prismaMock.organization.update.mockResolvedValue({
+        id: 'org-1',
+        plan: PlanType.PRO,
+      });
+
+      await service.updatePlan('org-1', { plan: PlanType.PRO });
+
+      expect(prismaMock.organization.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.not.objectContaining({
+            settings: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it('sets no downgradeFlags when within BASIC limits', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        plan: PlanType.PRO,
+        settings: {},
+      });
+      prismaMock.organization.update.mockResolvedValue({
+        id: 'org-1',
+        plan: PlanType.BASIC,
+      });
+      planLimitServiceMock.count.mockImplementation((type: string) => {
+        const counts: Record<string, number> = {
+          users: 2,
+          products: 50,
+          customers: 30,
+          cashRegisters: 1,
+        };
+        return Promise.resolve(counts[type] ?? 0);
+      });
+      prismaMock.cashRegister.findMany.mockResolvedValue([]);
+
+      await service.updatePlan('org-1', { plan: PlanType.BASIC });
+
+      expect(prismaMock.organization.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            settings: expect.objectContaining({
+              downgradeFlags: expect.objectContaining({
+                usersOverLimit: false,
+                productsOverLimit: false,
+                customersOverLimit: false,
+                cashRegistersDisabled: [],
+              }),
+            }),
+          }),
+        }),
+      );
     });
   });
 

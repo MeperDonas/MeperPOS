@@ -628,7 +628,7 @@ export class ReportsService {
 
     const aggregateSales = (
       sales: Array<{
-        userId: string;
+        userId: string | null;
         total: unknown;
         customerId: string | null;
       }>,
@@ -636,6 +636,8 @@ export class ReportsService {
       const totalsByUser = new Map<string, UserAggregation>();
 
       for (const sale of sales) {
+        if (!sale.userId) continue; // Skip sales with deleted users
+
         const current = totalsByUser.get(sale.userId) ?? {
           salesCount: 0,
           revenue: 0,

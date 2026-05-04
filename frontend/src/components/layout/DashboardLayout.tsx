@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, memo } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { PlanLimitBanner } from "@/components/billing/PlanLimitBanner";
 
 type UserRole = "ADMIN" | "CASHIER" | "INVENTORY_USER" | "SUPER_ADMIN";
 
@@ -30,11 +31,12 @@ interface DashboardLayoutProps {
 export const DashboardLayout = memo(function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, loading, user, organization } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   const userRole = user?.role;
+  const organizationStatus = organization?.status;
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -46,7 +48,6 @@ export const DashboardLayout = memo(function DashboardLayout({
     if (loading || !isAuthenticated || !userRole) return;
 
     if (userRole === "SUPER_ADMIN") {
-      router.replace("/admin");
       return;
     }
 
@@ -77,10 +78,13 @@ export const DashboardLayout = memo(function DashboardLayout({
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" data-org-status={organizationStatus}>
       <Sidebar />
       <main className="px-4 pb-6 pt-20 lg:ml-64 lg:px-8 lg:pb-8 lg:pt-8">
-        <div className="mx-auto w-full max-w-[1500px]">{children}</div>
+        <div className="mx-auto w-full max-w-[1500px]">
+          <PlanLimitBanner />
+          {children}
+        </div>
       </main>
     </div>
   );
