@@ -325,7 +325,7 @@ export class PurchaseOrdersService {
 
       await this.prisma.$transaction(async (tx) => {
         await tx.purchaseOrderItem.deleteMany({
-          where: { purchaseOrderId: id },
+          where: { purchaseOrderId: id, organizationId },
         });
         for (const c of computed) {
           await tx.purchaseOrderItem.create({
@@ -342,7 +342,7 @@ export class PurchaseOrdersService {
           });
         }
         await tx.purchaseOrder.update({
-          where: { id },
+          where: { id, organizationId },
           data: {
             supplierId,
             notes: dto.notes,

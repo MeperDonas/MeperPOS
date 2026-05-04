@@ -18,6 +18,7 @@ import {
   RefreshTokenDto,
   SelectOrgDto,
 } from './dto/auth.dto';
+import { SelectOrganizationDto } from './dto/select-organization.dto';
 import { JwtAuthGuard } from './jwt.strategy';
 import { AuditAction } from '../common/decorators/audit.decorator';
 import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
@@ -43,6 +44,15 @@ export class AuthController {
       ? req.headers['user-agent'][0]
       : req.headers?.['user-agent'];
     return this.authService.login(loginDto, ipAddress, userAgent);
+  }
+
+  @Post('select-organization')
+  @ApiOperation({ summary: 'Select organization and complete login' })
+  async selectOrganization(@Body() dto: SelectOrganizationDto) {
+    return this.authService.selectOrganization(
+      dto.preAuthToken,
+      dto.organizationId,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

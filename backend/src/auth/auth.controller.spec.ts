@@ -8,6 +8,7 @@ describe('AuthController after users boundary centralization', () => {
     changePassword: jest.fn(),
     login: jest.fn(),
     selectOrg: jest.fn(),
+    selectOrganization: jest.fn(),
   };
 
   it('does not expose admin lifecycle endpoints anymore', () => {
@@ -56,6 +57,50 @@ describe('AuthController after users boundary centralization', () => {
         dto,
         '127.0.0.1',
         'Mozilla/5.0',
+      );
+      expect(result).toEqual(expected);
+    });
+
+    it('should return requiresOrganizationSelection when service returns it', async () => {
+      const controller = new AuthController(authServiceMock as never);
+      const dto = { email: 'test@example.com', password: 'password123' };
+      const req = {
+        ip: '127.0.0.1',
+        headers: { 'user-agent': 'Mozilla/5.0' },
+      } as unknown as Request;
+      const expected = {
+        requiresOrganizationSelection: true,
+        preAuthToken: 'pre-auth-token',
+        organizations: [
+          { id: 'org-1', name: 'Org One', role: 'ADMIN', plan: 'BASIC' },
+        ],
+      };
+
+      authServiceMock.login.mockResolvedValue(expected);
+
+      const result = await controller.login(dto, req as any);
+
+      expect(result).toEqual(expected);
+    });
+  });
+
+  describe('selectOrganization', () => {
+    it('should delegate to authService.selectOrganization with correct params', async () => {
+      const controller = new AuthController(authServiceMock as never);
+      const dto = { preAuthToken: 'pre-auth-token', organizationId: 'org-1' };
+      const expected = {
+        accessToken: 'new-token',
+        refreshToken: 'new-refresh',
+        user: { id: 'user-1', organizationId: 'org-1', role: OrgRole.ADMIN },
+      };
+
+      authServiceMock.selectOrganization.mockResolvedValue(expected);
+
+      const result = await controller.selectOrganization(dto);
+
+      expect(authServiceMock.selectOrganization).toHaveBeenCalledWith(
+        'pre-auth-token',
+        'org-1',
       );
       expect(result).toEqual(expected);
     });

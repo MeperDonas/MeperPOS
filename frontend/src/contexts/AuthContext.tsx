@@ -11,6 +11,7 @@ import {
 import { api } from "@/lib/api";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { OrganizationSelectModal } from "@/components/auth/OrganizationSelectModal";
 
 export interface User {
   id: string;
@@ -31,6 +32,11 @@ export interface Organization {
   billingStatus: "PENDING" | "PAID" | "OVERDUE";
 }
 
+interface PendingOrganizationSelection {
+  preAuthToken: string;
+  organizations: Array<{ id: string; name: string; role: string; plan: string }>;
+}
+
 interface AuthContextType {
   user: User | null;
   organization: Organization | null;
@@ -38,6 +44,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  needsOrganizationSelection: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,6 +52,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingSelection, setPendingSelection] =
+    useState<PendingOrganizationSelection | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -77,19 +86,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (email: string, password: string) => {
       try {
-        const response = await api.post<{ accessToken: string }>("/auth/login", {
+        const response = await api.post<
+          | { accessToken: string; refreshToken: string; user: User }
+          | {
+              requiresOrganizationSelection: true;
+              preAuthToken: string;
+              organizations: Array<{
+                id: string;
+                name: string;
+                role: string;
+                plan: string;
+              }>;
+            }
+        >("/auth/login", {
           email,
           password,
         });
 
-        const token = response.data.accessToken;
+        const data = response.data;
+
+        if ("requiresOrganizationSelection" in data) {
+          setPendingSelection({
+            preAuthToken: data.preAuthToken,
+            organizations: data.organizations,
+          });
+          return;
+        }
+
+        const token = data.accessToken;
         safeSetItem("token", token);
+        safeSetItem("refreshToken", data.refreshToken);
 
-        const profileResponse = await api.get<User>("/auth/profile");
-        setUser(profileResponse.data);
-        safeSetItem("user", JSON.stringify(profileResponse.data));
+        setUser(data.user);
+        safeSetItem("user", JSON.stringify(data.user));
 
-        if (profileResponse.data.role === "SUPER_ADMIN") {
+        if (data.user.role === "SUPER_ADMIN") {
           router.push("/admin");
         } else {
           router.push("/dashboard");
@@ -102,13 +133,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [router]
   );
 
+  const selectOrganization = useCallback(
+    async (organizationId: string) => {
+      if (!pendingSelection) return;
+
+      const response = await api.post<{
+        accessToken: string;
+        refreshToken: string;
+        user: User;
+      }>("/auth/select-organization", {
+        preAuthToken: pendingSelection.preAuthToken,
+        organizationId,
+      });
+
+      const { accessToken, refreshToken, user: selectedUser } = response.data;
+
+      safeSetItem("token", accessToken);
+      safeSetItem("refreshToken", refreshToken);
+      setUser(selectedUser);
+      safeSetItem("user", JSON.stringify(selectedUser));
+      setPendingSelection(null);
+
+      if (selectedUser.role === "SUPER_ADMIN") {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
+    },
+    [pendingSelection, router]
+  );
+
   const logout = useCallback(() => {
     safeRemoveItem("token");
+    safeRemoveItem("refreshToken");
     safeRemoveItem("user");
     setUser(null);
+    setPendingSelection(null);
     router.push("/login");
   }, [router]);
-
 
   const value = useMemo(
     () => ({
@@ -118,12 +180,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       logout,
       isAuthenticated: !!user,
+      needsOrganizationSelection: !!pendingSelection,
     }),
-    [user, loading, login, logout]
+    [user, loading, login, logout, pendingSelection]
   );
 
   return (
-    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={value}>
+      {children}
+      {pendingSelection && (
+        <OrganizationSelectModal
+          organizations={pendingSelection.organizations}
+          onSelect={selectOrganization}
+        />
+      )}
+    </AuthContext.Provider>
   );
 }
 

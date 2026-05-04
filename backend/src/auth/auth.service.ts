@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -76,11 +77,9 @@ export class AuthService {
       );
     }
 
-    let orgUser;
-    let targetOrgId: string | null = null;
-
+    // If organizationId is explicitly provided, validate membership directly
     if (organizationId) {
-      orgUser = await this.prisma.organizationUser.findFirst({
+      const orgUser = await this.prisma.organizationUser.findFirst({
         where: {
           userId: user.id,
           organizationId,
@@ -90,36 +89,122 @@ export class AuthService {
       if (!orgUser) {
         throw new UnauthorizedException('Organization membership not found');
       }
-      targetOrgId = organizationId;
-    } else {
-      orgUser = await this.prisma.organizationUser.findFirst({
-        where: {
-          userId: user.id,
-        },
-        orderBy: {
-          joinedAt: 'asc',
-        },
-      });
 
-      if (!orgUser) {
-        throw new UnauthorizedException('User has no organizations');
-      }
-      targetOrgId = orgUser.organizationId;
-    }
-
-    // Check organization status
-    if (targetOrgId) {
       const org = await this.prisma.organization.findUnique({
-        where: { id: targetOrgId },
+        where: { id: organizationId },
         select: { status: true },
       });
 
       if (org?.status === OrgStatus.SUSPENDED) {
         throw new UnauthorizedException('Organization is suspended');
       }
+
+      return this.generateTokenPair(user, orgUser, ipAddress, userAgent);
     }
 
-    return this.generateTokenPair(user, orgUser, ipAddress, userAgent);
+    // No organizationId provided — count user's organizations
+    const userOrgs = await this.prisma.organizationUser.findMany({
+      where: { userId: user.id },
+      orderBy: { joinedAt: 'asc' },
+      include: {
+        organization: {
+          select: { id: true, name: true, plan: true, status: true },
+        },
+      },
+    });
+
+    if (userOrgs.length === 0) {
+      throw new UnauthorizedException('User has no organizations');
+    }
+
+    if (userOrgs.length === 1) {
+      const orgUser = userOrgs[0];
+
+      if (orgUser.organization.status === OrgStatus.SUSPENDED) {
+        throw new UnauthorizedException('Organization is suspended');
+      }
+
+      return this.generateTokenPair(
+        user,
+        {
+          organizationId: orgUser.organizationId,
+          role: orgUser.role,
+        },
+        ipAddress,
+        userAgent,
+      );
+    }
+
+    // 2+ organizations — require selection
+    const preAuthToken = this.jwtService.sign(
+      {
+        sub: user.id,
+        email: user.email,
+        type: 'pre-auth',
+      },
+      { expiresIn: '5m' },
+    );
+
+    return {
+      requiresOrganizationSelection: true,
+      preAuthToken,
+      organizations: userOrgs.map((uo) => ({
+        id: uo.organizationId,
+        name: uo.organization.name,
+        role: uo.role,
+        plan: uo.organization.plan,
+      })),
+    };
+  }
+
+  async selectOrganization(preAuthToken: string, organizationId: string) {
+    let payload: { sub: string; email: string; type: string };
+
+    try {
+      payload = this.jwtService.verify(preAuthToken);
+    } catch {
+      throw new UnauthorizedException('Invalid pre-authentication token');
+    }
+
+    if (payload.type !== 'pre-auth') {
+      throw new UnauthorizedException('Invalid pre-authentication token');
+    }
+
+    const userId = payload.sub;
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.active) {
+      throw new UnauthorizedException('User not found or inactive');
+    }
+
+    const orgUser = await this.prisma.organizationUser.findFirst({
+      where: {
+        userId,
+        organizationId,
+      },
+    });
+
+    if (!orgUser) {
+      throw new UnauthorizedException('Organization membership not found');
+    }
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { status: true, name: true, plan: true },
+    });
+
+    if (!org) {
+      throw new UnauthorizedException('Organization not found');
+    }
+
+    if (org.status === OrgStatus.SUSPENDED) {
+      throw new ForbiddenException('Organization is suspended');
+    }
+
+    return this.generateTokenPair(user, orgUser);
   }
 
   private async generateTokenPair(
