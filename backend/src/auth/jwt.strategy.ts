@@ -41,6 +41,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Token revoked');
     }
 
+    // Reject legacy tokens without organizationId (non-SuperAdmin)
+    if (!payload.organizationId && !(user.isSuperAdmin || payload.role === 'SUPER_ADMIN')) {
+      throw new UnauthorizedException(
+        'Invalid token: missing organization scope. Please log in again.',
+      );
+    }
+
     // SuperAdmin bypass
     if (user.isSuperAdmin || payload.role === 'SUPER_ADMIN') {
       return {
@@ -56,7 +63,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const orgUser = await this.prisma.organizationUser.findFirst({
       where: {
         userId: user.id,
-        organizationId: payload.organizationId ?? undefined,
+        organizationId: payload.organizationId,
       },
     });
 
