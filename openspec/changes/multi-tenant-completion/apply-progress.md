@@ -37,6 +37,8 @@
 ### Test Summary
 - **Total tests written**: 31
 - **Total tests passing** (relevant files): 49 backend / 4 new frontend
+- **Full backend suite**: 280 tests, 279 passed, 1 pre-existing failure (`tasks/tasks.controller.spec.ts`)
+- **Full frontend suite**: 50 tests, 48 passed, 2 pre-existing failures (`page.behavior.test.tsx` scanner tests)
 - **Layers used**: Unit (backend), Integration (frontend)
 - **Approval tests** (pre-existing behavior): `sales.service.spec.ts` CASHIER scope — `buildScopeFilter` already denied-by-default for non-ADMIN roles
 - **Pure functions created**: 0
