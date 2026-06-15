@@ -100,4 +100,31 @@ describe('RolesGuard', () => {
     });
     expect(guard.canActivate(context)).toBe(true);
   });
+
+  it('should allow CASHIER when CASHIER is explicitly required', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([
+      OrgRole.ADMIN,
+      OrgRole.MEMBER,
+      OrgRole.CASHIER,
+    ]);
+
+    const context = createMockContext({ role: OrgRole.CASHIER });
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it('should deny CASHIER for ADMIN-only endpoints', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([OrgRole.ADMIN]);
+
+    const context = createMockContext({ role: OrgRole.CASHIER });
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+  });
+
+  it('should allow ADMIN to inherit CASHIER-required access', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([
+      OrgRole.CASHIER,
+    ]);
+
+    const context = createMockContext({ role: OrgRole.ADMIN });
+    expect(guard.canActivate(context)).toBe(true);
+  });
 });

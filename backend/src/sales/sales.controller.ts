@@ -37,7 +37,7 @@ export class SalesController {
   constructor(private salesService: SalesService) {}
 
   @Post()
-  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Create a new sale' })
   create(
     @Body() createSaleDto: CreateSaleDto,
@@ -51,7 +51,7 @@ export class SalesController {
   }
 
   @Get()
-  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Get all sales with pagination' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 10 })
@@ -85,7 +85,7 @@ export class SalesController {
   }
 
   @Get('number/:saleNumber')
-  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Find sale by sale number' })
   findBySaleNumber(
     @Param('saleNumber') saleNumber: number,
@@ -95,7 +95,7 @@ export class SalesController {
   }
 
   @Get(':id')
-  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Get a sale by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.salesService.findOne(id, user.organizationId!, user);
@@ -130,7 +130,7 @@ export class SalesController {
   }
 
   @Post(':id/receipt')
-  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Generate sale receipt PDF' })
   generateReceipt(
     @Param('id') id: string,

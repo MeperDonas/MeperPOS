@@ -21,7 +21,7 @@ export class ProductsSearchController {
   constructor(private prisma: PrismaService) {}
 
   @Get('search')
-  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Search products for POS (real-time search)' })
   @ApiQuery({
     name: 'q',
@@ -91,7 +91,7 @@ export class ProductsSearchController {
   }
 
   @Get('quick-search')
-  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Quick search by barcode or SKU for POS' })
   @ApiQuery({ name: 'code', required: true, description: 'Barcode or SKU' })
   async quickSearch(

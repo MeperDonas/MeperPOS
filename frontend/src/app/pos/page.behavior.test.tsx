@@ -351,6 +351,27 @@ describe("POS behavior evidence (#19, #18)", () => {
     expect(screen.queryByText("1 en carrito")).toBeNull();
   });
 
+  it("allows a CASHIER user to complete a checkout", async () => {
+    useProductsMock.mockReturnValue({
+      data: { data: [makeProduct("1", "Producto Checkout")], meta: { total: 1, page: 1, limit: 20, totalPages: 1 } },
+      isLoading: false,
+      isFetching: false,
+    });
+
+    render(<POSPage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Producto Checkout" }));
+    await userEvent.click(screen.getByRole("button", { name: /tarjeta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /confirmar pago/i }));
+
+    await waitFor(() => {
+      expect(createSaleMutateMock).toHaveBeenCalled();
+    });
+
+    expect(screen.getByText("Venta Exitosa")).toBeTruthy();
+  });
+
   it("#18 keeps customer selector near checkout, preserves total, and allows checkout without customer", async () => {
     useProductsMock.mockReturnValue({
       data: { data: [makeProduct("1", "Producto Checkout")], meta: { total: 1, page: 1, limit: 20, totalPages: 1 } },

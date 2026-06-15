@@ -45,7 +45,7 @@ describe('SalesService', () => {
   const mockUser = (
     overrides: Partial<{
       userId: string;
-      role: 'ADMIN' | 'MEMBER' | 'OWNER';
+      role: 'ADMIN' | 'MEMBER' | 'OWNER' | 'CASHIER';
       organizationId: string;
     }> = {},
   ) => ({
@@ -111,6 +111,81 @@ describe('SalesService', () => {
       name: 'Caja',
       email: 'caja@example.com',
     });
+  });
+
+  it('applies own-sales scope for CASHIER in list queries', async () => {
+    prismaMock.sale.findMany.mockResolvedValue([
+      {
+        id: 'sale-1',
+        userId: 'cashier-1',
+        user: { id: 'cashier-1', name: 'Caja', email: 'caja@example.com' },
+        customer: null,
+        items: [],
+        payments: [],
+      },
+    ]);
+    prismaMock.sale.count.mockResolvedValue(1);
+
+    await service.findAll(
+      'org-1',
+      1,
+      10,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      mockUser({ userId: 'cashier-1', role: 'CASHIER' }),
+    );
+
+    expect(prismaMock.sale.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'cashier-1',
+          organizationId: 'org-1',
+        }),
+      }),
+    );
+  });
+
+  it('denies CASHIER access to another seller sale detail', async () => {
+    prismaMock.sale.findFirst.mockResolvedValue({
+      id: 'sale-foreign',
+      userId: 'admin-1',
+      user: { id: 'admin-1', name: 'Admin', email: 'admin@example.com' },
+      customer: null,
+      items: [],
+      payments: [],
+    });
+
+    await expect(
+      service.findOne(
+        'sale-foreign',
+        'org-1',
+        mockUser({ userId: 'cashier-1', role: 'CASHIER' }),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('allows CASHIER drill-down for own sale detail', async () => {
+    prismaMock.sale.findFirst.mockResolvedValue({
+      id: 'sale-own',
+      userId: 'cashier-1',
+      user: { id: 'cashier-1', name: 'Caja', email: 'caja@example.com' },
+      customer: null,
+      items: [],
+      payments: [],
+    });
+
+    await expect(
+      service.findOne(
+        'sale-own',
+        'org-1',
+        mockUser({ userId: 'cashier-1', role: 'CASHIER' }),
+      ),
+    ).resolves.toEqual(
+      expect.objectContaining({ id: 'sale-own', userId: 'cashier-1' }),
+    );
   });
 
   it('applies customerId filter in list queries', async () => {
