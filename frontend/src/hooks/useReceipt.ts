@@ -29,7 +29,6 @@ function buildReceiptHtml(
   options: ThermalReceiptOptions = {},
 ): string {
   const { header, footer } = options;
-  const totalPaid = sale.amountPaid ?? 0;
   const change = sale.change ?? 0;
 
   const itemRows = sale.items

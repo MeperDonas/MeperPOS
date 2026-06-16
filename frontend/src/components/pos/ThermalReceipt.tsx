@@ -22,7 +22,6 @@ export function ThermalReceipt({
   header,
   footer,
 }: ThermalReceiptProps) {
-  const totalPaid = sale.amountPaid ?? 0;
   const change = sale.change ?? 0;
 
   return (

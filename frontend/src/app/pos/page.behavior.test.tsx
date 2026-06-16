@@ -18,7 +18,6 @@ type UseProductsParams = {
 const useProductsMock = vi.fn();
 const quickSearchMutateMock = vi.fn();
 const createSaleMutateMock = vi.fn();
-const printThermalReceiptMock = vi.fn();
 
 vi.mock("next/image", () => ({
   default: (props: { alt?: string }) => (
