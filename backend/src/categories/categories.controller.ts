@@ -20,13 +20,14 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { OrgRole } from '@prisma/client';
 
 @ApiTags('Categories')
 @Controller('categories')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
 @ApiBearerAuth()
 export class CategoriesController {
   constructor(private categoriesService: CategoriesService) {}

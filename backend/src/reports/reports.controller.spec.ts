@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { OrgRole } from '@prisma/client';
 import { ROLES_KEY } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
 import { ReportsController } from './reports.controller';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 
@@ -57,6 +58,28 @@ describe('ReportsController', () => {
         createContext(controller.getUserPerformance, OrgRole.MEMBER),
       ),
     ).toThrow(ForbiddenException);
+  });
+
+  it('blocks SuperAdmin without an organization scope', () => {
+    const guard = new OrganizationRequiredGuard();
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          user: {
+            userId: 'super-1',
+            email: 'super@example.com',
+            organizationId: null,
+            role: 'SUPER_ADMIN',
+            tokenVersion: 1,
+            isSuperAdmin: true,
+          } as RequestUser,
+        }),
+      }),
+      getHandler: () => jest.fn(),
+      getClass: () => ReportsController,
+    } as unknown as ExecutionContext;
+
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });
 
   it('forwards date filters to service and returns metadata-bearing response', async () => {

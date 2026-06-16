@@ -10,12 +10,13 @@ import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 
 @ApiTags('Reports')
 @Controller('reports')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
 @Roles(OrgRole.ADMIN)
 @ApiBearerAuth()
 export class ReportsController {
