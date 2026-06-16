@@ -38,7 +38,12 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const hasRole = requiredRoles.includes(user.role);
+    // Role hierarchy: OWNER inherits ADMIN, ADMIN inherits MEMBER, MEMBER inherits CASHIER
+    const inheritedRoles = this.getInheritedRoles(user.role);
+
+    const hasRole = requiredRoles.some((requiredRole) =>
+      inheritedRoles.includes(requiredRole),
+    );
 
     if (!hasRole) {
       throw new ForbiddenException(
@@ -47,5 +52,24 @@ export class RolesGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  private getInheritedRoles(
+    role: OrgRole | 'SUPER_ADMIN',
+  ): (OrgRole | 'SUPER_ADMIN')[] {
+    if (role === 'SUPER_ADMIN') {
+      return ['SUPER_ADMIN'];
+    }
+
+    switch (role) {
+      case OrgRole.OWNER:
+        return [OrgRole.OWNER, OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER];
+      case OrgRole.ADMIN:
+        return [OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER];
+      case OrgRole.MEMBER:
+        return [OrgRole.MEMBER, OrgRole.CASHIER];
+      default:
+        return [role];
+    }
   }
 }

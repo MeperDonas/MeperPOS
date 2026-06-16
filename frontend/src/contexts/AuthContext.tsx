@@ -12,12 +12,13 @@ import { api } from "@/lib/api";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { OrganizationSelectModal } from "@/components/auth/OrganizationSelectModal";
+import type { AppRole } from "@/lib/auth";
 
 export interface User {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "CASHIER" | "INVENTORY_USER" | "SUPER_ADMIN";
+  role: AppRole;
   active: boolean;
   isSuperAdmin?: boolean;
   organizationId?: string | null;

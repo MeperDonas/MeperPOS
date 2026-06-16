@@ -28,13 +28,14 @@ import {
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
+import { hasAnyRole, type AppRole } from "@/lib/auth";
 import { useState, useCallback, useEffect } from "react";
 
 interface NavItem {
   label: string;
   href: string;
   icon: React.ReactNode;
-  roles?: string[];
+  roles?: AppRole[];
 }
 
 const navItems: NavItem[] = [
@@ -118,6 +119,7 @@ const navItems: NavItem[] = [
 ];
 
 const roleLabels: Record<string, string> = {
+  OWNER: "Propietario",
   ADMIN: "Administrador",
   CASHIER: "Cajero",
   INVENTORY_USER: "Inventario",
@@ -131,7 +133,7 @@ export function Sidebar() {
   const [now, setNow] = useState(() => new Date());
 
   const filteredItems = navItems.filter(
-    (item) => !item.roles || (user && item.roles.includes(user.role))
+    (item) => !item.roles || (user && hasAnyRole(user.role, item.roles))
   );
 
   const toggleMobileMenu = useCallback(() => setIsMobileMenuOpen((p) => !p), []);

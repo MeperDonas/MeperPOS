@@ -5,8 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, memo } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PlanLimitBanner } from "@/components/billing/PlanLimitBanner";
+import { hasAnyRole, type AppRole } from "@/lib/auth";
 
-type UserRole = "ADMIN" | "CASHIER" | "INVENTORY_USER" | "SUPER_ADMIN";
+type UserRole = AppRole;
 
 const routeRoleMap: Array<{ prefix: string; roles: UserRole[] }> = [
   { prefix: "/dashboard", roles: ["ADMIN", "INVENTORY_USER"] },
@@ -57,7 +58,7 @@ export const DashboardLayout = memo(function DashboardLayout({
 
     if (!routeConfig) return;
 
-    if (!routeConfig.roles.includes(userRole)) {
+    if (!hasAnyRole(userRole, routeConfig.roles)) {
       router.replace(userRole === "CASHIER" ? "/pos" : "/dashboard");
     }
   }, [isAuthenticated, loading, pathname, router, userRole]);
