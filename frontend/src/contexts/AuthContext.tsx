@@ -8,10 +8,12 @@ import {
   useCallback,
   useMemo,
 } from "react";
-import { api } from "@/lib/api";
+import { api, getApiErrorMessage } from "@/lib/api";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { OrganizationSelectModal } from "@/components/auth/OrganizationSelectModal";
+import { useToast } from "@/contexts/ToastContext";
+import { useQueryClient } from "@tanstack/react-query";
 import type { AppRole } from "@/lib/auth";
 
 export interface User {
@@ -44,6 +46,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  switchOrganization: (organizationId: string) => Promise<void>;
   isAuthenticated: boolean;
   needsOrganizationSelection: boolean;
 }
@@ -56,6 +59,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [pendingSelection, setPendingSelection] =
     useState<PendingOrganizationSelection | null>(null);
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { error: showError } = useToast();
 
   useEffect(() => {
     const validateSession = async () => {
@@ -164,6 +169,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [pendingSelection, router]
   );
 
+  const switchOrganization = useCallback(
+    async (organizationId: string) => {
+      try {
+        const response = await api.post<{
+          accessToken: string;
+          refreshToken: string;
+          user: User;
+        }>("/auth/select-org", { organizationId });
+
+        const { accessToken, refreshToken, user: switchedUser } = response.data;
+
+        safeSetItem("token", accessToken);
+        safeSetItem("refreshToken", refreshToken);
+        safeSetItem("user", JSON.stringify(switchedUser));
+        setUser(switchedUser);
+
+        queryClient.invalidateQueries({
+          predicate: (query) => !query.queryKey.includes("admin"),
+        });
+
+        router.push("/dashboard");
+      } catch (error) {
+        showError(
+          getApiErrorMessage(
+            error,
+            "No se pudo cambiar de organizacion. Intenta de nuevo."
+          )
+        );
+        throw error;
+      }
+    },
+    [queryClient, router, showError]
+  );
+
   const logout = useCallback(() => {
     safeRemoveItem("token");
     safeRemoveItem("refreshToken");
@@ -180,10 +219,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       login,
       logout,
+      switchOrganization,
       isAuthenticated: !!user,
       needsOrganizationSelection: !!pendingSelection,
     }),
-    [user, loading, login, logout, pendingSelection]
+    [user, loading, login, logout, switchOrganization, pendingSelection]
   );
 
   return (
