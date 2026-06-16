@@ -9,6 +9,7 @@ describe('AuthController after users boundary centralization', () => {
     login: jest.fn(),
     selectOrg: jest.fn(),
     selectOrganization: jest.fn(),
+    getUserOrganizations: jest.fn(),
   };
 
   it('does not expose admin lifecycle endpoints anymore', () => {
@@ -122,6 +123,33 @@ describe('AuthController after users boundary centralization', () => {
       const result = await controller.selectOrg(dto, req);
 
       expect(authServiceMock.selectOrg).toHaveBeenCalledWith('user-1', 'org-1');
+      expect(result).toEqual(expected);
+    });
+  });
+
+  describe('getOrganizations', () => {
+    it('should delegate to authService.getUserOrganizations with userId', async () => {
+      const controller = new AuthController(authServiceMock as never);
+      const req = { user: { userId: 'user-1' } };
+      const expected = {
+        organizations: [
+          {
+            id: 'org-1',
+            name: 'Org One',
+            role: OrgRole.ADMIN,
+            plan: 'BASIC',
+            status: 'ACTIVE',
+          },
+        ],
+      };
+
+      authServiceMock.getUserOrganizations.mockResolvedValue(expected);
+
+      const result = await controller.getOrganizations(req);
+
+      expect(authServiceMock.getUserOrganizations).toHaveBeenCalledWith(
+        'user-1',
+      );
       expect(result).toEqual(expected);
     });
   });

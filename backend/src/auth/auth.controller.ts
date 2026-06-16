@@ -56,6 +56,16 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('organizations')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user organizations' })
+  async getOrganizations(
+    @Request() req: { user: { userId: string } },
+  ) {
+    return this.authService.getUserOrganizations(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('profile')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })

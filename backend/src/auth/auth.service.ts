@@ -335,7 +335,7 @@ export class AuthService {
   }
 
   async revokeUserTokens(userId: string) {
-    await this.prisma.user.update({
+    const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: { tokenVersion: { increment: 1 } },
     });
@@ -344,6 +344,8 @@ export class AuthService {
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+
+    return updatedUser;
   }
 
   async validateUser(userId: string) {
@@ -475,6 +477,32 @@ export class AuthService {
     return { message: 'Password changed successfully' };
   }
 
+  async getUserOrganizations(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.active) {
+      throw new UnauthorizedException('User not found or inactive');
+    }
+
+    const userOrgs = await this.prisma.organizationUser.findMany({
+      where: { userId },
+      orderBy: { joinedAt: 'asc' },
+      include: { organization: true },
+    });
+
+    return {
+      organizations: userOrgs.map((uo) => ({
+        id: uo.organizationId,
+        name: uo.organization.name,
+        role: uo.role,
+        plan: uo.organization.plan,
+        status: uo.organization.status,
+      })),
+    };
+  }
+
   async selectOrg(userId: string, organizationId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -505,6 +533,8 @@ export class AuthService {
       throw new UnauthorizedException('Organization is suspended');
     }
 
-    return this.generateTokenPair(user, orgUser);
+    const updatedUser = await this.revokeUserTokens(userId);
+
+    return this.generateTokenPair(updatedUser, orgUser);
   }
 }
