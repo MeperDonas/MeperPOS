@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { OrganizationSwitcher } from "@/components/auth/OrganizationSwitcher";
 import {
   LayoutDashboard,
   ShoppingBasket,
@@ -127,7 +128,7 @@ const roleLabels: Record<string, string> = {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, switchOrganization } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -236,6 +237,11 @@ export function Sidebar() {
                 <span className="truncate">{formattedTime}</span>
               </p>
             </div>
+
+            <OrganizationSwitcher
+              currentOrganizationId={user.organizationId ?? undefined}
+              onSwitch={switchOrganization}
+            />
           </div>
         </div>
       ) : null}
