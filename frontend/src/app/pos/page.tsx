@@ -14,7 +14,8 @@ import { useProducts, useQuickSearchProduct } from "@/hooks/useProducts";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useCreateSale } from "@/hooks/useSales";
 import { usePausedSales } from "@/hooks/usePausedSales";
-import { printReceipt } from "@/hooks/useReceipt";
+import { printReceipt, printThermalReceipt } from "@/hooks/useReceipt";
+import { useSettings } from "@/hooks/useSettings";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -32,6 +33,7 @@ import {
   Trash2,
   ShoppingCart,
   Printer,
+  FileDown,
   Package,
   Percent,
   Pause,
@@ -128,6 +130,7 @@ export default function POSPage() {
     search: debouncedSearch || undefined,
   });
   const { data: customersData } = useCustomers();
+  const { data: settings } = useSettings();
   const { pausedSales, pauseSale, resumeSale, deletePausedSale } =
     usePausedSales();
   const createSale = useCreateSale();
@@ -464,6 +467,15 @@ export default function POSPage() {
           getApiErrorMessage(error, "Error al imprimir el comprobante"),
         );
       }
+    }
+  };
+
+  const handlePrintThermalReceipt = () => {
+    if (lastSale) {
+      printThermalReceipt(lastSale, settings?.companyName ?? "Mi Negocio", {
+        header: settings?.printHeader,
+        footer: settings?.printFooter,
+      });
     }
   };
 
@@ -1072,18 +1084,22 @@ export default function POSPage() {
               </div>
             ) : null}
 
-            <div className="flex gap-3 justify-end pt-2 border-t border-primary/20">
+            <div className="flex flex-col sm:flex-row gap-3 justify-end pt-2 border-t border-primary/20">
               <Button
                 variant="secondary"
                 onClick={() => {
                   setShowReceiptModal(false);
                   setLastSale(null);
                 }}
+                className="sm:w-auto"
               >
                 Cerrar
               </Button>
-              <Button onClick={handlePrintReceipt}>
-                <Printer className="w-4 h-4" /> Imprimir Comprobante
+              <Button variant="secondary" onClick={handlePrintReceipt}>
+                <FileDown className="w-4 h-4" /> Descargar PDF
+              </Button>
+              <Button onClick={handlePrintThermalReceipt}>
+                <Printer className="w-4 h-4" /> Imprimir Recibo Térmico
               </Button>
             </div>
           </div>
