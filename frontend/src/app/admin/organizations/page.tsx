@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { Table, TableHeader, TableRow, TableCell } from "@/components/ui/Table";
 import {
   useOrganizations,
   useCreateOrganization,
@@ -123,39 +124,39 @@ export default function OrganizationsPage() {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border bg-muted/50">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Nombre</th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Slug</th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Estado</th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Plan</th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Usuarios</th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Creada</th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
+            <Table variant="default" className="w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableCell as="th" className="px-4 py-3 text-left font-semibold text-foreground">Nombre</TableCell>
+                  <TableCell as="th" className="px-4 py-3 text-left font-semibold text-foreground">Slug</TableCell>
+                  <TableCell as="th" className="px-4 py-3 text-left font-semibold text-foreground">Estado</TableCell>
+                  <TableCell as="th" className="px-4 py-3 text-left font-semibold text-foreground">Plan</TableCell>
+                  <TableCell as="th" className="px-4 py-3 text-left font-semibold text-foreground">Usuarios</TableCell>
+                  <TableCell as="th" className="px-4 py-3 text-left font-semibold text-foreground">Creada</TableCell>
+                  <TableCell as="th" className="px-4 py-3 text-left font-semibold text-foreground">Acciones</TableCell>
+                </TableRow>
+              </TableHeader>
+              <tbody>
                 {organizations?.map((org) => (
-                  <tr key={org.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3 font-medium text-foreground">{org.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{org.slug}</td>
-                    <td className="px-4 py-3">
+                  <TableRow key={org.id}>
+                    <TableCell className="px-4 py-3 font-medium text-foreground">{org.name}</TableCell>
+                    <TableCell className="px-4 py-3 text-muted-foreground">{org.slug}</TableCell>
+                    <TableCell className="px-4 py-3">
                       <Badge variant={statusBadgeVariant[org.status] ?? "default"}>
                         {org.status}
                       </Badge>
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
                       <Select
                         value={org.plan}
                         options={planOptions}
                         onChange={(e) => updatePlan.mutate({ id: org.id, plan: e.target.value })}
                         className="w-32 py-1.5 text-xs"
                       />
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{org.userCount}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(org.createdAt)}</td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-muted-foreground">{org.userCount}</TableCell>
+                    <TableCell className="px-4 py-3 text-muted-foreground">{formatDate(org.createdAt)}</TableCell>
+                    <TableCell className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Button
                           variant="ghost"
@@ -171,11 +172,11 @@ export default function OrganizationsPage() {
                           className="w-32 py-1.5 text-xs"
                         />
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
               </tbody>
-            </table>
+            </Table>
           </div>
         </CardContent>
       </Card>

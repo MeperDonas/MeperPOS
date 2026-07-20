@@ -62,17 +62,21 @@ export function TableHeader({ className, children }: TableHeaderProps) {
   );
 }
 
-interface TableRowProps {
+interface TableRowProps extends React.ComponentPropsWithoutRef<"tr"> {
   className?: string;
   children: ReactNode;
 }
 
-export function TableRow({ className, children }: TableRowProps) {
+export function TableRow({ className, children, ...props }: TableRowProps) {
   const { variant, isHeader } = useContext(TableContext);
   const rowClasses = isHeader
     ? headerRowClasses[variant]
     : bodyRowClasses[variant];
-  return <tr className={cn(rowClasses, className)}>{children}</tr>;
+  return (
+    <tr className={cn(rowClasses, className)} {...props}>
+      {children}
+    </tr>
+  );
 }
 
 interface TableCellProps {

@@ -36,6 +36,7 @@ import { chipStyles } from "@/lib/chipStyles";
 import { useToast } from "@/contexts/ToastContext";
 import { ImportSection } from "@/components/reports/ImportSection";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { Table, TableHeader, TableRow, TableCell } from "@/components/ui/Table";
 import type { AppliedRange } from "@/types";
 
 type CategoryArcSegment = {
@@ -653,37 +654,37 @@ export default function ReportsPage() {
               <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este período.</p>
             ) : (
               <div className="overflow-x-auto rounded-2xl border border-primary/20 bg-background/40">
-                <table className="w-full min-w-[700px]">
-                  <thead>
-                    <tr className="border-b border-primary/20 bg-primary/10">
-                      <th className="px-4 py-2 text-left text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Usuario</th>
-                      <th className="px-4 py-2 text-right text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Ventas</th>
-                      <th className="px-4 py-2 text-right text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Ingresos</th>
-                      <th className="px-4 py-2 text-right text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Ticket</th>
-                      <th className="px-4 py-2 text-right text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Clientes</th>
-                      <th className="px-4 py-2 text-right text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Comparación</th>
-                    </tr>
-                  </thead>
+                <Table variant="primary" className="min-w-[700px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableCell as="th" className="px-4 py-2 text-left text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Usuario</TableCell>
+                      <TableCell as="th" className="px-4 py-2 text-right text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Ventas</TableCell>
+                      <TableCell as="th" className="px-4 py-2 text-right text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Ingresos</TableCell>
+                      <TableCell as="th" className="px-4 py-2 text-right text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Ticket</TableCell>
+                      <TableCell as="th" className="px-4 py-2 text-right text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Clientes</TableCell>
+                      <TableCell as="th" className="px-4 py-2 text-right text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Comparación</TableCell>
+                    </TableRow>
+                  </TableHeader>
                   <tbody>
                     {userPerformance.map((row) => (
-                      <tr key={row.userId} className="border-b border-primary/10 last:border-b-0">
-                        <td className="px-4 py-3">
+                      <TableRow key={row.userId}>
+                        <TableCell className="px-4 py-3">
                           <p className="text-sm font-semibold text-foreground">{row.userName}</p>
                           <p className="text-xs text-muted-foreground">{row.role}</p>
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm text-foreground">{row.salesCount.toLocaleString("es-CO")}</td>
-                        <td className="px-4 py-3 text-right text-sm font-bold text-primary">{formatCurrency(row.revenue)}</td>
-                        <td className="px-4 py-3 text-right text-sm text-muted-foreground">{formatCurrency(row.avgTicket)}</td>
-                        <td className="px-4 py-3 text-right text-sm text-muted-foreground">{row.uniqueCustomers.toLocaleString("es-CO")}</td>
-                        <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-right text-sm text-foreground">{row.salesCount.toLocaleString("es-CO")}</TableCell>
+                        <TableCell className="px-4 py-3 text-right text-sm font-bold text-primary">{formatCurrency(row.revenue)}</TableCell>
+                        <TableCell className="px-4 py-3 text-right text-sm text-muted-foreground">{formatCurrency(row.avgTicket)}</TableCell>
+                        <TableCell className="px-4 py-3 text-right text-sm text-muted-foreground">{row.uniqueCustomers.toLocaleString("es-CO")}</TableCell>
+                        <TableCell className="px-4 py-3 text-right text-xs text-muted-foreground">
                           {row.comparison
                             ? `${formatTrendLabel(row.comparison.revenuePct)} ingresos / ${formatTrendLabel(row.comparison.salesPct)} ventas`
                             : "Sin comparación"}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
                   </tbody>
-                </table>
+                </Table>
               </div>
             )}
           </div>

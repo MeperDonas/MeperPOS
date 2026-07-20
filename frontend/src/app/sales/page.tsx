@@ -12,6 +12,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterBar } from "@/components/ui/FilterBar";
+import { Table, TableHeader, TableRow, TableCell } from "@/components/ui/Table";
 import {
   Eye,
   FileText,
@@ -233,37 +234,37 @@ function SalesPageContent() {
           <>
             <div className="rounded-3xl border border-accent/30 bg-accent/10 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[680px]">
-                  <thead>
-                    <tr className="border-b border-accent/20 bg-accent/10">
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <Table variant="accent" className="min-w-[680px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         N° Venta
-                      </th>
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Fecha
-                      </th>
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Cliente
-                      </th>
+                      </TableCell>
                       {isAdmin && (
-                        <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                           Vendedor
-                        </th>
+                        </TableCell>
                       )}
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Método
-                      </th>
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Estado
-                      </th>
-                      <th className="text-right py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Total
-                      </th>
-                      <th className="text-right py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Acciones
-                      </th>
-                    </tr>
-                  </thead>
+                      </TableCell>
+                    </TableRow>
+                  </TableHeader>
                   <tbody>
                     {sales.length === 0 ? (
                       <tr>
@@ -273,19 +274,16 @@ function SalesPageContent() {
                       </tr>
                     ) : (
                       sales.map((sale) => (
-                        <tr
-                          key={sale.id}
-                          className="border-b border-accent/10 transition-colors hover:bg-accent/[0.06] last:border-b-0"
-                        >
-                          <td className="py-3 px-5">
+                        <TableRow key={sale.id}>
+                          <TableCell>
                             <span className="text-xs font-bold text-primary font-mono">
                               #{sale.saleNumber}
                             </span>
-                          </td>
-                          <td className="py-3 px-5 text-xs text-muted-foreground whitespace-nowrap font-mono">
+                          </TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap font-mono">
                             {formatDateTime(sale.createdAt)}
-                          </td>
-                          <td className="py-3 px-5 max-w-[130px] truncate">
+                          </TableCell>
+                          <TableCell className="max-w-[130px] truncate">
                             {sale.customer?.name ? (
                               <span className="text-xs font-bold text-foreground">
                                 {sale.customer.name}
@@ -295,9 +293,9 @@ function SalesPageContent() {
                                 General
                               </span>
                             )}
-                          </td>
+                          </TableCell>
                           {isAdmin && (
-                            <td className="py-3 px-5 max-w-[120px] truncate">
+                            <TableCell className="max-w-[120px] truncate">
                               {sale.user?.name ? (
                                 <span className="text-xs font-medium text-foreground">
                                   {sale.user.name}
@@ -307,20 +305,20 @@ function SalesPageContent() {
                                   N/A
                                 </span>
                               )}
-                            </td>
+                            </TableCell>
                           )}
-                          <td className="py-3 px-5">
+                          <TableCell>
                             {getPaymentBadge(sale.payments)}
-                          </td>
-                          <td className="py-3 px-5">
+                          </TableCell>
+                          <TableCell>
                             {getStatusBadge(sale.status)}
-                          </td>
-                          <td className="py-3 px-5 text-right">
+                          </TableCell>
+                          <TableCell className="text-right">
                             <span className="stat-number text-sm font-bold text-foreground">
                               {formatCurrency(sale.total)}
                             </span>
-                          </td>
-                          <td className="py-3 px-5 text-right">
+                          </TableCell>
+                          <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
                               <Button
                                 size="sm"
@@ -339,12 +337,12 @@ function SalesPageContent() {
                                 <Download className="w-3.5 h-3.5" />
                               </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))
                     )}
                   </tbody>
-                </table>
+                </Table>
               </div>
             </div>
 

@@ -12,6 +12,7 @@ import { PurchaseOrderStatusBadge } from "@/components/purchase-orders/PurchaseO
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterBar } from "@/components/ui/FilterBar";
+import { Table, TableHeader, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Eye, ClipboardList, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { chipStyles } from "@/lib/chipStyles";
@@ -171,29 +172,29 @@ export default function PurchaseOrdersPage() {
           <>
             <div className="rounded-3xl border border-accent/30 bg-accent/10 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[680px]">
-                  <thead>
-                    <tr className="border-b border-accent/20 bg-accent/10">
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <Table variant="accent" className="min-w-[680px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         N° OC
-                      </th>
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Proveedor
-                      </th>
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Fecha
-                      </th>
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Estado
-                      </th>
-                      <th className="text-right py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Total
-                      </th>
-                      <th className="text-right py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Acciones
-                      </th>
-                    </tr>
-                  </thead>
+                      </TableCell>
+                    </TableRow>
+                  </TableHeader>
                   <tbody>
                     {orders.length === 0 ? (
                       <tr>
@@ -203,35 +204,35 @@ export default function PurchaseOrdersPage() {
                       </tr>
                     ) : (
                       orders.map((order) => (
-                        <tr
+                        <TableRow
                           key={order.id}
-                          className="border-b border-accent/10 transition-colors hover:bg-accent/[0.06] cursor-pointer last:border-b-0"
+                          className="cursor-pointer"
                           onClick={() =>
                             router.push(`/purchase-orders/${order.id}`)
                           }
                         >
-                          <td className="py-3 px-5">
+                          <TableCell>
                             <span className="text-xs font-bold text-primary font-mono">
                               OC-{order.orderNumber}
                             </span>
-                          </td>
-                          <td className="py-3 px-5 max-w-[200px] truncate">
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate">
                             <span className="text-xs font-semibold text-foreground">
                               {order.supplier?.name ?? "—"}
                             </span>
-                          </td>
-                          <td className="py-3 px-5 text-xs text-muted-foreground whitespace-nowrap font-mono">
+                          </TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap font-mono">
                             {formatDate(order.createdAt)}
-                          </td>
-                          <td className="py-3 px-5">
+                          </TableCell>
+                          <TableCell>
                             <PurchaseOrderStatusBadge status={order.status} />
-                          </td>
-                          <td className="py-3 px-5 text-right">
+                          </TableCell>
+                          <TableCell className="text-right">
                             <span className="stat-number text-sm font-bold text-foreground">
                               {formatCurrency(order.total)}
                             </span>
-                          </td>
-                          <td className="py-3 px-5 text-right">
+                          </TableCell>
+                          <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
                               <Button
                                 size="sm"
@@ -245,12 +246,12 @@ export default function PurchaseOrdersPage() {
                                 <Eye className="w-3.5 h-3.5" />
                               </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))
                     )}
                   </tbody>
-                </table>
+                </Table>
               </div>
             </div>
 
