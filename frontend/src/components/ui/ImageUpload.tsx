@@ -6,6 +6,7 @@ import { Upload, X, Image as ImageIcon } from "lucide-react";
 import { Button } from "./Button";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 interface ImageUploadProps {
   value?: string;
@@ -127,9 +128,12 @@ export function ImageUpload({
       ) : (
         <div
           onClick={handleClick}
-          className={`aspect-square w-full rounded-lg border-2 border-dashed border-border bg-muted/50 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-muted/80 transition-colors ${
-            disabled ? "opacity-50 cursor-not-allowed" : ""
-          }`}
+          className={cn(
+            "aspect-square w-full rounded-lg border-2 border-dashed border-border bg-muted/50",
+            "flex flex-col items-center justify-center cursor-pointer",
+            "hover:border-primary/50 hover:bg-muted/80 transition-colors",
+            disabled && "opacity-50 cursor-not-allowed",
+          )}
         >
           {isUploading ? (
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
