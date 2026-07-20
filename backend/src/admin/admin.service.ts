@@ -346,4 +346,176 @@ export class AdminService {
       ),
     };
   }
+
+  async updateOrganization(
+    id: string,
+    dto: {
+      name?: string;
+      slug?: string;
+      taxId?: string;
+      phone?: string;
+      address?: string;
+      logoUrl?: string;
+      active?: boolean;
+    },
+  ) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    if (dto.slug && dto.slug !== organization.slug) {
+      const slugExists = await this.prisma.organization.findFirst({
+        where: { slug: dto.slug, id: { not: id } },
+      });
+
+      if (slugExists) {
+        throw new ConflictException('Organization slug already exists');
+      }
+    }
+
+    return this.prisma.organization.update({
+      where: { id },
+      data: { ...dto },
+    });
+  }
+
+  async addOrganizationMember(
+    organizationId: string,
+    dto: {
+      email: string;
+      name?: string;
+      role: OrgRole;
+      password?: string;
+    },
+  ) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    let user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    let tempPassword: string | undefined;
+
+    if (!user) {
+      tempPassword = dto.password || crypto.randomBytes(8).toString('hex');
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+      user = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          name: dto.name || dto.email,
+          password: hashedPassword,
+        },
+      });
+    }
+
+    const existingMembership =
+      await this.prisma.organizationUser.findFirst({
+        where: {
+          organizationId,
+          userId: user.id,
+        },
+      });
+
+    if (existingMembership) {
+      throw new ConflictException(
+        'User is already a member of this organization',
+      );
+    }
+
+    const organizationUser = await this.prisma.organizationUser.create({
+      data: {
+        userId: user.id,
+        organizationId,
+        role: dto.role,
+        isPrimaryOwner: false,
+      },
+    });
+
+    return {
+      user: { id: user.id, email: user.email, name: user.name },
+      organizationUser,
+      tempPassword,
+    };
+  }
+
+  async updateMemberRole(
+    organizationId: string,
+    userId: string,
+    role: OrgRole,
+  ) {
+    const membership = await this.prisma.organizationUser.findFirst({
+      where: { organizationId, userId },
+    });
+
+    if (!membership) {
+      throw new NotFoundException(
+        'User is not a member of this organization',
+      );
+    }
+
+    return this.prisma.organizationUser.update({
+      where: { id: membership.id },
+      data: { role },
+    });
+  }
+
+  async removeOrganizationMember(organizationId: string, userId: string) {
+    const membership = await this.prisma.organizationUser.findFirst({
+      where: { organizationId, userId },
+    });
+
+    if (!membership) {
+      throw new NotFoundException(
+        'User is not a member of this organization',
+      );
+    }
+
+    if (membership.isPrimaryOwner) {
+      throw new BadRequestException(
+        'Cannot remove the primary owner. Transfer ownership first.',
+      );
+    }
+
+    await this.prisma.organizationUser.delete({
+      where: { id: membership.id },
+    });
+
+    return { success: true };
+  }
+
+  async deleteOrganization(
+    id: string,
+    dto: { confirmOrganizationName: string },
+  ) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    if (organization.name !== dto.confirmOrganizationName) {
+      throw new BadRequestException(
+        'Confirmation name does not match organization name',
+      );
+    }
+
+    await this.prisma.organization.delete({
+      where: { id },
+    });
+
+    return { success: true };
+  }
 }

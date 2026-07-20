@@ -63,6 +63,12 @@ class ApiClient {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+        if (typeof window !== "undefined") {
+          const orgId = localStorage.getItem("selectedOrganizationId");
+          if (orgId) {
+            config.headers["X-Organization-Id"] = orgId;
+          }
+        }
         return config;
       },
       (error) => Promise.reject(error)
@@ -105,8 +111,8 @@ class ApiClient {
     return this.client.patch<T>(url, data);
   }
 
-  delete<T = unknown>(url: string) {
-    return this.client.delete<T>(url);
+  delete<T = unknown>(url: string, config?: Record<string, unknown>) {
+    return this.client.delete<T>(url, config);
   }
 
   upload<T = unknown>(url: string, file: File) {

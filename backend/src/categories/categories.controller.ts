@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,6 +22,7 @@ import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { OrgRole } from '@prisma/client';
@@ -28,6 +30,7 @@ import { OrgRole } from '@prisma/client';
 @ApiTags('Categories')
 @Controller('categories')
 @UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 @ApiBearerAuth()
 export class CategoriesController {
   constructor(private categoriesService: CategoriesService) {}
@@ -41,7 +44,7 @@ export class CategoriesController {
   ) {
     return this.categoriesService.create(
       createCategoryDto,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 
@@ -58,7 +61,7 @@ export class CategoriesController {
     @Query('search') search?: string,
   ) {
     return this.categoriesService.findAll(
-      user.organizationId!,
+      user.organizationId,
       page,
       limit,
       search,
@@ -69,7 +72,7 @@ export class CategoriesController {
   @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Get a category by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    return this.categoriesService.findOne(id, user.organizationId!);
+    return this.categoriesService.findOne(id, user.organizationId);
   }
 
   @Put(':id')
@@ -83,7 +86,7 @@ export class CategoriesController {
     return this.categoriesService.update(
       id,
       updateCategoryDto,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 
@@ -91,6 +94,6 @@ export class CategoriesController {
   @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Delete a category' })
   remove(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    return this.categoriesService.remove(id, user.organizationId!);
+    return this.categoriesService.remove(id, user.organizationId);
   }
 }

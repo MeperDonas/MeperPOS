@@ -125,8 +125,11 @@ export class PurchaseOrdersService {
   async create(
     dto: CreatePurchaseOrderDto,
     userId: string,
-    organizationId: string,
+    organizationId: string | undefined,
   ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const supplier = await this.prisma.supplier.findFirst({
       where: { id: dto.supplierId, organizationId },
     });
@@ -204,13 +207,13 @@ export class PurchaseOrdersService {
     }
   }
 
-  async findAll(organizationId: string, query: QueryPurchaseOrdersDto) {
+  async findAll(organizationId: string | undefined, query: QueryPurchaseOrdersDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
-      organizationId,
+      ...(organizationId ? { organizationId } : {}),
     };
 
     if (query.supplierId) where.supplierId = query.supplierId;
@@ -271,9 +274,9 @@ export class PurchaseOrdersService {
     };
   }
 
-  async findOne(id: string, organizationId: string) {
+  async findOne(id: string, organizationId: string | undefined) {
     const order = await this.prisma.purchaseOrder.findFirst({
-      where: { id, organizationId },
+      where: { id, ...(organizationId ? { organizationId } : {}) },
       include: {
         supplier: true,
         createdBy: { select: { id: true, name: true, email: true } },
@@ -289,8 +292,11 @@ export class PurchaseOrdersService {
   async update(
     id: string,
     dto: UpdatePurchaseOrderDto,
-    organizationId: string,
+    organizationId: string | undefined,
   ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const existing = await this.prisma.purchaseOrder.findFirst({
       where: { id, organizationId },
     });
@@ -365,7 +371,10 @@ export class PurchaseOrdersService {
     return this.findOne(id, organizationId);
   }
 
-  async confirm(id: string, organizationId: string) {
+  async confirm(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const order = await this.prisma.purchaseOrder.findFirst({
       where: { id, organizationId },
       include: { items: true, supplier: true },
@@ -402,8 +411,11 @@ export class PurchaseOrdersService {
     id: string,
     dto: ReceivePurchaseOrderDto,
     userId: string,
-    organizationId: string,
+    organizationId: string | undefined,
   ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const order = await this.prisma.purchaseOrder.findFirst({
       where: { id, organizationId },
       include: { items: true },
@@ -543,8 +555,11 @@ export class PurchaseOrdersService {
   async cancel(
     id: string,
     dto: CancelPurchaseOrderDto,
-    organizationId: string,
+    organizationId: string | undefined,
   ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const order = await this.prisma.purchaseOrder.findFirst({
       where: { id, organizationId },
     });

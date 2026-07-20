@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,7 +12,10 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createCategoryDto: CreateCategoryDto, organizationId: string) {
+  async create(createCategoryDto: CreateCategoryDto, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const { name } = createCategoryDto;
 
     const existingCategory = await this.prisma.category.findFirst({
@@ -29,11 +33,16 @@ export class CategoriesService {
     return this.serializeCategory(category);
   }
 
-  async findAll(organizationId: string, page = 1, limit = 10, search?: string) {
+  async findAll(
+    organizationId: string | undefined,
+    page = 1,
+    limit = 10,
+    search?: string,
+  ) {
     const skip = (page - 1) * limit;
 
     const where = {
-      organizationId,
+      ...(organizationId ? { organizationId } : {}),
       active: true,
       ...(search
         ? {
@@ -80,9 +89,9 @@ export class CategoriesService {
     };
   }
 
-  async findOne(id: string, organizationId: string) {
+  async findOne(id: string, organizationId?: string) {
     const category = await this.prisma.category.findFirst({
-      where: { id, organizationId },
+      where: { id, ...(organizationId ? { organizationId } : {}) },
       include: { products: true },
     });
 
@@ -96,8 +105,11 @@ export class CategoriesService {
   async update(
     id: string,
     updateCategoryDto: UpdateCategoryDto,
-    organizationId: string,
+    organizationId: string | undefined,
   ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const existingCategory = await this.prisma.category.findFirst({
       where: { id, organizationId },
     });
@@ -126,7 +138,10 @@ export class CategoriesService {
     return this.serializeCategory(category);
   }
 
-  async remove(id: string, organizationId: string) {
+  async remove(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const category = await this.prisma.category.findFirst({
       where: { id, organizationId },
       include: { products: true },

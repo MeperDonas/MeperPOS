@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
@@ -12,7 +13,10 @@ import { QuerySuppliersDto } from './dto/query-suppliers.dto';
 export class SuppliersService {
   constructor(private prisma: PrismaService) {}
 
-  async create(dto: CreateSupplierDto, organizationId: string) {
+  async create(dto: CreateSupplierDto, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const existing = await this.prisma.supplier.findFirst({
       where: { documentNumber: dto.documentNumber, organizationId },
     });
@@ -26,13 +30,13 @@ export class SuppliersService {
     });
   }
 
-  async findAll(query: QuerySuppliersDto, organizationId: string) {
+  async findAll(query: QuerySuppliersDto, organizationId: string | undefined) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
-      organizationId,
+      ...(organizationId ? { organizationId } : {}),
     };
 
     if (query.status === 'active') {
@@ -74,9 +78,9 @@ export class SuppliersService {
     };
   }
 
-  async findOne(id: string, organizationId: string) {
+  async findOne(id: string, organizationId: string | undefined) {
     const supplier = await this.prisma.supplier.findFirst({
-      where: { id, organizationId },
+      where: { id, ...(organizationId ? { organizationId } : {}) },
     });
     if (!supplier) {
       throw new NotFoundException('Proveedor no encontrado');
@@ -84,7 +88,10 @@ export class SuppliersService {
     return supplier;
   }
 
-  async update(id: string, dto: UpdateSupplierDto, organizationId: string) {
+  async update(id: string, dto: UpdateSupplierDto, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     await this.findOne(id, organizationId);
 
     if (dto.documentNumber) {
@@ -101,7 +108,10 @@ export class SuppliersService {
     return this.prisma.supplier.update({ where: { id }, data: dto });
   }
 
-  async remove(id: string, organizationId: string) {
+  async remove(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     await this.findOne(id, organizationId);
 
     return this.prisma.supplier.update({
@@ -110,7 +120,10 @@ export class SuppliersService {
     });
   }
 
-  async reactivate(id: string, organizationId: string) {
+  async reactivate(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     await this.findOne(id, organizationId);
     return this.prisma.supplier.update({
       where: { id },

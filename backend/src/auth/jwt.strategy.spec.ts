@@ -180,7 +180,7 @@ describe('JwtStrategy', () => {
       expect(result).toEqual({
         userId: 'user-sa',
         email: 'admin@sistema.com',
-        organizationId: null,
+        organizationId: undefined,
         role: 'SUPER_ADMIN',
         tokenVersion: 1,
         isSuperAdmin: true,

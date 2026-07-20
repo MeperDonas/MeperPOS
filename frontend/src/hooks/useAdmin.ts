@@ -111,3 +111,63 @@ export function useAdminMetrics() {
       api.get<AdminMetrics>('/admin/metrics').then((res) => res.data),
   });
 }
+
+export function useUpdateOrganization() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; name?: string; slug?: string; taxId?: string; phone?: string; address?: string; logoUrl?: string; active?: boolean }) =>
+      api.patch(`/admin/organizations/${id}`, data).then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organization'] });
+    },
+  });
+}
+
+export function useAddOrganizationMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; email: string; name?: string; role: string; password?: string }) =>
+      api.post(`/admin/organizations/${id}/members`, data).then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organization'] });
+    },
+  });
+}
+
+export function useUpdateMemberRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, userId, role }: { orgId: string; userId: string; role: string }) =>
+      api.patch(`/admin/organizations/${orgId}/members/${userId}/role`, { role }).then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organization'] });
+    },
+  });
+}
+
+export function useRemoveOrganizationMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, userId }: { orgId: string; userId: string }) =>
+      api.delete(`/admin/organizations/${orgId}/members/${userId}`).then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organization'] });
+    },
+  });
+}
+
+export function useDeleteOrganization() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, confirmOrganizationName }: { id: string; confirmOrganizationName: string }) =>
+      api.delete(`/admin/organizations/${id}`, { data: { confirmOrganizationName } }).then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'metrics'] });
+    },
+  });
+}

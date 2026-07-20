@@ -5,7 +5,10 @@ import { PrismaService } from '../prisma/prisma.service';
 export class BillingService {
   constructor(private prisma: PrismaService) {}
 
-  async getStatus(organizationId: string) {
+  async getStatus(organizationId: string | undefined) {
+    if (!organizationId) {
+      return null;
+    }
     return this.prisma.organization.findUnique({
       where: { id: organizationId },
       select: {

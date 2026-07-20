@@ -41,17 +41,17 @@ describe('OrganizationRequiredGuard', () => {
     expect(guard.canActivate(context)).toBe(true);
   });
 
-  it('blocks SuperAdmin with null organizationId', () => {
+  it('allows SuperAdmin with undefined organizationId', () => {
     const user: RequestUser = {
       userId: 'super-1',
       email: 'super@example.com',
-      organizationId: null,
+      organizationId: undefined,
       role: 'SUPER_ADMIN',
       tokenVersion: 1,
       isSuperAdmin: true,
     };
     const context = createMockContext(user);
-    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+    expect(guard.canActivate(context)).toBe(true);
   });
 
   it('blocks users with undefined organizationId', () => {

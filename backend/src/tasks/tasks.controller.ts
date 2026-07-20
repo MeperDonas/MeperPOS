@@ -8,12 +8,15 @@ import {
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrgRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -24,7 +27,8 @@ import { TasksService } from './tasks.service';
 
 @ApiTags('Tasks')
 @Controller('tasks')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
 @ApiBearerAuth()
 export class TasksController {

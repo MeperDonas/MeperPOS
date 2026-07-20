@@ -3,11 +3,13 @@ import { SalesService } from './sales.service';
 import { SalesController } from './sales.controller';
 import { SettingsModule } from '../settings/settings.module';
 import { SequenceModule } from '../common/sequences/sequence.module';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 
 @Module({
   imports: [SettingsModule, SequenceModule],
   controllers: [SalesController],
-  providers: [SalesService],
+  providers: [SalesService, OrganizationRequiredGuard, AdminOrganizationInterceptor],
   exports: [SalesService],
 })
 export class SalesModule {}

@@ -7,6 +7,7 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -26,13 +27,16 @@ import {
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 
 @ApiTags('Sales')
 @Controller('sales')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 export class SalesController {
   constructor(private salesService: SalesService) {}
 
@@ -46,7 +50,7 @@ export class SalesController {
     return this.salesService.create(
       createSaleDto,
       user.userId,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 
@@ -72,7 +76,7 @@ export class SalesController {
     } = query;
 
     return this.salesService.findAll(
-      user.organizationId!,
+      user.organizationId,
       page,
       limit,
       startDate,
@@ -98,7 +102,7 @@ export class SalesController {
   @Roles(OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Get a sale by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    return this.salesService.findOne(id, user.organizationId!, user);
+    return this.salesService.findOne(id, user.organizationId, user);
   }
 
   @Put(':id')
@@ -113,7 +117,7 @@ export class SalesController {
       id,
       updateSaleDto,
       user.userId,
-      user.organizationId!,
+      user.organizationId,
       user,
     );
   }
@@ -126,7 +130,7 @@ export class SalesController {
     @Body('reason') reason: string | undefined,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.salesService.forceClose(id, user.organizationId!, reason);
+    return this.salesService.forceClose(id, user.organizationId, reason);
   }
 
   @Post(':id/receipt')

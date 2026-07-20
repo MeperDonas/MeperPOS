@@ -7,6 +7,7 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PurchaseOrdersService } from './purchase-orders.service';
@@ -18,13 +19,16 @@ import { QueryPurchaseOrdersDto } from './dto/query-purchase-orders.dto';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { OrgRole } from '@prisma/client';
 
 @ApiTags('PurchaseOrders')
 @Controller('purchase-orders')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 @ApiBearerAuth()
 export class PurchaseOrdersController {
   constructor(private purchaseOrdersService: PurchaseOrdersService) {}
@@ -39,7 +43,7 @@ export class PurchaseOrdersController {
     return this.purchaseOrdersService.create(
       dto,
       user.userId,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 
@@ -50,14 +54,14 @@ export class PurchaseOrdersController {
     @Query() query: QueryPurchaseOrdersDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.purchaseOrdersService.findAll(user.organizationId!, query);
+    return this.purchaseOrdersService.findAll(user.organizationId, query);
   }
 
   @Get(':id')
   @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Obtener una orden de compra por ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    return this.purchaseOrdersService.findOne(id, user.organizationId!);
+    return this.purchaseOrdersService.findOne(id, user.organizationId);
   }
 
   @Patch(':id')
@@ -68,14 +72,14 @@ export class PurchaseOrdersController {
     @Body() dto: UpdatePurchaseOrderDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.purchaseOrdersService.update(id, dto, user.organizationId!);
+    return this.purchaseOrdersService.update(id, dto, user.organizationId);
   }
 
   @Post(':id/confirm')
   @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Confirmar una orden de compra (DRAFT → PENDING)' })
   confirm(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    return this.purchaseOrdersService.confirm(id, user.organizationId!);
+    return this.purchaseOrdersService.confirm(id, user.organizationId);
   }
 
   @Post(':id/receive')
@@ -90,7 +94,7 @@ export class PurchaseOrdersController {
       id,
       dto,
       user.userId,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 
@@ -102,6 +106,6 @@ export class PurchaseOrdersController {
     @Body() dto: CancelPurchaseOrderDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.purchaseOrdersService.cancel(id, dto, user.organizationId!);
+    return this.purchaseOrdersService.cancel(id, dto, user.organizationId);
   }
 }

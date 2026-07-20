@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanLimitService } from '../plan-limits/plan-limits.service';
@@ -15,7 +16,10 @@ export class CashRegistersService {
     private planLimitService: PlanLimitService,
   ) {}
 
-  async create(dto: CreateCashRegisterDto, organizationId: string) {
+  async create(dto: CreateCashRegisterDto, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const existing = await this.prisma.cashRegister.findFirst({
       where: { organizationId, name: dto.name },
     });
@@ -46,16 +50,16 @@ export class CashRegistersService {
     return cashRegister;
   }
 
-  async findAll(organizationId: string) {
+  async findAll(organizationId: string | undefined) {
     return this.prisma.cashRegister.findMany({
-      where: { organizationId },
+      where: { ...(organizationId ? { organizationId } : {}) },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(id: string, organizationId: string) {
+  async findOne(id: string, organizationId: string | undefined) {
     const register = await this.prisma.cashRegister.findFirst({
-      where: { id, organizationId },
+      where: { id, ...(organizationId ? { organizationId } : {}) },
     });
 
     if (!register) {
@@ -65,7 +69,10 @@ export class CashRegistersService {
     return register;
   }
 
-  async update(id: string, dto: UpdateCashRegisterDto, organizationId: string) {
+  async update(id: string, dto: UpdateCashRegisterDto, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     await this.findOne(id, organizationId);
 
     if (dto.name) {
@@ -97,7 +104,10 @@ export class CashRegistersService {
     });
   }
 
-  async remove(id: string, organizationId: string) {
+  async remove(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     await this.findOne(id, organizationId);
 
     return this.prisma.cashRegister.delete({
@@ -105,9 +115,9 @@ export class CashRegistersService {
     });
   }
 
-  async countByOrg(organizationId: string): Promise<number> {
+  async countByOrg(organizationId: string | undefined): Promise<number> {
     return this.prisma.cashRegister.count({
-      where: { organizationId, active: true },
+      where: { ...(organizationId ? { organizationId } : {}), active: true },
     });
   }
 }

@@ -1,23 +1,27 @@
 export type AppRole =
   | "OWNER"
   | "ADMIN"
+  | "MEMBER"
   | "CASHIER"
   | "INVENTORY_USER"
   | "SUPER_ADMIN";
 
 /**
  * Returns the set of roles a user effectively has, accounting for hierarchy.
- * OWNER inherits ADMIN, CASHIER and INVENTORY_USER permissions.
- * ADMIN inherits CASHIER and INVENTORY_USER permissions.
+ * OWNER inherits ADMIN, MEMBER, CASHIER and INVENTORY_USER permissions.
+ * ADMIN inherits MEMBER, CASHIER and INVENTORY_USER permissions.
+ * MEMBER inherits CASHIER permissions.
  */
 export function getEffectiveRoles(userRole: AppRole | string): AppRole[] {
   switch (userRole) {
     case "OWNER":
-      return ["OWNER", "ADMIN", "CASHIER", "INVENTORY_USER"];
+      return ["OWNER", "ADMIN", "MEMBER", "CASHIER", "INVENTORY_USER"];
     case "ADMIN":
-      return ["ADMIN", "CASHIER", "INVENTORY_USER"];
+      return ["ADMIN", "MEMBER", "CASHIER", "INVENTORY_USER"];
     case "SUPER_ADMIN":
-      return ["SUPER_ADMIN", "ADMIN", "CASHIER", "INVENTORY_USER"];
+      return ["SUPER_ADMIN", "ADMIN", "MEMBER", "CASHIER", "INVENTORY_USER"];
+    case "MEMBER":
+      return ["MEMBER", "CASHIER"];
     case "CASHIER":
       return ["CASHIER"];
     case "INVENTORY_USER":

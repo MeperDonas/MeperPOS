@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   UseGuards,
@@ -15,6 +16,10 @@ import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationStatusDto } from './dto/update-organization-status.dto';
 import { UpdateOrganizationPlanDto } from './dto/update-organization-plan.dto';
 import { TransferPrimaryOwnerDto } from './dto/transfer-primary-owner.dto';
+import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { AddOrganizationMemberDto } from './dto/add-organization-member.dto';
+import { DeleteOrganizationDto } from './dto/delete-organization.dto';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -65,5 +70,46 @@ export class AdminController {
   @Get('metrics')
   getMetrics() {
     return this.adminService.getMetrics();
+  }
+
+  @Patch('organizations/:id')
+  updateOrganization(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrganizationDto,
+  ) {
+    return this.adminService.updateOrganization(id, dto);
+  }
+
+  @Post('organizations/:id/members')
+  addOrganizationMember(
+    @Param('id') organizationId: string,
+    @Body() dto: AddOrganizationMemberDto,
+  ) {
+    return this.adminService.addOrganizationMember(organizationId, dto);
+  }
+
+  @Patch('organizations/:id/members/:userId/role')
+  updateMemberRole(
+    @Param('id') organizationId: string,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateMemberRoleDto,
+  ) {
+    return this.adminService.updateMemberRole(organizationId, userId, dto.role);
+  }
+
+  @Delete('organizations/:id/members/:userId')
+  removeOrganizationMember(
+    @Param('id') organizationId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.adminService.removeOrganizationMember(organizationId, userId);
+  }
+
+  @Delete('organizations/:id')
+  deleteOrganization(
+    @Param('id') id: string,
+    @Body() dto: DeleteOrganizationDto,
+  ) {
+    return this.adminService.deleteOrganization(id, dto);
   }
 }

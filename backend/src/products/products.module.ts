@@ -4,11 +4,13 @@ import { ProductsController } from './products.controller';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { SettingsModule } from '../settings/settings.module';
 import { PlanLimitsModule } from '../plan-limits/plan-limits.module';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 
 @Module({
   imports: [CloudinaryModule, SettingsModule, PlanLimitsModule],
   controllers: [ProductsController],
-  providers: [ProductsService],
+  providers: [ProductsService, OrganizationRequiredGuard, AdminOrganizationInterceptor],
   exports: [ProductsService],
 })
 export class ProductsModule {}

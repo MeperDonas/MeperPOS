@@ -16,7 +16,9 @@ import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { AuditAction } from '../common/decorators/audit.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
 import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -28,7 +30,8 @@ import { PlanLimit } from '../plan-limits/plan-limits.decorator';
 
 @ApiTags('Users')
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard, PlanLimitGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard, PlanLimitGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 @Roles(OrgRole.ADMIN)
 @ApiBearerAuth()
 export class UsersController {

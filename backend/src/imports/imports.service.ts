@@ -137,8 +137,11 @@ export class ImportsService implements OnModuleDestroy {
   async startProductsImport(
     file: Express.Multer.File,
     userId: string,
-    organizationId: string,
+    organizationId: string | undefined,
   ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     this.validateIncomingFile(file);
 
     const parsedFile = await this.parseFile(file);

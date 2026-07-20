@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/Button";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, LayoutDashboard } from "lucide-react";
 
 export default function AdminLayout({
   children,
@@ -16,7 +16,7 @@ export default function AdminLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && (!user || !user.isSuperAdmin)) {
+    if (!loading && (!user || user.role !== "SUPER_ADMIN")) {
       router.push("/dashboard");
     }
   }, [user, loading, router]);
@@ -29,7 +29,7 @@ export default function AdminLayout({
     );
   }
 
-  if (!user || !user.isSuperAdmin) {
+  if (!user || user.role !== "SUPER_ADMIN") {
     return null;
   }
 
@@ -43,6 +43,13 @@ export default function AdminLayout({
           </div>
           <div className="flex items-center gap-4">
             <nav className="flex gap-2">
+              <Link
+                href="/dashboard"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground flex items-center gap-1.5"
+              >
+                <LayoutDashboard className="h-3.5 w-3.5" />
+                Ir al Panel
+              </Link>
               <Link
                 href="/admin"
                 className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"

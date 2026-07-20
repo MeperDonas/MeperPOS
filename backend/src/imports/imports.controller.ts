@@ -23,6 +23,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { OrgRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
@@ -31,7 +33,8 @@ import { RetryImportRowDto } from './dto/import.dto';
 
 @ApiTags('Imports')
 @Controller('imports')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 @ApiBearerAuth()
 export class ImportsController {
   constructor(private readonly importsService: ImportsService) {}
@@ -75,7 +78,7 @@ export class ImportsController {
     return this.importsService.startProductsImport(
       file,
       user.userId,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 

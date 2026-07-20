@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, UseInterceptors } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -11,12 +11,14 @@ import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 
 @ApiTags('Reports')
 @Controller('reports')
 @UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 @Roles(OrgRole.ADMIN)
 @ApiBearerAuth()
 export class ReportsController {
@@ -63,7 +65,7 @@ export class ReportsController {
     @Query('endDate') endDate?: string,
   ) {
     return this.reportsService.getDashboardKPIs(
-      user.organizationId!,
+      user.organizationId,
       startDate,
       endDate,
     );
@@ -79,7 +81,7 @@ export class ReportsController {
     @Query('endDate') endDate?: string,
   ) {
     return this.reportsService.getSalesByPaymentMethod(
-      user.organizationId!,
+      user.organizationId,
       startDate,
       endDate,
     );
@@ -95,7 +97,7 @@ export class ReportsController {
     @Query('endDate') endDate?: string,
   ) {
     return this.reportsService.getSalesByCategory(
-      user.organizationId!,
+      user.organizationId,
       startDate,
       endDate,
     );
@@ -113,7 +115,7 @@ export class ReportsController {
     @Query('limit') limit?: string,
   ) {
     return this.reportsService.getTopSellingProducts(
-      user.organizationId!,
+      user.organizationId,
       startDate,
       endDate,
       limit ? parseInt(limit) : 10,
@@ -130,7 +132,7 @@ export class ReportsController {
     @Query('endDate') endDate?: string,
   ) {
     return this.reportsService.getCustomerStatistics(
-      user.organizationId!,
+      user.organizationId,
       startDate,
       endDate,
     );
@@ -154,7 +156,7 @@ export class ReportsController {
     @Query('userIds') userIds?: string,
   ) {
     return this.reportsService.getUserPerformance(
-      user.organizationId!,
+      user.organizationId,
       startDate,
       endDate,
       this.parseCompare(compare),
@@ -172,7 +174,7 @@ export class ReportsController {
     @Query('endDate') endDate: string,
   ) {
     return this.reportsService.getDailySales(
-      user.organizationId!,
+      user.organizationId,
       startDate,
       endDate,
     );

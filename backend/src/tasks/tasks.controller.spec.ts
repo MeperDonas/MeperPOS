@@ -36,7 +36,7 @@ describe('TasksController', () => {
     const guard = new RolesGuard(new Reflector());
 
     expect(() =>
-      guard.canActivate(createContext(controller.findAll, OrgRole.OWNER)),
+      guard.canActivate(createContext(controller.findAll, OrgRole.CASHIER)),
     ).toThrow(ForbiddenException);
   });
 

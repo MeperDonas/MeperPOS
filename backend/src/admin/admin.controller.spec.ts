@@ -12,6 +12,11 @@ describe('AdminController', () => {
     updateStatus: jest.fn(),
     updatePlan: jest.fn(),
     getMetrics: jest.fn(),
+    updateOrganization: jest.fn(),
+    addOrganizationMember: jest.fn(),
+    updateMemberRole: jest.fn(),
+    removeOrganizationMember: jest.fn(),
+    deleteOrganization: jest.fn(),
   };
 
   const createContext = (
@@ -124,5 +129,94 @@ describe('AdminController', () => {
 
     await expect(controller.getMetrics()).resolves.toEqual(expected);
     expect(adminServiceMock.getMetrics).toHaveBeenCalled();
+  });
+
+  it('delegates updateOrganization to the service', async () => {
+    const controller = new AdminController(adminServiceMock as never);
+    const dto = { name: 'Updated', slug: 'updated-slug' };
+    const expected = { id: 'org-1', name: 'Updated' };
+
+    adminServiceMock.updateOrganization.mockResolvedValue(expected);
+
+    await expect(
+      controller.updateOrganization('org-1', dto),
+    ).resolves.toEqual(expected);
+    expect(adminServiceMock.updateOrganization).toHaveBeenCalledWith(
+      'org-1',
+      dto,
+    );
+  });
+
+  it('delegates addOrganizationMember to the service', async () => {
+    const controller = new AdminController(adminServiceMock as never);
+    const dto = {
+      email: 'new@example.com',
+      name: 'New',
+      role: 'CASHIER' as const,
+    };
+    const expected = { user: { id: 'u-1' }, organizationUser: { id: 'ou-1' } };
+
+    adminServiceMock.addOrganizationMember.mockResolvedValue(expected);
+
+    await expect(
+      controller.addOrganizationMember('org-1', dto),
+    ).resolves.toEqual(expected);
+    expect(adminServiceMock.addOrganizationMember).toHaveBeenCalledWith(
+      'org-1',
+      dto,
+    );
+  });
+
+  it('delegates updateMemberRole to the service', async () => {
+    const controller = new AdminController(adminServiceMock as never);
+    const dto = { role: 'ADMIN' as const };
+    const expected = {
+      id: 'ou-1',
+      userId: 'user-1',
+      organizationId: 'org-1',
+      role: 'ADMIN',
+    };
+
+    adminServiceMock.updateMemberRole.mockResolvedValue(expected);
+
+    await expect(
+      controller.updateMemberRole('org-1', 'user-1', dto),
+    ).resolves.toEqual(expected);
+    expect(adminServiceMock.updateMemberRole).toHaveBeenCalledWith(
+      'org-1',
+      'user-1',
+      'ADMIN',
+    );
+  });
+
+  it('delegates removeOrganizationMember to the service', async () => {
+    const controller = new AdminController(adminServiceMock as never);
+    const expected = { success: true };
+
+    adminServiceMock.removeOrganizationMember.mockResolvedValue(expected);
+
+    await expect(
+      controller.removeOrganizationMember('org-1', 'user-1'),
+    ).resolves.toEqual(expected);
+    expect(adminServiceMock.removeOrganizationMember).toHaveBeenCalledWith(
+      'org-1',
+      'user-1',
+    );
+  });
+
+  it('delegates deleteOrganization to the service', async () => {
+    const controller = new AdminController(adminServiceMock as never);
+    const dto = { confirmOrganizationName: 'Tienda Principal' };
+    const expected = { success: true };
+
+    adminServiceMock.deleteOrganization.mockResolvedValue(expected);
+
+    await expect(
+      controller.deleteOrganization('org-1', dto),
+    ).resolves.toEqual(expected);
+    expect(adminServiceMock.deleteOrganization).toHaveBeenCalledWith(
+      'org-1',
+      dto,
+    );
   });
 });

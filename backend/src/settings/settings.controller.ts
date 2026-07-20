@@ -20,13 +20,16 @@ import { UpdateSettingsDto } from './dto/settings.dto';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Settings')
 @Controller('settings')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 @ApiBearerAuth()
 export class SettingsController {
   constructor(private settingsService: SettingsService) {}
@@ -35,7 +38,7 @@ export class SettingsController {
   @Roles(OrgRole.ADMIN)
   @ApiOperation({ summary: 'Get current system settings' })
   async getSettings(@CurrentUser() user: RequestUser) {
-    return this.settingsService.find(user.organizationId!);
+    return this.settingsService.find(user.organizationId);
   }
 
   @Get('default')
@@ -52,7 +55,7 @@ export class SettingsController {
     @Body() updateSettingsDto: UpdateSettingsDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.settingsService.update(user.organizationId!, updateSettingsDto);
+    return this.settingsService.update(user.organizationId, updateSettingsDto);
   }
 
   @Post('logo')
@@ -64,6 +67,6 @@ export class SettingsController {
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.settingsService.uploadLogo(user.organizationId!, file);
+    return this.settingsService.uploadLogo(user.organizationId, file);
   }
 }

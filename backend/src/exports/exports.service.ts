@@ -10,14 +10,14 @@ export class ExportsService {
   constructor(private prisma: PrismaService) {}
 
   async getInventoryMovements(
-    organizationId: string,
+    organizationId: string | undefined,
     query: InventoryMovementsQueryDto,
   ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = { organizationId };
+    const where: Record<string, unknown> = { ...(organizationId ? { organizationId } : {}) };
 
     if (query.productId) {
       where.productId = query.productId;
@@ -64,7 +64,7 @@ export class ExportsService {
   }
 
   async exportSales(
-    organizationId: string,
+    organizationId: string | undefined,
     query: ExportQueryDto,
     response: any,
   ) {
@@ -73,7 +73,7 @@ export class ExportsService {
   }
 
   async exportProducts(
-    organizationId: string,
+    organizationId: string | undefined,
     query: ExportQueryDto,
     response: any,
   ) {
@@ -82,7 +82,7 @@ export class ExportsService {
   }
 
   async exportCustomers(
-    organizationId: string,
+    organizationId: string | undefined,
     query: ExportQueryDto,
     response: any,
   ) {
@@ -91,7 +91,7 @@ export class ExportsService {
   }
 
   async exportInventory(
-    organizationId: string,
+    organizationId: string | undefined,
     query: ExportQueryDto,
     response: any,
   ) {
@@ -99,8 +99,8 @@ export class ExportsService {
     return this.exportData(movements, 'inventory', query.format, response);
   }
 
-  private async getSalesData(organizationId: string, query: ExportQueryDto) {
-    const where: any = { organizationId };
+  private async getSalesData(organizationId: string | undefined, query: ExportQueryDto) {
+    const where: any = { ...(organizationId ? { organizationId } : {}) };
     if (query.startDate || query.endDate) {
       where.createdAt = {};
       if (query.startDate) where.createdAt.gte = new Date(query.startDate);
@@ -123,9 +123,9 @@ export class ExportsService {
     });
   }
 
-  private async getProductsData(organizationId: string, query: ExportQueryDto) {
+  private async getProductsData(organizationId: string | undefined, query: ExportQueryDto) {
     return this.prisma.product.findMany({
-      where: { organizationId, active: true },
+      where: { ...(organizationId ? { organizationId } : {}), active: true },
       take: query.limit || undefined,
       orderBy: { createdAt: 'desc' },
       include: { category: { select: { name: true } } },
@@ -133,21 +133,21 @@ export class ExportsService {
   }
 
   private async getCustomersData(
-    organizationId: string,
+    organizationId: string | undefined,
     query: ExportQueryDto,
   ) {
     return this.prisma.customer.findMany({
-      where: { organizationId, active: true },
+      where: { ...(organizationId ? { organizationId } : {}), active: true },
       take: query.limit || undefined,
       orderBy: { createdAt: 'desc' },
     });
   }
 
   private async getInventoryData(
-    organizationId: string,
+    organizationId: string | undefined,
     query: ExportQueryDto,
   ) {
-    const where: any = { organizationId };
+    const where: any = { ...(organizationId ? { organizationId } : {}) };
     if (query.startDate || query.endDate) {
       where.createdAt = {};
       if (query.startDate) where.createdAt.gte = new Date(query.startDate);

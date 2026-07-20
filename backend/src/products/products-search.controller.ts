@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, UseInterceptors } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -10,12 +10,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 
 @ApiTags('Products')
 @Controller('products')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 @ApiBearerAuth()
 export class ProductsSearchController {
   constructor(private prisma: PrismaService) {}
@@ -43,7 +46,7 @@ export class ProductsSearchController {
     const searchQuery = q.trim();
 
     const where: Record<string, unknown> = {
-      organizationId: user.organizationId!,
+      organizationId: user.organizationId,
       active: true,
       OR: [
         { name: { contains: searchQuery, mode: 'insensitive' as const } },
@@ -100,7 +103,7 @@ export class ProductsSearchController {
   ) {
     const product = await this.prisma.product.findFirst({
       where: {
-        organizationId: user.organizationId!,
+        organizationId: user.organizationId,
         active: true,
         OR: [{ barcode: { equals: code } }, { sku: { equals: code } }],
       },

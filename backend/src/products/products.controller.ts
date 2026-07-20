@@ -35,11 +35,14 @@ import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PlanLimitGuard } from '../plan-limits/plan-limits.guard';
 import { PlanLimit } from '../plan-limits/plan-limits.decorator';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 
 @ApiTags('Products')
 @Controller('products')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard, PlanLimitGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard, PlanLimitGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 export class ProductsController {
   constructor(private productsService: ProductsService) {}
 
@@ -56,7 +59,7 @@ export class ProductsController {
     return this.productsService.create(
       createProductDto,
       user.userId,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 
@@ -81,7 +84,7 @@ export class ProductsController {
     @Query('status') status: 'active' | 'inactive' | 'all' = 'active',
   ) {
     return this.productsService.findAll(
-      user.organizationId!,
+      user.organizationId,
       page,
       limit,
       search,
@@ -94,7 +97,7 @@ export class ProductsController {
   @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Get products with low stock' })
   getLowStock(@CurrentUser() user: RequestUser) {
-    return this.productsService.getLowStockProducts(user.organizationId!);
+    return this.productsService.getLowStockProducts(user.organizationId);
   }
 
   @Get('search')
@@ -110,7 +113,7 @@ export class ProductsController {
     return this.productsService.searchProducts(
       query,
       limit,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 
@@ -119,13 +122,13 @@ export class ProductsController {
   @ApiOperation({ summary: 'Quick search product by barcode or SKU' })
   @ApiQuery({ name: 'code', required: true })
   quickSearch(@CurrentUser() user: RequestUser, @Query('code') code: string) {
-    return this.productsService.quickSearch(code, user.organizationId!);
+    return this.productsService.quickSearch(code, user.organizationId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a product by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    return this.productsService.findOne(id, user.organizationId!);
+    return this.productsService.findOne(id, user.organizationId);
   }
 
   @Put(':id')
@@ -142,7 +145,7 @@ export class ProductsController {
       id,
       updateProductDto,
       user.userId,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 
@@ -152,7 +155,7 @@ export class ProductsController {
   @AuditAction('PRODUCT_DEACTIVATE')
   @ApiOperation({ summary: 'Deactivate a product' })
   deactivate(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    return this.productsService.deactivate(id, user.organizationId!);
+    return this.productsService.deactivate(id, user.organizationId);
   }
 
   @Put(':id/reactivate')
@@ -161,7 +164,7 @@ export class ProductsController {
   @AuditAction('PRODUCT_REACTIVATE')
   @ApiOperation({ summary: 'Reactivate a product' })
   reactivate(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    return this.productsService.reactivate(id, user.organizationId!);
+    return this.productsService.reactivate(id, user.organizationId);
   }
 
   @Delete(':id')
@@ -170,7 +173,7 @@ export class ProductsController {
   @AuditAction('PRODUCT_DELETE')
   @ApiOperation({ summary: 'Delete a product' })
   remove(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    return this.productsService.remove(id, user.organizationId!);
+    return this.productsService.remove(id, user.organizationId);
   }
 
   @Post('upload')
@@ -243,7 +246,7 @@ export class ProductsController {
     return this.productsService.uploadProductImage(
       id,
       file,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 }

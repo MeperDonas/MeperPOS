@@ -7,9 +7,9 @@ import { PaymentRecordStatus, OrgStatus, BillingStatus } from '@prisma/client';
 export class PaymentRecordsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAllByOrg(organizationId: string) {
+  async findAllByOrg(organizationId: string | undefined) {
     return this.prisma.paymentRecord.findMany({
-      where: { organizationId },
+      where: { ...(organizationId ? { organizationId } : {}) },
       orderBy: { date: 'desc' },
     });
   }

@@ -1,7 +1,4 @@
-import {
-  UnauthorizedException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrgRole, OrgStatus, PlanType } from '@prisma/client';
@@ -215,7 +212,7 @@ describe('AuthService', () => {
       });
       mockPrisma.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
 
-      const result = await service.login({
+      const result: any = await service.login({
         ...loginDto,
         organizationId: 'org-1',
       });
@@ -258,7 +255,7 @@ describe('AuthService', () => {
       ]);
       mockPrisma.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
 
-      const result = await service.login(loginDto);
+      const result: any = await service.login(loginDto);
 
       expect(result.user.organizationId).toBe('org-1');
       expect(mockPrisma.organizationUser.findMany).toHaveBeenCalledWith(
@@ -295,7 +292,7 @@ describe('AuthService', () => {
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       mockPrisma.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
 
-      const result = await service.login({
+      const result: any = await service.login({
         email: 'admin@sistema.com',
         password: 'admin123',
       });
@@ -558,9 +555,7 @@ describe('AuthService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
       mockPrisma.organizationUser.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.selectOrg('user-1', 'foreign-org'),
-      ).rejects.toThrow(
+      await expect(service.selectOrg('user-1', 'foreign-org')).rejects.toThrow(
         new UnauthorizedException('Organization membership not found'),
       );
     });
@@ -584,7 +579,10 @@ describe('AuthService', () => {
         status: OrgStatus.ACTIVE,
       });
       mockPrisma.refreshToken.create.mockResolvedValue({ id: 'rt-2' });
-      mockPrisma.user.update.mockResolvedValue({ ...mockUser, tokenVersion: 2 });
+      mockPrisma.user.update.mockResolvedValue({
+        ...mockUser,
+        tokenVersion: 2,
+      });
       mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 3 });
 
       const result = await service.selectOrg('user-1', 'org-1');

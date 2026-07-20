@@ -61,8 +61,11 @@ export class SalesService {
   async create(
     createSaleDto: CreateSaleDto,
     userId: string,
-    organizationId: string,
+    organizationId: string | undefined,
   ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const { customerId, items, discountAmount = 0, payments } = createSaleDto;
 
     if (items.length === 0) {
@@ -291,7 +294,7 @@ export class SalesService {
   }
 
   async findAll(
-    organizationId: string,
+    organizationId: string | undefined,
     page = 1,
     limit = 10,
     startDate?: string,
@@ -304,7 +307,7 @@ export class SalesService {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
-      organizationId,
+      ...(organizationId ? { organizationId } : {}),
       ...(user ? this.buildScopeFilter(user) : {}),
     };
 
@@ -384,9 +387,9 @@ export class SalesService {
     };
   }
 
-  async findOne(id: string, organizationId: string, user?: RequestUser) {
+  async findOne(id: string, organizationId: string | undefined, user?: RequestUser) {
     const sale = await this.prisma.sale.findFirst({
-      where: { id, organizationId },
+      where: { id, ...(organizationId ? { organizationId } : {}) },
       include: {
         customer: true,
         items: {
@@ -410,13 +413,13 @@ export class SalesService {
   }
 
   async findBySaleNumber(saleNumber: number, user?: RequestUser) {
-    if (!user) {
+    if (!user || !user.organizationId) {
       return null;
     }
     const sale = await this.prisma.sale.findUnique({
       where: {
         organizationId_saleNumber: {
-          organizationId: user.organizationId!,
+          organizationId: user.organizationId,
           saleNumber,
         },
       },
@@ -446,9 +449,12 @@ export class SalesService {
     id: string,
     updateSaleDto: UpdateSaleDto,
     userId: string,
-    organizationId: string,
+    organizationId: string | undefined,
     user?: RequestUser,
   ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const existingSale = await this.prisma.sale.findFirst({
       where: { id, organizationId },
       include: { items: true },
@@ -532,7 +538,10 @@ export class SalesService {
    * as COMPLETED). This method is preserved for future use when open-sale
    * workflows are implemented.
    */
-  async forceClose(id: string, organizationId: string, reason?: string) {
+  async forceClose(id: string, organizationId: string | undefined, reason?: string) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       select: { plan: true },
@@ -576,10 +585,9 @@ export class SalesService {
   }
 
   async generateReceipt(id: string, response: Response, user?: RequestUser) {
-    const organizationId = user?.organizationId ?? '';
-    const sale = await this.findOne(id, organizationId, user);
+    const sale = await this.findOne(id, user?.organizationId, user);
     const settings = user
-      ? await this.settingsService.find(user.organizationId!)
+      ? await this.settingsService.find(user.organizationId)
       : {};
 
     const doc = new jsPDF({

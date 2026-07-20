@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -23,8 +24,11 @@ export class ProductsService {
   async create(
     createProductDto: CreateProductDto,
     userId: string,
-    organizationId: string,
+    organizationId: string | undefined,
   ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const { sku, barcode, categoryId, taxRate, ...rest } = createProductDto;
 
     const category = await this.prisma.category.findFirst({
@@ -96,7 +100,7 @@ export class ProductsService {
   }
 
   async findAll(
-    organizationId: string,
+    organizationId: string | undefined,
     page = 1,
     limit = 10,
     search?: string,
@@ -105,7 +109,7 @@ export class ProductsService {
   ) {
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = { organizationId };
+    const where: Record<string, unknown> = { ...(organizationId ? { organizationId } : {}) };
 
     if (status === 'active') {
       where.active = true;
@@ -149,9 +153,9 @@ export class ProductsService {
     };
   }
 
-  async findOne(id: string, organizationId: string) {
+  async findOne(id: string, organizationId: string | undefined) {
     const product = await this.prisma.product.findFirst({
-      where: { id, organizationId, active: true },
+      where: { id, ...(organizationId ? { organizationId } : {}), active: true },
       include: { category: true, movements: true },
     });
 
@@ -166,8 +170,11 @@ export class ProductsService {
     id: string,
     updateProductDto: UpdateProductDto,
     userId: string,
-    organizationId: string,
+    organizationId: string | undefined,
   ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const existingProduct = await this.prisma.product.findFirst({
       where: { id, organizationId, active: true },
     });
@@ -251,7 +258,10 @@ export class ProductsService {
     return this.enrichWithEffectiveTax(product);
   }
 
-  async deactivate(id: string, organizationId: string) {
+  async deactivate(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const product = await this.prisma.product.findFirst({
       where: { id, organizationId, active: true },
     });
@@ -267,7 +277,10 @@ export class ProductsService {
     });
   }
 
-  async remove(id: string, organizationId: string) {
+  async remove(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const product = await this.prisma.product.findFirst({
       where: { id, organizationId },
     });
@@ -293,7 +306,16 @@ export class ProductsService {
     }
   }
 
-  async getLowStockProducts(organizationId: string) {
+  async getLowStockProducts(organizationId: string | undefined) {
+    if (!organizationId) {
+      return this.prisma.$queryRaw`
+        SELECT p.*, c.name as "categoryName"
+        FROM "Product" p
+        LEFT JOIN "Category" c ON p."categoryId" = c.id
+        WHERE p.active = true AND p.stock <= p."minStock"
+        ORDER BY p.stock ASC
+      `;
+    }
     return this.prisma.$queryRaw`
       SELECT p.*, c.name as "categoryName"
       FROM "Product" p
@@ -303,10 +325,10 @@ export class ProductsService {
     `;
   }
 
-  async searchProducts(query: string, limit = 20, organizationId: string) {
+  async searchProducts(query: string, limit = 20, organizationId: string | undefined) {
     const products = await this.prisma.product.findMany({
       where: {
-        organizationId,
+        ...(organizationId ? { organizationId } : {}),
         active: true,
         OR: [
           { name: { contains: query, mode: 'insensitive' as const } },
@@ -338,7 +360,7 @@ export class ProductsService {
     }));
   }
 
-  async quickSearch(code: string, organizationId: string) {
+  async quickSearch(code: string, organizationId: string | undefined) {
     const normalizedCode = code.trim();
 
     if (!normalizedCode) {
@@ -347,7 +369,7 @@ export class ProductsService {
 
     const product = await this.prisma.product.findFirst({
       where: {
-        organizationId,
+        ...(organizationId ? { organizationId } : {}),
         active: true,
         OR: [
           {
@@ -445,8 +467,11 @@ export class ProductsService {
   async uploadProductImage(
     productId: string,
     file: Express.Multer.File,
-    organizationId: string,
+    organizationId: string | undefined,
   ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const product = await this.prisma.product.findFirst({
       where: { id: productId, organizationId },
     });
@@ -477,7 +502,10 @@ export class ProductsService {
     return updatedProduct;
   }
 
-  async reactivate(id: string, organizationId: string) {
+  async reactivate(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const product = await this.prisma.product.findFirst({
       where: { id, organizationId },
       include: { category: true },

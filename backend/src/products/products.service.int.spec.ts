@@ -9,6 +9,7 @@ const settingsServiceMock = {
 };
 
 const cloudinaryServiceMock = {};
+const planLimitServiceMock = {};
 
 describe('ProductsService — Integration (Query Isolation)', () => {
   let service: ProductsService;
@@ -21,6 +22,7 @@ describe('ProductsService — Integration (Query Isolation)', () => {
       prisma as never,
       settingsServiceMock as never,
       cloudinaryServiceMock as never,
+      planLimitServiceMock as never,
     );
 
     // Create two orgs

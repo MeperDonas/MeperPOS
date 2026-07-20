@@ -92,9 +92,7 @@ describe('CustomersController', () => {
   });
 
   it('delegates customer creation with organizationId', async () => {
-    const controller = new CustomersController(
-      customersServiceMock as never,
-    );
+    const controller = new CustomersController(customersServiceMock as never);
     const createCustomerDto = {
       name: 'Walk-in Customer',
       documentType: 'CC' as const,

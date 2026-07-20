@@ -56,7 +56,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       return {
         userId: payload.sub,
         email: payload.email,
-        organizationId: payload.organizationId ?? null,
+        organizationId: payload.organizationId ?? undefined,
         role: 'SUPER_ADMIN' as const,
         tokenVersion: payload.tokenVersion,
         isSuperAdmin: true,

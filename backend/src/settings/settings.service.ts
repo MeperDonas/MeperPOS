@@ -21,7 +21,10 @@ export class SettingsService {
     private cloudinaryService: CloudinaryService,
   ) {}
 
-  async find(organizationId: string): Promise<OrganizationSettings> {
+  async find(organizationId: string | undefined): Promise<OrganizationSettings> {
+    if (!organizationId) {
+      return {};
+    }
     const org = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       select: { settings: true },
@@ -30,9 +33,12 @@ export class SettingsService {
   }
 
   async update(
-    organizationId: string,
+    organizationId: string | undefined,
     dto: UpdateSettingsDto,
   ): Promise<unknown> {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     return this.prisma.organization.update({
       where: { id: organizationId },
       data: { settings: dto as any },
@@ -49,9 +55,12 @@ export class SettingsService {
   }
 
   async uploadLogo(
-    organizationId: string,
+    organizationId: string | undefined,
     file: Express.Multer.File,
   ): Promise<{ logoUrl: string }> {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     if (!file) {
       throw new BadRequestException('No file provided');
     }

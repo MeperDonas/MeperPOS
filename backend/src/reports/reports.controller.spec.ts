@@ -60,7 +60,7 @@ describe('ReportsController', () => {
     ).toThrow(ForbiddenException);
   });
 
-  it('blocks SuperAdmin without an organization scope', () => {
+  it('allows SuperAdmin without an organization scope', () => {
     const guard = new OrganizationRequiredGuard();
     const context = {
       switchToHttp: () => ({
@@ -68,7 +68,7 @@ describe('ReportsController', () => {
           user: {
             userId: 'super-1',
             email: 'super@example.com',
-            organizationId: null,
+            organizationId: undefined,
             role: 'SUPER_ADMIN',
             tokenVersion: 1,
             isSuperAdmin: true,
@@ -79,7 +79,7 @@ describe('ReportsController', () => {
       getClass: () => ReportsController,
     } as unknown as ExecutionContext;
 
-    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+    expect(guard.canActivate(context)).toBe(true);
   });
 
   it('forwards date filters to service and returns metadata-bearing response', async () => {

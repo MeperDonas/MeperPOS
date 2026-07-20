@@ -3,6 +3,7 @@ import {
   Post,
   Body,
   UseGuards,
+  UseInterceptors,
   Res,
   Get,
   Query,
@@ -19,12 +20,15 @@ import { ExportQueryDto, InventoryMovementsQueryDto } from './dto/export.dto';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 
 @ApiTags('Exports')
 @Controller('exports')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 @ApiBearerAuth()
 export class ExportsController {
   constructor(private exportsService: ExportsService) {}
@@ -37,7 +41,7 @@ export class ExportsController {
     @Query() query: InventoryMovementsQueryDto,
   ) {
     return this.exportsService.getInventoryMovements(
-      user.organizationId!,
+      user.organizationId,
       query,
     );
   }
@@ -51,7 +55,7 @@ export class ExportsController {
     @Body() query: ExportQueryDto,
     @Res() res: Response,
   ) {
-    return this.exportsService.exportSales(user.organizationId!, query, res);
+    return this.exportsService.exportSales(user.organizationId, query, res);
   }
 
   @Post('products')
@@ -63,7 +67,7 @@ export class ExportsController {
     @Body() query: ExportQueryDto,
     @Res() res: Response,
   ) {
-    return this.exportsService.exportProducts(user.organizationId!, query, res);
+    return this.exportsService.exportProducts(user.organizationId, query, res);
   }
 
   @Post('customers')
@@ -76,7 +80,7 @@ export class ExportsController {
     @Res() res: Response,
   ) {
     return this.exportsService.exportCustomers(
-      user.organizationId!,
+      user.organizationId,
       query,
       res,
     );
@@ -92,7 +96,7 @@ export class ExportsController {
     @Res() res: Response,
   ) {
     return this.exportsService.exportInventory(
-      user.organizationId!,
+      user.organizationId,
       query,
       res,
     );

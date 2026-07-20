@@ -102,11 +102,9 @@ describe('RolesGuard', () => {
   });
 
   it('should allow CASHIER when CASHIER is explicitly required', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([
-      OrgRole.ADMIN,
-      OrgRole.MEMBER,
-      OrgRole.CASHIER,
-    ]);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue([OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER]);
 
     const context = createMockContext({ role: OrgRole.CASHIER });
     expect(guard.canActivate(context)).toBe(true);
@@ -120,9 +118,9 @@ describe('RolesGuard', () => {
   });
 
   it('should allow ADMIN to inherit CASHIER-required access', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([
-      OrgRole.CASHIER,
-    ]);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue([OrgRole.CASHIER]);
 
     const context = createMockContext({ role: OrgRole.ADMIN });
     expect(guard.canActivate(context)).toBe(true);

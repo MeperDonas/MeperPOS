@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,6 +22,8 @@ import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { PlanLimitGuard } from '../plan-limits/plan-limits.guard';
@@ -28,7 +31,8 @@ import { PlanLimit } from '../plan-limits/plan-limits.decorator';
 
 @ApiTags('Customers')
 @Controller('customers')
-@UseGuards(JwtAuthGuard, RolesGuard, PlanLimitGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard, PlanLimitGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 @ApiBearerAuth()
 export class CustomersController {
   constructor(private customersService: CustomersService) {}
@@ -43,7 +47,7 @@ export class CustomersController {
   ) {
     return this.customersService.create(
       createCustomerDto,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 
@@ -62,7 +66,7 @@ export class CustomersController {
     @Query('segment') segment?: string,
   ) {
     return this.customersService.findAll(
-      user.organizationId!,
+      user.organizationId,
       page,
       limit,
       search,
@@ -79,7 +83,7 @@ export class CustomersController {
   ) {
     return this.customersService.findByDocumentNumber(
       documentNumber,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 
@@ -87,7 +91,7 @@ export class CustomersController {
   @Roles(OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Get a customer by ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    return this.customersService.findOne(id, user.organizationId!);
+    return this.customersService.findOne(id, user.organizationId);
   }
 
   @Put(':id')
@@ -101,7 +105,7 @@ export class CustomersController {
     return this.customersService.update(
       id,
       updateCustomerDto,
-      user.organizationId!,
+      user.organizationId,
     );
   }
 
@@ -109,6 +113,6 @@ export class CustomersController {
   @Roles(OrgRole.ADMIN)
   @ApiOperation({ summary: 'Delete a customer' })
   remove(@Param('id') id: string, @CurrentUser() user: RequestUser) {
-    return this.customersService.remove(id, user.organizationId!);
+    return this.customersService.remove(id, user.organizationId);
   }
 }

@@ -218,13 +218,13 @@ export class ReportsService {
   ) {}
 
   async getDashboardKPIs(
-    organizationId: string,
+    organizationId: string | undefined,
     startDate?: string,
     endDate?: string,
   ) {
     validateDateRange(startDate, endDate);
 
-    const cacheKey = `dashboard:${organizationId}:${startDate || ''}:${endDate || ''}`;
+    const cacheKey = `dashboard:${organizationId || 'all'}:${startDate || ''}:${endDate || ''}`;
     const cached = this.cache.get(cacheKey);
 
     if (cached) {
@@ -234,17 +234,17 @@ export class ReportsService {
     const dateFilter = buildDateFilter(startDate, endDate);
     const comparisonPeriod = buildComparisonPeriod(startDate, endDate);
     const baseWhere: SaleWhereInput = {
-      organizationId,
+      ...(organizationId ? { organizationId } : ({} as any)),
       ...(dateFilter && { createdAt: dateFilter }),
     };
     const salesWhere = { ...baseWhere, status: 'COMPLETED' as const };
     const currentPeriodSalesWhere = {
-      organizationId,
+      ...(organizationId ? { organizationId } : ({} as any)),
       status: 'COMPLETED' as const,
       createdAt: comparisonPeriod.current,
     };
     const previousPeriodSalesWhere = {
-      organizationId,
+      ...(organizationId ? { organizationId } : ({} as any)),
       status: 'COMPLETED' as const,
       createdAt: comparisonPeriod.previous,
     };
@@ -269,15 +269,20 @@ export class ReportsService {
         _sum: { total: true },
       }),
       this.prisma.product.count({
-        where: { organizationId, active: true },
+        where: { ...(organizationId ? { organizationId } : {}), active: true },
       }),
       this.prisma.customer.count({
-        where: { organizationId, active: true },
+        where: { ...(organizationId ? { organizationId } : {}), active: true },
       }),
-      this.prisma.$queryRaw<[{ count: bigint }]>`
-          SELECT COUNT(*)::bigint as count FROM "Product"
-          WHERE "organizationId" = ${organizationId} AND active = true AND stock <= "minStock"
-        `.then((r) => Number(r[0].count)),
+      organizationId
+        ? this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(*)::bigint as count FROM "Product"
+            WHERE "organizationId" = ${organizationId} AND active = true AND stock <= "minStock"
+          `.then((r) => Number(r[0].count))
+        : this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(*)::bigint as count FROM "Product"
+            WHERE active = true AND stock <= "minStock"
+          `.then((r) => Number(r[0].count)),
       this.prisma.sale.findMany({
         where: salesWhere,
         take: 5,
@@ -321,14 +326,14 @@ export class ReportsService {
       }),
       this.prisma.customer.count({
         where: {
-          organizationId,
+          ...(organizationId ? { organizationId } : {}),
           active: true,
           createdAt: comparisonPeriod.current,
         },
       }),
       this.prisma.customer.count({
         where: {
-          organizationId,
+          ...(organizationId ? { organizationId } : {}),
           active: true,
           createdAt: comparisonPeriod.previous,
         },
@@ -377,7 +382,7 @@ export class ReportsService {
   }
 
   async getSalesByPaymentMethod(
-    organizationId: string,
+    organizationId: string | undefined,
     startDate?: string,
     endDate?: string,
   ) {
@@ -385,7 +390,7 @@ export class ReportsService {
 
     const dateFilter = buildDateFilter(startDate, endDate);
     const where: SaleWhereInput = {
-      organizationId,
+      ...(organizationId ? { organizationId } : ({} as any)),
       status: 'COMPLETED',
       ...(dateFilter && { createdAt: dateFilter }),
     };
@@ -430,7 +435,7 @@ export class ReportsService {
   }
 
   async getSalesByCategory(
-    organizationId: string,
+    organizationId: string | undefined,
     startDate?: string,
     endDate?: string,
   ) {
@@ -438,7 +443,7 @@ export class ReportsService {
     const dateFilter = buildDateFilter(startDate, endDate);
     const saleNested: SaleNestedWhere = {
       status: 'COMPLETED',
-      organizationId,
+      ...(organizationId ? { organizationId } : ({} as any)),
       ...(dateFilter && { createdAt: dateFilter }),
     };
     const where: SaleItemWhereInput = { sale: saleNested };
@@ -451,7 +456,10 @@ export class ReportsService {
 
     const productIds = productsByCategory.map((p) => p.productId);
     const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds }, organizationId },
+      where: {
+        id: { in: productIds },
+        ...(organizationId ? { organizationId } : {}),
+      },
       select: {
         id: true,
         category: {
@@ -495,7 +503,7 @@ export class ReportsService {
   }
 
   async getTopSellingProducts(
-    organizationId: string,
+    organizationId: string | undefined,
     startDate?: string,
     endDate?: string,
     limit: number = 10,
@@ -504,7 +512,7 @@ export class ReportsService {
     const dateFilter = buildDateFilter(startDate, endDate);
     const saleNested: SaleNestedWhere = {
       status: 'COMPLETED',
-      organizationId,
+      ...(organizationId ? { organizationId } : ({} as any)),
       ...(dateFilter && { createdAt: dateFilter }),
     };
     const where: SaleItemWhereInput = { sale: saleNested };
@@ -519,7 +527,10 @@ export class ReportsService {
 
     const productIds = products.map((p) => p.productId);
     const productDetails = await this.prisma.product.findMany({
-      where: { id: { in: productIds }, organizationId },
+      where: {
+        id: { in: productIds },
+        ...(organizationId ? { organizationId } : {}),
+      },
       select: {
         id: true,
         name: true,
@@ -543,20 +554,25 @@ export class ReportsService {
   }
 
   async getCustomerStatistics(
-    organizationId: string,
+    organizationId: string | undefined,
     startDate?: string,
     endDate?: string,
   ) {
     validateDateRange(startDate, endDate);
     const dateFilter = buildDateFilter(startDate, endDate);
     const where: CustomerSaleWhereInput = {
-      organizationId,
+      ...(organizationId ? { organizationId } : ({} as any)),
       ...(dateFilter && { createdAt: dateFilter }),
     };
 
     const [totalCustomers, customersWithSales, topCustomers] =
       await Promise.all([
-        this.prisma.customer.count({ where: { organizationId, active: true } }),
+        this.prisma.customer.count({
+          where: {
+            ...(organizationId ? { organizationId } : {}),
+            active: true,
+          },
+        }),
         this.prisma.sale.groupBy({
           by: ['customerId'],
           where: where as never,
@@ -577,7 +593,10 @@ export class ReportsService {
       .map((c) => c.customerId)
       .filter((id): id is string => id !== null);
     const customerDetails = await this.prisma.customer.findMany({
-      where: { id: { in: customerIds }, organizationId },
+      where: {
+        id: { in: customerIds },
+        ...(organizationId ? { organizationId } : {}),
+      },
     });
 
     return {
@@ -597,7 +616,7 @@ export class ReportsService {
   }
 
   async getUserPerformance(
-    organizationId: string,
+    organizationId: string | undefined,
     startDate?: string,
     endDate?: string,
     compare: boolean = true,
@@ -611,7 +630,7 @@ export class ReportsService {
       ? comparisonPeriod.current
       : buildDateFilter(startDate, endDate);
     const currentWhere: SaleWhereInput = {
-      organizationId,
+      ...(organizationId ? { organizationId } : ({} as any)),
       status: 'COMPLETED',
       ...(currentFilter && { createdAt: currentFilter }),
       ...(selectedUserIds && { userId: { in: selectedUserIds } }),
@@ -662,7 +681,7 @@ export class ReportsService {
     if (compare) {
       const previousSales = await this.prisma.sale.findMany({
         where: {
-          organizationId,
+          ...(organizationId ? { organizationId } : {}),
           status: 'COMPLETED',
           createdAt: comparisonPeriod.previous,
           ...(selectedUserIds && {
@@ -756,7 +775,7 @@ export class ReportsService {
   }
 
   async getDailySales(
-    organizationId: string,
+    organizationId: string | undefined,
     startDate: string,
     endDate: string,
   ) {
@@ -770,7 +789,7 @@ export class ReportsService {
 
     const sales = await this.prisma.sale.findMany({
       where: {
-        organizationId,
+        ...(organizationId ? { organizationId } : {}),
         status: 'COMPLETED',
         createdAt: {
           gte: startDateFilter,

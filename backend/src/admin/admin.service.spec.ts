@@ -23,6 +23,7 @@ describe('AdminService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
       count: jest.fn(),
       groupBy: jest.fn(),
       updateMany: jest.fn(),
@@ -38,6 +39,7 @@ describe('AdminService', () => {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
     organizationSequence: {
       createMany: jest.fn(),
@@ -522,6 +524,331 @@ describe('AdminService', () => {
           [PlanType.PRO]: 2,
         },
       });
+    });
+  });
+
+  describe('updateOrganization', () => {
+    it('updates organization details', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        name: 'Old Name',
+        slug: 'old-slug',
+      });
+      prismaMock.organization.findFirst.mockResolvedValue(null);
+      prismaMock.organization.update.mockResolvedValue({
+        id: 'org-1',
+        name: 'New Name',
+        slug: 'new-slug',
+        taxId: '900123456-7',
+        phone: '+57 300 123 4567',
+        address: 'Calle 123',
+        active: true,
+      });
+
+      const result = await service.updateOrganization('org-1', {
+        name: 'New Name',
+        slug: 'new-slug',
+        taxId: '900123456-7',
+        phone: '+57 300 123 4567',
+        address: 'Calle 123',
+        active: true,
+      });
+
+      expect(result.name).toBe('New Name');
+      expect(result.slug).toBe('new-slug');
+      expect(prismaMock.organization.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'org-1' },
+          data: expect.objectContaining({ name: 'New Name', slug: 'new-slug' }),
+        }),
+      );
+    });
+
+    it('throws NotFoundException if organization does not exist', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateOrganization('non-existent', { name: 'New' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws ConflictException if slug is taken by another organization', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        name: 'Org One',
+        slug: 'old-slug',
+      });
+      prismaMock.organization.findFirst.mockResolvedValue({
+        id: 'org-2',
+        slug: 'taken-slug',
+      });
+
+      await expect(
+        service.updateOrganization('org-1', { slug: 'taken-slug' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('allows keeping the same slug (no conflict with itself)', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        name: 'Org One',
+        slug: 'my-slug',
+      });
+      prismaMock.organization.findFirst.mockResolvedValue(null);
+      prismaMock.organization.update.mockResolvedValue({
+        id: 'org-1',
+        name: 'Org One Updated',
+        slug: 'my-slug',
+      });
+
+      const result = await service.updateOrganization('org-1', {
+        name: 'Org One Updated',
+        slug: 'my-slug',
+      });
+
+      expect(result.slug).toBe('my-slug');
+      expect(result.name).toBe('Org One Updated');
+    });
+  });
+
+  describe('addOrganizationMember', () => {
+    it('creates a new user and adds to organization with role', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        name: 'Org One',
+      });
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      prismaMock.user.create.mockResolvedValue({
+        id: 'user-new',
+        email: 'newuser@example.com',
+        name: 'New User',
+      });
+      prismaMock.organizationUser.findFirst.mockResolvedValue(null);
+      prismaMock.organizationUser.create.mockResolvedValue({
+        id: 'ou-new',
+        userId: 'user-new',
+        organizationId: 'org-1',
+        role: OrgRole.CASHIER,
+        isPrimaryOwner: false,
+        joinedAt: new Date(),
+      });
+
+      const result = await service.addOrganizationMember('org-1', {
+        email: 'newuser@example.com',
+        name: 'New User',
+        role: OrgRole.CASHIER,
+      });
+
+      expect(prismaMock.user.create).toHaveBeenCalled();
+      expect(prismaMock.organizationUser.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 'user-new',
+            organizationId: 'org-1',
+            role: OrgRole.CASHIER,
+          }),
+        }),
+      );
+      expect(result.tempPassword).toBeDefined();
+    });
+
+    it('links existing user to organization', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        name: 'Org One',
+      });
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'existing-user',
+        email: 'existing@example.com',
+        name: 'Existing User',
+      });
+      prismaMock.organizationUser.findFirst.mockResolvedValue(null);
+      prismaMock.organizationUser.create.mockResolvedValue({
+        id: 'ou-1',
+        userId: 'existing-user',
+        organizationId: 'org-1',
+        role: OrgRole.MEMBER,
+        isPrimaryOwner: false,
+        joinedAt: new Date(),
+      });
+
+      const result = await service.addOrganizationMember('org-1', {
+        email: 'existing@example.com',
+        role: OrgRole.MEMBER,
+      });
+
+      expect(prismaMock.user.create).not.toHaveBeenCalled();
+      expect(result.tempPassword).toBeUndefined();
+      expect(result.organizationUser.role).toBe(OrgRole.MEMBER);
+    });
+
+    it('throws NotFoundException if organization does not exist', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.addOrganizationMember('non-existent', {
+          email: 'test@example.com',
+          role: OrgRole.MEMBER,
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws ConflictException if user is already a member', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        name: 'Org One',
+      });
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'existing-user',
+        email: 'existing@example.com',
+        name: 'Existing User',
+      });
+      prismaMock.organizationUser.findFirst.mockResolvedValue({
+        id: 'ou-1',
+        userId: 'existing-user',
+        organizationId: 'org-1',
+        role: OrgRole.MEMBER,
+      });
+
+      await expect(
+        service.addOrganizationMember('org-1', {
+          email: 'existing@example.com',
+          role: OrgRole.CASHIER,
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe('updateMemberRole', () => {
+    it('updates a member role successfully', async () => {
+      prismaMock.organizationUser.findFirst.mockResolvedValue({
+        id: 'ou-1',
+        userId: 'user-1',
+        organizationId: 'org-1',
+        role: OrgRole.MEMBER,
+        isPrimaryOwner: false,
+      });
+      prismaMock.organizationUser.update.mockResolvedValue({
+        id: 'ou-1',
+        userId: 'user-1',
+        organizationId: 'org-1',
+        role: OrgRole.ADMIN,
+        isPrimaryOwner: false,
+      });
+
+      const result = await service.updateMemberRole(
+        'org-1',
+        'user-1',
+        OrgRole.ADMIN,
+      );
+
+      expect(result.role).toBe(OrgRole.ADMIN);
+      expect(prismaMock.organizationUser.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'ou-1' },
+          data: { role: OrgRole.ADMIN },
+        }),
+      );
+    });
+
+    it('throws NotFoundException if membership does not exist', async () => {
+      prismaMock.organizationUser.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.updateMemberRole('org-1', 'user-99', OrgRole.ADMIN),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('removeOrganizationMember', () => {
+    it('removes a non-owner member successfully', async () => {
+      prismaMock.organizationUser.findFirst.mockResolvedValue({
+        id: 'ou-2',
+        userId: 'user-2',
+        organizationId: 'org-1',
+        role: OrgRole.CASHIER,
+        isPrimaryOwner: false,
+      });
+      prismaMock.organizationUser.delete.mockResolvedValue({
+        id: 'ou-2',
+      });
+
+      const result = await service.removeOrganizationMember(
+        'org-1',
+        'user-2',
+      );
+
+      expect(prismaMock.organizationUser.delete).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'ou-2' } }),
+      );
+      expect(result.success).toBe(true);
+    });
+
+    it('throws BadRequestException when removing primary owner', async () => {
+      prismaMock.organizationUser.findFirst.mockResolvedValue({
+        id: 'ou-1',
+        userId: 'user-1',
+        organizationId: 'org-1',
+        role: OrgRole.ADMIN,
+        isPrimaryOwner: true,
+      });
+
+      await expect(
+        service.removeOrganizationMember('org-1', 'user-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws NotFoundException if membership does not exist', async () => {
+      prismaMock.organizationUser.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.removeOrganizationMember('org-1', 'user-99'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('deleteOrganization', () => {
+    it('deletes organization when confirmation name matches', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        name: 'Tienda Principal',
+      });
+      prismaMock.organization.delete.mockResolvedValue({
+        id: 'org-1',
+        name: 'Tienda Principal',
+      });
+
+      const result = await service.deleteOrganization('org-1', {
+        confirmOrganizationName: 'Tienda Principal',
+      });
+
+      expect(prismaMock.organization.delete).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'org-1' } }),
+      );
+      expect(result.success).toBe(true);
+    });
+
+    it('throws BadRequestException when confirmation name does not match', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        name: 'Tienda Principal',
+      });
+
+      await expect(
+        service.deleteOrganization('org-1', {
+          confirmOrganizationName: 'Wrong Name',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws NotFoundException if organization does not exist', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.deleteOrganization('non-existent', {
+          confirmOrganizationName: 'Anything',
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

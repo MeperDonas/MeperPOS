@@ -59,9 +59,7 @@ export class AuthController {
   @Get('organizations')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user organizations' })
-  async getOrganizations(
-    @Request() req: { user: { userId: string } },
-  ) {
+  async getOrganizations(@Request() req: { user: { userId: string } }) {
     return this.authService.getUserOrganizations(req.user.userId);
   }
 
