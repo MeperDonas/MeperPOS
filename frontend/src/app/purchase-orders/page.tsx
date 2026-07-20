@@ -11,7 +11,8 @@ import { Pagination } from "@/components/ui/Pagination";
 import { PurchaseOrderStatusBadge } from "@/components/purchase-orders/PurchaseOrderStatusBadge";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Search, Plus, Eye, ClipboardList, X } from "lucide-react";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { Plus, Eye, ClipboardList, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { chipStyles } from "@/lib/chipStyles";
 import type { PurchaseOrderStatus } from "@/types";
@@ -96,22 +97,15 @@ export default function PurchaseOrdersPage() {
           )}
         </div>
 
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-          <div className="flex items-stretch flex-wrap sm:flex-nowrap">
-            <div className="relative w-full sm:flex-1 sm:min-w-0">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                placeholder="Buscar por N° OC o proveedor..."
-                value={q}
-                onChange={(e) => {
-                  setPage(1);
-                  setQ(e.target.value);
-                }}
-                className="w-full h-11 pl-10 pr-4 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none border-b sm:border-b-0 border-border/60"
-              />
-            </div>
-            <div className="hidden sm:block w-px bg-border/60 self-stretch my-2 shrink-0" />
-            <div className="flex items-center gap-2 px-3 py-2 flex-wrap">
+        <FilterBar
+          searchValue={q}
+          onSearchChange={(value) => {
+            setPage(1);
+            setQ(value);
+          }}
+          searchPlaceholder="Buscar por N° OC o proveedor..."
+          filterControls={
+            <>
               <select
                 value={supplierId}
                 onChange={(e) => {
@@ -167,9 +161,9 @@ export default function PurchaseOrdersPage() {
                   <X className="w-3 h-3" /> Limpiar
                 </button>
               )}
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {isLoading ? (
           <LoadingState icon={<ClipboardList className="w-4 h-4 text-primary/50" />} message="Cargando órdenes..." />

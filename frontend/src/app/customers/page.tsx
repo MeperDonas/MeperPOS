@@ -14,10 +14,10 @@ import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/ui/Pagination";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { cn } from "@/lib/utils";
 import { chipStyles } from "@/lib/chipStyles";
 import {
-  Search,
   Plus,
   Trash2,
   Phone,
@@ -159,22 +159,12 @@ export default function CustomersPage() {
         </div>
 
         {/* Filter Bar */}
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-          <div className="flex items-stretch flex-wrap sm:flex-nowrap">
-            {/* Search */}
-            <div className="relative w-full sm:flex-1 sm:min-w-0">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                placeholder="Buscar clientes..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full h-11 pl-10 pr-4 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none border-b sm:border-b-0 border-border/60"
-              />
-            </div>
-            {/* Divider */}
-            <div className="hidden sm:block w-px bg-border/60 self-stretch my-2 shrink-0" />
-            {/* Segment tabs */}
-            <div className="flex items-center gap-1 px-3 py-2 overflow-x-auto">
+        <FilterBar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Buscar clientes..."
+          filterControls={
+            <>
               {[
                 { value: "", label: "Todos", active: "bg-primary text-white shadow-sm shadow-primary/20", inactive: "text-muted-foreground hover:text-foreground hover:bg-muted/60" },
                 { value: "VIP", label: "VIP", active: chipStyles.success, inactive: "text-muted-foreground hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-500/5" },
@@ -193,9 +183,9 @@ export default function CustomersPage() {
                   {label}
                 </button>
               ))}
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {/* Content */}
         {isLoading ? (

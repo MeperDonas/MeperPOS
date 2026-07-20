@@ -22,9 +22,9 @@ import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/ui/Pagination";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { ProductCard } from "@/components/products/ProductCard";
 import {
-  Search,
   Plus,
   AlertTriangle,
   Package,
@@ -317,22 +317,12 @@ export default function InventoryPage() {
         </div>
 
         {/* Filter Bar */}
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-          <div className="flex items-stretch min-h-[44px]">
-            {/* Search */}
-            <div className="relative flex-1 min-w-0">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                placeholder="Buscar por nombre, SKU..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full h-full min-h-[44px] pl-10 pr-4 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
-              />
-            </div>
-            {/* Divider */}
-            <div className="w-px bg-border/60 self-stretch my-2 shrink-0" />
-            {/* Filters */}
-            <div className="flex items-center gap-1.5 px-3 shrink-0 flex-wrap py-1.5">
+        <FilterBar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Buscar por nombre, SKU..."
+          filterControls={
+            <>
               <select
                 value={statusFilter}
                 onChange={(e) =>
@@ -402,47 +392,49 @@ export default function InventoryPage() {
                   </span>
                 )}
               </button>
-            </div>
-          </div>
-          {hasFilter && (
-            <div className="flex items-center gap-2 px-4 py-2 border-t border-border/40 bg-muted/20">
-              <SlidersHorizontal className="w-3 h-3 text-primary/60 shrink-0" />
-              <span className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">
-                  {displayProducts.length}
-                </span>{" "}
-                resultado{displayProducts.length !== 1 ? "s" : ""}
-                {selectedCategory && (
-                  <>
-                    {" "}
-                    ·{" "}
-                    <span className="text-primary">
-                      {categories.find((c) => c.id === selectedCategory)?.name}
-                    </span>
-                  </>
-                )}
-                {showLowStockOnly && (
-                  <>
-                    {" "}
-                    ·{" "}
-                    <span className="text-red-500 dark:text-red-400">
-                      stock bajo
-                    </span>
-                  </>
-                )}
-                {statusFilter !== "active" && (
-                  <>
-                    {" "}
-                    ·{" "}
-                    <span className="text-primary">
-                      {statusFilter === "inactive" ? "inactivos" : "todos"}
-                    </span>
-                  </>
-                )}
-              </span>
-            </div>
-          )}
-        </div>
+            </>
+          }
+          postContent={
+            hasFilter ? (
+              <div className="flex items-center gap-2 px-4 py-2 border-t border-border/40 bg-muted/20">
+                <SlidersHorizontal className="w-3 h-3 text-primary/60 shrink-0" />
+                <span className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">
+                    {displayProducts.length}
+                  </span>{" "}
+                  resultado{displayProducts.length !== 1 ? "s" : ""}
+                  {selectedCategory && (
+                    <>
+                      {" "}
+                      ·{" "}
+                      <span className="text-primary">
+                        {categories.find((c) => c.id === selectedCategory)?.name}
+                      </span>
+                    </>
+                  )}
+                  {showLowStockOnly && (
+                    <>
+                      {" "}
+                      ·{" "}
+                      <span className="text-red-500 dark:text-red-400">
+                        stock bajo
+                      </span>
+                    </>
+                  )}
+                  {statusFilter !== "active" && (
+                    <>
+                      {" "}
+                      ·{" "}
+                      <span className="text-primary">
+                        {statusFilter === "inactive" ? "inactivos" : "todos"}
+                      </span>
+                    </>
+                  )}
+                </span>
+              </div>
+            ) : undefined
+          }
+        />
 
         {/* Low stock alert */}
         {/* {lowStockProducts.length > 0 &&

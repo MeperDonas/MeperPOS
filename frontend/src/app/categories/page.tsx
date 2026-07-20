@@ -20,8 +20,8 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterBar } from "@/components/ui/FilterBar";
 import {
-  Search,
   Plus,
   Trash2,
   FolderTree,
@@ -175,17 +175,11 @@ export default function CategoriesPage() {
         </div>
 
         {/* Filter Bar */}
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-          <div className="relative w-full">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <input
-              placeholder="Buscar categorías..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-11 pl-10 pr-4 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
-            />
-          </div>
-        </div>
+        <FilterBar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Buscar categorías..."
+        />
 
         {/* Content */}
         {isLoading ? (
