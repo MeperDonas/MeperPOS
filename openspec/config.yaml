@@ -1,0 +1,71 @@
+schema: spec-driven
+
+context: |
+  Full-stack inventory management system (Sistema de Gestión de Inventario) with POS module.
+  Backend: NestJS 11 + Prisma 6 + PostgreSQL on port 3001.
+  Frontend: Next.js 16 (App Router) + React 19 + TailwindCSS v4 on port 3000.
+  Colombian business context: COP currency, es-CO locale.
+  JWT Bearer auth stored in localStorage; role-based access (ADMIN, CASHIER, INVENTORY_USER).
+  Workspaces: backend/ (NestJS) and frontend/ (Next.js).
+
+persistence:
+  mode: hybrid
+  engram: true
+  openspec: true
+
+strict_tdd: true
+
+review_budget:
+  max_lines: 400
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes.
+    - Link to any related issue before implementation.
+  specs:
+    - Use Given/When/Then for scenarios.
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
+  design:
+    - Include sequence diagrams for complex flows.
+    - Document architecture decisions with rationale.
+  tasks:
+    - Group by phase, use hierarchical numbering.
+    - Keep tasks completable in one session.
+    - Warn when forecast exceeds 400 changed lines.
+  apply:
+    - Follow existing code patterns in backend/ and frontend/.
+    - Prefer English identifiers, comments, and UI strings unless existing code uses Spanish.
+    tdd: true
+    test_command_backend: "cd backend && npm run test"
+    test_command_frontend: "cd frontend && npm run test"
+  verify:
+    test_command_backend: "cd backend && npm run test"
+    test_command_frontend: "cd frontend && npm run test"
+    build_command_backend: "cd backend && npm run build"
+    build_command_frontend: "cd frontend && npm run build"
+    lint_command_backend: "cd backend && npm run lint"
+    lint_command_frontend: "cd frontend && npm run lint"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas.
+    - Move completed change folder to changes/archive/YYYY-MM-DD-{change-name}/.
+
+testing:
+  backend:
+    runner: jest
+    unit: true
+    integration: true
+    e2e: true
+    coverage_command: "cd backend && npm run test:cov"
+    linter: eslint
+    type_checker: typescript
+    formatter: prettier
+  frontend:
+    runner: vitest
+    unit: true
+    integration: true
+    e2e: false
+    coverage_command: null
+    linter: eslint
+    type_checker: typescript
+    formatter: null

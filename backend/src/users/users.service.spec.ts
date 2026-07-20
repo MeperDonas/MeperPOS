@@ -1,4 +1,8 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 
 describe('UsersService', () => {
@@ -13,14 +17,25 @@ describe('UsersService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    organizationUser: {
+      findFirst: jest.fn(),
+      count: jest.fn(),
+    },
     auditLog: {
       create: jest.fn(),
     },
   };
 
+  const planLimitServiceMock = {
+    invalidateCache: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new UsersService(prismaMock as never);
+    service = new UsersService(
+      prismaMock as never,
+      planLimitServiceMock as never,
+    );
   });
 
   it('creates users without returning password fields', async () => {
@@ -29,7 +44,6 @@ describe('UsersService', () => {
       id: 'user-1',
       email: 'user@example.com',
       name: 'User One',
-      role: 'CASHIER',
       active: true,
       createdAt: new Date('2026-03-24T00:00:00.000Z'),
       updatedAt: new Date('2026-03-24T00:00:00.000Z'),
@@ -39,7 +53,6 @@ describe('UsersService', () => {
       email: 'user@example.com',
       password: 'password123',
       name: 'User One',
-      role: 'CASHIER',
     });
 
     expect(prismaMock.user.create).toHaveBeenCalledWith(
@@ -47,7 +60,6 @@ describe('UsersService', () => {
         data: expect.objectContaining({
           email: 'user@example.com',
           name: 'User One',
-          role: 'CASHIER',
           password: expect.any(String),
         }),
         select: expect.any(Object),
@@ -58,7 +70,6 @@ describe('UsersService', () => {
         id: 'user-1',
         email: 'user@example.com',
         name: 'User One',
-        role: 'CASHIER',
       }),
     );
     expect(result).not.toHaveProperty('password');
@@ -82,7 +93,6 @@ describe('UsersService', () => {
       id: 'user-2',
       email: 'old@example.com',
       name: 'Old Name',
-      role: 'CASHIER',
       active: true,
     });
     prismaMock.user.findFirst.mockResolvedValue(null);
@@ -90,7 +100,6 @@ describe('UsersService', () => {
       id: 'user-2',
       email: 'new@example.com',
       name: 'New Name',
-      role: 'ADMIN',
       active: true,
       createdAt: new Date('2026-03-24T00:00:00.000Z'),
       updatedAt: new Date('2026-03-24T01:00:00.000Z'),
@@ -99,7 +108,6 @@ describe('UsersService', () => {
     const result = await service.update('admin-1', 'user-2', {
       email: 'new@example.com',
       name: 'New Name',
-      role: 'ADMIN',
     });
 
     expect(result).toEqual(
@@ -107,7 +115,6 @@ describe('UsersService', () => {
         id: 'user-2',
         email: 'new@example.com',
         name: 'New Name',
-        role: 'ADMIN',
       }),
     );
     expect(Object.getOwnPropertyDescriptor(result, '__auditContext')).toEqual(
@@ -115,9 +122,9 @@ describe('UsersService', () => {
         enumerable: false,
         value: expect.objectContaining({
           resourceId: 'user-2',
-          summary: expect.stringContaining('name, email, role'),
+          summary: expect.stringContaining('name, email'),
           metadata: expect.objectContaining({
-            changedFields: ['name', 'email', 'role'],
+            changedFields: ['name', 'email'],
           }),
         }),
       }),
@@ -143,7 +150,6 @@ describe('UsersService', () => {
       id: 'user-2',
       email: 'user2@example.com',
       name: 'User Two',
-      role: 'CASHIER',
       active: true,
     });
     prismaMock.user.delete.mockResolvedValue({ id: 'user-2' });
@@ -169,13 +175,23 @@ describe('UsersService', () => {
       name: 'User Two',
       active: true,
     });
+    prismaMock.organizationUser.findFirst.mockResolvedValue({
+      id: 'ou-1',
+      userId: 'user-2',
+      organizationId: 'org-1',
+    });
     prismaMock.user.update.mockResolvedValue({ id: 'user-2' });
     prismaMock.auditLog.create.mockResolvedValue({ id: 'audit-1' });
 
     await expect(
-      service.resetPassword('admin-1', 'user-2', {
-        newPassword: 'NuevaClaveSegura123',
-      }),
+      service.resetPassword(
+        'admin-1',
+        'user-2',
+        {
+          newPassword: 'NuevaClaveSegura123',
+        },
+        'org-1',
+      ),
     ).resolves.toEqual({ message: 'Contraseña restablecida exitosamente' });
 
     expect(prismaMock.user.update).toHaveBeenCalledWith({
@@ -186,6 +202,7 @@ describe('UsersService', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           userId: 'admin-1',
+          organizationId: 'org-1',
           action: 'ADMIN_PASSWORD_RESET',
           resourceId: 'user-2',
           metadata: expect.objectContaining({
@@ -194,5 +211,103 @@ describe('UsersService', () => {
         }),
       }),
     );
+  });
+
+  it('filters findAll by organizationId when provided', async () => {
+    prismaMock.user.findMany.mockResolvedValue([]);
+
+    await service.findAll('org-1');
+
+    expect(prismaMock.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationUsers: {
+            some: { organizationId: 'org-1' },
+          },
+        },
+      }),
+    );
+  });
+
+  it('throws ForbiddenException when updating a user outside the organization', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'user-2',
+      email: 'user2@example.com',
+      name: 'User Two',
+      active: true,
+    });
+    prismaMock.organizationUser.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.update('admin-1', 'user-2', { name: 'Hacked' }, 'org-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('prevents removing the primary owner', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'user-2',
+      email: 'user2@example.com',
+      name: 'User Two',
+      active: true,
+    });
+    prismaMock.organizationUser.findFirst.mockResolvedValue({
+      id: 'ou-1',
+      userId: 'user-2',
+      organizationId: 'org-1',
+      role: 'ADMIN',
+      isPrimaryOwner: true,
+    });
+
+    await expect(
+      service.remove('admin-1', 'user-2', 'org-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prismaMock.user.delete).not.toHaveBeenCalled();
+  });
+
+  it('prevents removing the last admin of an organization', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'user-2',
+      email: 'user2@example.com',
+      name: 'User Two',
+      active: true,
+    });
+    prismaMock.organizationUser.findFirst.mockResolvedValue({
+      id: 'ou-1',
+      userId: 'user-2',
+      organizationId: 'org-1',
+      role: 'ADMIN',
+      isPrimaryOwner: false,
+    });
+    prismaMock.organizationUser.count.mockResolvedValue(1);
+
+    await expect(
+      service.remove('admin-1', 'user-2', 'org-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prismaMock.user.delete).not.toHaveBeenCalled();
+  });
+
+  it('allows removing an admin when there are other admins', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'user-2',
+      email: 'user2@example.com',
+      name: 'User Two',
+      active: true,
+    });
+    prismaMock.organizationUser.findFirst.mockResolvedValue({
+      id: 'ou-1',
+      userId: 'user-2',
+      organizationId: 'org-1',
+      role: 'ADMIN',
+      isPrimaryOwner: false,
+    });
+    prismaMock.organizationUser.count.mockResolvedValue(2);
+    prismaMock.user.delete.mockResolvedValue({ id: 'user-2' });
+
+    const result = await service.remove('admin-1', 'user-2', 'org-1');
+
+    expect(result).toEqual({ message: 'User deleted successfully' });
+    expect(prismaMock.user.delete).toHaveBeenCalledWith({
+      where: { id: 'user-2' },
+    });
   });
 });

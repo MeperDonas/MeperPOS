@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,11 +12,14 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createCategoryDto: CreateCategoryDto) {
+  async create(createCategoryDto: CreateCategoryDto, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const { name } = createCategoryDto;
 
-    const existingCategory = await this.prisma.category.findUnique({
-      where: { name },
+    const existingCategory = await this.prisma.category.findFirst({
+      where: { name, organizationId },
     });
 
     if (existingCategory) {
@@ -23,16 +27,22 @@ export class CategoriesService {
     }
 
     const category = await this.prisma.category.create({
-      data: createCategoryDto,
+      data: { ...createCategoryDto, organizationId },
     });
 
     return this.serializeCategory(category);
   }
 
-  async findAll(page = 1, limit = 10, search?: string) {
+  async findAll(
+    organizationId: string | undefined,
+    page = 1,
+    limit = 10,
+    search?: string,
+  ) {
     const skip = (page - 1) * limit;
 
     const where = {
+      ...(organizationId ? { organizationId } : {}),
       active: true,
       ...(search
         ? {
@@ -79,9 +89,9 @@ export class CategoriesService {
     };
   }
 
-  async findOne(id: string) {
-    const category = await this.prisma.category.findUnique({
-      where: { id },
+  async findOne(id: string, organizationId?: string) {
+    const category = await this.prisma.category.findFirst({
+      where: { id, ...(organizationId ? { organizationId } : {}) },
       include: { products: true },
     });
 
@@ -92,9 +102,16 @@ export class CategoriesService {
     return this.serializeCategory(category);
   }
 
-  async update(id: string, updateCategoryDto: UpdateCategoryDto) {
-    const existingCategory = await this.prisma.category.findUnique({
-      where: { id },
+  async update(
+    id: string,
+    updateCategoryDto: UpdateCategoryDto,
+    organizationId: string | undefined,
+  ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
+    const existingCategory = await this.prisma.category.findFirst({
+      where: { id, organizationId },
     });
 
     if (!existingCategory || !existingCategory.active) {
@@ -105,8 +122,8 @@ export class CategoriesService {
       updateCategoryDto.name &&
       updateCategoryDto.name !== existingCategory.name
     ) {
-      const existingName = await this.prisma.category.findUnique({
-        where: { name: updateCategoryDto.name },
+      const existingName = await this.prisma.category.findFirst({
+        where: { name: updateCategoryDto.name, organizationId },
       });
       if (existingName) {
         throw new ConflictException('Category name already exists');
@@ -121,9 +138,12 @@ export class CategoriesService {
     return this.serializeCategory(category);
   }
 
-  async remove(id: string) {
-    const category = await this.prisma.category.findUnique({
-      where: { id },
+  async remove(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
+    const category = await this.prisma.category.findFirst({
+      where: { id, organizationId },
       include: { products: true },
     });
 

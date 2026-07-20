@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -9,6 +10,7 @@ import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { SettingsService } from '../settings/settings.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
+import { PlanLimitService } from '../plan-limits/plan-limits.service';
 
 @Injectable()
 export class ProductsService {
@@ -16,13 +18,21 @@ export class ProductsService {
     private prisma: PrismaService,
     private cloudinaryService: CloudinaryService,
     private settingsService: SettingsService,
+    private planLimitService: PlanLimitService,
   ) {}
 
-  async create(createProductDto: CreateProductDto, userId: string) {
+  async create(
+    createProductDto: CreateProductDto,
+    userId: string,
+    organizationId: string | undefined,
+  ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const { sku, barcode, categoryId, taxRate, ...rest } = createProductDto;
 
-    const category = await this.prisma.category.findUnique({
-      where: { id: categoryId },
+    const category = await this.prisma.category.findFirst({
+      where: { id: categoryId, organizationId },
     });
 
     if (!category) {
@@ -31,7 +41,7 @@ export class ProductsService {
 
     if (sku) {
       const existingSku = await this.prisma.product.findUnique({
-        where: { sku },
+        where: { organizationId_sku: { organizationId, sku } },
       });
       if (existingSku) {
         throw new ConflictException('SKU already exists');
@@ -40,7 +50,7 @@ export class ProductsService {
 
     if (barcode) {
       const existingBarcode = await this.prisma.product.findUnique({
-        where: { barcode },
+        where: { organizationId_barcode: { organizationId, barcode } },
       });
       if (existingBarcode) {
         throw new ConflictException('Barcode already exists');
@@ -54,11 +64,11 @@ export class ProductsService {
       resolvedTaxRate = taxRate;
     } else {
       // Not provided — resolve from category default → settings fallback
-      const settings = await this.settingsService.getSettings();
+      const settings = await this.settingsService.find(organizationId);
       resolvedTaxRate = resolveEffectiveTaxRate(
         null,
         category.defaultTaxRate,
-        settings.taxRate,
+        settings.taxRate ?? 19,
       );
     }
 
@@ -68,10 +78,13 @@ export class ProductsService {
         sku,
         barcode,
         categoryId,
+        organizationId,
         taxRate: resolvedTaxRate,
       },
       include: { category: true },
     });
+
+    this.planLimitService.invalidateCache('products', organizationId);
 
     await this.createInventoryMovement(
       product.id,
@@ -80,12 +93,14 @@ export class ProductsService {
       product.stock,
       'Initial stock',
       userId,
+      organizationId,
     );
 
     return this.enrichWithEffectiveTax(product);
   }
 
   async findAll(
+    organizationId: string | undefined,
     page = 1,
     limit = 10,
     search?: string,
@@ -94,7 +109,7 @@ export class ProductsService {
   ) {
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { ...(organizationId ? { organizationId } : {}) };
 
     if (status === 'active') {
       where.active = true;
@@ -138,9 +153,9 @@ export class ProductsService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, organizationId: string | undefined) {
     const product = await this.prisma.product.findFirst({
-      where: { id, active: true },
+      where: { id, ...(organizationId ? { organizationId } : {}), active: true },
       include: { category: true, movements: true },
     });
 
@@ -151,9 +166,17 @@ export class ProductsService {
     return this.enrichWithEffectiveTax(product);
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto, userId: string) {
+  async update(
+    id: string,
+    updateProductDto: UpdateProductDto,
+    userId: string,
+    organizationId: string | undefined,
+  ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const existingProduct = await this.prisma.product.findFirst({
-      where: { id, active: true },
+      where: { id, organizationId, active: true },
     });
 
     if (!existingProduct) {
@@ -162,7 +185,12 @@ export class ProductsService {
 
     if (updateProductDto.sku && updateProductDto.sku !== existingProduct.sku) {
       const existingSku = await this.prisma.product.findUnique({
-        where: { sku: updateProductDto.sku },
+        where: {
+          organizationId_sku: {
+            organizationId,
+            sku: updateProductDto.sku,
+          },
+        },
       });
       if (existingSku) {
         throw new ConflictException('SKU already exists');
@@ -174,7 +202,12 @@ export class ProductsService {
       updateProductDto.barcode !== existingProduct.barcode
     ) {
       const existingBarcode = await this.prisma.product.findUnique({
-        where: { barcode: updateProductDto.barcode },
+        where: {
+          organizationId_barcode: {
+            organizationId,
+            barcode: updateProductDto.barcode,
+          },
+        },
       });
       if (existingBarcode) {
         throw new ConflictException('Barcode already exists');
@@ -197,7 +230,7 @@ export class ProductsService {
     }
 
     const product = await this.prisma.product.findFirst({
-      where: { id, active: true },
+      where: { id, organizationId, active: true },
       include: { category: true },
     });
 
@@ -218,15 +251,19 @@ export class ProductsService {
         newStock,
         'Stock adjustment',
         userId,
+        organizationId,
       );
     }
 
     return this.enrichWithEffectiveTax(product);
   }
 
-  async deactivate(id: string) {
+  async deactivate(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const product = await this.prisma.product.findFirst({
-      where: { id, active: true },
+      where: { id, organizationId, active: true },
     });
 
     if (!product) {
@@ -240,9 +277,12 @@ export class ProductsService {
     });
   }
 
-  async remove(id: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { id },
+  async remove(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
+    const product = await this.prisma.product.findFirst({
+      where: { id, organizationId },
     });
 
     if (!product) {
@@ -266,19 +306,29 @@ export class ProductsService {
     }
   }
 
-  async getLowStockProducts() {
+  async getLowStockProducts(organizationId: string | undefined) {
+    if (!organizationId) {
+      return this.prisma.$queryRaw`
+        SELECT p.*, c.name as "categoryName"
+        FROM "Product" p
+        LEFT JOIN "Category" c ON p."categoryId" = c.id
+        WHERE p.active = true AND p.stock <= p."minStock"
+        ORDER BY p.stock ASC
+      `;
+    }
     return this.prisma.$queryRaw`
       SELECT p.*, c.name as "categoryName"
       FROM "Product" p
       LEFT JOIN "Category" c ON p."categoryId" = c.id
-      WHERE p.active = true AND p.stock <= p."minStock"
+      WHERE p.active = true AND p."organizationId" = ${organizationId} AND p.stock <= p."minStock"
       ORDER BY p.stock ASC
     `;
   }
 
-  async searchProducts(query: string, limit = 20) {
+  async searchProducts(query: string, limit = 20, organizationId: string | undefined) {
     const products = await this.prisma.product.findMany({
       where: {
+        ...(organizationId ? { organizationId } : {}),
         active: true,
         OR: [
           { name: { contains: query, mode: 'insensitive' as const } },
@@ -310,7 +360,7 @@ export class ProductsService {
     }));
   }
 
-  async quickSearch(code: string) {
+  async quickSearch(code: string, organizationId: string | undefined) {
     const normalizedCode = code.trim();
 
     if (!normalizedCode) {
@@ -319,6 +369,7 @@ export class ProductsService {
 
     const product = await this.prisma.product.findFirst({
       where: {
+        ...(organizationId ? { organizationId } : {}),
         active: true,
         OR: [
           {
@@ -390,6 +441,7 @@ export class ProductsService {
     newStock: number,
     reason: string,
     userId: string,
+    organizationId: string,
     saleId?: string,
   ) {
     await this.prisma.inventoryMovement.create({
@@ -401,6 +453,7 @@ export class ProductsService {
         newStock,
         reason,
         userId,
+        organizationId,
         saleId,
       },
     });
@@ -411,9 +464,16 @@ export class ProductsService {
     return { imageUrl };
   }
 
-  async uploadProductImage(productId: string, file: Express.Multer.File) {
-    const product = await this.prisma.product.findUnique({
-      where: { id: productId },
+  async uploadProductImage(
+    productId: string,
+    file: Express.Multer.File,
+    organizationId: string | undefined,
+  ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, organizationId },
     });
 
     if (!product) {
@@ -442,9 +502,12 @@ export class ProductsService {
     return updatedProduct;
   }
 
-  async reactivate(id: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { id },
+  async reactivate(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
+    const product = await this.prisma.product.findFirst({
+      where: { id, organizationId },
       include: { category: true },
     });
 

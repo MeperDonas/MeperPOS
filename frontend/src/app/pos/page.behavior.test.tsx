@@ -174,6 +174,22 @@ vi.mock("@/hooks/usePausedSales", () => ({
 
 vi.mock("@/hooks/useReceipt", () => ({
   printReceipt: vi.fn(),
+  printThermalReceipt: vi.fn(),
+}));
+
+vi.mock("@/hooks/useSettings", () => ({
+  useSettings: () => ({
+    data: {
+      id: "settings-1",
+      companyName: "Mi Tienda",
+      currency: "COP",
+      taxRate: 19,
+      receiptPrefix: "REC",
+      printHeader: null,
+      printFooter: null,
+      logoUrl: null,
+    },
+  }),
 }));
 
 vi.mock("@/contexts/ToastContext", () => ({
@@ -185,6 +201,7 @@ vi.mock("@/contexts/ToastContext", () => ({
 }));
 
 import POSPage from "./page";
+import { printReceipt, printThermalReceipt } from "@/hooks/useReceipt";
 
 function makeProduct(id: string, name: string): Product {
   return {
@@ -349,6 +366,85 @@ describe("POS behavior evidence (#19, #18)", () => {
 
     expect(screen.getByText("No encontramos un producto con ese código.")).toBeTruthy();
     expect(screen.queryByText("1 en carrito")).toBeNull();
+  });
+
+  it("allows a CASHIER user to complete a checkout", async () => {
+    useProductsMock.mockReturnValue({
+      data: { data: [makeProduct("1", "Producto Checkout")], meta: { total: 1, page: 1, limit: 20, totalPages: 1 } },
+      isLoading: false,
+      isFetching: false,
+    });
+
+    render(<POSPage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Producto Checkout" }));
+    await userEvent.click(screen.getByRole("button", { name: /tarjeta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /confirmar pago/i }));
+
+    await waitFor(() => {
+      expect(createSaleMutateMock).toHaveBeenCalled();
+    });
+
+    expect(screen.getByText("Venta Exitosa")).toBeTruthy();
+  });
+
+  it("shows a thermal print button after checkout and calls printThermalReceipt", async () => {
+    useProductsMock.mockReturnValue({
+      data: { data: [makeProduct("1", "Producto Checkout")], meta: { total: 1, page: 1, totalPages: 1 } },
+      isLoading: false,
+      isFetching: false,
+    });
+
+    render(<POSPage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Producto Checkout" }));
+    await userEvent.click(screen.getByRole("button", { name: /tarjeta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /confirmar pago/i }));
+
+    await waitFor(() => {
+      expect(createSaleMutateMock).toHaveBeenCalled();
+    });
+
+    expect(screen.getByRole("button", { name: /imprimir recibo térmico/i })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /imprimir recibo térmico/i }));
+
+    await waitFor(() => {
+      expect(printThermalReceipt).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "sale-1", saleNumber: 101 }),
+        "Mi Tienda",
+        expect.objectContaining({ header: null, footer: null }),
+      );
+    });
+  });
+
+  it("keeps the PDF fallback button that calls printReceipt", async () => {
+    useProductsMock.mockReturnValue({
+      data: { data: [makeProduct("1", "Producto Checkout")], meta: { total: 1, page: 1, totalPages: 1 } },
+      isLoading: false,
+      isFetching: false,
+    });
+
+    render(<POSPage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Producto Checkout" }));
+    await userEvent.click(screen.getByRole("button", { name: /tarjeta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /confirmar pago/i }));
+
+    await waitFor(() => {
+      expect(createSaleMutateMock).toHaveBeenCalled();
+    });
+
+    expect(screen.getByRole("button", { name: /descargar pdf/i })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /descargar pdf/i }));
+
+    await waitFor(() => {
+      expect(printReceipt).toHaveBeenCalledWith("sale-1");
+    });
   });
 
   it("#18 keeps customer selector near checkout, preserves total, and allows checkout without customer", async () => {

@@ -4,7 +4,9 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSaleDto, UpdateSaleDto } from './dto/sales.dto';
 import { jsPDF } from 'jspdf';
@@ -14,7 +16,11 @@ import {
   parseBogotaStartOfDay,
 } from '../common/utils/bogota-date';
 import { CacheService } from '../common/services/cache.service';
+import { SettingsService } from '../settings/settings.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
+import type { RequestUser } from '../common/interfaces/request-user.interface';
+import { SequenceService } from '../common/sequences/sequence.service';
+import { PLAN_LIMITS } from '../plan-limits/plan-limits.constants';
 
 interface SaleItem {
   taxRate: unknown;
@@ -22,11 +28,6 @@ interface SaleItem {
 
 interface SaleWithItems {
   items?: SaleItem[];
-}
-
-interface RequestUser {
-  sub: string;
-  role: string;
 }
 
 @Injectable()
@@ -39,12 +40,14 @@ export class SalesService {
   constructor(
     private prisma: PrismaService,
     private cache: CacheService,
+    private settingsService: SettingsService,
+    private sequenceService: SequenceService,
   ) {}
 
   /**
    * Centralized role-aware scope filter for sale queries.
    * - ADMIN → sees all sales (no filter)
-   * - CASHIER → own sales only (sale.userId = user.sub)
+   * - CASHIER → own sales only (sale.userId = user.userId)
    * - Default (INVENTORY_USER / unknown) → own sales only (deny-by-default)
    */
   private buildScopeFilter(user: RequestUser): Record<string, unknown> {
@@ -52,10 +55,17 @@ export class SalesService {
       return {};
     }
     // Deny-by-default: any non-ADMIN role sees only own sales
-    return { userId: user.sub };
+    return { userId: user.userId };
   }
 
-  async create(createSaleDto: CreateSaleDto, userId: string) {
+  async create(
+    createSaleDto: CreateSaleDto,
+    userId: string,
+    organizationId: string | undefined,
+  ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const { customerId, items, discountAmount = 0, payments } = createSaleDto;
 
     if (items.length === 0) {
@@ -81,8 +91,8 @@ export class SalesService {
     }> = [];
 
     for (const item of items) {
-      const product = await this.prisma.product.findUnique({
-        where: { id: item.productId },
+      const product = await this.prisma.product.findFirst({
+        where: { id: item.productId, organizationId },
         include: { category: true },
       });
 
@@ -152,108 +162,139 @@ export class SalesService {
     const change = cashPaid > total ? cashPaid - total : null;
 
     if (customerId) {
-      const customer = await this.prisma.customer.findUnique({
-        where: { id: customerId },
+      const customer = await this.prisma.customer.findFirst({
+        where: { id: customerId, organizationId },
       });
       if (!customer) {
         throw new NotFoundException('Customer not found');
       }
     }
 
-    const sale = await this.prisma.$transaction(async (tx) => {
-      const createdSale = await tx.sale.create({
-        data: {
-          saleNumber: undefined,
-          customerId,
-          subtotal,
-          taxAmount: totalTax,
-          discountAmount,
-          total,
-          amountPaid: totalPaid,
-          change,
-          status: 'COMPLETED',
-          userId,
-        } as never,
-      });
+    const year = new Date().getFullYear();
 
-      for (const saleItem of saleItems) {
-        await tx.saleItem.create({
-          data: {
-            saleId: createdSale.id,
-            productId: saleItem.productId,
-            quantity: saleItem.quantity,
-            unitPrice: saleItem.unitPrice,
-            taxRate: saleItem.taxRate,
-            discountAmount: saleItem.discountAmount,
-            subtotal: saleItem.subtotal,
-            total: saleItem.total,
-          },
-        });
-
-        const updatedProduct = await tx.product.updateMany({
-          where: {
-            id: saleItem.productId,
-            active: true,
-            stock: { gte: saleItem.quantity },
-          },
-          data: {
-            stock: { decrement: saleItem.quantity },
-          },
-        });
-
-        if (updatedProduct.count === 0) {
-          throw new ConflictException(
-            `Insufficient stock for product ${saleItem.productId}`,
+    try {
+      const sale = await this.prisma.$transaction(
+        async (tx) => {
+          const { number: saleNumber } = await this.sequenceService.nextNumber(
+            tx,
+            organizationId,
+            'SALE',
+            year,
           );
-        }
 
-        const productAfterUpdate = await tx.product.findUnique({
-          where: { id: saleItem.productId },
-          select: { stock: true },
-        });
+          const createdSale = await tx.sale.create({
+            data: {
+              saleNumber,
+              customerId,
+              subtotal,
+              taxAmount: totalTax,
+              discountAmount,
+              total,
+              amountPaid: totalPaid,
+              change,
+              status: 'COMPLETED',
+              userId,
+              organizationId,
+            },
+          });
 
-        if (!productAfterUpdate) {
-          throw new NotFoundException(
-            `Product with ID ${saleItem.productId} not found`,
-          );
-        }
+          for (const saleItem of saleItems) {
+            await tx.saleItem.create({
+              data: {
+                saleId: createdSale.id,
+                productId: saleItem.productId,
+                quantity: saleItem.quantity,
+                unitPrice: saleItem.unitPrice,
+                taxRate: saleItem.taxRate,
+                discountAmount: saleItem.discountAmount,
+                subtotal: saleItem.subtotal,
+                total: saleItem.total,
+                organizationId,
+              },
+            });
 
-        const newStock = productAfterUpdate.stock;
-        const previousStock = newStock + saleItem.quantity;
+            const updatedProduct = await tx.product.updateMany({
+              where: {
+                id: saleItem.productId,
+                active: true,
+                stock: { gte: saleItem.quantity },
+              },
+              data: {
+                stock: { decrement: saleItem.quantity },
+              },
+            });
 
-        await tx.inventoryMovement.create({
-          data: {
-            productId: saleItem.productId,
-            type: 'SALE' as const,
-            quantity: -saleItem.quantity,
-            previousStock,
-            newStock,
-            reason: `Sale #${createdSale.saleNumber}`,
-            userId,
-            saleId: createdSale.id,
-          },
-        });
+            if (updatedProduct.count === 0) {
+              throw new ConflictException(
+                `Insufficient stock for product ${saleItem.productId}`,
+              );
+            }
+
+            const productAfterUpdate = await tx.product.findFirst({
+              where: { id: saleItem.productId, organizationId },
+              select: { stock: true },
+            });
+
+            if (!productAfterUpdate) {
+              throw new NotFoundException(
+                `Product with ID ${saleItem.productId} not found`,
+              );
+            }
+
+            const newStock = productAfterUpdate.stock;
+            const previousStock = newStock + saleItem.quantity;
+
+            await tx.inventoryMovement.create({
+              data: {
+                productId: saleItem.productId,
+                type: 'SALE' as const,
+                quantity: -saleItem.quantity,
+                previousStock,
+                newStock,
+                reason: `Sale #${saleNumber}`,
+                userId,
+                saleId: createdSale.id,
+                organizationId,
+              },
+            });
+          }
+
+          for (const payment of payments) {
+            await tx.payment.create({
+              data: {
+                saleId: createdSale.id,
+                method: payment.method,
+                amount: payment.amount,
+                organizationId,
+              },
+            });
+          }
+
+          return createdSale;
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          maxWait: 5000,
+          timeout: 10000,
+        },
+      );
+
+      this.cache.clear('dashboard:');
+
+      return this.findOne(sale.id, organizationId);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2028'
+      ) {
+        throw new ServiceUnavailableException('Intente nuevamente');
       }
-
-      for (const payment of payments) {
-        await tx.payment.create({
-          data: {
-            saleId: createdSale.id,
-            method: payment.method,
-            amount: payment.amount,
-          },
-        });
-      }
-
-      return createdSale;
-    });
-
-    this.cache.clear('dashboard:');
-
-    return this.findOne(sale.id);
+      throw error;
+    }
   }
 
   async findAll(
+    organizationId: string | undefined,
     page = 1,
     limit = 10,
     startDate?: string,
@@ -266,6 +307,7 @@ export class SalesService {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
+      ...(organizationId ? { organizationId } : {}),
       ...(user ? this.buildScopeFilter(user) : {}),
     };
 
@@ -345,9 +387,9 @@ export class SalesService {
     };
   }
 
-  async findOne(id: string, user?: RequestUser) {
-    const sale = await this.prisma.sale.findUnique({
-      where: { id },
+  async findOne(id: string, organizationId: string | undefined, user?: RequestUser) {
+    const sale = await this.prisma.sale.findFirst({
+      where: { id, ...(organizationId ? { organizationId } : {}) },
       include: {
         customer: true,
         items: {
@@ -363,7 +405,7 @@ export class SalesService {
     }
 
     // Deny-by-default: if user context is provided, enforce scope
-    if (user && user.role !== 'ADMIN' && sale.userId !== user.sub) {
+    if (user && user.role !== 'ADMIN' && sale.userId !== user.userId) {
       throw new ForbiddenException('You do not have access to this sale');
     }
 
@@ -371,8 +413,16 @@ export class SalesService {
   }
 
   async findBySaleNumber(saleNumber: number, user?: RequestUser) {
+    if (!user || !user.organizationId) {
+      return null;
+    }
     const sale = await this.prisma.sale.findUnique({
-      where: { saleNumber },
+      where: {
+        organizationId_saleNumber: {
+          organizationId: user.organizationId,
+          saleNumber,
+        },
+      },
       include: {
         customer: true,
         items: {
@@ -388,7 +438,7 @@ export class SalesService {
     }
 
     // Deny-by-default: if user context is provided, enforce scope
-    if (user && user.role !== 'ADMIN' && sale.userId !== user.sub) {
+    if (user && user.role !== 'ADMIN' && sale.userId !== user.userId) {
       throw new ForbiddenException('You do not have access to this sale');
     }
 
@@ -399,10 +449,14 @@ export class SalesService {
     id: string,
     updateSaleDto: UpdateSaleDto,
     userId: string,
+    organizationId: string | undefined,
     user?: RequestUser,
   ) {
-    const existingSale = await this.prisma.sale.findUnique({
-      where: { id },
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
+    const existingSale = await this.prisma.sale.findFirst({
+      where: { id, organizationId },
       include: { items: true },
     });
 
@@ -411,7 +465,7 @@ export class SalesService {
     }
 
     // Deny-by-default: non-ADMIN users can only update own sales
-    if (user && user.role !== 'ADMIN' && existingSale.userId !== user.sub) {
+    if (user && user.role !== 'ADMIN' && existingSale.userId !== user.userId) {
       throw new ForbiddenException('You do not have access to this sale');
     }
 
@@ -422,8 +476,11 @@ export class SalesService {
     if (updateSaleDto.status === 'CANCELLED') {
       await this.prisma.$transaction(async (tx) => {
         for (const item of existingSale.items) {
-          const product = await tx.product.findUnique({
-            where: { id: item.productId },
+          const product = await tx.product.findFirst({
+            where: {
+              id: item.productId,
+              organizationId: existingSale.organizationId,
+            },
           });
 
           if (product) {
@@ -445,6 +502,7 @@ export class SalesService {
                 reason: `Sale #${existingSale.saleNumber} cancelled`,
                 userId,
                 saleId: existingSale.id,
+                organizationId: existingSale.organizationId,
               },
             });
           }
@@ -452,11 +510,16 @@ export class SalesService {
 
         await tx.sale.update({
           where: { id },
-          data: { status: updateSaleDto.status },
+          data: {
+            status: 'CANCELLED',
+            cancelledAt: new Date(),
+            cancelledById: userId,
+            cancelReason: updateSaleDto.cancelReason ?? null,
+          },
         });
       });
 
-      return this.findOne(id);
+      return this.findOne(id, organizationId);
     }
 
     if (updateSaleDto.status === 'RETURNED_PARTIAL') {
@@ -466,14 +529,66 @@ export class SalesService {
       });
     }
 
-    return this.findOne(id);
+    return this.findOne(id, organizationId);
+  }
+
+  /**
+   * Force-closes an OPEN sale. Currently disabled because the application
+   * does not support creating sales with status OPEN (all sales are created
+   * as COMPLETED). This method is preserved for future use when open-sale
+   * workflows are implemented.
+   */
+  async forceClose(id: string, organizationId: string | undefined, reason?: string) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { plan: true },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    if (!['BASIC', 'PRO'].includes(organization.plan)) {
+      throw new BadRequestException('Invalid organization plan');
+    }
+
+    if (!PLAN_LIMITS[organization.plan].hasForceClose) {
+      throw new ForbiddenException('Force close is only available on PRO plan');
+    }
+
+    const sale = await this.prisma.sale.findFirst({
+      where: { id, organizationId },
+    });
+
+    if (!sale) {
+      throw new NotFoundException('Sale not found');
+    }
+
+    if ((sale.status as string) !== 'OPEN') {
+      throw new BadRequestException('Only open sales can be force closed');
+    }
+
+    await this.prisma.sale.update({
+      where: { id },
+      data: {
+        status: 'CLOSED' as never,
+        ...(reason ? { cancelReason: reason } : {}),
+      },
+    });
+
+    this.cache.clear('dashboard:');
+
+    return this.findOne(id, organizationId);
   }
 
   async generateReceipt(id: string, response: Response, user?: RequestUser) {
-    const sale = await this.findOne(id, user);
-    const settings = await this.prisma.settings.findFirst({
-      orderBy: { createdAt: 'desc' },
-    });
+    const sale = await this.findOne(id, user?.organizationId, user);
+    const settings = user
+      ? await this.settingsService.find(user.organizationId)
+      : {};
 
     const doc = new jsPDF({
       orientation: 'portrait',

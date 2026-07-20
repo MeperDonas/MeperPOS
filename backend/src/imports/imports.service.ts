@@ -11,6 +11,7 @@ import { Prisma, type Category } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProductsService } from '../products/products.service';
+import { SettingsService } from '../settings/settings.service';
 import type { RetryImportRowDto } from './dto/import.dto';
 import {
   detectColumnMapping,
@@ -68,6 +69,7 @@ interface ParsedFilePayload {
 interface ImportJobInternal {
   id: string;
   userId: string;
+  organizationId: string;
   status: ImportJobStatus;
   fileName: string;
   totalRows: number;
@@ -116,6 +118,7 @@ export class ImportsService implements OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly productsService: ProductsService,
+    private readonly settingsService: SettingsService,
   ) {
     this.cleanupInterval = setInterval(
       () => {
@@ -131,7 +134,14 @@ export class ImportsService implements OnModuleDestroy {
     clearInterval(this.cleanupInterval);
   }
 
-  async startProductsImport(file: Express.Multer.File, userId: string) {
+  async startProductsImport(
+    file: Express.Multer.File,
+    userId: string,
+    organizationId: string | undefined,
+  ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     this.validateIncomingFile(file);
 
     const parsedFile = await this.parseFile(file);
@@ -157,14 +167,18 @@ export class ImportsService implements OnModuleDestroy {
     }
 
     const [products, categories, settings] = await Promise.all([
-      this.prisma.product.findMany({ select: { sku: true, barcode: true } }),
-      this.prisma.category.findMany(),
-      this.prisma.settings.findFirst({ orderBy: { createdAt: 'asc' } }),
+      this.prisma.product.findMany({
+        where: { organizationId },
+        select: { sku: true, barcode: true },
+      }),
+      this.prisma.category.findMany({ where: { organizationId } }),
+      this.settingsService.find(organizationId),
     ]);
 
     const job: ImportJobInternal = {
       id: randomUUID(),
       userId,
+      organizationId,
       status: 'PARSING',
       fileName: file.originalname,
       totalRows: parsedFile.rows.length,
@@ -196,7 +210,7 @@ export class ImportsService implements OnModuleDestroy {
           category,
         ]),
       ),
-      settingsTaxRate: settings ? Number(settings.taxRate) : 0,
+      settingsTaxRate: settings?.taxRate ? Number(settings.taxRate) : 0,
     };
 
     this.jobs.set(job.id, job);
@@ -279,6 +293,7 @@ export class ImportsService implements OnModuleDestroy {
           categoryId: category.id,
         },
         userId,
+        job.organizationId,
       );
 
       job.importedCount += 1;
@@ -513,6 +528,7 @@ export class ImportsService implements OnModuleDestroy {
           categoryId: category.id,
         },
         job.userId,
+        job.organizationId,
       );
 
       job.importedCount += 1;
@@ -870,9 +886,23 @@ export class ImportsService implements OnModuleDestroy {
     }
 
     const [existingSku, existingBarcode] = await Promise.all([
-      this.prisma.product.findUnique({ where: { sku: data.sku } }),
+      this.prisma.product.findUnique({
+        where: {
+          organizationId_sku: {
+            organizationId: job.organizationId,
+            sku: data.sku,
+          },
+        },
+      }),
       data.barcode
-        ? this.prisma.product.findUnique({ where: { barcode: data.barcode } })
+        ? this.prisma.product.findUnique({
+            where: {
+              organizationId_barcode: {
+                organizationId: job.organizationId,
+                barcode: data.barcode,
+              },
+            },
+          })
         : Promise.resolve(null),
     ]);
 
@@ -938,6 +968,7 @@ export class ImportsService implements OnModuleDestroy {
 
     const existing = await this.prisma.category.findFirst({
       where: {
+        organizationId: job.organizationId,
         name: {
           equals: normalizeText(categoryName),
           mode: 'insensitive',
@@ -963,7 +994,7 @@ export class ImportsService implements OnModuleDestroy {
 
     try {
       const createdCategory = await this.prisma.category.create({
-        data: { name: displayName },
+        data: { name: displayName, organizationId: job.organizationId },
       });
       job.categoriesByNormalizedName.set(
         normalizeCategoryName(createdCategory.name),
@@ -988,6 +1019,7 @@ export class ImportsService implements OnModuleDestroy {
       ) {
         const fallback = await this.prisma.category.findFirst({
           where: {
+            organizationId: job.organizationId,
             name: {
               equals: displayName,
               mode: 'insensitive',

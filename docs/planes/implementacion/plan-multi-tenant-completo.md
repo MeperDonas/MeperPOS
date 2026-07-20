@@ -340,7 +340,10 @@ model Product {
   updatedAt   DateTime            @updatedAt
 
   @@unique([organizationId, sku])
-  @@unique([organizationId, barcode])
+  // NOTA: barcode usa índice parcial en PostgreSQL (ver migración manual)
+  // Prisma no soporta índices parciales nativamente
+  // SQL: CREATE UNIQUE INDEX "product_barcode_unique" ON "Product" ("organizationId", "barcode") WHERE "barcode" IS NOT NULL;
+  @@index([organizationId, barcode])
   @@index([organizationId, active])
 }
 
@@ -734,6 +737,15 @@ interface JwtPayload {
 npx prisma migrate dev --name add_multi_tenant_organization_id
 ```
 
+**Paso manual en la migración generada:**
+Agregar al final del SQL de la migración:
+```sql
+-- Índice parcial para barcode nullable (PostgreSQL no permite múltiples NULLs en UNIQUE)
+CREATE UNIQUE INDEX "product_barcode_unique" 
+  ON "Product" ("organizationId", "barcode") 
+  WHERE "barcode" IS NOT NULL;
+```
+
 ### 1.2 `findUnique` → `findFirst`
 
 **Regla de oro:**
@@ -913,6 +925,21 @@ Al CREAR: si se supera el límite, devuelve `warning: 'PLAN_LIMIT_REACHED'` con 
 - **PAST_DUE:** Si pasa 15 días → `SUSPENDED`.
 - **SUSPENDED:** Readonly por 5 años (Estatuto Tributario colombiano). Después de 5 años, se puede purgar.
 - **Revocación JWT:** Al suspender, `revokeAllUserTokens()` para todos los usuarios de la org.
+
+### 3.4 Endpoints de Billing (implementados)
+
+**Endpoints de organización (requieren JWT con org seleccionada):**
+```
+GET  /billing/status    → Estado de billing de la org activa
+GET  /billing/payments  → Historial de pagos de la org activa
+```
+
+**Endpoints de administración (requieren SUPER_ADMIN):**
+```
+POST /billing/payments  → Registrar un pago manual (reactiva org si está PAST_DUE)
+```
+
+> **Nota de implementación:** Los endpoints de pago quedaron bajo el prefijo `/billing/payments` en lugar del prefijo `/payment-records` originalmente especificado.
 
 ### Archivos Fase 3
 

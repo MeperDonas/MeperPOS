@@ -36,12 +36,7 @@ export class QueryPurchaseOrdersDto {
   })
   @IsOptional()
   @IsEnum(['DRAFT', 'PENDING', 'PARTIAL_RECEIVED', 'RECEIVED', 'CANCELLED'])
-  status?:
-    | 'DRAFT'
-    | 'PENDING'
-    | 'PARTIAL_RECEIVED'
-    | 'RECEIVED'
-    | 'CANCELLED';
+  status?: 'DRAFT' | 'PENDING' | 'PARTIAL_RECEIVED' | 'RECEIVED' | 'CANCELLED';
 
   @ApiProperty({ required: false })
   @IsOptional()

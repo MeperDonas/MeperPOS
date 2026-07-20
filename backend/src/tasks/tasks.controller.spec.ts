@@ -1,8 +1,10 @@
 import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { OrgRole } from '@prisma/client';
 import { ROLES_KEY } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { TasksController } from './tasks.controller';
+import type { RequestUser } from '../common/interfaces/request-user.interface';
 
 describe('TasksController', () => {
   const tasksServiceMock = {
@@ -13,7 +15,7 @@ describe('TasksController', () => {
 
   const createContext = (
     handler: (...args: unknown[]) => unknown,
-    role: string,
+    role: OrgRole,
   ): ExecutionContext =>
     ({
       getHandler: () => handler,
@@ -26,7 +28,7 @@ describe('TasksController', () => {
   it('allows every authenticated business role at the tasks boundary', () => {
     const requiredRoles = Reflect.getMetadata(ROLES_KEY, TasksController);
 
-    expect(requiredRoles).toEqual(['ADMIN', 'CASHIER', 'INVENTORY_USER']);
+    expect(requiredRoles).toEqual([OrgRole.ADMIN, OrgRole.MEMBER]);
   });
 
   it('denies access to roles outside the configured task boundary', () => {
@@ -34,28 +36,39 @@ describe('TasksController', () => {
     const guard = new RolesGuard(new Reflector());
 
     expect(() =>
-      guard.canActivate(createContext(controller.findAll, 'UNKNOWN')),
+      guard.canActivate(createContext(controller.findAll, OrgRole.CASHIER)),
     ).toThrow(ForbiddenException);
   });
 
   it('delegates task creation with the authenticated actor', async () => {
     const controller = new TasksController(tasksServiceMock as never);
     const dto = { title: 'Revisar caja' };
-    const req = { user: { sub: 'user-1', role: 'CASHIER' as const } };
+    const user: RequestUser = {
+      userId: 'user-1',
+      email: 'test@example.com',
+      organizationId: 'org-1',
+      role: OrgRole.MEMBER,
+      tokenVersion: 1,
+      isSuperAdmin: false,
+    };
     const expected = { id: 'task-1', ...dto };
 
     tasksServiceMock.create.mockResolvedValue(expected);
 
-    await expect(controller.create(dto, req)).resolves.toEqual(expected);
-    expect(tasksServiceMock.create).toHaveBeenCalledWith(
-      { id: 'user-1', role: 'CASHIER' },
-      dto,
-    );
+    await expect(controller.create(dto, user)).resolves.toEqual(expected);
+    expect(tasksServiceMock.create).toHaveBeenCalledWith(user, dto);
   });
 
   it('delegates status transitions and timeline access', async () => {
     const controller = new TasksController(tasksServiceMock as never);
-    const req = { user: { sub: 'admin-1', role: 'ADMIN' as const } };
+    const user: RequestUser = {
+      userId: 'admin-1',
+      email: 'admin@example.com',
+      organizationId: 'org-1',
+      role: OrgRole.ADMIN,
+      tokenVersion: 1,
+      isSuperAdmin: false,
+    };
     const statusDto = {
       status: 'IN_PROGRESS' as const,
       note: 'Tomada por admin',
@@ -67,20 +80,17 @@ describe('TasksController', () => {
     tasksServiceMock.getTimeline.mockResolvedValue(timeline);
 
     await expect(
-      controller.updateStatus('task-9', statusDto, req),
+      controller.updateStatus('task-9', statusDto, user),
     ).resolves.toEqual(updatedTask);
-    await expect(controller.getTimeline('task-9', req)).resolves.toEqual(
+    await expect(controller.getTimeline('task-9', user)).resolves.toEqual(
       timeline,
     );
 
     expect(tasksServiceMock.updateStatus).toHaveBeenCalledWith(
       'task-9',
-      { id: 'admin-1', role: 'ADMIN' },
+      user,
       statusDto,
     );
-    expect(tasksServiceMock.getTimeline).toHaveBeenCalledWith('task-9', {
-      id: 'admin-1',
-      role: 'ADMIN',
-    });
+    expect(tasksServiceMock.getTimeline).toHaveBeenCalledWith('task-9', user);
   });
 });

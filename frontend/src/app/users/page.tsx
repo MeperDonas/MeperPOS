@@ -22,10 +22,23 @@ import { getApiErrorMessage } from "@/lib/api";
 import { KeyRound, Plus, Shield, SquarePen, Trash2, Users as UsersIcon } from "lucide-react";
 import type { User } from "@/types";
 
-const roleLabel: Record<string, string> = {
+type SelectableRole = "ADMIN" | "CASHIER" | "INVENTORY_USER";
+
+const SELECTABLE_ROLES: SelectableRole[] = ["ADMIN", "CASHIER", "INVENTORY_USER"];
+const DEFAULT_ROLE: SelectableRole = "CASHIER";
+
+function toSelectableRole(role: User["role"]): SelectableRole {
+  return SELECTABLE_ROLES.includes(role as SelectableRole)
+    ? (role as SelectableRole)
+    : DEFAULT_ROLE;
+}
+
+const roleLabel: Record<User["role"], string> = {
   ADMIN: "Administrador",
   CASHIER: "Cajero",
   INVENTORY_USER: "Inventario",
+  MEMBER: "Miembro",
+  OWNER: "Propietario",
 };
 
 export default function UsersPage() {
@@ -50,12 +63,12 @@ export default function UsersPage() {
     name: "",
     email: "",
     password: "",
-    role: "CASHIER" as "ADMIN" | "CASHIER" | "INVENTORY_USER",
+    role: DEFAULT_ROLE,
   });
   const [editFormData, setEditFormData] = useState({
     name: "",
     email: "",
-    role: "CASHIER" as "ADMIN" | "CASHIER" | "INVENTORY_USER",
+    role: DEFAULT_ROLE,
   });
 
   const handleCreate = async (event: React.FormEvent) => {
@@ -65,7 +78,7 @@ export default function UsersPage() {
       await createUser.mutateAsync(formData);
       toast.success("Usuario creado correctamente");
       setShowCreateModal(false);
-      setFormData({ name: "", email: "", password: "", role: "CASHIER" });
+      setFormData({ name: "", email: "", password: "", role: DEFAULT_ROLE });
     } catch (error) {
       toast.error(getApiErrorMessage(error, "No se pudo crear el usuario"));
     }
@@ -136,7 +149,7 @@ export default function UsersPage() {
     setEditFormData({
       name: user.name,
       email: user.email,
-      role: user.role,
+      role: toSelectableRole(user.role),
     });
     setShowEditModal(true);
   };
@@ -247,7 +260,7 @@ export default function UsersPage() {
             <Select
               label="Rol"
               value={editFormData.role}
-              onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as "ADMIN" | "CASHIER" | "INVENTORY_USER" })}
+              onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as SelectableRole })}
               options={[
                 { value: "CASHIER", label: "Cajero" },
                 { value: "INVENTORY_USER", label: "Inventario" },
@@ -271,7 +284,7 @@ export default function UsersPage() {
           <Select
             label="Rol"
             value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value as "ADMIN" | "CASHIER" | "INVENTORY_USER" })}
+            onChange={(e) => setFormData({ ...formData, role: e.target.value as SelectableRole })}
             options={[
               { value: "CASHIER", label: "Cajero" },
               { value: "INVENTORY_USER", label: "Inventario" },

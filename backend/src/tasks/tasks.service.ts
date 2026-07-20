@@ -3,14 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, TaskEventType, TaskStatus, type User } from '@prisma/client';
+import { Prisma, TaskEventType, TaskStatus, OrgRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
-
-type AuthenticatedActor = Pick<User, 'id' | 'role'>;
+import type { RequestUser } from '../common/interfaces/request-user.interface';
 
 const taskSelect = {
   id: true,
@@ -64,8 +63,8 @@ const allowedTransitions: Record<TaskStatus, TaskStatus[]> = {
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(actor: AuthenticatedActor, dto: CreateTaskDto) {
-    await this.ensureUserExists(actor.id);
+  async create(user: RequestUser, dto: CreateTaskDto) {
+    await this.ensureUserExists(user.userId);
     await this.ensureAssignableUser(dto.assignedToId);
 
     return this.prisma.$transaction(async (tx) => {
@@ -73,16 +72,9 @@ export class TasksService {
         data: {
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
-          createdBy: {
-            connect: { id: actor.id },
-          },
-          ...(dto.assignedToId
-            ? {
-                assignedTo: {
-                  connect: { id: dto.assignedToId },
-                },
-              }
-            : {}),
+          organizationId: user.organizationId!,
+          createdById: user.userId,
+          ...(dto.assignedToId ? { assignedToId: dto.assignedToId } : {}),
           dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
         },
         select: taskSelect,
@@ -91,11 +83,12 @@ export class TasksService {
       await tx.taskEvent.create({
         data: {
           taskId: task.id,
+          organizationId: user.organizationId!,
           type: TaskEventType.CREATED,
           fromStatus: null,
           toStatus: task.status,
           note: dto.description?.trim() || null,
-          createdById: actor.id,
+          createdById: user.userId,
         },
       });
 
@@ -103,10 +96,10 @@ export class TasksService {
     });
   }
 
-  async findAll(actor: AuthenticatedActor, query: QueryTasksDto) {
+  async findAll(user: RequestUser, query: QueryTasksDto) {
     const andFilters: Prisma.TaskWhereInput[] = [
       { deletedAt: null },
-      this.buildVisibilityWhere(actor),
+      this.buildVisibilityWhere(user),
     ];
 
     if (query.status) {
@@ -148,12 +141,12 @@ export class TasksService {
     });
   }
 
-  async findOne(taskId: string, actor: AuthenticatedActor) {
-    return this.findVisibleTaskOrThrow(taskId, actor);
+  async findOne(taskId: string, user: RequestUser) {
+    return this.findVisibleTaskOrThrow(taskId, user);
   }
 
-  async update(taskId: string, actor: AuthenticatedActor, dto: UpdateTaskDto) {
-    const task = await this.findVisibleTaskOrThrow(taskId, actor);
+  async update(taskId: string, user: RequestUser, dto: UpdateTaskDto) {
+    const task = await this.findVisibleTaskOrThrow(taskId, user);
     if (task.deletedAt) {
       throw new NotFoundException('Task not found');
     }
@@ -199,11 +192,12 @@ export class TasksService {
       await tx.taskEvent.create({
         data: {
           taskId,
+          organizationId: user.organizationId!,
           type: TaskEventType.UPDATED,
           fromStatus: updatedTask.status,
           toStatus: updatedTask.status,
           note: updateNote,
-          createdById: actor.id,
+          createdById: user.userId,
         },
       });
 
@@ -213,10 +207,10 @@ export class TasksService {
 
   async updateStatus(
     taskId: string,
-    actor: AuthenticatedActor,
+    user: RequestUser,
     dto: UpdateTaskStatusDto,
   ) {
-    const task = await this.findVisibleTaskOrThrow(taskId, actor);
+    const task = await this.findVisibleTaskOrThrow(taskId, user);
     if (!this.isValidTransition(task.status, dto.status)) {
       throw new BadRequestException(
         `Invalid task status transition from ${task.status} to ${dto.status}`,
@@ -233,11 +227,12 @@ export class TasksService {
       await tx.taskEvent.create({
         data: {
           taskId,
+          organizationId: user.organizationId!,
           type: TaskEventType.STATUS_CHANGED,
           fromStatus: task.status,
           toStatus: dto.status,
           note: dto.note?.trim() || null,
-          createdById: actor.id,
+          createdById: user.userId,
         },
       });
 
@@ -245,18 +240,18 @@ export class TasksService {
     });
   }
 
-  async getTimeline(taskId: string, actor: AuthenticatedActor) {
-    await this.findVisibleTaskOrThrow(taskId, actor);
+  async getTimeline(taskId: string, user: RequestUser) {
+    await this.findVisibleTaskOrThrow(taskId, user);
 
     return this.prisma.taskEvent.findMany({
-      where: { taskId },
+      where: { taskId, organizationId: user.organizationId! },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: taskEventSelect,
     });
   }
 
-  async remove(taskId: string, actor: AuthenticatedActor) {
-    const task = await this.findVisibleTaskOrThrow(taskId, actor);
+  async remove(taskId: string, user: RequestUser) {
+    const task = await this.findVisibleTaskOrThrow(taskId, user);
     if (task.deletedAt) {
       throw new NotFoundException('Task not found');
     }
@@ -270,11 +265,12 @@ export class TasksService {
       await tx.taskEvent.create({
         data: {
           taskId,
+          organizationId: user.organizationId!,
           type: TaskEventType.DELETED,
           fromStatus: task.status,
           toStatus: task.status,
           note: 'Task deleted from dashboard',
-          createdById: actor.id,
+          createdById: user.userId,
         },
       });
 
@@ -282,15 +278,12 @@ export class TasksService {
     });
   }
 
-  private async findVisibleTaskOrThrow(
-    taskId: string,
-    actor: AuthenticatedActor,
-  ) {
+  private async findVisibleTaskOrThrow(taskId: string, user: RequestUser) {
     const task = await this.prisma.task.findFirst({
       where: {
         id: taskId,
         deletedAt: null,
-        ...this.buildVisibilityWhere(actor),
+        ...this.buildVisibilityWhere(user),
       },
       select: {
         ...taskSelect,
@@ -305,15 +298,18 @@ export class TasksService {
     return task;
   }
 
-  private buildVisibilityWhere(
-    actor: AuthenticatedActor,
-  ): Prisma.TaskWhereInput {
-    if (actor.role === 'ADMIN') {
-      return {};
+  private buildVisibilityWhere(user: RequestUser): Prisma.TaskWhereInput {
+    const base: Prisma.TaskWhereInput = {
+      organizationId: user.organizationId!,
+    };
+
+    if (user.role === OrgRole.ADMIN || user.role === OrgRole.OWNER) {
+      return base;
     }
 
     return {
-      OR: [{ createdById: actor.id }, { assignedToId: actor.id }],
+      ...base,
+      OR: [{ createdById: user.userId }, { assignedToId: user.userId }],
     };
   }
 

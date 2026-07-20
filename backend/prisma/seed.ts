@@ -1,176 +1,409 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma, OrgRole, PlanType, OrgStatus, BillingStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { faker } from '@faker-js/faker';
 
 const prisma = new PrismaClient();
 
+const isDev = process.env.NODE_ENV !== 'production';
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function generateSku(prefix: string, index: number): string {
+  return `${prefix}-${String(index).padStart(3, '0')}`;
+}
+
+function generateBarcode(): string {
+  // 13 dígitos aleatorios
+  return Array.from({ length: 13 }, () => Math.floor(Math.random() * 10)).join('');
+}
+
+function d(value: number): Prisma.Decimal {
+  return new Prisma.Decimal(value);
+}
+
+async function ensureSuperAdmin(): Promise<void> {
+  const email = 'admin@sistema.com';
+  const existing = await prisma.user.findUnique({ where: { email } });
+
+  if (existing) {
+    console.log('  ℹ️  SuperAdmin ya existe, saltando...');
+    return;
+  }
+
+  const hashedPassword = await bcrypt.hash('admin123', 10);
+
+  await prisma.user.create({
+    data: {
+      email,
+      password: hashedPassword,
+      name: 'Super Administrador',
+      isSuperAdmin: true,
+      tokenVersion: 0,
+    },
+  });
+
+  console.log('  ✅ SuperAdmin creado: admin@sistema.com / admin123');
+}
+
+// ─── Demo Data Builders ─────────────────────────────────────────────────────
+
+async function createDemoOrg(
+  name: string,
+  slug: string,
+  plan: PlanType,
+): Promise<{ orgId: string; adminUserId: string }> {
+  // 1. Crear organización
+  const org = await prisma.organization.create({
+    data: {
+      name,
+      slug,
+      plan,
+      status: OrgStatus.ACTIVE,
+      billingStatus: BillingStatus.PAID,
+      active: true,
+      taxId: faker.string.numeric(10),
+      phone: faker.phone.number(),
+      address: faker.location.streetAddress(),
+      settings: {
+        currency: 'COP',
+        taxRate: 19,
+        receiptPrefix: 'REC-',
+        printHeader: name,
+        printFooter: 'Gracias por su compra',
+      },
+    },
+  });
+
+  // 2. Crear usuario admin de la org
+  const adminEmail = `admin@${slug}.com`;
+  const adminPassword = await bcrypt.hash('admin123', 10);
+
+  const adminUser = await prisma.user.create({
+    data: {
+      email: adminEmail,
+      password: adminPassword,
+      name: faker.person.fullName(),
+      tokenVersion: 0,
+    },
+  });
+
+  // 3. OrganizationUser (OWNER)
+  await prisma.organizationUser.create({
+    data: {
+      organizationId: org.id,
+      userId: adminUser.id,
+      role: OrgRole.OWNER,
+      isPrimaryOwner: true,
+    },
+  });
+
+  // 4. OrganizationSequence
+  const currentYear = new Date().getFullYear();
+  await prisma.organizationSequence.createMany({
+    data: [
+      { organizationId: org.id, type: 'SALE', prefix: 'REC', currentNumber: 0, year: currentYear },
+      { organizationId: org.id, type: 'PO', prefix: 'OC', currentNumber: 0, year: currentYear },
+    ],
+  });
+
+  // 5. CashRegister default
+  await prisma.cashRegister.create({
+    data: {
+      organizationId: org.id,
+      name: 'Caja Principal',
+      isDefault: true,
+    },
+  });
+
+  console.log(`  ✅ Org "${name}" creada (${plan})`);
+
+  return { orgId: org.id, adminUserId: adminUser.id };
+}
+
+async function createDemoUsers(orgId: string, slug: string, count: number): Promise<string[]> {
+  const userIds: string[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const password = await bcrypt.hash('cajero123', 10);
+    const user = await prisma.user.create({
+      data: {
+        email: `cajero${i + 1}@${slug}.com`.toLowerCase(),
+        password,
+        name: faker.person.fullName(),
+        tokenVersion: 0,
+      },
+    });
+
+    await prisma.organizationUser.create({
+      data: {
+        organizationId: orgId,
+        userId: user.id,
+        role: OrgRole.CASHIER,
+      },
+    });
+
+    userIds.push(user.id);
+  }
+
+  console.log(`  👤 ${count} usuarios creados`);
+  return userIds;
+}
+
+async function createDemoCategories(orgId: string, count: number): Promise<string[]> {
+  const categories = [
+    'Bebidas',
+    'Alimentos',
+    'Limpieza',
+    'Electrónica',
+    'Ropa',
+    'Hogar',
+    'Papelería',
+    'Cuidado Personal',
+    'Mascotas',
+    'Farmacia',
+  ];
+
+  const categoryIds: string[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const name = categories[i] || faker.commerce.department();
+    const cat = await prisma.category.create({
+      data: {
+        name,
+        description: faker.commerce.productDescription().slice(0, 100),
+        defaultTaxRate: d(19),
+        active: true,
+        organizationId: orgId,
+      },
+    });
+    categoryIds.push(cat.id);
+  }
+
+  console.log(`  📁 ${count} categorías creadas`);
+  return categoryIds;
+}
+
+async function createDemoProducts(
+  orgId: string,
+  categoryIds: string[],
+  count: number,
+): Promise<{ id: string; salePrice: Prisma.Decimal }[]> {
+  const prefixes = ['BEB', 'ALI', 'LIM', 'ELEC', 'ROP', 'HOG', 'PAPEL', 'CUID', 'MASC', 'FARM'];
+  const products: { id: string; salePrice: Prisma.Decimal }[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const prefix = prefixes[i % prefixes.length];
+    const sku = generateSku(prefix, i + 1);
+    const barcode = Math.random() > 0.2 ? generateBarcode() : null;
+    const costPrice = faker.number.int({ min: 1000, max: 500000 });
+    const margin = faker.number.int({ min: 10, max: 50 });
+    const salePrice = Math.round(costPrice * (1 + margin / 100));
+    const stock = faker.number.int({ min: 5, max: 200 });
+    const minStock = Math.max(1, Math.floor(stock * 0.2));
+
+    const product = await prisma.product.create({
+      data: {
+        name: faker.commerce.productName(),
+        sku,
+        barcode,
+        description: faker.commerce.productDescription().slice(0, 200),
+        costPrice: d(costPrice),
+        salePrice: d(salePrice),
+        taxRate: d(19),
+        stock,
+        minStock,
+        active: true,
+        categoryId: categoryIds[i % categoryIds.length],
+        organizationId: orgId,
+      },
+    });
+
+    products.push({ id: product.id, salePrice: d(salePrice) });
+  }
+
+  console.log(`  📦 ${count} productos creados`);
+  return products;
+}
+
+async function createDemoCustomers(orgId: string, count: number): Promise<string[]> {
+  const customerIds: string[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const docNumber = faker.number.int({ min: 10000000, max: 99999999 }).toString();
+    const customer = await prisma.customer.create({
+      data: {
+        name: faker.person.fullName(),
+        documentType: 'CC',
+        documentNumber: docNumber,
+        email: faker.internet.email().toLowerCase(),
+        phone: faker.phone.number(),
+        address: faker.location.streetAddress(),
+        segment: faker.helpers.arrayElement(['VIP', 'FREQUENT', 'OCCASIONAL', 'INACTIVE']),
+        active: true,
+        organizationId: orgId,
+      },
+    });
+
+    customerIds.push(customer.id);
+  }
+
+  console.log(`  👥 ${count} clientes creados`);
+  return customerIds;
+}
+
+async function createDemoSales(
+  orgId: string,
+  userIds: string[],
+  customerIds: string[],
+  products: { id: string; salePrice: Prisma.Decimal }[],
+  count: number,
+): Promise<void> {
+  for (let i = 0; i < count; i++) {
+    const numItems = faker.number.int({ min: 1, max: 5 });
+    const selectedProducts = faker.helpers.arrayElements(products, numItems);
+
+    let subtotal = d(0);
+    const saleItemsData: {
+      productId: string;
+      quantity: number;
+      unitPrice: Prisma.Decimal;
+      taxRate: Prisma.Decimal;
+      subtotal: Prisma.Decimal;
+      total: Prisma.Decimal;
+    }[] = [];
+
+    for (const product of selectedProducts) {
+      const quantity = faker.number.int({ min: 1, max: 5 });
+      const unitPrice = product.salePrice;
+      const itemSubtotal = unitPrice.mul(quantity);
+      const taxRate = d(19);
+      const itemTotal = itemSubtotal.mul(d(1).add(taxRate.div(d(100))));
+
+      saleItemsData.push({
+        productId: product.id,
+        quantity,
+        unitPrice,
+        taxRate,
+        subtotal: itemSubtotal,
+        total: itemTotal,
+      });
+
+      subtotal = subtotal.add(itemSubtotal);
+    }
+
+    const taxAmount = subtotal.mul(d(19)).div(d(100));
+    const total = subtotal.add(taxAmount);
+    const amountPaid = total;
+
+    // Numeración manual para demo (no usar SequenceService)
+    const saleNumber = i + 1;
+
+    await prisma.sale.create({
+      data: {
+        organizationId: orgId,
+        saleNumber,
+        customerId: faker.helpers.maybe(() => faker.helpers.arrayElement(customerIds), { probability: 0.7 }) ?? null,
+        subtotal,
+        taxAmount,
+        discountAmount: d(0),
+        total,
+        amountPaid,
+        change: d(0),
+        status: 'COMPLETED',
+        userId: faker.helpers.arrayElement(userIds),
+        items: {
+          create: saleItemsData.map((item) => ({
+            organizationId: orgId,
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            taxRate: item.taxRate,
+            discountAmount: d(0),
+            subtotal: item.subtotal,
+            total: item.total,
+          })),
+        },
+        payments: {
+          create: [
+            {
+              organizationId: orgId,
+              method: faker.helpers.arrayElement(['CASH', 'CARD', 'TRANSFER']),
+              amount: amountPaid,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  console.log(`  🧾 ${count} ventas creadas`);
+
+  // Actualizar OrganizationSequence para que las ventas reales no choquen
+  await prisma.organizationSequence.updateMany({
+    where: { organizationId: orgId, type: 'SALE' },
+    data: { currentNumber: count },
+  });
+}
+
+async function seedDemoOrganization(
+  name: string,
+  slug: string,
+  plan: PlanType,
+): Promise<void> {
+  console.log(`\n🏢 Sembrando organización: ${name}`);
+
+  const { orgId, adminUserId } = await createDemoOrg(name, slug, plan);
+
+  // Usuarios adicionales (miembros)
+  const memberCount = plan === PlanType.PRO ? 5 : 3;
+  const memberIds = await createDemoUsers(orgId, slug, memberCount);
+  const allUserIds = [adminUserId, ...memberIds];
+
+  // Categorías
+  const categoryCount = plan === PlanType.PRO ? 10 : 5;
+  const categoryIds = await createDemoCategories(orgId, categoryCount);
+
+  // Productos
+  const productCount = plan === PlanType.PRO ? 30 : 20;
+  const products = await createDemoProducts(orgId, categoryIds, productCount);
+
+  // Clientes
+  const customerCount = plan === PlanType.PRO ? 10 : 5;
+  const customerIds = await createDemoCustomers(orgId, customerCount);
+
+  // Ventas
+  const saleCount = plan === PlanType.PRO ? 15 : 10;
+  await createDemoSales(orgId, allUserIds, customerIds, products, saleCount);
+}
+
+// ─── Main ───────────────────────────────────────────────────────────────────
+
 async function main() {
-  console.log('🌱 Starting database seed...');
+  console.log('🌱 Starting multi-tenant database seed...\n');
 
-  const hashedAdminPassword = await bcrypt.hash('admin123', 10);
-  const hashedCashierPassword = await bcrypt.hash('cashier123', 10);
+  // 1. Siempre crear SuperAdmin
+  console.log('👤 Creando SuperAdmin...');
+  await ensureSuperAdmin();
 
-  const admin = await prisma.user.create({
-    data: {
-      email: 'admin@inventory.com',
-      password: hashedAdminPassword,
-      name: 'Administrador',
-      role: 'ADMIN',
-    },
-  });
+  // 2. Solo en DEV: crear organizaciones demo
+  if (isDev) {
+    console.log('\n🛠️  Modo DEV detectado — creando datos de demo...');
 
-  await prisma.settings.create({
-    data: {
-      companyName: 'Mi Negocio',
-      currency: 'COP',
-      taxRate: 19,
-      receiptPrefix: 'REC-',
-      printHeader: 'Comprobante de Pago',
-      printFooter: 'Gracias por su compra',
-      userId: admin.id,
-    },
-  });
+    await seedDemoOrganization('Cafetería Demo', 'cafeteria-demo', PlanType.BASIC);
+    await seedDemoOrganization('Supermercado Demo', 'supermercado-demo', PlanType.PRO);
+  } else {
+    console.log('\n🏭 Modo PRODUCTION — solo se creó SuperAdmin');
+  }
 
-  await prisma.user.create({
-    data: {
-      email: 'cajero@inventory.com',
-      password: hashedCashierPassword,
-      name: 'Cajero Principal',
-      role: 'CASHIER',
-    },
-  });
-
-  await prisma.user.create({
-    data: {
-      email: 'inventory@inventory.com',
-      password: hashedCashierPassword,
-      name: 'Usuario Inventario',
-      role: 'INVENTORY_USER',
-    },
-  });
-
-  const electronicsCategory = await prisma.category.create({
-    data: {
-      name: 'Electrónicos',
-      description: 'Productos digitales y accesorios',
-    },
-  });
-
-  const clothingCategory = await prisma.category.create({
-    data: {
-      name: 'Ropa y Accesorios',
-      description: 'Vestuario y complementos',
-    },
-  });
-
-  const beveragesCategory = await prisma.category.create({
-    data: {
-      name: 'Bebidas',
-      description: 'Refrescos, jugos y bebidas alcohólicas',
-    },
-  });
-
-  const foodCategory = await prisma.category.create({
-    data: {
-      name: 'Alimentos',
-      description: 'Comestibles y snacks',
-    },
-  });
-
-  const cleaningCategory = await prisma.category.create({
-    data: {
-      name: 'Hogar y Limpieza',
-      description: 'Artículos de aseo y mantenimiento',
-    },
-  });
-
-  await prisma.product.createMany({
-    data: [
-      { name: 'Laptop Dell XPS 15', sku: 'LAP-001', barcode: '7894561230128', costPrice: 1500000, salePrice: 1800000, taxRate: 19, stock: 10, minStock: 3, categoryId: electronicsCategory.id },
-      { name: 'Samsung Galaxy S24', sku: 'CEL-001', barcode: '7894561230129', costPrice: 2800000, salePrice: 3200000, taxRate: 19, stock: 15, minStock: 5, categoryId: electronicsCategory.id },
-      { name: 'Monitor LG 27"', sku: 'MON-001', barcode: '7894561230130', costPrice: 450000, salePrice: 550000, taxRate: 19, stock: 8, minStock: 2, categoryId: electronicsCategory.id },
-      { name: 'Teclado mecánico RGB', sku: 'TEC-001', barcode: '7894561230131', costPrice: 120000, salePrice: 180000, taxRate: 19, stock: 20, minStock: 5, categoryId: electronicsCategory.id },
-      { name: 'Mouse inalámbrico Logitech', sku: 'MOU-001', barcode: '7894561230132', costPrice: 50000, salePrice: 75000, taxRate: 19, stock: 25, minStock: 10, categoryId: electronicsCategory.id },
-      { name: 'Auriculares Bluetooth', sku: 'AUD-001', barcode: '7894561230133', costPrice: 80000, salePrice: 120000, taxRate: 19, stock: 30, minStock: 10, categoryId: electronicsCategory.id },
-      { name: 'Cámara de seguridad TP-Link', sku: 'CAM-001', barcode: '7894561230134', costPrice: 180000, salePrice: 220000, taxRate: 19, stock: 12, minStock: 3, categoryId: electronicsCategory.id },
-      { name: 'Cargador USB-C 65W', sku: 'CAR-001', barcode: '7894561230135', costPrice: 45000, salePrice: 65000, taxRate: 19, stock: 18, minStock: 5, categoryId: electronicsCategory.id },
-      { name: 'Memoria RAM 16GB DDR4', sku: 'MEM-001', barcode: '7894561230136', costPrice: 90000, salePrice: 130000, taxRate: 19, stock: 22, minStock: 5, categoryId: electronicsCategory.id },
-      { name: 'Disco SSD 1TB Samsung', sku: 'SSD-001', barcode: '7894561230137', costPrice: 150000, salePrice: 200000, taxRate: 19, stock: 15, minStock: 5, categoryId: electronicsCategory.id },
-      { name: 'Case Gamer NZXT', sku: 'CAS-001', barcode: '7894561230138', costPrice: 180000, salePrice: 250000, taxRate: 19, stock: 7, minStock: 2, categoryId: electronicsCategory.id },
-      { name: 'Fuente de poder 750W Corsair', sku: 'FUE-001', barcode: '7894561230139', costPrice: 200000, salePrice: 280000, taxRate: 19, stock: 10, minStock: 3, categoryId: electronicsCategory.id },
-      { name: 'Camiseta algodón XL', sku: 'ROP-001', barcode: '7894561230140', costPrice: 45000, salePrice: 75000, taxRate: 19, stock: 50, minStock: 15, categoryId: clothingCategory.id },
-      { name: 'Pantalón jeans clásico', sku: 'ROP-002', barcode: '7894561230141', costPrice: 60000, salePrice: 90000, taxRate: 19, stock: 40, minStock: 10, categoryId: clothingCategory.id },
-      { name: 'Zapatos deportivos Running', sku: 'ROP-003', barcode: '7894561230142', costPrice: 120000, salePrice: 180000, taxRate: 19, stock: 25, minStock: 8, categoryId: clothingCategory.id },
-      { name: 'Gorra de lana beis', sku: 'ROP-004', barcode: '7894561230143', costPrice: 35000, salePrice: 55000, taxRate: 19, stock: 30, minStock: 10, categoryId: clothingCategory.id },
-      { name: 'Chaqueta impermeable', sku: 'ROP-005', barcode: '7894561230144', costPrice: 180000, salePrice: 280000, taxRate: 19, stock: 20, minStock: 5, categoryId: clothingCategory.id },
-      { name: 'Camiseta polo blanco M', sku: 'ROP-006', barcode: '7894561230145', costPrice: 55000, salePrice: 85000, taxRate: 19, stock: 35, minStock: 10, categoryId: clothingCategory.id },
-      { name: 'Pantalón chándal clásico', sku: 'ROP-007', barcode: '7894561230146', costPrice: 65000, salePrice: 95000, taxRate: 19, stock: 45, minStock: 15, categoryId: clothingCategory.id },
-      { name: 'Botas de cuero para hombre', sku: 'ROP-008', barcode: '7894561230147', costPrice: 150000, salePrice: 220000, taxRate: 19, stock: 18, minStock: 5, categoryId: clothingCategory.id },
-      { name: 'Coca-Cola 2L botella', sku: 'BEB-001', barcode: '7894561230148', costPrice: 2500, salePrice: 4000, taxRate: 19, stock: 100, minStock: 20, categoryId: beveragesCategory.id },
-      { name: 'Pepsi 600ml lata', sku: 'BEB-002', barcode: '7894561230149', costPrice: 2000, salePrice: 3500, taxRate: 19, stock: 80, minStock: 15, categoryId: beveragesCategory.id },
-      { name: 'Jugo de naranja natural 500ml', sku: 'BEB-003', barcode: '7894561230150', costPrice: 3000, salePrice: 5000, taxRate: 19, stock: 60, minStock: 15, categoryId: beveragesCategory.id },
-      { name: 'Cerveza Club Colombia 330ml', sku: 'BEB-004', barcode: '7894561230151', costPrice: 2500, salePrice: 4500, taxRate: 19, stock: 48, minStock: 12, categoryId: beveragesCategory.id },
-      { name: 'Agua mineral 500ml botella', sku: 'BEB-005', barcode: '7894561230152', costPrice: 1000, salePrice: 2000, taxRate: 0, stock: 120, minStock: 30, categoryId: beveragesCategory.id },
-      { name: 'Gaseosa 2L botella', sku: 'BEB-006', barcode: '7894561230153', costPrice: 2000, salePrice: 3000, taxRate: 19, stock: 150, minStock: 30, categoryId: beveragesCategory.id },
-      { name: 'Papas Lays clásicas 150g', sku: 'ALI-001', barcode: '7894561230154', costPrice: 3000, salePrice: 5500, taxRate: 19, stock: 75, minStock: 20, categoryId: foodCategory.id },
-      { name: 'Galletas Oreo paquete 300g', sku: 'ALI-002', barcode: '7894561230155', costPrice: 3500, salePrice: 6000, taxRate: 19, stock: 60, minStock: 15, categoryId: foodCategory.id },
-      { name: 'Chocolatina Jet paquete 200g', sku: 'ALI-003', barcode: '7894561230156', costPrice: 4000, salePrice: 7000, taxRate: 19, stock: 50, minStock: 10, categoryId: foodCategory.id },
-      { name: 'Papas Fritas McColloño 150g', sku: 'ALI-004', barcode: '7894561230157', costPrice: 3500, salePrice: 6500, taxRate: 19, stock: 65, minStock: 15, categoryId: foodCategory.id },
-      { name: 'Nachos con queso 100g', sku: 'ALI-005', barcode: '7894561230158', costPrice: 4000, salePrice: 7500, taxRate: 19, stock: 40, minStock: 10, categoryId: foodCategory.id },
-      { name: 'Gomitas Mastic paquete 200g', sku: 'ALI-006', barcode: '7894561230159', costPrice: 2500, salePrice: 4500, taxRate: 19, stock: 80, minStock: 20, categoryId: foodCategory.id },
-      { name: 'Helados popsicle caja 12u', sku: 'ALI-007', barcode: '7894561230160', costPrice: 2000, salePrice: 4000, taxRate: 19, stock: 30, minStock: 10, categoryId: foodCategory.id },
-      { name: 'Cereal Kellogg caja 500g', sku: 'ALI-008', barcode: '7894561230161', costPrice: 6000, salePrice: 10000, taxRate: 19, stock: 25, minStock: 5, categoryId: foodCategory.id },
-      { name: 'Detergente líquido 2L', sku: 'LIM-001', barcode: '7894561230162', costPrice: 8500, salePrice: 15000, taxRate: 19, stock: 40, minStock: 10, categoryId: cleaningCategory.id },
-      { name: 'Desinfectante multiuso 500ml', sku: 'LIM-002', barcode: '7894561230163', costPrice: 12000, salePrice: 22000, taxRate: 19, stock: 25, minStock: 5, categoryId: cleaningCategory.id },
-      { name: 'Papel higiénico rollo 200m', sku: 'LIM-003', barcode: '7894561230164', costPrice: 5000, salePrice: 9000, taxRate: 19, stock: 50, minStock: 15, categoryId: cleaningCategory.id },
-      { name: 'Escoba suave 1u', sku: 'LIM-004', barcode: '7894561230165', costPrice: 15000, salePrice: 25000, taxRate: 19, stock: 30, minStock: 10, categoryId: cleaningCategory.id },
-      { name: 'Limpiador de pisos 2L', sku: 'LIM-005', barcode: '7894561230166', costPrice: 18000, salePrice: 32000, taxRate: 19, stock: 15, minStock: 5, categoryId: cleaningCategory.id },
-    ],
-  });
-
-  await prisma.customer.createMany({
-    data: [
-      {
-        name: 'Carlos Rodríguez',
-        documentType: 'CC',
-        documentNumber: '1234567890',
-        email: 'carlos.rodriguez@email.com',
-        phone: '300-123-4567',
-        address: 'Calle 123 #45-67, Bogotá',
-        segment: 'VIP',
-      },
-      {
-        name: 'María González',
-        documentType: 'CC',
-        documentNumber: '9876543210',
-        email: 'maria.gonzalez@email.com',
-        phone: '310-987-6543',
-        address: 'Carrera 7 #8-92, Medellín',
-        segment: 'FREQUENT',
-      },
-      {
-        name: 'Pedro Pérez',
-        documentType: 'NIT',
-        documentNumber: '900123456',
-        email: 'pedro.perez@empresa.com',
-        phone: '320-111-2222',
-        address: 'Avenida Siempre Vivas #123, Cali',
-        segment: 'OCCASIONAL',
-      },
-    ],
-  });
-
-  console.log('✅ Seed completed successfully!');
+  console.log('\n✅ Seed completed successfully!');
   console.log('');
-  console.log('📊 Users created:');
-  console.log('  - admin@inventory.com / admin123 (ADMIN)');
-  console.log('  - cajero@inventory.com / cashier123 (CASHIER)');
-  console.log('  - inventory@inventory.com / cashier123 (INVENTORY_USER)');
-  console.log('');
-  console.log('📦 Products created: 20 items');
-  console.log('📁 Categories created: 5 categories');
-  console.log('👥 Customers created: 3 customers');
-  console.log('');
-  console.log('⚙️  Settings configured: Mi Negocio / COP / 19% IVA');
+  console.log('📊 Resumen:');
+  console.log('  - SuperAdmin: admin@sistema.com / admin123');
+
+  if (isDev) {
+    console.log('  - 2 organizaciones demo creadas');
+    console.log('  - Usuarios, categorías, productos, clientes y ventas de demo generados');
+  }
 }
 
 main()

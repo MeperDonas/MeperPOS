@@ -8,17 +8,21 @@ describe('UsersController', () => {
   const usersServiceMock = {
     update: jest.fn(),
     resetPassword: jest.fn(),
+    findAll: jest.fn(),
+    toggleActive: jest.fn(),
+    remove: jest.fn(),
   };
 
   const createContext = (
     handler: (...args: unknown[]) => unknown,
     role: string,
+    isSuperAdmin = false,
   ): ExecutionContext =>
     ({
       getHandler: () => handler,
       getClass: () => UsersController,
       switchToHttp: () => ({
-        getRequest: () => ({ user: { role } }),
+        getRequest: () => ({ user: { role, isSuperAdmin } }),
       }),
     }) as unknown as ExecutionContext;
 
@@ -37,10 +41,26 @@ describe('UsersController', () => {
     ).toThrow(ForbiddenException);
   });
 
-  it('delegates update with the acting admin id', async () => {
+  it('allows SuperAdmin access at the users boundary', () => {
     const controller = new UsersController(usersServiceMock as never);
-    const dto = { name: 'Ana Admin', role: 'CASHIER' as const };
-    const req = { user: { sub: 'admin-1' } };
+    const guard = new RolesGuard(new Reflector());
+
+    expect(
+      guard.canActivate(createContext(controller.findAll, 'SUPER_ADMIN', true)),
+    ).toBe(true);
+  });
+
+  it('delegates update with the acting admin id and organizationId', async () => {
+    const controller = new UsersController(usersServiceMock as never);
+    const dto = { name: 'Ana Admin' };
+    const user = {
+      userId: 'admin-1',
+      organizationId: 'org-1',
+      role: 'ADMIN' as const,
+      email: 'a@a.com',
+      tokenVersion: 1,
+      isSuperAdmin: false,
+    };
     const expected = {
       id: 'user-2',
       ...dto,
@@ -50,31 +70,57 @@ describe('UsersController', () => {
 
     usersServiceMock.update.mockResolvedValue(expected);
 
-    await expect(controller.update('user-2', dto, req)).resolves.toEqual(
+    await expect(controller.update('user-2', dto, user)).resolves.toEqual(
       expected,
     );
     expect(usersServiceMock.update).toHaveBeenCalledWith(
       'admin-1',
       'user-2',
       dto,
+      'org-1',
     );
   });
 
-  it('delegates password resets to the users service', async () => {
+  it('delegates password resets to the users service with organizationId', async () => {
     const controller = new UsersController(usersServiceMock as never);
     const dto = { newPassword: 'NuevaClaveSegura123' };
-    const req = { user: { sub: 'admin-1' } };
+    const user = {
+      userId: 'admin-1',
+      organizationId: 'org-1',
+      role: 'ADMIN' as const,
+      email: 'a@a.com',
+      tokenVersion: 1,
+      isSuperAdmin: false,
+    };
     const expected = { message: 'Contraseña restablecida exitosamente' };
 
     usersServiceMock.resetPassword.mockResolvedValue(expected);
 
-    await expect(controller.resetPassword('user-2', dto, req)).resolves.toEqual(
-      expected,
-    );
+    await expect(
+      controller.resetPassword('user-2', dto, user),
+    ).resolves.toEqual(expected);
     expect(usersServiceMock.resetPassword).toHaveBeenCalledWith(
       'admin-1',
       'user-2',
       dto,
+      'org-1',
     );
+  });
+
+  it('delegates findAll with organizationId from current user', async () => {
+    const controller = new UsersController(usersServiceMock as never);
+    const user = {
+      userId: 'admin-1',
+      organizationId: 'org-1',
+      role: 'ADMIN' as const,
+      email: 'a@a.com',
+      tokenVersion: 1,
+      isSuperAdmin: false,
+    };
+
+    usersServiceMock.findAll.mockResolvedValue([]);
+
+    await controller.findAll(user);
+    expect(usersServiceMock.findAll).toHaveBeenCalledWith('org-1');
   });
 });

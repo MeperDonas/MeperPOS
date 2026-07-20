@@ -2,19 +2,27 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PlanLimitService } from '../plan-limits/plan-limits.service';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 
 @Injectable()
 export class CustomersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private planLimitService: PlanLimitService,
+  ) {}
 
-  async create(createCustomerDto: CreateCustomerDto) {
+  async create(createCustomerDto: CreateCustomerDto, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     const { documentNumber } = createCustomerDto;
 
-    const existingCustomer = await this.prisma.customer.findUnique({
-      where: { documentNumber },
+    const existingCustomer = await this.prisma.customer.findFirst({
+      where: { documentNumber, organizationId },
     });
 
     if (existingCustomer) {
@@ -23,15 +31,26 @@ export class CustomersService {
       );
     }
 
-    return this.prisma.customer.create({
-      data: createCustomerDto,
+    const customer = await this.prisma.customer.create({
+      data: { ...createCustomerDto, organizationId },
     });
+
+    this.planLimitService.invalidateCache('customers', organizationId);
+
+    return customer;
   }
 
-  async findAll(page = 1, limit = 10, search?: string, segment?: string) {
+  async findAll(
+    organizationId: string | undefined,
+    page = 1,
+    limit = 10,
+    search?: string,
+    segment?: string,
+  ) {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
+      ...(organizationId ? { organizationId } : {}),
       active: true,
     };
 
@@ -69,9 +88,9 @@ export class CustomersService {
     };
   }
 
-  async findOne(id: string) {
-    const customer = await this.prisma.customer.findUnique({
-      where: { id },
+  async findOne(id: string, organizationId: string | undefined) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id, ...(organizationId ? { organizationId } : {}) },
       include: {
         sales: { include: { items: { include: { product: true } } } },
       },
@@ -84,17 +103,24 @@ export class CustomersService {
     return customer;
   }
 
-  async findByDocumentNumber(documentNumber: string) {
-    const customer = await this.prisma.customer.findUnique({
-      where: { documentNumber },
+  async findByDocumentNumber(documentNumber: string, organizationId: string | undefined) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { documentNumber, ...(organizationId ? { organizationId } : {}), active: true },
     });
 
     return customer;
   }
 
-  async update(id: string, updateCustomerDto: UpdateCustomerDto) {
-    const existingCustomer = await this.prisma.customer.findUnique({
-      where: { id },
+  async update(
+    id: string,
+    updateCustomerDto: UpdateCustomerDto,
+    organizationId: string | undefined,
+  ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
+    const existingCustomer = await this.prisma.customer.findFirst({
+      where: { id, organizationId },
     });
 
     if (!existingCustomer || !existingCustomer.active) {
@@ -105,8 +131,11 @@ export class CustomersService {
       updateCustomerDto.documentNumber &&
       updateCustomerDto.documentNumber !== existingCustomer.documentNumber
     ) {
-      const existingDocument = await this.prisma.customer.findUnique({
-        where: { documentNumber: updateCustomerDto.documentNumber },
+      const existingDocument = await this.prisma.customer.findFirst({
+        where: {
+          documentNumber: updateCustomerDto.documentNumber,
+          organizationId,
+        },
       });
       if (existingDocument) {
         throw new ConflictException('Document number already in use');
@@ -119,9 +148,12 @@ export class CustomersService {
     });
   }
 
-  async remove(id: string) {
-    const customer = await this.prisma.customer.findUnique({
-      where: { id },
+  async remove(id: string, organizationId: string | undefined) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
+    const customer = await this.prisma.customer.findFirst({
+      where: { id, organizationId },
       include: { sales: true },
     });
 

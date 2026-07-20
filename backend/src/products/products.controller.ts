@@ -22,6 +22,7 @@ import {
   ApiConsumes,
   ApiBody,
 } from '@nestjs/swagger';
+import { OrgRole } from '@prisma/client';
 import { ProductsService } from './products.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
@@ -29,25 +30,37 @@ import { AuditAction } from '../common/decorators/audit.decorator';
 import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { PlanLimitGuard } from '../plan-limits/plan-limits.guard';
+import { PlanLimit } from '../plan-limits/plan-limits.decorator';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 
 @ApiTags('Products')
 @Controller('products')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard, PlanLimitGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 export class ProductsController {
   constructor(private productsService: ProductsService) {}
 
   @Post()
-  @Roles('ADMIN', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+  @PlanLimit('products')
   @UseInterceptors(AuditInterceptor)
   @AuditAction('PRODUCT_CREATE')
   @ApiOperation({ summary: 'Create a new product' })
   create(
     @Body() createProductDto: CreateProductDto,
-    @Request() req: { user: { sub: string } },
+    @CurrentUser() user: RequestUser,
   ) {
-    return this.productsService.create(createProductDto, req.user.sub);
+    return this.productsService.create(
+      createProductDto,
+      user.userId,
+      user.organizationId,
+    );
   }
 
   @Get()
@@ -63,6 +76,7 @@ export class ProductsController {
     example: 'active',
   })
   findAll(
+    @CurrentUser() user: RequestUser,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
     @Query('search') search?: string,
@@ -70,6 +84,7 @@ export class ProductsController {
     @Query('status') status: 'active' | 'inactive' | 'all' = 'active',
   ) {
     return this.productsService.findAll(
+      user.organizationId,
       page,
       limit,
       search,
@@ -79,77 +94,90 @@ export class ProductsController {
   }
 
   @Get('low-stock')
-  @Roles('ADMIN', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Get products with low stock' })
-  getLowStock() {
-    return this.productsService.getLowStockProducts();
+  getLowStock(@CurrentUser() user: RequestUser) {
+    return this.productsService.getLowStockProducts(user.organizationId);
   }
 
   @Get('search')
-  @Roles('ADMIN', 'CASHIER', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Search products by name, SKU or barcode' })
   @ApiQuery({ name: 'q', required: true })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
-  search(@Query('q') query: string, @Query('limit') limit: number = 20) {
-    return this.productsService.searchProducts(query, limit);
+  search(
+    @CurrentUser() user: RequestUser,
+    @Query('q') query: string,
+    @Query('limit') limit: number = 20,
+  ) {
+    return this.productsService.searchProducts(
+      query,
+      limit,
+      user.organizationId,
+    );
   }
 
   @Get('quick-search')
-  @Roles('ADMIN', 'CASHIER', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @ApiOperation({ summary: 'Quick search product by barcode or SKU' })
   @ApiQuery({ name: 'code', required: true })
-  quickSearch(@Query('code') code: string) {
-    return this.productsService.quickSearch(code);
+  quickSearch(@CurrentUser() user: RequestUser, @Query('code') code: string) {
+    return this.productsService.quickSearch(code, user.organizationId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a product by ID' })
-  findOne(@Param('id') id: string) {
-    return this.productsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.productsService.findOne(id, user.organizationId);
   }
 
   @Put(':id')
-  @Roles('ADMIN', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @UseInterceptors(AuditInterceptor)
   @AuditAction('PRODUCT_UPDATE')
   @ApiOperation({ summary: 'Update a product' })
   update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
-    @Request() req: { user: { sub: string } },
+    @CurrentUser() user: RequestUser,
   ) {
-    return this.productsService.update(id, updateProductDto, req.user.sub);
+    return this.productsService.update(
+      id,
+      updateProductDto,
+      user.userId,
+      user.organizationId,
+    );
   }
 
   @Put(':id/deactivate')
-  @Roles('ADMIN', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @UseInterceptors(AuditInterceptor)
   @AuditAction('PRODUCT_DEACTIVATE')
   @ApiOperation({ summary: 'Deactivate a product' })
-  deactivate(@Param('id') id: string) {
-    return this.productsService.deactivate(id);
+  deactivate(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.productsService.deactivate(id, user.organizationId);
   }
 
   @Put(':id/reactivate')
-  @Roles('ADMIN', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @UseInterceptors(AuditInterceptor)
   @AuditAction('PRODUCT_REACTIVATE')
   @ApiOperation({ summary: 'Reactivate a product' })
-  reactivate(@Param('id') id: string) {
-    return this.productsService.reactivate(id);
+  reactivate(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.productsService.reactivate(id, user.organizationId);
   }
 
   @Delete(':id')
-  @Roles('ADMIN', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @UseInterceptors(AuditInterceptor)
   @AuditAction('PRODUCT_DELETE')
   @ApiOperation({ summary: 'Delete a product' })
-  remove(@Param('id') id: string) {
-    return this.productsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.productsService.remove(id, user.organizationId);
   }
 
   @Post('upload')
-  @Roles('ADMIN', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -183,7 +211,7 @@ export class ProductsController {
   }
 
   @Post(':id/upload')
-  @Roles('ADMIN', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -200,6 +228,7 @@ export class ProductsController {
   @ApiOperation({ summary: 'Upload image for specific product' })
   async uploadProductImage(
     @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({
@@ -214,6 +243,10 @@ export class ProductsController {
     )
     file: Express.Multer.File,
   ) {
-    return this.productsService.uploadProductImage(id, file);
+    return this.productsService.uploadProductImage(
+      id,
+      file,
+      user.organizationId,
+    );
   }
 }

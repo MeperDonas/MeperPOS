@@ -143,6 +143,7 @@ export class AuditInterceptor implements NestInterceptor {
       sub: string;
       email: string;
       role: string;
+      organizationId?: string;
     };
 
     if (!user || !user.sub) {
@@ -158,6 +159,7 @@ export class AuditInterceptor implements NestInterceptor {
       await this.prisma.auditLog.create({
         data: {
           userId: user.sub,
+          organizationId: user.organizationId ?? '',
           action,
           resource: responseContext?.resource ?? this.extractResource(url),
           resourceId: this.extractResourceId(request, response),

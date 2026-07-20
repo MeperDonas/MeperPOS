@@ -1,12 +1,20 @@
-import { BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PurchaseOrdersService } from './purchase-orders.service';
 
 describe('PurchaseOrdersService', () => {
   let service: PurchaseOrdersService;
 
+  const sequenceServiceMock = {
+    nextNumber: jest.fn(),
+  };
+
   const txMock = {
     product: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
       updateMany: jest.fn(),
     },
     inventoryMovement: {
@@ -19,9 +27,12 @@ describe('PurchaseOrdersService', () => {
       findUnique: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn(),
+      deleteMany: jest.fn(),
+      create: jest.fn(),
     },
     purchaseOrder: {
       update: jest.fn(),
+      create: jest.fn(),
     },
   };
 
@@ -29,9 +40,16 @@ describe('PurchaseOrdersService', () => {
     $transaction: jest.fn(),
     purchaseOrder: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
       update: jest.fn(),
+    },
+    supplier: {
+      findFirst: jest.fn(),
+    },
+    product: {
+      findFirst: jest.fn(),
     },
   };
 
@@ -72,11 +90,16 @@ describe('PurchaseOrdersService', () => {
     prismaMock.$transaction.mockImplementation(
       async (callback: (tx: typeof txMock) => unknown) => callback(txMock),
     );
-    service = new PurchaseOrdersService(prismaMock as never);
+    service = new PurchaseOrdersService(
+      prismaMock as never,
+      sequenceServiceMock as never,
+    );
   });
 
+  // ---- existing tests preserved ----
+
   it('rejects duplicated receive entries for the same item before touching stock', async () => {
-    prismaMock.purchaseOrder.findUnique.mockResolvedValue(buildOrder());
+    prismaMock.purchaseOrder.findFirst.mockResolvedValue(buildOrder());
 
     await expect(
       service.receive(
@@ -88,6 +111,7 @@ describe('PurchaseOrdersService', () => {
           ],
         },
         'user-1',
+        'org-1',
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
 
@@ -96,7 +120,7 @@ describe('PurchaseOrdersService', () => {
   });
 
   it('revalidates pending quantity inside the transaction before updating stock', async () => {
-    prismaMock.purchaseOrder.findUnique.mockResolvedValue(buildOrder());
+    prismaMock.purchaseOrder.findFirst.mockResolvedValue(buildOrder());
     txMock.purchaseOrderItem.findUnique.mockResolvedValue({
       id: 'poi-1',
       purchaseOrderId: 'po-1',
@@ -114,10 +138,11 @@ describe('PurchaseOrdersService', () => {
         'po-1',
         { items: [{ itemId: 'poi-1', qtyReceivedNow: 2 }] },
         'user-1',
+        'org-1',
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
 
-    expect(txMock.product.findUnique).not.toHaveBeenCalled();
+    expect(txMock.product.findFirst).not.toHaveBeenCalled();
     expect(txMock.inventoryMovement.create).not.toHaveBeenCalled();
     expect(txMock.purchaseOrderItem.update).not.toHaveBeenCalled();
   });
@@ -126,7 +151,7 @@ describe('PurchaseOrdersService', () => {
     prismaMock.purchaseOrder.findMany.mockResolvedValue([]);
     prismaMock.purchaseOrder.count.mockResolvedValue(0);
 
-    await service.findAll({ dateTo: '2026-04-19' });
+    await service.findAll('org-1', { dateTo: '2026-04-19' });
 
     expect(prismaMock.purchaseOrder.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -149,7 +174,7 @@ describe('PurchaseOrdersService', () => {
     prismaMock.purchaseOrder.findMany.mockResolvedValue([]);
     prismaMock.purchaseOrder.count.mockResolvedValue(0);
 
-    await service.findAll({ q: 'OC-12' });
+    await service.findAll('org-1', { q: 'OC-12' });
 
     const where = prismaMock.purchaseOrder.findMany.mock.calls[0][0].where as {
       OR: Array<Record<string, unknown>>;
@@ -161,14 +186,204 @@ describe('PurchaseOrdersService', () => {
   });
 
   it('keeps PARTIAL_RECEIVED orders non-cancellable', async () => {
-    prismaMock.purchaseOrder.findUnique.mockResolvedValue(
+    prismaMock.purchaseOrder.findFirst.mockResolvedValue(
       buildOrder({ status: 'PARTIAL_RECEIVED' }),
     );
 
     await expect(
-      service.cancel('po-1', { reason: 'Saldo pendiente' }),
+      service.cancel('po-1', { reason: 'Saldo pendiente' }, 'org-1'),
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(prismaMock.purchaseOrder.update).not.toHaveBeenCalled();
+  });
+
+  // ---- new tests for T5.3 ----
+
+  it('create uses Serializable transaction and assigns orderNumber from SequenceService', async () => {
+    prismaMock.$transaction.mockImplementation(
+      async (callback: (tx: unknown) => unknown, _options: unknown) => {
+        return callback(txMock);
+      },
+    );
+
+    sequenceServiceMock.nextNumber.mockResolvedValue({
+      number: 99,
+      formatted: 'OC-99',
+    });
+    prismaMock.supplier.findFirst.mockResolvedValue({
+      id: 'supplier-1',
+      active: true,
+    });
+    prismaMock.product.findFirst.mockResolvedValue({
+      id: 'prod-1',
+      active: true,
+      taxRate: 19,
+    });
+    txMock.purchaseOrder.create.mockResolvedValue({
+      id: 'po-new',
+      orderNumber: 99,
+    });
+
+    // Mock findOne call inside create
+    prismaMock.purchaseOrder.findFirst.mockResolvedValue({
+      id: 'po-new',
+      orderNumber: 99,
+      organizationId: 'org-1',
+      supplier: { id: 'supplier-1' },
+      createdBy: { id: 'user-1', name: 'User', email: 'user@example.com' },
+      items: [],
+    });
+
+    const dto = {
+      supplierId: 'supplier-1',
+      items: [{ productId: 'prod-1', qtyOrdered: 5, unitCost: 100 }],
+    };
+
+    await service.create(dto, 'user-1', 'org-1');
+
+    expect(prismaMock.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        maxWait: 5000,
+        timeout: 10000,
+      }),
+    );
+
+    expect(sequenceServiceMock.nextNumber).toHaveBeenCalledWith(
+      expect.anything(),
+      'org-1',
+      'PO',
+      new Date().getFullYear(),
+    );
+
+    expect(txMock.purchaseOrder.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organizationId: 'org-1',
+          orderNumber: 99,
+          createdById: 'user-1',
+        }),
+      }),
+    );
+
+    expect(txMock.purchaseOrderItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organizationId: 'org-1',
+        }),
+      }),
+    );
+  });
+
+  it('create throws ServiceUnavailableException on P2028 transaction timeout', async () => {
+    const error = new Prisma.PrismaClientKnownRequestError(
+      'Transaction timeout',
+      {
+        code: 'P2028',
+        clientVersion: '6.0.0',
+      },
+    );
+    prismaMock.$transaction.mockRejectedValue(error);
+    prismaMock.supplier.findFirst.mockResolvedValue({
+      id: 'supplier-1',
+      active: true,
+    });
+    prismaMock.product.findFirst.mockResolvedValue({
+      id: 'prod-1',
+      active: true,
+      taxRate: 19,
+    });
+
+    const dto = {
+      supplierId: 'supplier-1',
+      items: [{ productId: 'prod-1', qtyOrdered: 5, unitCost: 100 }],
+    };
+
+    await expect(service.create(dto, 'user-1', 'org-1')).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+  });
+
+  it('findAll filters by organizationId', async () => {
+    prismaMock.purchaseOrder.findMany.mockResolvedValue([]);
+    prismaMock.purchaseOrder.count.mockResolvedValue(0);
+
+    await service.findAll('org-1', {});
+
+    expect(prismaMock.purchaseOrder.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: 'org-1',
+        }),
+      }),
+    );
+    expect(prismaMock.purchaseOrder.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: 'org-1',
+        }),
+      }),
+    );
+  });
+
+  it('findOne returns PO scoped by organizationId', async () => {
+    prismaMock.purchaseOrder.findFirst.mockResolvedValue({
+      id: 'po-1',
+      organizationId: 'org-1',
+      supplier: { id: 'supplier-1' },
+      createdBy: { id: 'user-1', name: 'User', email: 'user@example.com' },
+      items: [],
+    });
+
+    const result = await service.findOne('po-1', 'org-1');
+
+    expect(prismaMock.purchaseOrder.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'po-1', organizationId: 'org-1' },
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({ id: 'po-1', organizationId: 'org-1' }),
+    );
+  });
+
+  it('receive creates inventoryMovement and auditLog with organizationId', async () => {
+    prismaMock.purchaseOrder.findFirst.mockResolvedValue(buildOrder());
+    txMock.purchaseOrderItem.findUnique.mockResolvedValue({
+      id: 'poi-1',
+      purchaseOrderId: 'po-1',
+      productId: 'prod-1',
+      qtyOrdered: 5,
+      qtyReceived: 0,
+      unitCost: 100,
+    });
+    txMock.product.findFirst.mockResolvedValue({
+      id: 'prod-1',
+      stock: 10,
+      version: 1,
+      costPrice: 100,
+    });
+    txMock.product.updateMany.mockResolvedValue({ count: 1 });
+    txMock.purchaseOrderItem.findMany.mockResolvedValue([
+      { id: 'poi-1', qtyOrdered: 5, qtyReceived: 2 },
+    ]);
+
+    await service.receive(
+      'po-1',
+      { items: [{ itemId: 'poi-1', qtyReceivedNow: 2 }] },
+      'user-1',
+      'org-1',
+    );
+
+    expect(txMock.inventoryMovement.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organizationId: 'org-1',
+          type: 'PURCHASE',
+        }),
+      }),
+    );
+    expect(txMock.auditLog.create).not.toHaveBeenCalled();
   });
 });

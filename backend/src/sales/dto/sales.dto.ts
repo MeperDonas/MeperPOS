@@ -86,6 +86,11 @@ export class UpdateSaleDto {
   @IsEnum(['COMPLETED', 'CANCELLED', 'RETURNED_PARTIAL'])
   @IsOptional()
   status?: 'COMPLETED' | 'CANCELLED' | 'RETURNED_PARTIAL';
+
+  @ApiProperty({ example: 'Cliente arrepentido', required: false })
+  @IsString()
+  @IsOptional()
+  cancelReason?: string;
 }
 
 export class FindSalesQueryDto {

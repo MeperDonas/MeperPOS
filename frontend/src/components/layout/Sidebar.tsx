@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { OrganizationSwitcher } from "@/components/auth/OrganizationSwitcher";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   ShoppingBasket,
@@ -28,13 +30,14 @@ import {
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
+import { hasAnyRole, type AppRole } from "@/lib/auth";
 import { useState, useCallback, useEffect } from "react";
 
 interface NavItem {
   label: string;
   href: string;
   icon: React.ReactNode;
-  roles?: string[];
+  roles?: AppRole[];
 }
 
 const navItems: NavItem[] = [
@@ -115,9 +118,16 @@ const navItems: NavItem[] = [
     icon: <Settings className="w-4 h-4" />,
     roles: ["ADMIN"],
   },
+  {
+    label: "SuperAdmin",
+    href: "/admin",
+    icon: <Shield className="w-4 h-4" />,
+    roles: ["SUPER_ADMIN"],
+  },
 ];
 
 const roleLabels: Record<string, string> = {
+  OWNER: "Propietario",
   ADMIN: "Administrador",
   CASHIER: "Cajero",
   INVENTORY_USER: "Inventario",
@@ -125,13 +135,20 @@ const roleLabels: Record<string, string> = {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, switchOrganization } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const queryClient = useQueryClient();
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("selectedOrganizationId");
+    }
+    return null;
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
   const filteredItems = navItems.filter(
-    (item) => !item.roles || (user && item.roles.includes(user.role))
+    (item) => !item.roles || (user && hasAnyRole(user.role, item.roles))
   );
 
   const toggleMobileMenu = useCallback(() => setIsMobileMenuOpen((p) => !p), []);
@@ -234,6 +251,28 @@ export function Sidebar() {
                 <span className="truncate">{formattedTime}</span>
               </p>
             </div>
+
+            {user.isSuperAdmin ? (
+              <OrganizationSwitcher
+                currentOrganizationId={selectedOrgId}
+                onSwitch={async (orgId) => {
+                  setSelectedOrgId(orgId);
+                  localStorage.setItem("selectedOrganizationId", orgId);
+                  queryClient.invalidateQueries();
+                }}
+                isSuperAdmin
+                onSelectAll={() => {
+                  setSelectedOrgId(null);
+                  localStorage.removeItem("selectedOrganizationId");
+                  queryClient.invalidateQueries();
+                }}
+              />
+            ) : (
+              <OrganizationSwitcher
+                currentOrganizationId={user.organizationId ?? undefined}
+                onSwitch={switchOrganization}
+              />
+            )}
           </div>
         </div>
       ) : null}

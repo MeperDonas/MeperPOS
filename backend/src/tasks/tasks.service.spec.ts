@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { TaskEventType, TaskStatus } from '@prisma/client';
+import { TaskEventType, TaskStatus, OrgRole } from '@prisma/client';
 import { TasksService } from './tasks.service';
+import type { RequestUser } from '../common/interfaces/request-user.interface';
 
 describe('TasksService', () => {
   let service: TasksService;
@@ -25,6 +26,15 @@ describe('TasksService', () => {
     $transaction: jest.fn(),
   };
 
+  const baseUser: RequestUser = {
+    userId: 'user-1',
+    email: 'test@example.com',
+    organizationId: 'org-1',
+    role: OrgRole.MEMBER,
+    tokenVersion: 1,
+    isSuperAdmin: false,
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     prismaMock.$transaction.mockImplementation(
@@ -44,22 +54,21 @@ describe('TasksService', () => {
     });
     prismaMock.taskEvent.create.mockResolvedValue({ id: 'event-1' });
 
-    const result = await service.create(
-      { id: 'user-1', role: 'CASHIER' },
-      { title: 'Revisar stock' },
-    );
+    const result = await service.create(baseUser, { title: 'Revisar stock' });
 
     expect(prismaMock.task.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           title: 'Revisar stock',
-          createdBy: { connect: { id: 'user-1' } },
+          organizationId: 'org-1',
+          createdById: 'user-1',
         }),
       }),
     );
     expect(prismaMock.taskEvent.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         taskId: 'task-1',
+        organizationId: 'org-1',
         type: TaskEventType.CREATED,
         toStatus: TaskStatus.PENDING,
         createdById: 'user-1',
@@ -81,7 +90,7 @@ describe('TasksService', () => {
     await expect(
       service.updateStatus(
         'task-2',
-        { id: 'user-2', role: 'CASHIER' },
+        { ...baseUser, userId: 'user-2' },
         { status: 'PENDING' },
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -107,7 +116,7 @@ describe('TasksService', () => {
     await expect(
       service.updateStatus(
         'task-immut-1',
-        { id: 'cashier-9', role: 'CASHIER' },
+        { ...baseUser, userId: 'cashier-9' },
         { status: TaskStatus.IN_PROGRESS, note: 'Tomada para ejecucion' },
       ),
     ).resolves.toEqual({
@@ -132,7 +141,7 @@ describe('TasksService', () => {
     prismaMock.task.findMany.mockResolvedValue([]);
 
     await service.findAll(
-      { id: 'cashier-1', role: 'CASHIER' },
+      { ...baseUser, userId: 'cashier-1' },
       { includeCompleted: false },
     );
 
@@ -141,6 +150,7 @@ describe('TasksService', () => {
         where: expect.objectContaining({
           AND: expect.arrayContaining([
             expect.objectContaining({
+              organizationId: 'org-1',
               OR: [{ createdById: 'cashier-1' }, { assignedToId: 'cashier-1' }],
             }),
           ]),
@@ -162,7 +172,11 @@ describe('TasksService', () => {
     prismaMock.taskEvent.create.mockResolvedValue({ id: 'event-3' });
 
     await expect(
-      service.remove('task-3', { id: 'admin-1', role: 'ADMIN' }),
+      service.remove('task-3', {
+        ...baseUser,
+        userId: 'admin-1',
+        role: OrgRole.ADMIN,
+      }),
     ).resolves.toEqual({ message: 'Task deleted successfully' });
 
     expect(prismaMock.task.update).toHaveBeenCalledWith(
@@ -174,10 +188,27 @@ describe('TasksService', () => {
     expect(prismaMock.taskEvent.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         taskId: 'task-3',
+        organizationId: 'org-1',
         type: TaskEventType.DELETED,
         createdById: 'admin-1',
       }),
     });
+  });
+
+  it('scopes all queries by organizationId', async () => {
+    prismaMock.task.findMany.mockResolvedValue([]);
+
+    await service.findAll(baseUser, { includeCompleted: false });
+
+    expect(prismaMock.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            expect.objectContaining({ organizationId: 'org-1' }),
+          ]),
+        }),
+      }),
+    );
   });
 
   it('rejects assignment to inactive users', async () => {
@@ -197,7 +228,7 @@ describe('TasksService', () => {
     await expect(
       service.update(
         'task-5',
-        { id: 'admin-1', role: 'ADMIN' },
+        { ...baseUser, userId: 'admin-1', role: OrgRole.ADMIN },
         { assignedToId: 'user-x' },
       ),
     ).rejects.toBeInstanceOf(NotFoundException);

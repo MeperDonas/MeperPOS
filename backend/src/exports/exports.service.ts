@@ -9,12 +9,15 @@ import * as csv from '@fast-csv/format';
 export class ExportsService {
   constructor(private prisma: PrismaService) {}
 
-  async getInventoryMovements(query: InventoryMovementsQueryDto) {
+  async getInventoryMovements(
+    organizationId: string | undefined,
+    query: InventoryMovementsQueryDto,
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { ...(organizationId ? { organizationId } : {}) };
 
     if (query.productId) {
       where.productId = query.productId;
@@ -60,28 +63,44 @@ export class ExportsService {
     };
   }
 
-  async exportSales(query: ExportQueryDto, response: any) {
-    const sales = await this.getSalesData(query);
+  async exportSales(
+    organizationId: string | undefined,
+    query: ExportQueryDto,
+    response: any,
+  ) {
+    const sales = await this.getSalesData(organizationId, query);
     return this.exportData(sales, 'sales', query.format, response);
   }
 
-  async exportProducts(query: ExportQueryDto, response: any) {
-    const products = await this.getProductsData(query);
+  async exportProducts(
+    organizationId: string | undefined,
+    query: ExportQueryDto,
+    response: any,
+  ) {
+    const products = await this.getProductsData(organizationId, query);
     return this.exportData(products, 'products', query.format, response);
   }
 
-  async exportCustomers(query: ExportQueryDto, response: any) {
-    const customers = await this.getCustomersData(query);
+  async exportCustomers(
+    organizationId: string | undefined,
+    query: ExportQueryDto,
+    response: any,
+  ) {
+    const customers = await this.getCustomersData(organizationId, query);
     return this.exportData(customers, 'customers', query.format, response);
   }
 
-  async exportInventory(query: ExportQueryDto, response: any) {
-    const movements = await this.getInventoryData(query);
+  async exportInventory(
+    organizationId: string | undefined,
+    query: ExportQueryDto,
+    response: any,
+  ) {
+    const movements = await this.getInventoryData(organizationId, query);
     return this.exportData(movements, 'inventory', query.format, response);
   }
 
-  private async getSalesData(query: ExportQueryDto) {
-    const where: any = {};
+  private async getSalesData(organizationId: string | undefined, query: ExportQueryDto) {
+    const where: any = { ...(organizationId ? { organizationId } : {}) };
     if (query.startDate || query.endDate) {
       where.createdAt = {};
       if (query.startDate) where.createdAt.gte = new Date(query.startDate);
@@ -104,25 +123,31 @@ export class ExportsService {
     });
   }
 
-  private async getProductsData(query: ExportQueryDto) {
+  private async getProductsData(organizationId: string | undefined, query: ExportQueryDto) {
     return this.prisma.product.findMany({
-      where: { active: true },
+      where: { ...(organizationId ? { organizationId } : {}), active: true },
       take: query.limit || undefined,
       orderBy: { createdAt: 'desc' },
       include: { category: { select: { name: true } } },
     });
   }
 
-  private async getCustomersData(query: ExportQueryDto) {
+  private async getCustomersData(
+    organizationId: string | undefined,
+    query: ExportQueryDto,
+  ) {
     return this.prisma.customer.findMany({
-      where: { active: true },
+      where: { ...(organizationId ? { organizationId } : {}), active: true },
       take: query.limit || undefined,
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  private async getInventoryData(query: ExportQueryDto) {
-    const where: any = {};
+  private async getInventoryData(
+    organizationId: string | undefined,
+    query: ExportQueryDto,
+  ) {
+    const where: any = { ...(organizationId ? { organizationId } : {}) };
     if (query.startDate || query.endDate) {
       where.createdAt = {};
       if (query.startDate) where.createdAt.gte = new Date(query.startDate);

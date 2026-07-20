@@ -62,7 +62,7 @@ export interface Sale {
   total: number;
   amountPaid: number | null;
   change: number | null;
-  status: "COMPLETED" | "CANCELLED" | "RETURNED_PARTIAL";
+  status: "OPEN" | "CLOSED" | "COMPLETED" | "CANCELLED" | "RETURNED_PARTIAL";
   userId: string;
   user?: SaleUser;
   items: SaleItem[];
@@ -295,7 +295,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "CASHIER" | "INVENTORY_USER";
+  role: "ADMIN" | "MEMBER" | "OWNER" | "CASHIER" | "INVENTORY_USER";
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -429,4 +429,36 @@ export interface UserPerformance {
   avgTicket: number;
   uniqueCustomers: number;
   comparison?: UserPerformanceComparison;
+}
+
+export interface PlanLimit {
+  type: "users" | "products" | "customers" | "cashRegisters";
+  current: number;
+  limit: number;
+  exceeded: boolean;
+  warningAt: number;
+}
+
+export interface PlanLimitsStatus {
+  organizationId: string | null;
+  limits: PlanLimit[];
+}
+
+export interface PaymentRecord {
+  id: string;
+  organizationId: string;
+  amount: number;
+  method: "CASH" | "CARD" | "TRANSFER";
+  date: string;
+  status: "PENDING" | "PAID" | "FAILED";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BillingStatus {
+  id: string;
+  plan: "BASIC" | "PRO";
+  status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED";
+  trialEndsAt: string | null;
+  billingStatus: "PENDING" | "PAID" | "OVERDUE";
 }

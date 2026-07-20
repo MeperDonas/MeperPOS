@@ -4,8 +4,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, memo } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { PlanLimitBanner } from "@/components/billing/PlanLimitBanner";
+import { hasAnyRole, type AppRole } from "@/lib/auth";
 
-const routeRoleMap: Array<{ prefix: string; roles: Array<"ADMIN" | "CASHIER" | "INVENTORY_USER"> }> = [
+type UserRole = AppRole;
+
+const routeRoleMap: Array<{ prefix: string; roles: UserRole[] }> = [
   { prefix: "/dashboard", roles: ["ADMIN", "INVENTORY_USER"] },
   { prefix: "/pos", roles: ["ADMIN", "CASHIER"] },
   { prefix: "/inventory", roles: ["ADMIN", "CASHIER", "INVENTORY_USER"] },
@@ -28,11 +32,12 @@ interface DashboardLayoutProps {
 export const DashboardLayout = memo(function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, loading, user, organization } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   const userRole = user?.role;
+  const organizationStatus = organization?.status;
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -43,13 +48,17 @@ export const DashboardLayout = memo(function DashboardLayout({
   useEffect(() => {
     if (loading || !isAuthenticated || !userRole) return;
 
+    if (userRole === "SUPER_ADMIN") {
+      return;
+    }
+
     const routeConfig = routeRoleMap.find(
       (route) => pathname === route.prefix || pathname.startsWith(`${route.prefix}/`)
     );
 
     if (!routeConfig) return;
 
-    if (!routeConfig.roles.includes(userRole)) {
+    if (!hasAnyRole(userRole, routeConfig.roles)) {
       router.replace(userRole === "CASHIER" ? "/pos" : "/dashboard");
     }
   }, [isAuthenticated, loading, pathname, router, userRole]);
@@ -70,10 +79,13 @@ export const DashboardLayout = memo(function DashboardLayout({
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" data-org-status={organizationStatus}>
       <Sidebar />
       <main className="px-4 pb-6 pt-20 lg:ml-64 lg:px-8 lg:pb-8 lg:pt-8">
-        <div className="mx-auto w-full max-w-[1500px]">{children}</div>
+        <div className="mx-auto w-full max-w-[1500px]">
+          <PlanLimitBanner />
+          {children}
+        </div>
       </main>
     </div>
   );

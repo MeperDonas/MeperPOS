@@ -20,28 +20,34 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { OrgRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
+import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { ImportsService } from './imports.service';
 import { RetryImportRowDto } from './dto/import.dto';
 
 @ApiTags('Imports')
 @Controller('imports')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
+@UseInterceptors(AdminOrganizationInterceptor)
 @ApiBearerAuth()
 export class ImportsController {
   constructor(private readonly importsService: ImportsService) {}
 
   @Get('products/template')
-  @Roles('ADMIN', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Download products import template' })
   async downloadTemplate(@Res() res: any): Promise<void> {
     return this.importsService.downloadTemplate(res);
   }
 
   @Post('products')
-  @Roles('ADMIN', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -67,29 +73,33 @@ export class ImportsController {
         }),
     )
     file: Express.Multer.File,
-    @Request() req: { user: { sub: string } },
+    @CurrentUser() user: RequestUser,
   ): Promise<any> {
-    return this.importsService.startProductsImport(file, req.user.sub);
+    return this.importsService.startProductsImport(
+      file,
+      user.userId,
+      user.organizationId,
+    );
   }
 
   @Get(':jobId/status')
-  @Roles('ADMIN', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Get import job status for polling' })
   getImportStatus(
     @Param('jobId') jobId: string,
-    @Request() req: { user: { sub: string } },
+    @Request() req: { user: { userId: string } },
   ): any {
-    return this.importsService.getImportStatus(jobId, req.user.sub);
+    return this.importsService.getImportStatus(jobId, req.user.userId);
   }
 
   @Post(':jobId/retry-row')
-  @Roles('ADMIN', 'INVENTORY_USER')
+  @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Retry a failed row with corrected data' })
   retryImportRow(
     @Param('jobId') jobId: string,
     @Body() dto: RetryImportRowDto,
-    @Request() req: { user: { sub: string } },
+    @Request() req: { user: { userId: string } },
   ): Promise<any> {
-    return this.importsService.retryImportRow(jobId, req.user.sub, dto);
+    return this.importsService.retryImportRow(jobId, req.user.userId, dto);
   }
 }

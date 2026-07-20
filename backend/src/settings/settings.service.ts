@@ -1,7 +1,18 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { UpdateSettingsDto, SettingsResponseDto } from './dto/settings.dto';
+import { UpdateSettingsDto } from './dto/settings.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+
+export interface OrganizationSettings {
+  companyName?: string;
+  currency?: string;
+  taxRate?: number;
+  receiptPrefix?: string;
+  printHeader?: string;
+  printFooter?: string;
+  logoUrl?: string;
+  [key: string]: unknown;
+}
 
 @Injectable()
 export class SettingsService {
@@ -10,46 +21,31 @@ export class SettingsService {
     private cloudinaryService: CloudinaryService,
   ) {}
 
-  async getSettings(): Promise<SettingsResponseDto> {
-    const settings = await this.ensureSettings();
-
-    return {
-      companyName: settings.companyName,
-      currency: settings.currency,
-      taxRate: Number(settings.taxRate),
-      receiptPrefix: settings.receiptPrefix,
-      printHeader: settings.printHeader || undefined,
-      printFooter: settings.printFooter || undefined,
-      logoUrl: settings.logoUrl || undefined,
-    };
-  }
-
-  async updateSettings(
-    userId: string,
-    updateSettingsDto: UpdateSettingsDto,
-  ): Promise<SettingsResponseDto> {
-    const settings = await this.ensureSettings();
-
-    const updated = await this.prisma.settings.update({
-      where: { id: settings.id },
-      data: {
-        ...updateSettingsDto,
-        userId,
-      },
+  async find(organizationId: string | undefined): Promise<OrganizationSettings> {
+    if (!organizationId) {
+      return {};
+    }
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { settings: true },
     });
-
-    return {
-      companyName: updated.companyName,
-      currency: updated.currency,
-      taxRate: Number(updated.taxRate),
-      receiptPrefix: updated.receiptPrefix,
-      printHeader: updated.printHeader || undefined,
-      printFooter: updated.printFooter || undefined,
-      logoUrl: updated.logoUrl || undefined,
-    };
+    return (org?.settings as OrganizationSettings) ?? {};
   }
 
-  getDefaultSettings(): Partial<SettingsResponseDto> {
+  async update(
+    organizationId: string | undefined,
+    dto: UpdateSettingsDto,
+  ): Promise<unknown> {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
+    return this.prisma.organization.update({
+      where: { id: organizationId },
+      data: { settings: dto as any },
+    });
+  }
+
+  getDefaultSettings(): Partial<OrganizationSettings> {
     return {
       companyName: 'Mi Negocio',
       currency: 'COP',
@@ -59,41 +55,28 @@ export class SettingsService {
   }
 
   async uploadLogo(
-    userId: string,
+    organizationId: string | undefined,
     file: Express.Multer.File,
   ): Promise<{ logoUrl: string }> {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
     if (!file) {
       throw new BadRequestException('No file provided');
     }
 
-    const settings = await this.ensureSettings();
-
     const logoUrl = await this.cloudinaryService.uploadImage(file, 'logos');
 
-    await this.prisma.settings.update({
-      where: { id: settings.id },
-      data: { logoUrl, userId },
+    await this.prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        settings: {
+          ...(await this.find(organizationId)),
+          logoUrl,
+        } as any,
+      },
     });
 
     return { logoUrl };
-  }
-
-  private async ensureSettings() {
-    const existing = await this.prisma.settings.findFirst({
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (existing) {
-      return existing;
-    }
-
-    return this.prisma.settings.create({
-      data: {
-        companyName: 'Mi Negocio',
-        currency: 'COP',
-        taxRate: 19,
-        receiptPrefix: 'REC-',
-      } as never,
-    });
   }
 }

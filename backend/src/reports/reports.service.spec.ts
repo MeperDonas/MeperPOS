@@ -23,7 +23,7 @@ describe('ReportsService', () => {
 
   it('rejects invalid ranges where endDate is before startDate', async () => {
     await expect(
-      service.getSalesByPaymentMethod('2026-03-10', '2026-03-05'),
+      service.getSalesByPaymentMethod('org-1', '2026-03-10', '2026-03-05'),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -41,6 +41,7 @@ describe('ReportsService', () => {
     ]);
 
     const result = await service.getSalesByPaymentMethod(
+      'org-1',
       '2026-03-01',
       '2026-03-31',
     );
@@ -62,6 +63,7 @@ describe('ReportsService', () => {
     prismaMock.sale.findMany.mockResolvedValue([]);
 
     const result = await service.getSalesByPaymentMethod(
+      'org-1',
       '2026-04-01',
       '2026-04-30',
     );
@@ -96,11 +98,12 @@ describe('ReportsService', () => {
       },
     ]);
     prismaMock.user.findMany.mockResolvedValue([
-      { id: 'user-1', name: 'Ana', role: 'CASHIER' },
-      { id: 'user-2', name: 'Luis', role: 'CASHIER' },
+      { id: 'user-1', name: 'Ana' },
+      { id: 'user-2', name: 'Luis' },
     ]);
 
     const result = await service.getUserPerformance(
+      'org-1',
       '2026-03-10',
       '2026-03-12',
       true,
@@ -142,7 +145,6 @@ describe('ReportsService', () => {
       select: {
         id: true,
         name: true,
-        role: true,
       },
       orderBy: {
         name: 'asc',
@@ -162,7 +164,6 @@ describe('ReportsService', () => {
       {
         userId: 'user-1',
         userName: 'Ana',
-        role: 'CASHIER',
         salesCount: 0,
         revenue: 0,
         avgTicket: 0,
@@ -175,7 +176,6 @@ describe('ReportsService', () => {
       {
         userId: 'user-2',
         userName: 'Luis',
-        role: 'CASHIER',
         salesCount: 0,
         revenue: 0,
         avgTicket: 0,

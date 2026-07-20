@@ -3,12 +3,15 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { OrgRole } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
+import { PlanLimitService } from '../plan-limits/plan-limits.service';
 
 type AuditContext = {
   resource?: string;
@@ -21,7 +24,6 @@ const userAdminSelect = {
   id: true,
   email: true,
   name: true,
-  role: true,
   active: true,
   createdAt: true,
   updatedAt: true,
@@ -42,9 +44,12 @@ function attachAuditContext<T extends object>(
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planLimitService: PlanLimitService,
+  ) {}
 
-  async create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto, organizationId?: string) {
     const { email, password, name, role } = createUserDto;
 
     await this.ensureEmailAvailable(email);
@@ -56,37 +61,61 @@ export class UsersService {
         email,
         password: hashedPassword,
         name,
-        role,
+        ...(organizationId
+          ? {
+              organizationUsers: {
+                create: {
+                  organizationId,
+                  role: role ?? OrgRole.CASHIER,
+                },
+              },
+            }
+          : {}),
       },
       select: userAdminSelect,
     });
 
+    if (organizationId) {
+      this.planLimitService.invalidateCache('users', organizationId);
+    }
+
     return attachAuditContext(createdUser, {
       resource: 'User',
       resourceId: createdUser.id,
-      summary: `Created user ${createdUser.name} (${createdUser.email}) with role ${createdUser.role}`,
+      summary: `Created user ${createdUser.name} (${createdUser.email})`,
       metadata: {
         targetUserEmail: createdUser.email,
         targetUserName: createdUser.name,
-        role: createdUser.role,
         active: createdUser.active,
+        organizationId: organizationId ?? null,
+        role: role ?? OrgRole.CASHIER,
       },
     });
   }
 
-  async findAll() {
+  async findAll(organizationId?: string) {
+    if (!organizationId) {
+      return [];
+    }
+
     return this.prisma.user.findMany({
+      where: {
+        organizationUsers: {
+          some: { organizationId },
+        },
+      },
       orderBy: { createdAt: 'desc' },
       select: userAdminSelect,
     });
   }
 
   async update(
-    _adminUserId: string,
+    adminUserId: string,
     userId: string,
     updateUserDto: UpdateUserDto,
+    organizationId?: string,
   ) {
-    const previousUser = await this.findUserOrThrow(userId);
+    const previousUser = await this.findUserOrThrow(userId, organizationId);
 
     if (updateUserDto.email) {
       await this.ensureEmailAvailable(updateUserDto.email, userId);
@@ -100,9 +129,6 @@ export class UsersService {
           : {}),
         ...(updateUserDto.email !== undefined
           ? { email: updateUserDto.email }
-          : {}),
-        ...(updateUserDto.role !== undefined
-          ? { role: updateUserDto.role }
           : {}),
       },
       select: userAdminSelect,
@@ -127,14 +153,6 @@ export class UsersService {
       changes.email = { from: previousUser.email, to: updatedUser.email };
     }
 
-    if (
-      updateUserDto.role !== undefined &&
-      previousUser.role !== updatedUser.role
-    ) {
-      changedFields.push('role');
-      changes.role = { from: previousUser.role, to: updatedUser.role };
-    }
-
     const summary =
       changedFields.length > 0
         ? `Updated user ${updatedUser.name} (${updatedUser.email}): ${changedFields.join(', ')}`
@@ -153,14 +171,18 @@ export class UsersService {
     });
   }
 
-  async toggleActive(adminUserId: string, userId: string) {
+  async toggleActive(
+    adminUserId: string,
+    userId: string,
+    organizationId?: string,
+  ) {
     if (adminUserId === userId) {
       throw new BadRequestException(
         'Admins cannot deactivate their own account',
       );
     }
 
-    const user = await this.findUserOrThrow(userId);
+    const user = await this.findUserOrThrow(userId, organizationId);
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
@@ -185,8 +207,9 @@ export class UsersService {
     adminUserId: string,
     userId: string,
     dto: ResetUserPasswordDto,
+    organizationId: string,
   ) {
-    const targetUser = await this.findUserOrThrow(userId);
+    const targetUser = await this.findUserOrThrow(userId, organizationId);
     const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
 
     await this.prisma.user.update({
@@ -197,6 +220,7 @@ export class UsersService {
     await this.prisma.auditLog.create({
       data: {
         userId: adminUserId,
+        organizationId,
         action: 'ADMIN_PASSWORD_RESET',
         resource: 'User',
         resourceId: userId,
@@ -213,12 +237,45 @@ export class UsersService {
     return { message: 'Contraseña restablecida exitosamente' };
   }
 
-  async remove(adminUserId: string, userId: string) {
+  async remove(adminUserId: string, userId: string, organizationId?: string) {
     if (adminUserId === userId) {
       throw new BadRequestException('Admins cannot delete their own account');
     }
 
-    const user = await this.findUserOrThrow(userId);
+    const user = await this.findUserOrThrow(userId, organizationId);
+
+    if (organizationId) {
+      const orgUser = await this.prisma.organizationUser.findFirst({
+        where: { userId, organizationId },
+      });
+
+      if (!orgUser) {
+        throw new ForbiddenException(
+          'User does not belong to this organization',
+        );
+      }
+
+      if (orgUser.isPrimaryOwner) {
+        throw new BadRequestException(
+          'Cannot remove the primary owner. Transfer ownership first.',
+        );
+      }
+
+      if (orgUser.role === OrgRole.ADMIN) {
+        const adminCount = await this.prisma.organizationUser.count({
+          where: {
+            organizationId,
+            role: OrgRole.ADMIN,
+          },
+        });
+
+        if (adminCount <= 1) {
+          throw new BadRequestException(
+            'Cannot remove the last admin of an organization',
+          );
+        }
+      }
+    }
 
     await this.prisma.user.delete({
       where: { id: userId },
@@ -233,7 +290,6 @@ export class UsersService {
         metadata: {
           targetUserEmail: user.email,
           targetUserName: user.name,
-          role: user.role,
           active: user.active,
         },
       },
@@ -253,13 +309,25 @@ export class UsersService {
     }
   }
 
-  private async findUserOrThrow(userId: string) {
+  private async findUserOrThrow(userId: string, organizationId?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    if (organizationId) {
+      const orgUser = await this.prisma.organizationUser.findFirst({
+        where: { userId, organizationId },
+      });
+
+      if (!orgUser) {
+        throw new ForbiddenException(
+          'User does not belong to this organization',
+        );
+      }
     }
 
     return user;
