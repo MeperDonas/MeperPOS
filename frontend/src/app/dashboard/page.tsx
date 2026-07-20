@@ -26,6 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Pagination } from "@/components/ui/Pagination";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Table, TableHeader, TableRow, TableCell } from "@/components/ui/Table";
 
 function capitalizeLabel(value: string) {
   return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
@@ -551,63 +552,60 @@ export default function DashboardPage() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[520px]">
-                  <thead>
-                    <tr className="border-b border-primary/20 bg-primary/5">
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <Table variant="primary" className="min-w-[520px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Producto
-                      </th>
-                      <th className="text-center py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Cantidad
-                      </th>
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Cliente
-                      </th>
-                      <th className="text-right py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Total
-                      </th>
-                      <th className="text-right py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Fecha
-                      </th>
-                    </tr>
-                  </thead>
+                      </TableCell>
+                    </TableRow>
+                  </TableHeader>
                   <tbody className="bg-background/50">
                     {soldProductsList
                       .slice((soldProductsPage - 1) * 10, soldProductsPage * 10)
                       .map((item) => (
-                        <tr
-                          key={item.id}
-                          className="border-b border-primary/10 last:border-b-0 transition-colors hover:bg-primary/0.05"
-                        >
-                          <td className="py-3 px-5">
+                        <TableRow key={item.id}>
+                          <TableCell>
                             <span className="text-sm font-medium text-foreground">
                               {item.productName}
                             </span>
-                          </td>
-                          <td className="py-3 px-5 text-center">
+                          </TableCell>
+                          <TableCell className="text-center">
                             <span className="text-sm font-bold text-primary">
                               {item.quantity}
                             </span>
-                          </td>
-                          <td className="py-3 px-5">
+                          </TableCell>
+                          <TableCell>
                             <span className="text-sm text-muted-foreground">
                               {item.customerName}
                             </span>
-                          </td>
-                          <td className="py-3 px-5 text-right">
+                          </TableCell>
+                          <TableCell className="text-right">
                             <span className="text-sm font-bold text-accent">
                               {formatCurrency(item.total)}
                             </span>
-                          </td>
-                          <td className="py-3 px-5 text-right text-xs text-muted-foreground whitespace-nowrap font-mono">
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground whitespace-nowrap font-mono">
                             {new Date(item.createdAt).toLocaleDateString(
                               "es-CO",
                             )}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
                   </tbody>
-                </table>
+                </Table>
               </div>
               {/* Paginación */}
               {soldProductsList.length > 10 && (
