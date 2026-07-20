@@ -379,6 +379,16 @@ async function seedDemoOrganization(
 // ─── Main ───────────────────────────────────────────────────────────────────
 
 async function main() {
+  // Hard guard: seeds only run in development
+  const nodeEnv = process.env.NODE_ENV;
+  if (!nodeEnv || nodeEnv !== 'development') {
+    console.error(
+      `❌ Refusing to seed: NODE_ENV is "${nodeEnv || 'undefined'}". ` +
+      'Seeds must only run in development. Aborting.',
+    );
+    process.exit(1);
+  }
+
   console.log('🌱 Starting multi-tenant database seed...\n');
 
   // 1. Siempre crear SuperAdmin
