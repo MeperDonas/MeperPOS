@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUpdateProfile, useChangePassword, useProfile } from "@/hooks/useProfile";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { User as UserIcon, Lock, Mail, Shield } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage } from "@/lib/api";
@@ -62,14 +63,7 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-96">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-              <UserIcon className="w-5 h-5 text-primary/50" />
-            </div>
-            <p className="text-xs text-muted-foreground">Cargando perfil...</p>
-          </div>
-        </div>
+        <LoadingState icon={<UserIcon className="w-5 h-5 text-primary/50" />} message="Cargando perfil..." />
       </DashboardLayout>
     );
   }

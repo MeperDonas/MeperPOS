@@ -20,6 +20,8 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/ui/Pagination";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { ProductCard } from "@/components/products/ProductCard";
 import {
   Search,
@@ -477,32 +479,13 @@ export default function InventoryPage() {
 
         {/* Content */}
         {isLoading ? (
-          <div className="flex items-center justify-center min-h-64">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-                <Package className="w-4 h-4 text-primary/50" />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Cargando productos...
-              </p>
-            </div>
-          </div>
+          <LoadingState icon={<Package className="w-4 h-4 text-primary/50" />} message="Cargando productos..." />
         ) : displayProducts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-64 text-center">
-            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
-              <Package className="w-6 h-6 text-muted-foreground/30" />
-            </div>
-            <p className="text-sm font-medium text-foreground mb-1">
-              {hasFilter
-                ? "No se encontraron productos"
-                : "No hay productos aún"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {hasFilter
-                ? "Intenta con otros filtros"
-                : "Crea tu primer producto"}
-            </p>
-          </div>
+          <EmptyState
+            icon={<Package className="w-6 h-6 text-muted-foreground/30" />}
+            title={hasFilter ? "No se encontraron productos" : "No hay productos aún"}
+            subtitle={hasFilter ? "Intenta con otros filtros" : "Crea tu primer producto"}
+          />
         ) : (
           <>
             <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 lg:gap-5">

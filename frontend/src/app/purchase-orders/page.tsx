@@ -9,6 +9,8 @@ import { useSuppliers } from "@/hooks/useSuppliers";
 import { Button } from "@/components/ui/Button";
 import { Pagination } from "@/components/ui/Pagination";
 import { PurchaseOrderStatusBadge } from "@/components/purchase-orders/PurchaseOrderStatusBadge";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Search, Plus, Eye, ClipboardList, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { chipStyles } from "@/lib/chipStyles";
@@ -170,14 +172,7 @@ export default function PurchaseOrdersPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center min-h-64">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-                <ClipboardList className="w-4 h-4 text-primary/50" />
-              </div>
-              <p className="text-xs text-muted-foreground">Cargando órdenes...</p>
-            </div>
-          </div>
+          <LoadingState icon={<ClipboardList className="w-4 h-4 text-primary/50" />} message="Cargando órdenes..." />
         ) : (
           <>
             <div className="rounded-3xl border border-accent/30 bg-accent/10 overflow-hidden">
@@ -209,14 +204,7 @@ export default function PurchaseOrdersPage() {
                     {orders.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="text-center py-14">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="w-10 h-10 rounded-xl bg-background/60 border border-accent/20 flex items-center justify-center">
-                              <ClipboardList className="w-5 h-5 text-muted-foreground/30" />
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              No hay órdenes de compra
-                            </p>
-                          </div>
+                          <EmptyState icon={<ClipboardList className="w-6 h-6 text-muted-foreground/30" />} title="No hay órdenes de compra" />
                         </td>
                       </tr>
                     ) : (

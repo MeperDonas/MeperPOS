@@ -6,6 +6,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { LoadingState } from "@/components/ui/LoadingState";
 import {
   Settings as SettingsIcon,
   Building2,
@@ -94,14 +95,7 @@ export default function SettingsPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-96">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-              <SettingsIcon className="w-5 h-5 text-primary/50" />
-            </div>
-            <p className="text-xs text-muted-foreground">Cargando configuración...</p>
-          </div>
-        </div>
+        <LoadingState icon={<SettingsIcon className="w-5 h-5 text-primary/50" />} message="Cargando configuración..." />
       </DashboardLayout>
     );
   }

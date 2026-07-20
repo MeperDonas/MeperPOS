@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/ui/Pagination";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils";
 import { chipStyles } from "@/lib/chipStyles";
 import {
@@ -197,22 +199,9 @@ export default function CustomersPage() {
 
         {/* Content */}
         {isLoading ? (
-          <div className="flex items-center justify-center min-h-64">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center animate-pulse">
-                <Users className="w-4 h-4 text-accent/50" />
-              </div>
-              <p className="text-xs text-muted-foreground">Cargando clientes...</p>
-            </div>
-          </div>
+          <LoadingState icon={<Users className="w-4 h-4 text-accent/50" />} message="Cargando clientes..." />
         ) : customers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-64 text-center">
-            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
-              <Users className="w-6 h-6 text-muted-foreground/30" />
-            </div>
-            <p className="text-sm font-medium text-foreground mb-1">No hay clientes</p>
-            <p className="text-xs text-muted-foreground">Agrega tu primer cliente</p>
-          </div>
+          <EmptyState icon={<Users className="w-6 h-6 text-muted-foreground/30" />} title="No hay clientes" subtitle="Agrega tu primer cliente" />
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4 stagger-children">

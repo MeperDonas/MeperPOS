@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Search,
   Eye,
@@ -234,16 +236,7 @@ function SalesPageContent() {
 
         {/* Table */}
         {isLoading ? (
-          <div className="flex items-center justify-center min-h-64">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-                <Receipt className="w-4 h-4 text-primary/50" />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Cargando ventas...
-              </p>
-            </div>
-          </div>
+          <LoadingState icon={<Receipt className="w-4 h-4 text-primary/50" />} message="Cargando ventas..." />
         ) : (
           <>
             <div className="rounded-3xl border border-accent/30 bg-accent/10 overflow-hidden">
@@ -283,14 +276,7 @@ function SalesPageContent() {
                     {sales.length === 0 ? (
                       <tr>
                         <td colSpan={isAdmin ? 8 : 7} className="text-center py-14">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="w-10 h-10 rounded-xl bg-background/60 border border-accent/20 flex items-center justify-center">
-                              <Receipt className="w-5 h-5 text-muted-foreground/30" />
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              No hay ventas registradas
-                            </p>
-                          </div>
+                          <EmptyState icon={<Receipt className="w-6 h-6 text-muted-foreground/30" />} title="No hay ventas registradas" />
                         </td>
                       </tr>
                     ) : (
@@ -527,14 +513,7 @@ function SalesPageContent() {
 function SalesPageFallback() {
   return (
     <DashboardLayout>
-      <div className="flex items-center justify-center min-h-64">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-            <Receipt className="w-4 h-4 text-primary/50" />
-          </div>
-          <p className="text-xs text-muted-foreground">Cargando ventas...</p>
-        </div>
-      </div>
+      <LoadingState icon={<Receipt className="w-4 h-4 text-primary/50" />} message="Cargando ventas..." />
     </DashboardLayout>
   );
 }

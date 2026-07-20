@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { LoadingState } from "@/components/ui/LoadingState";
 import {
   useOrganizations,
   useCreateOrganization,
@@ -106,11 +107,7 @@ export default function OrganizationsPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    return <LoadingState icon={<Building2 className="w-5 h-5 text-primary/50" />} message="Cargando organizaciones..." />;
   }
 
   return (

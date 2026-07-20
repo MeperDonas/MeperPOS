@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Search,
   Plus,
@@ -187,28 +189,9 @@ export default function CategoriesPage() {
 
         {/* Content */}
         {isLoading ? (
-          <div className="flex items-center justify-center min-h-64">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-                <FolderTree className="w-4 h-4 text-primary/50" />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Cargando categorías...
-              </p>
-            </div>
-          </div>
+          <LoadingState icon={<FolderTree className="w-4 h-4 text-primary/50" />} message="Cargando categorías..." />
         ) : categories.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-64 text-center">
-            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
-              <FolderTree className="w-6 h-6 text-muted-foreground/30" />
-            </div>
-            <p className="text-sm font-medium text-foreground mb-1">
-              No hay categorías
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Crea la primera categoría para empezar
-            </p>
-          </div>
+          <EmptyState icon={<FolderTree className="w-6 h-6 text-muted-foreground/30" />} title="No hay categorías" subtitle="Crea la primera categoría para empezar" />
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4 stagger-children">

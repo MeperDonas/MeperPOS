@@ -24,6 +24,8 @@ import {
 } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Pagination } from "@/components/ui/Pagination";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 function capitalizeLabel(value: string) {
   return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
@@ -223,16 +225,7 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-96">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-              <LayoutDashboard className="w-5 h-5 text-primary/50" />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Cargando dashboard...
-            </p>
-          </div>
-        </div>
+        <LoadingState icon={<LayoutDashboard className="w-5 h-5 text-primary/50" />} message="Cargando dashboard..." />
       </DashboardLayout>
     );
   }
@@ -554,14 +547,7 @@ export default function DashboardPage() {
             )}
           </div>
           {soldProductsList.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14 text-center">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
-                <Package className="w-5 h-5 text-muted-foreground/50" />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                No hay productos vendidos en este período
-              </p>
-            </div>
+            <EmptyState icon={<Package className="w-6 h-6 text-muted-foreground/30" />} title="No hay productos vendidos en este período" />
           ) : (
             <>
               <div className="overflow-x-auto">

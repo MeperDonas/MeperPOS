@@ -16,6 +16,8 @@ import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiErrorMessage } from "@/lib/api";
@@ -179,11 +181,9 @@ export default function UsersPage() {
 
           <div className="p-5">
             {isLoading ? (
-              <div className="flex justify-center py-10">
-                <UsersIcon className="h-5 w-5 animate-pulse text-primary/50" />
-              </div>
+              <LoadingState icon={<UsersIcon className="w-5 h-5 text-primary/50" />} message="Cargando usuarios..." />
             ) : users.length === 0 ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">No hay usuarios registrados.</p>
+              <EmptyState icon={<UsersIcon className="w-6 h-6 text-muted-foreground/30" />} title="No hay usuarios registrados." />
             ) : (
               <div className="space-y-2.5">
                 {users.map((user) => (
