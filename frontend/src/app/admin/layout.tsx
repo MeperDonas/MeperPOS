@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/Button";
-import { LogOut, User, LayoutDashboard } from "lucide-react";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { LogOut, User, LayoutDashboard, Loader2 } from "lucide-react";
 
 export default function AdminLayout({
   children,
@@ -22,11 +23,7 @@ export default function AdminLayout({
   }, [user, loading, router]);
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    return <LoadingState icon={<Loader2 className="h-8 w-8" />} message="Verificando acceso..." />;
   }
 
   if (!user || user.role !== "SUPER_ADMIN") {

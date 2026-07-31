@@ -3,18 +3,15 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { useAdminMetrics } from "@/hooks/useAdmin";
-import { Building2, Users, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { Building2, Users, AlertTriangle, CheckCircle, Clock, Loader2 } from "lucide-react";
 
 export default function AdminPage() {
   const { data: metrics, isLoading } = useAdminMetrics();
 
   if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    return <LoadingState icon={<Loader2 className="h-8 w-8" />} message="Cargando métricas..." />;
   }
 
   const cards = [

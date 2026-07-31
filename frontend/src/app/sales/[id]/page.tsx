@@ -8,6 +8,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { useSale } from "@/hooks/useSales";
 import { printReceipt } from "@/hooks/useReceipt";
 import { useToast } from "@/contexts/ToastContext";
@@ -97,14 +98,7 @@ export default function SaleDetailPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center min-h-64">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-                <Receipt className="w-4 h-4 text-primary/50" />
-              </div>
-              <p className="text-xs text-muted-foreground">Cargando venta...</p>
-            </div>
-          </div>
+          <LoadingState icon={<Receipt className="w-4 h-4 text-primary/50" />} message="Cargando venta..." />
         ) : errorMessage || !sale ? (
           <Card>
             <CardContent className="py-12 text-center space-y-3">
