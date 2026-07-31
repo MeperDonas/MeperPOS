@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ModalProps {
   isOpen: boolean;
@@ -46,18 +47,18 @@ export function Modal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Panel */}
       <div
-        className={`
-          relative w-full overflow-hidden rounded-xl border border-border/60
-          bg-card shadow-2xl shadow-black/30
-          animate-fade-in-up
-          ${sizes[size]}
-        `}
+        className={cn(
+          "relative w-full overflow-hidden rounded-xl border border-border/60",
+          "bg-card shadow-2xl shadow-black/30",
+          "animate-fade-in-up",
+          sizes[size],
+        )}
       >
         {title && (
           <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">

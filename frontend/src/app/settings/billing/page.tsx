@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage } from "@/lib/api";
@@ -109,14 +110,7 @@ export default function BillingSettingsPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-96">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-              <CreditCard className="w-5 h-5 text-primary/50" />
-            </div>
-            <p className="text-xs text-muted-foreground">Cargando información de suscripción...</p>
-          </div>
-        </div>
+        <LoadingState icon={<CreditCard className="w-5 h-5 text-primary/50" />} message="Cargando información de suscripción..." />
       </DashboardLayout>
     );
   }

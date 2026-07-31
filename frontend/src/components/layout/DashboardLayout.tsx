@@ -81,7 +81,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   return (
     <div className="min-h-screen bg-background" data-org-status={organizationStatus}>
       <Sidebar />
-      <main className="px-4 pb-6 pt-20 lg:ml-64 lg:px-8 lg:pb-8 lg:pt-8">
+      <main className="px-4 pb-6 pt-16 lg:ml-64 lg:px-8 lg:pb-8 lg:pt-8">
         <div className="mx-auto w-full max-w-[1500px]">
           <PlanLimitBanner />
           {children}

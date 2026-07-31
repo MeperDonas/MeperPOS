@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   useOrganization,
   useUpdateOrganizationStatus,
@@ -95,11 +97,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
   }, [org]);
 
   if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    return <LoadingState icon={<Building2 className="w-5 h-5 text-primary/50" />} message="Cargando organización..." />;
   }
 
   if (!org) {
@@ -372,7 +370,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
               </table>
             </div>
           ) : (
-            <p className="py-8 text-center text-muted-foreground">No hay usuarios en esta organización</p>
+            <EmptyState icon={<Users className="h-8 w-8" />} title="No hay usuarios en esta organización" />
           )}
         </CardContent>
       </Card>

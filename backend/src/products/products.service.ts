@@ -29,7 +29,9 @@ export class ProductsService {
     if (!organizationId) {
       throw new BadRequestException('Organization ID is required for this operation');
     }
-    const { sku, barcode, categoryId, taxRate, ...rest } = createProductDto;
+    const { sku, barcode: rawBarcode, categoryId, taxRate, ...rest } = createProductDto;
+    // Normalize empty barcode to null so PostgreSQL unique constraint ignores it
+    const barcode = rawBarcode?.trim() || null;
 
     const category = await this.prisma.category.findFirst({
       where: { id: categoryId, organizationId },
@@ -197,15 +199,18 @@ export class ProductsService {
       }
     }
 
+    // Normalize empty barcode to null before comparing or saving
+    const normalizedBarcode = updateProductDto.barcode?.trim() || null;
+
     if (
-      updateProductDto.barcode &&
-      updateProductDto.barcode !== existingProduct.barcode
+      normalizedBarcode &&
+      normalizedBarcode !== existingProduct.barcode
     ) {
       const existingBarcode = await this.prisma.product.findUnique({
         where: {
           organizationId_barcode: {
             organizationId,
-            barcode: updateProductDto.barcode,
+            barcode: normalizedBarcode,
           },
         },
       });
@@ -221,6 +226,7 @@ export class ProductsService {
       where: { id, version: existingProduct.version, active: true },
       data: {
         ...updateProductDto,
+        barcode: normalizedBarcode,
         version: { increment: 1 },
       },
     });

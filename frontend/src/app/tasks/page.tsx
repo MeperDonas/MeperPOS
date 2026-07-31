@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage } from "@/lib/api";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   ClipboardList,
   CheckSquare,
@@ -273,16 +275,7 @@ export default function TasksPage() {
   if (tasksQuery.isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-96">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-              <ClipboardList className="w-5 h-5 text-primary/50" />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Cargando tareas...
-            </p>
-          </div>
-        </div>
+        <LoadingState icon={<ClipboardList className="w-5 h-5 text-primary/50" />} message="Cargando tareas..." />
       </DashboardLayout>
     );
   }
@@ -361,9 +354,7 @@ export default function TasksPage() {
 
               <div className="p-3">
                 {visibleTaskList.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-primary/30 bg-background/40 px-3 py-8 text-center text-sm text-muted-foreground">
-                    No hay tareas creadas aún
-                  </div>
+                  <EmptyState icon={<ClipboardList className="h-8 w-8" />} title="No hay tareas creadas aún" />
                 ) : (
                   <div className="space-y-2">
                     {visibleTaskList.map((task) => {

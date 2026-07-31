@@ -16,10 +16,12 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { cn } from "@/lib/utils";
 import { chipStyles } from "@/lib/chipStyles";
 import {
-  Search,
   Plus,
   Phone,
   Mail,
@@ -193,22 +195,15 @@ export default function SuppliersPage() {
           )}
         </div>
 
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-          <div className="flex items-stretch flex-wrap sm:flex-nowrap">
-            <div className="relative w-full sm:flex-1 sm:min-w-0">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                placeholder="Buscar proveedores..."
-                value={search}
-                onChange={(e) => {
-                  setPage(1);
-                  setSearch(e.target.value);
-                }}
-                className="w-full h-11 pl-10 pr-4 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none border-b sm:border-b-0 border-border/60"
-              />
-            </div>
-            <div className="hidden sm:block w-px bg-border/60 self-stretch my-2 shrink-0" />
-            <div className="flex items-center gap-1 px-3 py-2 overflow-x-auto">
+        <FilterBar
+          searchValue={search}
+          onSearchChange={(value) => {
+            setPage(1);
+            setSearch(value);
+          }}
+          searchPlaceholder="Buscar proveedores..."
+          filterControls={
+            <>
               {[
                 { value: "active" as const, label: "Activos" },
                 { value: "inactive" as const, label: "Inactivos" },
@@ -230,33 +225,14 @@ export default function SuppliersPage() {
                   {label}
                 </button>
               ))}
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {isLoading ? (
-          <div className="flex items-center justify-center min-h-64">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center animate-pulse">
-                <Truck className="w-4 h-4 text-accent/50" />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Cargando proveedores...
-              </p>
-            </div>
-          </div>
+          <LoadingState icon={<Truck className="w-4 h-4 text-accent/50" />} message="Cargando proveedores..." />
         ) : suppliers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-64 text-center">
-            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
-              <Truck className="w-6 h-6 text-muted-foreground/30" />
-            </div>
-            <p className="text-sm font-medium text-foreground mb-1">
-              No hay proveedores
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Agrega tu primer proveedor
-            </p>
-          </div>
+          <EmptyState icon={<Truck className="w-6 h-6 text-muted-foreground/30" />} title="No hay proveedores" subtitle="Agrega tu primer proveedor" />
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4 stagger-children">

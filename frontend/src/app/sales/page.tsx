@@ -9,8 +9,11 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { Table, TableHeader, TableRow, TableCell } from "@/components/ui/Table";
 import {
-  Search,
   Eye,
   FileText,
   DollarSign,
@@ -165,42 +168,34 @@ function SalesPageContent() {
         </div>
 
         {/* Filter Bar */}
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-          {customerId && (
-            <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-muted/40 px-3 py-2">
-              <Badge variant="secondary" className="max-w-full truncate text-xs">
-                Historial de cliente {customerLabel ? `: ${customerLabel}` : "filtrado"}
-              </Badge>
-              <button
-                type="button"
-                onClick={() => {
-                  setPage(1);
-                  router.replace("/sales");
-                }}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
-              >
-                <X className="h-3.5 w-3.5" /> Quitar filtro
-              </button>
-            </div>
-          )}
-          <div className="flex items-stretch flex-wrap sm:flex-nowrap">
-            {/* Search */}
-            <div className="relative w-full sm:flex-1 sm:min-w-0">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                placeholder="Buscar por N° o cliente..."
-                value={search}
-                onChange={(e) => {
-                  setPage(1);
-                  setSearch(e.target.value);
-                }}
-                className="w-full h-11 pl-10 pr-4 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none border-b sm:border-b-0 border-border/60"
-              />
-            </div>
-            {/* Divider */}
-            <div className="hidden sm:block w-px bg-border/60 self-stretch my-2 shrink-0" />
-            {/* Status tabs */}
-            <div className="flex items-center gap-1 px-3 py-2 overflow-x-auto">
+        <FilterBar
+          searchValue={search}
+          onSearchChange={(value) => {
+            setPage(1);
+            setSearch(value);
+          }}
+          searchPlaceholder="Buscar por N° o cliente..."
+          preContent={
+            customerId ? (
+              <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-muted/40 px-3 py-2">
+                <Badge variant="secondary" className="max-w-full truncate text-xs">
+                  Historial de cliente {customerLabel ? `: ${customerLabel}` : "filtrado"}
+                </Badge>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPage(1);
+                    router.replace("/sales");
+                  }}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" /> Quitar filtro
+                </button>
+              </div>
+            ) : undefined
+          }
+          filterControls={
+            <>
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mr-0.5">
                 Período
               </span>
@@ -228,86 +223,67 @@ function SalesPageContent() {
                   <X className="w-3 h-3" /> Limpiar
                 </button>
               )}
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {/* Table */}
         {isLoading ? (
-          <div className="flex items-center justify-center min-h-64">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-                <Receipt className="w-4 h-4 text-primary/50" />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Cargando ventas...
-              </p>
-            </div>
-          </div>
+          <LoadingState icon={<Receipt className="w-4 h-4 text-primary/50" />} message="Cargando ventas..." />
         ) : (
           <>
             <div className="rounded-3xl border border-accent/30 bg-accent/10 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[680px]">
-                  <thead>
-                    <tr className="border-b border-accent/20 bg-accent/10">
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <Table variant="accent" className="min-w-[680px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         N° Venta
-                      </th>
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Fecha
-                      </th>
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Cliente
-                      </th>
+                      </TableCell>
                       {isAdmin && (
-                        <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                           Vendedor
-                        </th>
+                        </TableCell>
                       )}
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Método
-                      </th>
-                      <th className="text-left py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Estado
-                      </th>
-                      <th className="text-right py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Total
-                      </th>
-                      <th className="text-right py-3 px-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      </TableCell>
+                      <TableCell as="th" className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Acciones
-                      </th>
-                    </tr>
-                  </thead>
+                      </TableCell>
+                    </TableRow>
+                  </TableHeader>
                   <tbody>
                     {sales.length === 0 ? (
                       <tr>
                         <td colSpan={isAdmin ? 8 : 7} className="text-center py-14">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="w-10 h-10 rounded-xl bg-background/60 border border-accent/20 flex items-center justify-center">
-                              <Receipt className="w-5 h-5 text-muted-foreground/30" />
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              No hay ventas registradas
-                            </p>
-                          </div>
+                          <EmptyState icon={<Receipt className="w-6 h-6 text-muted-foreground/30" />} title="No hay ventas registradas" />
                         </td>
                       </tr>
                     ) : (
                       sales.map((sale) => (
-                        <tr
-                          key={sale.id}
-                          className="border-b border-accent/10 transition-colors hover:bg-accent/[0.06] last:border-b-0"
-                        >
-                          <td className="py-3 px-5">
+                        <TableRow key={sale.id}>
+                          <TableCell>
                             <span className="text-xs font-bold text-primary font-mono">
                               #{sale.saleNumber}
                             </span>
-                          </td>
-                          <td className="py-3 px-5 text-xs text-muted-foreground whitespace-nowrap font-mono">
+                          </TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap font-mono">
                             {formatDateTime(sale.createdAt)}
-                          </td>
-                          <td className="py-3 px-5 max-w-[130px] truncate">
+                          </TableCell>
+                          <TableCell className="max-w-[130px] truncate">
                             {sale.customer?.name ? (
                               <span className="text-xs font-bold text-foreground">
                                 {sale.customer.name}
@@ -317,9 +293,9 @@ function SalesPageContent() {
                                 General
                               </span>
                             )}
-                          </td>
+                          </TableCell>
                           {isAdmin && (
-                            <td className="py-3 px-5 max-w-[120px] truncate">
+                            <TableCell className="max-w-[120px] truncate">
                               {sale.user?.name ? (
                                 <span className="text-xs font-medium text-foreground">
                                   {sale.user.name}
@@ -329,20 +305,20 @@ function SalesPageContent() {
                                   N/A
                                 </span>
                               )}
-                            </td>
+                            </TableCell>
                           )}
-                          <td className="py-3 px-5">
+                          <TableCell>
                             {getPaymentBadge(sale.payments)}
-                          </td>
-                          <td className="py-3 px-5">
+                          </TableCell>
+                          <TableCell>
                             {getStatusBadge(sale.status)}
-                          </td>
-                          <td className="py-3 px-5 text-right">
+                          </TableCell>
+                          <TableCell className="text-right">
                             <span className="stat-number text-sm font-bold text-foreground">
                               {formatCurrency(sale.total)}
                             </span>
-                          </td>
-                          <td className="py-3 px-5 text-right">
+                          </TableCell>
+                          <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
                               <Button
                                 size="sm"
@@ -361,12 +337,12 @@ function SalesPageContent() {
                                 <Download className="w-3.5 h-3.5" />
                               </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))
                     )}
                   </tbody>
-                </table>
+                </Table>
               </div>
             </div>
 
@@ -527,14 +503,7 @@ function SalesPageContent() {
 function SalesPageFallback() {
   return (
     <DashboardLayout>
-      <div className="flex items-center justify-center min-h-64">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-            <Receipt className="w-4 h-4 text-primary/50" />
-          </div>
-          <p className="text-xs text-muted-foreground">Cargando ventas...</p>
-        </div>
-      </div>
+      <LoadingState icon={<Receipt className="w-4 h-4 text-primary/50" />} message="Cargando ventas..." />
     </DashboardLayout>
   );
 }

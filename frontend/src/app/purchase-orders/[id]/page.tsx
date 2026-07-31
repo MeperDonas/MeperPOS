@@ -11,6 +11,7 @@ import {
 } from "@/hooks/usePurchaseOrders";
 import { Button } from "@/components/ui/Button";
 import { PurchaseOrderStatusBadge } from "@/components/purchase-orders/PurchaseOrderStatusBadge";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { ReceiveItemsModal } from "@/components/purchase-orders/ReceiveItemsModal";
 import { CancelPurchaseOrderModal } from "@/components/purchase-orders/CancelPurchaseOrderModal";
 import { EditDraftModal } from "@/components/purchase-orders/EditDraftModal";
@@ -77,14 +78,7 @@ export default function PurchaseOrderDetailPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-64">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-              <ClipboardList className="w-4 h-4 text-primary/50" />
-            </div>
-            <p className="text-xs text-muted-foreground">Cargando orden...</p>
-          </div>
-        </div>
+        <LoadingState icon={<ClipboardList className="w-4 h-4 text-primary/50" />} message="Cargando orden..." />
       </DashboardLayout>
     );
   }

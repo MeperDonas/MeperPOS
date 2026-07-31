@@ -18,8 +18,10 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterBar } from "@/components/ui/FilterBar";
 import {
-  Search,
   Plus,
   Trash2,
   FolderTree,
@@ -173,42 +175,17 @@ export default function CategoriesPage() {
         </div>
 
         {/* Filter Bar */}
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-          <div className="relative w-full">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <input
-              placeholder="Buscar categorías..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-11 pl-10 pr-4 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
-            />
-          </div>
-        </div>
+        <FilterBar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Buscar categorías..."
+        />
 
         {/* Content */}
         {isLoading ? (
-          <div className="flex items-center justify-center min-h-64">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-                <FolderTree className="w-4 h-4 text-primary/50" />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Cargando categorías...
-              </p>
-            </div>
-          </div>
+          <LoadingState icon={<FolderTree className="w-4 h-4 text-primary/50" />} message="Cargando categorías..." />
         ) : categories.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-64 text-center">
-            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
-              <FolderTree className="w-6 h-6 text-muted-foreground/30" />
-            </div>
-            <p className="text-sm font-medium text-foreground mb-1">
-              No hay categorías
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Crea la primera categoría para empezar
-            </p>
-          </div>
+          <EmptyState icon={<FolderTree className="w-6 h-6 text-muted-foreground/30" />} title="No hay categorías" subtitle="Crea la primera categoría para empezar" />
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4 stagger-children">

@@ -22,6 +22,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { PaymentConfirmationModal } from "@/components/pos/PaymentConfirmationModal";
 import { PaymentMethodCards } from "@/components/pos/PaymentMethodCards";
 import { ProductCard } from "@/components/products/ProductCard";
@@ -649,14 +651,7 @@ export default function POSPage() {
                 )}
               >
                 {searching ? (
-                  <div className="col-span-full flex flex-col items-center justify-center py-12 gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
-                      <Package className="w-4 h-4 text-primary/50" />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Buscando productos...
-                    </p>
-                  </div>
+                  <LoadingState icon={<Package className="w-4 h-4 text-primary/50" />} message="Buscando productos..." />
                 ) : visibleProducts.length > 0 ? (
                   visibleProducts.map((product) => (
                     <ProductCard
@@ -669,20 +664,18 @@ export default function POSPage() {
                     />
                   ))
                 ) : (
-                  <div className="col-span-full flex flex-col items-center justify-center py-12 gap-2">
-                    <div className="w-10 h-10 rounded-xl bg-background/60 border border-primary/20 flex items-center justify-center">
-                      <Package className="w-5 h-5 text-muted-foreground/30" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {showFavoritesOnly
+                  <EmptyState
+                    icon={<Package className="w-6 h-6 text-muted-foreground/30" />}
+                    title={
+                      showFavoritesOnly
                         ? "No tienes favoritos"
                         : debouncedSearch
                           ? "No se encontraron productos"
                           : totalProducts > 0
                             ? "No hay productos en esta pagina"
-                            : "No hay productos disponibles"}
-                    </p>
-                  </div>
+                            : "No hay productos disponibles"
+                    }
+                  />
                 )}
               </div>
 
@@ -723,17 +716,7 @@ export default function POSPage() {
             {/* Cart Items */}
             <div className="scrollbar-app max-h-[55vh] overflow-y-auto p-3 space-y-2 lg:flex-1 lg:min-h-0 lg:max-h-none">
               {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="w-12 h-12 rounded-2xl bg-background/60 border border-accent/20 flex items-center justify-center mb-3">
-                    <ShoppingCart className="w-6 h-6 text-muted-foreground/30" />
-                  </div>
-                  <p className="text-sm font-medium text-foreground mb-1">
-                    Carrito vacío
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Agrega productos para comenzar
-                  </p>
-                </div>
+                <EmptyState icon={<ShoppingCart className="w-6 h-6 text-muted-foreground/30" />} title="Carrito vacío" subtitle="Agrega productos para comenzar" />
               ) : (
                 cart.map((item) => (
                   <div
@@ -1176,17 +1159,11 @@ export default function POSPage() {
       >
         <div className="space-y-3">
           {pausedSales.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-background/60 border border-primary/20 flex items-center justify-center mb-3">
-                <Pause className="w-6 h-6 text-muted-foreground/30" />
-              </div>
-              <p className="text-sm font-medium text-foreground mb-1">
-                No hay ventas pausadas
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Pausa una venta para que aparezca aquí
-              </p>
-            </div>
+            <EmptyState
+              icon={<Pause className="h-12 w-12" />}
+              title="No hay ventas pausadas"
+              subtitle="Pausa una venta para que aparezca aquí"
+            />
           ) : (
             <div className="scrollbar-app max-h-96 overflow-y-auto space-y-2.5">
               {pausedSales.map((sale) => (
