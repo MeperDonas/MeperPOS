@@ -13,6 +13,8 @@ export interface Product {
   imageUrl: string | null;
   categoryId: string;
   category?: Category;
+  preferredSupplierId?: string | null;
+  organizationId?: string;
   active: boolean;
   createdAt: string;
   updatedAt: string;
