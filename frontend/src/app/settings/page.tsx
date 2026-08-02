@@ -80,13 +80,13 @@ export default function SettingsPage() {
     if (settings) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
-        companyName: settings.companyName,
-        currency: settings.currency,
-        taxRate: Number(settings.taxRate),
-        receiptPrefix: settings.receiptPrefix,
-        printHeader: settings.printHeader || "",
-        printFooter: settings.printFooter || "",
-        logoUrl: settings.logoUrl || "",
+        companyName: settings.companyName ?? "Mi Negocio",
+        currency: settings.currency ?? "COP",
+        taxRate: Number(settings.taxRate ?? 19),
+        receiptPrefix: settings.receiptPrefix ?? "REC-",
+        printHeader: settings.printHeader ?? "",
+        printFooter: settings.printFooter ?? "",
+        logoUrl: settings.logoUrl ?? "",
       });
       if (settings.logoUrl) setLogoPreview(settings.logoUrl);
     }
