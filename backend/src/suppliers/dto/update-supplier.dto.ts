@@ -33,6 +33,16 @@ export class UpdateSupplierDto {
   contactName?: string;
 
   @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  bankAccountType?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  bankAccountNumber?: string;
+
+  @ApiProperty({ required: false })
   @IsBoolean()
   @IsOptional()
   active?: boolean;

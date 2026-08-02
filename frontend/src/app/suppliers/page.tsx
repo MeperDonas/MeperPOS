@@ -95,6 +95,8 @@ export default function SuppliersPage() {
       phone: supplier.phone,
       address: supplier.address,
       contactName: supplier.contactName,
+      bankAccountType: supplier.bankAccountType,
+      bankAccountNumber: supplier.bankAccountNumber,
     });
     setShowModal(true);
   };
@@ -109,6 +111,8 @@ export default function SuppliersPage() {
       phone: "",
       address: "",
       contactName: "",
+      bankAccountType: "",
+      bankAccountNumber: "",
     });
     setShowModal(true);
   };
@@ -150,6 +154,8 @@ export default function SuppliersPage() {
       phone: formData.phone?.trim() || null,
       address: formData.address?.trim() || null,
       contactName: formData.contactName?.trim() || null,
+      bankAccountType: formData.bankAccountType?.trim() || null,
+      bankAccountNumber: formData.bankAccountNumber?.trim() || null,
     };
     try {
       if (editingSupplier) {
@@ -399,6 +405,20 @@ export default function SuppliersPage() {
                 setFormData({ ...formData, address: e.target.value })
               }
               className="sm:col-span-2"
+            />
+            <Input
+              label="Tipo de cuenta"
+              value={formData.bankAccountType || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, bankAccountType: e.target.value })
+              }
+            />
+            <Input
+              label="Número de cuenta"
+              value={formData.bankAccountNumber || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, bankAccountNumber: e.target.value })
+              }
             />
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4 border-t border-border/60">

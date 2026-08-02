@@ -381,6 +381,8 @@ export interface Supplier {
   phone?: string | null;
   address?: string | null;
   contactName?: string | null;
+  bankAccountType?: string | null;
+  bankAccountNumber?: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
