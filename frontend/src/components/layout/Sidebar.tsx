@@ -31,7 +31,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { hasAnyRole, type AppRole } from "@/lib/auth";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 interface NavItem {
   label: string;
@@ -146,6 +146,7 @@ export function Sidebar() {
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const navRef = useRef<HTMLElement>(null);
 
   const filteredItems = navItems.filter(
     (item) => !item.roles || (user && hasAnyRole(user.role, item.roles))
@@ -169,6 +170,17 @@ export function Sidebar() {
     const intervalId = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(intervalId);
   }, []);
+
+  // Scroll the active nav item into view on mount / pathname change
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+
+    const activeLink = nav.querySelector<HTMLElement>(".sidebar-item.active");
+    if (activeLink?.scrollIntoView) {
+      activeLink.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+  }, [pathname]);
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
@@ -278,7 +290,7 @@ export function Sidebar() {
       ) : null}
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 scrollbar-hide">
+      <nav ref={navRef} className="flex-1 overflow-y-auto px-3 py-3 scrollbar-hide">
         <ul className="space-y-0.5">
           {filteredItems.map((item) => {
             const isActive = pathname === item.href;
