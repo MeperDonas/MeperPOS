@@ -78,17 +78,21 @@ export class AdminService {
         });
       }
 
+      const currentYear = new Date().getFullYear();
+
       await tx.organizationSequence.createMany({
         data: [
           {
             organizationId: organization.id,
             type: 'SALE',
             currentNumber: 0,
+            year: currentYear,
           },
           {
             organizationId: organization.id,
             type: 'PO',
             currentNumber: 0,
+            year: currentYear,
           },
         ],
       });
