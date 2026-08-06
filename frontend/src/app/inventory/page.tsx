@@ -231,6 +231,8 @@ export default function InventoryPage() {
         delete updateData.taxRate;
         delete updateData.effectiveTaxRate;
         delete updateData.isLowStock;
+        delete updateData.preferredSupplierId;
+        delete updateData.organizationId;
         const cleanedData = {
           ...updateData,
           ...(normalizedCategoryId ? { categoryId: normalizedCategoryId } : {}),
