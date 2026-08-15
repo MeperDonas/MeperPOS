@@ -28,6 +28,9 @@ model Organization {
   cashRegisters      CashRegister[]
   categories         Category[]
   customers          Customer[]
+  expenseCategories  ExpenseCategory[]
+  expensePayments    ExpensePayment[]
+  expenses           Expense[]
   inventoryMovements InventoryMovement[]
   sequences          OrganizationSequence[]
   users              OrganizationUser[]
@@ -56,6 +59,7 @@ model User {
   tokenVersion       Int                 @default(0)
   isSuperAdmin       Boolean             @default(false)
   auditLogs          AuditLog[]
+  expensesCreated    Expense[]           @relation("ExpenseCreatedBy")
   inventoryMovements InventoryMovement[]
   organizationUsers  OrganizationUser[]
   purchaseOrders     PurchaseOrder[]
@@ -329,6 +333,7 @@ model Supplier {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   organizationId String
+  expenses       Expense[]
   preferredBy    Product[]       @relation("PreferredSupplier")
   purchaseOrders PurchaseOrder[]
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -358,6 +363,7 @@ model PurchaseOrder {
   createdBy      User                @relation(fields: [createdById], references: [id])
   organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   supplier       Supplier            @relation(fields: [supplierId], references: [id])
+  expenses       Expense[]
   items          PurchaseOrderItem[]
 
   @@unique([organizationId, orderNumber])
@@ -418,6 +424,60 @@ model PaymentRecord {
   @@index([organizationId, date])
 }
 
+model ExpenseCategory {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  expenses       Expense[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, active])
+}
+
+model Expense {
+  id              String              @id @default(uuid())
+  organizationId  String
+  categoryId      String
+  supplierId      String?
+  purchaseOrderId String?
+  description     String?
+  date            DateTime
+  total           Decimal             @db.Decimal(12, 2)
+  status          ExpensePaymentStatus
+  receiptUrl      String?
+  active          Boolean             @default(true)
+  createdById     String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category        ExpenseCategory     @relation(fields: [categoryId], references: [id])
+  supplier        Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  purchaseOrder   PurchaseOrder?      @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  createdBy       User                @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+  payments        ExpensePayment[]
+
+  @@index([organizationId, date])
+  @@index([organizationId, categoryId])
+}
+
+model ExpensePayment {
+  id             String        @id @default(uuid())
+  expenseId      String
+  organizationId String
+  amount         Decimal       @db.Decimal(12, 2)
+  method         PaymentMethod
+  date           DateTime
+  createdAt      DateTime      @default(now())
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  expense        Expense       @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, expenseId])
+}
+
 enum OrgStatus {
   TRIAL
   ACTIVE
@@ -464,6 +524,11 @@ enum PaymentMethod {
   CASH
   CARD
   TRANSFER
+}
+
+enum ExpensePaymentStatus {
+  PARTIAL
+  PAID
 }
 
 enum PaymentRecordStatus {
