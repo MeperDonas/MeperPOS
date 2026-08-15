@@ -643,9 +643,9 @@ describe('ExpensesService', () => {
     });
 
     it('rejects malformed month strings with 400', async () => {
-      await expect(
-        service.getMonthlySummary('2026-8', orgId),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.getMonthlySummary('2026-8', orgId)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(prismaMock.expense.groupBy).not.toHaveBeenCalled();
     });
