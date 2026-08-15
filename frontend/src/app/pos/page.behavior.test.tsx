@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Product, Sale } from "@/types";
+import { formatCurrency } from "@/lib/utils";
 
 type UseProductsParams = {
   page?: number;
@@ -203,7 +204,11 @@ vi.mock("@/contexts/ToastContext", () => ({
 import POSPage from "./page";
 import { printReceipt, printThermalReceipt } from "@/hooks/useReceipt";
 
-function makeProduct(id: string, name: string): Product {
+function makeProduct(
+  id: string,
+  name: string,
+  overrides: Partial<Product> = {},
+): Product {
   return {
     id,
     name,
@@ -221,6 +226,7 @@ function makeProduct(id: string, name: string): Product {
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     version: 1,
+    ...overrides,
   };
 }
 
@@ -482,5 +488,185 @@ describe("POS behavior evidence (#19, #18)", () => {
 
     const payload = createSaleMutateMock.mock.calls[0]?.[0] as { customerId?: string };
     expect(payload.customerId).toBeUndefined();
+  });
+});
+
+describe("POS item price override (pos-edit-item-price)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  function renderWithSingleProduct(name: string, salePrice: number) {
+    useProductsMock.mockReturnValue({
+      data: {
+        data: [makeProduct("p1", name, { salePrice })],
+        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      },
+      isLoading: false,
+      isFetching: false,
+    });
+    return render(<POSPage />);
+  }
+
+  async function openDiscountModal() {
+    await userEvent.click(screen.getByTitle("Descuento"));
+  }
+
+  it("edits a cart line unit price down, keeping the original struck through", async () => {
+    renderWithSingleProduct("Producto Precio", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto Precio" }));
+
+    await openDiscountModal();
+    const priceInput = screen.getByPlaceholderText("Precio");
+    await userEvent.clear(priceInput);
+    await userEvent.type(priceInput, "45000");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar precio" }));
+
+    expect(screen.getByTestId("line-unit-price").textContent).toContain(
+      formatCurrency(45000),
+    );
+    expect(screen.getByTestId("original-unit-price").textContent).toContain(
+      formatCurrency(50000),
+    );
+  });
+
+  it("edits a cart line unit price up", async () => {
+    renderWithSingleProduct("Producto Precio", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto Precio" }));
+
+    await openDiscountModal();
+    const priceInput = screen.getByPlaceholderText("Precio");
+    await userEvent.clear(priceInput);
+    await userEvent.type(priceInput, "55000");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar precio" }));
+
+    expect(screen.getByTestId("line-unit-price").textContent).toContain(
+      formatCurrency(55000),
+    );
+    expect(screen.getByTestId("original-unit-price").textContent).toContain(
+      formatCurrency(50000),
+    );
+  });
+
+  it("rejects a negative price and leaves the unit price unchanged", async () => {
+    renderWithSingleProduct("Producto Precio", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto Precio" }));
+
+    await openDiscountModal();
+    const priceInput = screen.getByPlaceholderText("Precio");
+    await userEvent.clear(priceInput);
+    await userEvent.type(priceInput, "-500");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar precio" }));
+
+    expect(screen.queryByTestId("original-unit-price")).toBeNull();
+    expect(screen.getByTestId("line-unit-price").textContent).toContain(
+      formatCurrency(50000),
+    );
+  });
+
+  it("recomputes a percentage discount against the edited price", async () => {
+    renderWithSingleProduct("Producto Pct", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto Pct" }));
+    await userEvent.click(screen.getByRole("button", { name: "Producto Pct" }));
+
+    // Apply a 10% percentage discount on quantity 2.
+    await openDiscountModal();
+    await userEvent.click(screen.getByRole("button", { name: "10%" }));
+
+    // Edit price down to 40000.
+    await openDiscountModal();
+    const priceInput = screen.getByPlaceholderText("Precio");
+    await userEvent.clear(priceInput);
+    await userEvent.type(priceInput, "40000");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar precio" }));
+
+    const discount = screen.getByTestId("line-discount");
+    expect(discount.textContent).toContain(formatCurrency(8000));
+    expect(discount.textContent).toContain("10%");
+  });
+
+  it("retains a fixed-amount discount when the price is edited", async () => {
+    renderWithSingleProduct("Producto Fixed", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto Fixed" }));
+
+    // Apply a fixed 5000 discount.
+    await openDiscountModal();
+    await userEvent.type(screen.getByPlaceholderText("0.00"), "5000");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    // Edit price down to 45000.
+    await openDiscountModal();
+    const priceInput = screen.getByPlaceholderText("Precio");
+    await userEvent.clear(priceInput);
+    await userEvent.type(priceInput, "45000");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar precio" }));
+
+    const discount = screen.getByTestId("line-discount");
+    expect(discount.textContent).toContain(formatCurrency(5000));
+    expect(discount.textContent).not.toContain("%");
+  });
+
+  it("clamps a fixed discount so the line total never goes negative", async () => {
+    renderWithSingleProduct("Producto Clamp", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto Clamp" }));
+
+    // Apply a fixed 5000 discount.
+    await openDiscountModal();
+    await userEvent.type(screen.getByPlaceholderText("0.00"), "5000");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    // Drop price below the fixed discount (5000) to 3000.
+    await openDiscountModal();
+    const priceInput = screen.getByPlaceholderText("Precio");
+    await userEvent.clear(priceInput);
+    await userEvent.type(priceInput, "3000");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar precio" }));
+
+    const discount = screen.getByTestId("line-discount");
+    expect(discount.textContent).toContain(formatCurrency(3000));
+  });
+
+  it("shows no strikethrough when the price equals the original", async () => {
+    renderWithSingleProduct("Producto NoEdit", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto NoEdit" }));
+
+    expect(screen.queryByTestId("original-unit-price")).toBeNull();
+    expect(screen.getByTestId("line-unit-price").textContent).toContain(
+      formatCurrency(50000),
+    );
+  });
+
+  it("sends the edited unit price (not the original) in the checkout payload", async () => {
+    createSaleMutateMock.mockResolvedValue(makeSale());
+    renderWithSingleProduct("Producto Ticket", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto Ticket" }));
+
+    // Edit the price down to 45000.
+    await openDiscountModal();
+    const priceInput = screen.getByPlaceholderText("Precio");
+    await userEvent.clear(priceInput);
+    await userEvent.type(priceInput, "45000");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar precio" }));
+
+    // Complete checkout with a card payment (covers the full total).
+    await userEvent.click(screen.getByRole("button", { name: /tarjeta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /confirmar pago/i }));
+
+    await waitFor(() => {
+      expect(createSaleMutateMock).toHaveBeenCalled();
+    });
+
+    const payload = createSaleMutateMock.mock.calls[0]?.[0] as {
+      items: Array<{ productId: string; unitPrice: number; discountAmount: number }>;
+    };
+    expect(payload.items).toHaveLength(1);
+    expect(payload.items[0].unitPrice).toBe(45000);
+    // The original price must not leak into the sale payload.
+    expect(payload.items[0]).not.toHaveProperty("originalUnitPrice");
   });
 });
