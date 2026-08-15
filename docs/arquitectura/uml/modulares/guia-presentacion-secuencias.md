@@ -1,6 +1,6 @@
 # 🎓 Guía de Presentación - Diagramas de Secuencia
 
-## Sistema de Gestión de Inventario y Punto de Venta
+## MeperPOS y Punto de Venta
 
 ---
 
@@ -911,4 +911,4 @@ Backend: Validar email no existe en base de datos
 
 ---
 
-*Guía creada para el proyecto de Sistema de Gestión de Inventario y Punto de Venta*
+*Guía creada para el proyecto de MeperPOS y Punto de Venta*

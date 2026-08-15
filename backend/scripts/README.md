@@ -34,7 +34,7 @@ node scripts/ping-supabase.js
    - **Acción**: Iniciar programa
    - **Programa**: `C:\Program Files\nodejs\node.exe`
    - **Argumentos**: `scripts/ping-supabase.js`
-   - **Iniciar en**: `C:\Users\meper\Desktop\Proyecto de Grado\gestion-inventario-app\backend`
+   - **Iniciar en**: `C:\Users\meper\Desktop\Proyecto de Grado\MeperPOS\backend`
 
 ### Opción B: Script de inicio de sesión
 

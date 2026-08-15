@@ -1,6 +1,6 @@
 # 🏗️ Diagramas de Componentes por Módulo
 
-Esta carpeta contiene los diagramas de componentes del Sistema de Gestión de Inventario y Punto de Venta, organizados según la arquitectura del backend en NestJS.
+Esta carpeta contiene los diagramas de componentes del MeperPOS y Punto de Venta, organizados según la arquitectura del backend en NestJS.
 
 ## 📁 Estructura de Archivos
 
@@ -290,4 +290,4 @@ this.prisma.product.findMany({
 
 ---
 
-*Documentación generada para el proyecto de Sistema de Gestión de Inventario y Punto de Venta*
+*Documentación generada para el proyecto de MeperPOS y Punto de Venta*

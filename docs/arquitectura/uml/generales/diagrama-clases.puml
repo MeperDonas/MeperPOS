@@ -1,4 +1,4 @@
-@startuml Diagrama de Clases - Sistema de Gestion de Inventario y POS
+@startuml Diagrama de Clases - MeperPOS y POS
 
 skinparam backgroundColor #FEFEFE
 skinparam classAttributeIconSize 0

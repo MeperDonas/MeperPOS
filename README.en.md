@@ -77,7 +77,7 @@ Full-stack inventory management system with a Point of Sale (POS) module, built 
 ## Repository structure
 
 ```
-gestion-inventario-app/
+MeperPOS/
 ├── backend/    # NestJS + Prisma + PostgreSQL REST API (port 3001)
 └── frontend/   # Next.js App Router SPA (port 3000)
 ```

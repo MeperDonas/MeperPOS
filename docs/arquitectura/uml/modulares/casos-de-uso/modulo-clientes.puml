@@ -26,7 +26,7 @@ left to right direction
 actor "Administrador" as Admin #E3F2FD
 actor "Cajero" as Cajero #FFF3E0
 
-rectangle "Sistema de Gestión de Inventario y Punto de Venta" {
+rectangle "MeperPOS y Punto de Venta" {
     
     package "Módulo de Clientes" {
         usecase (UC30: Crear Cliente) as UC30 <<Primary>>

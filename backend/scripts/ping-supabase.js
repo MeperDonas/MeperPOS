@@ -9,7 +9,7 @@
  *   - Crear tarea que corra cada 2-3 días
  *   - Programa: node.exe
  *   - Argumentos: scripts/ping-supabase.js
- *   - Directorio: C:\Users\meper\Desktop\Proyecto de Grado\gestion-inventario-app\backend
+ *   - Directorio: C:\Users\meper\Desktop\Proyecto de Grado\MeperPOS\backend
  */
 
 const { Pool } = require('pg');

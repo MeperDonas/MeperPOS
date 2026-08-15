@@ -1,6 +1,6 @@
 # 📚 Índice de Diagramas UML
 
-Sistema de Gestión de Inventario y Punto de Venta
+MeperPOS y Punto de Venta
 
 ---
 
@@ -224,7 +224,7 @@ Para más información sobre el proyecto, consulta:
 
 ---
 
-*Documentación generada para el proyecto de Sistema de Gestión de Inventario y Punto de Venta*
+*Documentación generada para el proyecto de MeperPOS y Punto de Venta*
 
 **Versión:** 1.0  
 **Fecha:** 2026-02-05  

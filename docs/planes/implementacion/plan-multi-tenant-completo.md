@@ -1,6 +1,6 @@
 # Plan — Multi-Tenant Completo (SaaS)
 
-**Proyecto:** Sistema de Gestión de Inventario  
+**Proyecto:** MeperPOS  
 **Modelo:** Single Database, Multi-Tenant (`organizationId`)  
 **Onboarding:** Manual por SuperAdmin  
 **Acceso:** Selector post-login  

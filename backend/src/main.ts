@@ -41,7 +41,7 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const config = new DocumentBuilder()
-    .setTitle('Gestión de Inventario API')
+    .setTitle('MeperPOS API')
     .setDescription(
       'API para gestión integrada de inventario, ventas y clientes',
     )

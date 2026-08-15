@@ -17,7 +17,7 @@
 | `frontend/src/components/products/ProductCard.tsx` | **Modify** (solo el branch `mode === "inventory"`) | Renderizado de la card de producto en modo inventario |
 | `frontend/src/components/products/ProductCard.inventory.test.tsx` | **Create** | Tests de comportamiento (variantes de estado, a11y, stopPropagation) |
 
-Todas las rutas se resuelven contra la raíz del repo: `C:\Users\meper\Desktop\Proyecto de Grado\gestion-inventario-app`.
+Todas las rutas se resuelven contra la raíz del repo: `C:\Users\meper\Desktop\Proyecto de Grado\MeperPOS`.
 
 ---
 

@@ -1190,4 +1190,4 @@ Cron diario: alertar cuando `rangeTo - nextConsecutive < 500` o `validTo - now()
 
 ---
 
-_Plan 04 de 7 — roadmap gestion-inventario-app · Fecha: 2026-04-21_
+_Plan 04 de 7 — roadmap MeperPOS · Fecha: 2026-04-21_

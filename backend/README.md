@@ -2,7 +2,7 @@
 
 > Documentación completa del proyecto: [../README.md](../README.md)
 
-API REST de NestJS 11 para el Sistema de Gestión de Inventario. Expone los servicios de autenticación, productos, ventas, compras, gastos, reportes y administración de un sistema multi-tenant por organización, sobre PostgreSQL con Prisma 6 como ORM.
+API REST de NestJS 11 para el MeperPOS. Expone los servicios de autenticación, productos, ventas, compras, gastos, reportes y administración de un sistema multi-tenant por organización, sobre PostgreSQL con Prisma 6 como ORM.
 
 ## Requisitos
 

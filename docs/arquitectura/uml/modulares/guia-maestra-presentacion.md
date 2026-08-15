@@ -1,6 +1,6 @@
 # 🎓 GUÍA MAESTRA DE PRESENTACIÓN
 
-## Diagramas UML del Sistema de Gestión de Inventario y Punto de Venta
+## Diagramas UML del MeperPOS y Punto de Venta
 
 ---
 
@@ -175,7 +175,7 @@ Para cada tipo de diagrama, encontrarás:
 ### 🎯 Secuencia Sugerida Paso a Paso
 
 #### MINUTO 0-2: Introducción
-> "Voy a presentarles el Sistema de Gestión de Inventario y Punto de Venta, una solución completa para negocios retail..."
+> "Voy a presentarles el MeperPOS y Punto de Venta, una solución completa para negocios retail..."
 
 #### MINUTO 2-4: Casos de Uso - Autenticación
 > "Comenzando por la seguridad, tenemos tres roles bien definidos..."
@@ -341,6 +341,6 @@ Has trabajado duro en este proyecto. Los diagramas están bien hechos, la arquit
 
 ---
 
-*Guía Maestra creada para el proyecto de Sistema de Gestión de Inventario y Punto de Venta*  
+*Guía Maestra creada para el proyecto de MeperPOS y Punto de Venta*  
 *Fecha: 2026-02-05*  
 *Versión: 1.0*

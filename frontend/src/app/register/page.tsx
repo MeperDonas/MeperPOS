@@ -11,7 +11,7 @@ export default function RegisterPage() {
   return (
     <AuthCard
       title="Registro de Usuarios"
-      subtitle="meperPOS"
+      subtitle="MeperPOS"
       footer={{
         text: "Ya tienes cuenta?",
         linkText: "Iniciar Sesion",
