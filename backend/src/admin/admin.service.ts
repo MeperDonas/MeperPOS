@@ -15,6 +15,7 @@ import { UpdateOrganizationPlanDto } from './dto/update-organization-plan.dto';
 import { OrgRole, OrgStatus, PlanType, Prisma } from '@prisma/client';
 import { PlanLimitService } from '../plan-limits/plan-limits.service';
 import { PLAN_LIMITS, LimitType } from '../plan-limits/plan-limits.constants';
+import { DEFAULT_EXPENSE_CATEGORY_NAMES } from '../expenses/default-expense-categories';
 
 @Injectable()
 export class AdminService {
@@ -103,6 +104,13 @@ export class AdminService {
           name: 'Caja Principal',
           isDefault: true,
         },
+      });
+
+      await tx.expenseCategory.createMany({
+        data: DEFAULT_EXPENSE_CATEGORY_NAMES.map((name) => ({
+          name,
+          organizationId: organization.id,
+        })),
       });
 
       return {

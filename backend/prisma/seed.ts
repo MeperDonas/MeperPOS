@@ -1,6 +1,7 @@
 import { PrismaClient, Prisma, OrgRole, PlanType, OrgStatus, BillingStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { faker } from '@faker-js/faker';
+import { DEFAULT_EXPENSE_CATEGORY_NAMES } from '../src/expenses/default-expense-categories';
 
 const prisma = new PrismaClient();
 
@@ -345,6 +346,19 @@ async function createDemoSales(
   });
 }
 
+async function createDemoExpenseCategories(orgId: string): Promise<number> {
+  const result = await prisma.expenseCategory.createMany({
+    data: DEFAULT_EXPENSE_CATEGORY_NAMES.map((name) => ({
+      name,
+      organizationId: orgId,
+    })),
+    skipDuplicates: true,
+  });
+
+  console.log(`  🏷️  ${result.count} categorías de salidas creadas`);
+  return result.count;
+}
+
 async function seedDemoOrganization(
   name: string,
   slug: string,
@@ -362,6 +376,9 @@ async function seedDemoOrganization(
   // Categorías
   const categoryCount = plan === PlanType.PRO ? 10 : 5;
   const categoryIds = await createDemoCategories(orgId, categoryCount);
+
+  // Categorías de salidas
+  await createDemoExpenseCategories(orgId);
 
   // Productos
   const productCount = plan === PlanType.PRO ? 30 : 20;
