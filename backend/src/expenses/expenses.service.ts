@@ -8,6 +8,7 @@ import {
   formatDateInBogota,
   parseBogotaMonthRange,
 } from '../common/utils/bogota-date';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateExpensePaymentDto } from './dto/create-expense-payment.dto';
@@ -23,7 +24,10 @@ export function deriveExpensePaymentStatus(
 
 @Injectable()
 export class ExpensesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cloudinaryService: CloudinaryService,
+  ) {}
 
   private requireOrganizationId(organizationId: string | undefined): string {
     if (!organizationId) {
@@ -534,6 +538,61 @@ export class ExpensesService {
       where: { resource: 'Expense', resourceId: id, organizationId: orgId },
       orderBy: { createdAt: 'asc' },
       include: { user: { select: { name: true, email: true } } },
+    });
+  }
+
+  async uploadReceipt(
+    id: string,
+    file: Express.Multer.File,
+    userId: string,
+    organizationId: string | undefined,
+  ) {
+    const orgId = this.requireOrganizationId(organizationId);
+
+    const existing = await this.prisma.expense.findFirst({
+      where: { id, organizationId: orgId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Salida no encontrada');
+    }
+
+    const receiptUrl = await this.cloudinaryService.uploadImage(
+      file,
+      'expense-receipts',
+    );
+
+    if (existing.receiptUrl) {
+      try {
+        await this.cloudinaryService.deleteImage(existing.receiptUrl);
+      } catch (error) {
+        console.error('Error deleting old receipt:', error);
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.expense.update({
+        where: { id },
+        data: { receiptUrl },
+        include: { category: true, supplier: true, payments: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'EXPENSE_RECEIPT_UPLOADED',
+          resource: 'Expense',
+          resourceId: id,
+          organizationId: orgId,
+          metadata: {
+            summary: 'Comprobante adjuntado',
+            receiptUrl,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+
+      return updated;
     });
   }
 

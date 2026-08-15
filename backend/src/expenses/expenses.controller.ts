@@ -3,14 +3,24 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Param,
+  ParseFilePipeBuilder,
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { OrgRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -113,6 +123,43 @@ export class ExpensesController {
   duplicate(@Param('id') id: string, @CurrentUser() user: RequestUser) {
     return this.expensesService.duplicate(
       id,
+      user.userId,
+      user.organizationId,
+    );
+  }
+
+  @Post(':id/upload')
+  @Roles(OrgRole.ADMIN)
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Adjuntar comprobante a una salida' })
+  uploadReceipt(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({ fileType: /(jpg|jpeg|png|gif|webp|pdf)$/ })
+        .addMaxSizeValidator({ maxSize: 5 * 1024 * 1024 })
+        .build({
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    file: Express.Multer.File,
+  ) {
+    return this.expensesService.uploadReceipt(
+      id,
+      file,
       user.userId,
       user.organizationId,
     );

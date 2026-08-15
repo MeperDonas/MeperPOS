@@ -57,12 +57,27 @@ describe('ExpensesService', () => {
     payments: [{ amount: 500000, method: 'CASH', date: '2026-08-15' }],
   });
 
+  const cloudinaryServiceMock = {
+    uploadImage: jest.fn(),
+    deleteImage: jest.fn(),
+  };
+
+  const buildReceiptFile = (): Express.Multer.File =>
+    ({
+      buffer: Buffer.from('fake-receipt'),
+      originalname: 'receipt.jpg',
+      mimetype: 'image/jpeg',
+    }) as unknown as Express.Multer.File;
+
   beforeEach(() => {
     jest.clearAllMocks();
     prismaMock.$transaction.mockImplementation(
       async (callback: (tx: typeof txMock) => unknown) => callback(txMock),
     );
-    service = new ExpensesService(prismaMock as never);
+    service = new ExpensesService(
+      prismaMock as never,
+      cloudinaryServiceMock as never,
+    );
   });
 
   describe('deriveExpensePaymentStatus', () => {
@@ -803,6 +818,128 @@ describe('ExpensesService', () => {
       await expect(service.getHistory('exp-1', undefined)).rejects.toThrow(
         BadRequestException,
       );
+    });
+  });
+
+  describe('uploadReceipt', () => {
+    it('uploads the file to the expense-receipts folder and persists the receipt URL with an audit entry in one transaction', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue({
+        id: 'exp-1',
+        createdById: userId,
+        receiptUrl: null,
+      });
+      cloudinaryServiceMock.uploadImage.mockResolvedValue(
+        'https://cloud.example/expense-receipts/r1.jpg',
+      );
+      txMock.expense.update.mockResolvedValue({
+        id: 'exp-1',
+        receiptUrl: 'https://cloud.example/expense-receipts/r1.jpg',
+      });
+
+      const result = await service.uploadReceipt(
+        'exp-1',
+        buildReceiptFile(),
+        userId,
+        orgId,
+      );
+
+      expect(cloudinaryServiceMock.uploadImage).toHaveBeenCalledWith(
+        buildReceiptFile(),
+        'expense-receipts',
+      );
+      expect(cloudinaryServiceMock.deleteImage).not.toHaveBeenCalled();
+      expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+      expect(txMock.expense.update).toHaveBeenCalledWith({
+        where: { id: 'exp-1' },
+        data: { receiptUrl: 'https://cloud.example/expense-receipts/r1.jpg' },
+        include: { category: true, supplier: true, payments: true },
+      });
+      expect(txMock.auditLog.create).toHaveBeenCalledTimes(1);
+      expect(txMock.auditLog.create.mock.calls[0][0].data).toMatchObject({
+        userId,
+        action: 'EXPENSE_RECEIPT_UPLOADED',
+        resource: 'Expense',
+        resourceId: 'exp-1',
+        organizationId: orgId,
+      });
+      expect(result).toEqual({
+        id: 'exp-1',
+        receiptUrl: 'https://cloud.example/expense-receipts/r1.jpg',
+      });
+    });
+
+    it('best-effort deletes the previous receipt when one exists', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue({
+        id: 'exp-1',
+        createdById: userId,
+        receiptUrl: 'https://cloud.example/expense-receipts/old.jpg',
+      });
+      cloudinaryServiceMock.uploadImage.mockResolvedValue(
+        'https://cloud.example/expense-receipts/new.jpg',
+      );
+      cloudinaryServiceMock.deleteImage.mockResolvedValue(undefined);
+      txMock.expense.update.mockResolvedValue({
+        id: 'exp-1',
+        receiptUrl: 'https://cloud.example/expense-receipts/new.jpg',
+      });
+
+      await service.uploadReceipt('exp-1', buildReceiptFile(), userId, orgId);
+
+      expect(cloudinaryServiceMock.deleteImage).toHaveBeenCalledWith(
+        'https://cloud.example/expense-receipts/old.jpg',
+      );
+    });
+
+    it('ignores a failed deletion of the previous receipt and still persists the new one', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue({
+        id: 'exp-1',
+        createdById: userId,
+        receiptUrl: 'https://cloud.example/expense-receipts/old.jpg',
+      });
+      cloudinaryServiceMock.uploadImage.mockResolvedValue(
+        'https://cloud.example/expense-receipts/new.jpg',
+      );
+      cloudinaryServiceMock.deleteImage.mockRejectedValue(
+        new Error('cloud unreachable'),
+      );
+      txMock.expense.update.mockResolvedValue({
+        id: 'exp-1',
+        receiptUrl: 'https://cloud.example/expense-receipts/new.jpg',
+      });
+
+      const result = await service.uploadReceipt(
+        'exp-1',
+        buildReceiptFile(),
+        userId,
+        orgId,
+      );
+
+      expect(txMock.expense.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            receiptUrl: 'https://cloud.example/expense-receipts/new.jpg',
+          },
+        }),
+      );
+      expect(result.receiptUrl).toBe(
+        'https://cloud.example/expense-receipts/new.jpg',
+      );
+    });
+
+    it('throws NotFoundException for unknown or cross-org expense ids without uploading', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.uploadReceipt('exp-x', buildReceiptFile(), userId, orgId),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(cloudinaryServiceMock.uploadImage).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when organizationId is missing', async () => {
+      await expect(
+        service.uploadReceipt('exp-1', buildReceiptFile(), userId, undefined),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
