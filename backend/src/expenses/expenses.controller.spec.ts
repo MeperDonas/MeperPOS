@@ -17,6 +17,7 @@ describe('ExpensesController', () => {
     getMonthlySummary: jest.fn(),
     duplicate: jest.fn(),
     getHistory: jest.fn(),
+    uploadReceipt: jest.fn(),
   };
 
   const adminUser: RequestUser = {
@@ -56,6 +57,7 @@ describe('ExpensesController', () => {
       controller.addPayment,
       controller.duplicate,
       controller.getHistory,
+      controller.uploadReceipt,
     ];
 
     for (const handler of handlers) {
@@ -168,6 +170,28 @@ describe('ExpensesController', () => {
     );
 
     expect(serviceMock.getHistory).toHaveBeenCalledWith('exp-1', 'org-1');
+  });
+
+  it('delegates uploadReceipt with expense id, file, userId and organizationId from the token only', async () => {
+    const controller = new ExpensesController(serviceMock as never);
+    const file = {
+      buffer: Buffer.from('fake'),
+      originalname: 'receipt.jpg',
+    } as unknown as Express.Multer.File;
+    const updated = { id: 'exp-1', receiptUrl: 'https://cloud.example/r1.jpg' };
+
+    serviceMock.uploadReceipt.mockResolvedValue(updated);
+
+    await expect(
+      controller.uploadReceipt('exp-1', adminUser, file),
+    ).resolves.toEqual(updated);
+
+    expect(serviceMock.uploadReceipt).toHaveBeenCalledWith(
+      'exp-1',
+      file,
+      'user-1',
+      'org-1',
+    );
   });
 
   it('delegates addPayment with expense id, payment body, userId and organizationId from the token only', async () => {
