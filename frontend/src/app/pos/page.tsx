@@ -95,6 +95,7 @@ export default function POSPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [editingDiscount, setEditingDiscount] = useState<string | null>(null);
   const [customDiscount, setCustomDiscount] = useState("");
+  const [customPrice, setCustomPrice] = useState("");
   const [showPausedSalesModal, setShowPausedSalesModal] = useState(false);
   const [pausedSaleToDelete, setPausedSaleToDelete] = useState<string | null>(
     null,
@@ -227,6 +228,7 @@ export default function POSPage() {
           product,
           quantity: Math.min(quantity, product.stock),
           unitPrice: product.salePrice,
+          originalUnitPrice: product.salePrice,
           discountAmount: 0,
           availableStock: product.stock,
         },
@@ -307,6 +309,52 @@ export default function POSPage() {
     },
     [],
   );
+
+  /** Override a cart line's unit price, preserving any existing discount */
+  const updateItemPrice = useCallback(
+    (productId: string, price: number) => {
+      setCart((prev) =>
+        prev.map((item) => {
+          if (item.productId !== productId) return item;
+          const newPrice = Math.max(0, price);
+          const itemSubtotal = newPrice * item.quantity;
+          // Percentage discounts recompute against the new price; fixed
+          // amounts stay but clamp so the line total never goes negative.
+          const discountAmount = item.discountPercent
+            ? Math.min(
+                (itemSubtotal * item.discountPercent) / 100,
+                itemSubtotal,
+              )
+            : Math.min(item.discountAmount, itemSubtotal);
+          return {
+            ...item,
+            unitPrice: newPrice,
+            discountAmount: Math.max(0, discountAmount),
+          };
+        }),
+      );
+      setEditingDiscount(null);
+      setCustomDiscount("");
+      setCustomPrice("");
+    },
+    [],
+  );
+
+  const openDiscountModal = useCallback(
+    (productId: string) => {
+      const item = cart.find((i) => i.productId === productId);
+      setEditingDiscount(productId);
+      setCustomDiscount("");
+      setCustomPrice(item ? String(item.unitPrice) : "");
+    },
+    [cart],
+  );
+
+  const handleCloseDiscountModal = useCallback(() => {
+    setEditingDiscount(null);
+    setCustomDiscount("");
+    setCustomPrice("");
+  }, []);
 
   const handleScanSubmit = useCallback(async () => {
     if (isScannerBlocked) {
@@ -741,9 +789,24 @@ export default function POSPage() {
                         {item.product.name}
                       </p>
                       <p className="text-xs text-muted-foreground mb-1.5">
-                        {formatCurrency(item.unitPrice)} × {item.quantity}
+                        {typeof item.originalUnitPrice === "number" &&
+                          item.unitPrice !== item.originalUnitPrice && (
+                            <s
+                              data-testid="original-unit-price"
+                              className="mr-1 text-muted-foreground/60 line-through"
+                            >
+                              {formatCurrency(item.originalUnitPrice)}
+                            </s>
+                          )}
+                        <span data-testid="line-unit-price">
+                          {formatCurrency(item.unitPrice)}
+                        </span>{" "}
+                        × {item.quantity}
                         {item.discountAmount > 0 && (
-                          <span className="ml-1.5 text-emerald-600 dark:text-emerald-400">
+                          <span
+                            data-testid="line-discount"
+                            className="ml-1.5 text-emerald-600 dark:text-emerald-400"
+                          >
                             (-{formatCurrency(item.discountAmount)}
                             {item.discountPercent
                               ? ` · ${item.discountPercent}%`
@@ -786,7 +849,7 @@ export default function POSPage() {
                           </span>
                         )}
                         <button
-                          onClick={() => setEditingDiscount(item.productId)}
+                          onClick={() => openDiscountModal(item.productId)}
                           className="w-7 h-7 rounded-lg border border-accent/30 bg-background/60 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
                           title="Descuento"
                         >
@@ -1093,14 +1156,36 @@ export default function POSPage() {
       {editingDiscount && (
         <Modal
           isOpen={!!editingDiscount}
-          onClose={() => {
-            setEditingDiscount(null);
-            setCustomDiscount("");
-          }}
+          onClose={handleCloseDiscountModal}
           title="Agregar Descuento"
           size="sm"
         >
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                type="number"
+                step="0.01"
+                label="Precio unitario"
+                value={customPrice}
+                onChange={(e) => setCustomPrice(e.target.value)}
+                placeholder="Precio"
+                min="0"
+              />
+              <Button
+                variant="secondary"
+                className="w-full"
+                disabled={!customPrice}
+                onClick={() => {
+                  if (!editingDiscount) return;
+                  const price = Number(customPrice);
+                  if (Number.isNaN(price) || price < 0) return;
+                  updateItemPrice(editingDiscount, price);
+                }}
+              >
+                Aplicar precio
+              </Button>
+            </div>
+
             <Input
               type="number"
               step="0.01"
@@ -1127,10 +1212,7 @@ export default function POSPage() {
             <div className="flex gap-2 pt-2">
               <Button
                 variant="secondary"
-                onClick={() => {
-                  setEditingDiscount(null);
-                  setCustomDiscount("");
-                }}
+                onClick={handleCloseDiscountModal}
                 className="flex-1"
               >
                 Cancelar
