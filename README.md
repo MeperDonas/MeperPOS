@@ -2,6 +2,8 @@
 
 Sistema full-stack de gestión de inventario con módulo Point of Sale (POS), diseñado para el contexto de negocio colombiano (moneda COP, locale es-CO).
 
+> Read this file in English: [README.en.md](./README.en.md)
+
 ![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=flat&logo=nestjs&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat&logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
@@ -19,7 +21,6 @@ Sistema full-stack de gestión de inventario con módulo Point of Sale (POS), di
 - [Scripts útiles](#scripts-útiles)
 - [Roles y permisos](#roles-y-permisos)
 - [Arquitectura](#arquitectura)
-- [Versión en inglés](#versión-en-inglés)
 
 ## Características principales
 
@@ -172,7 +173,3 @@ El sistema distingue entre el rol global `SUPER_ADMIN` (administrador del sistem
 Aplicación web compuesta por una API REST (NestJS + Prisma + PostgreSQL) y una SPA (Next.js App Router) que consume la API mediante un cliente Axios con inyección automática de JWT y redirección en respuestas `401`.
 
 El backend es multi-tenant: cada organización aísla sus datos, con numeración propia de secuencias, roles por organización y límites según el plan contratado. La autenticación usa JWT con refresh tokens; el frontend almacena el token en `localStorage`. Todos los endpoints están prefijados con `/api` y los DTOs se validan con `class-validator` mediante un `ValidationPipe` global.
-
-## Versión en inglés
-
-Read this file in English: [README.en.md](./README.en.md)
