@@ -14,6 +14,7 @@ describe('ExpensesController', () => {
     update: jest.fn(),
     remove: jest.fn(),
     addPayment: jest.fn(),
+    getMonthlySummary: jest.fn(),
   };
 
   const adminUser: RequestUser = {
@@ -46,6 +47,7 @@ describe('ExpensesController', () => {
     const handlers = [
       controller.create,
       controller.findAll,
+      controller.getMonthlySummary,
       controller.findOne,
       controller.update,
       controller.remove,
@@ -112,6 +114,26 @@ describe('ExpensesController', () => {
       'org-1',
     );
     expect(serviceMock.remove).toHaveBeenCalledWith('exp-1', 'user-1', 'org-1');
+  });
+
+  it('delegates getMonthlySummary with month and organizationId from the token only', async () => {
+    const controller = new ExpensesController(serviceMock as never);
+    const summary = {
+      month: '2026-08',
+      total: 0,
+      categories: [],
+    };
+
+    serviceMock.getMonthlySummary.mockResolvedValue(summary);
+
+    await expect(
+      controller.getMonthlySummary({ month: '2026-08' }, adminUser),
+    ).resolves.toEqual(summary);
+
+    expect(serviceMock.getMonthlySummary).toHaveBeenCalledWith(
+      '2026-08',
+      'org-1',
+    );
   });
 
   it('delegates addPayment with expense id, payment body, userId and organizationId from the token only', async () => {

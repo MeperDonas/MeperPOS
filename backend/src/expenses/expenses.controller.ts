@@ -22,6 +22,7 @@ import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateExpensePaymentDto } from './dto/create-expense-payment.dto';
 import { QueryExpensesDto } from './dto/query-expenses.dto';
+import { QueryMonthDto } from './dto/query-month.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { ExpensesService } from './expenses.service';
 
@@ -45,6 +46,19 @@ export class ExpensesController {
   @ApiOperation({ summary: 'Listar salidas de la organización' })
   findAll(@Query() query: QueryExpensesDto, @CurrentUser() user: RequestUser) {
     return this.expensesService.findAll(query, user.organizationId);
+  }
+
+  @Get('summary/monthly')
+  @Roles(OrgRole.ADMIN)
+  @ApiOperation({ summary: 'Resumen mensual de salidas por categoría' })
+  getMonthlySummary(
+    @Query() query: QueryMonthDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.expensesService.getMonthlySummary(
+      query.month,
+      user.organizationId,
+    );
   }
 
   @Get(':id')

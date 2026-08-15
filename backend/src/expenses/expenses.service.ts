@@ -212,6 +212,45 @@ export class ExpensesService {
     };
   }
 
+  async getMonthlySummary(month: string, organizationId: string | undefined) {
+    const orgId = this.requireOrganizationId(organizationId);
+    const { start, end } = parseBogotaMonthRange(month);
+
+    const grouped = await this.prisma.expense.groupBy({
+      by: ['categoryId'],
+      where: {
+        organizationId: orgId,
+        active: true,
+        date: { gte: start, lte: end },
+      },
+      _sum: { total: true },
+    });
+
+    const categories = await this.prisma.expenseCategory.findMany({
+      where: { id: { in: grouped.map((row) => row.categoryId) } },
+      select: { id: true, name: true },
+    });
+
+    const namesById = new Map(
+      categories.map((category) => [category.id, category.name]),
+    );
+
+    const rows = grouped
+      .map((row) => ({
+        categoryId: row.categoryId,
+        name: namesById.get(row.categoryId) ?? 'Sin categoría',
+        total: row._sum.total ?? new Prisma.Decimal(0),
+      }))
+      .sort((a, b) => b.total.comparedTo(a.total));
+
+    const total = rows.reduce(
+      (sum, row) => sum.add(row.total),
+      new Prisma.Decimal(0),
+    );
+
+    return { month, total, categories: rows };
+  }
+
   async findOne(id: string, organizationId: string | undefined) {
     const orgId = this.requireOrganizationId(organizationId);
 
