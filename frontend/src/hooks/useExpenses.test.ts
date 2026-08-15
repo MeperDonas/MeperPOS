@@ -27,6 +27,7 @@ import {
   useUpdateExpenseCategory,
   useUploadExpenseReceipt,
 } from "./useExpenses";
+import type { CreateExpensePayload, ExpensePaymentPayload } from "./useExpenses";
 
 vi.mock("@/lib/api", () => ({
   api: {
@@ -234,7 +235,7 @@ describe("useExpenses", () => {
         wrapper: wrapperWith(queryClient),
       });
 
-      const payload = {
+      const payload: CreateExpensePayload = {
         categoryId: "cat-1",
         description: "Arriendo agosto",
         date: "2026-08-01",
@@ -290,7 +291,11 @@ describe("useExpenses", () => {
         wrapper: wrapperWith(queryClient),
       });
 
-      const payload = { amount: 100000, method: "TRANSFER", date: "2026-08-10" };
+      const payload: ExpensePaymentPayload = {
+        amount: 100000,
+        method: "TRANSFER",
+        date: "2026-08-10",
+      };
       await result.current.mutateAsync({ id: "exp-1", data: payload });
 
       expect(apiMock.post).toHaveBeenCalledWith("/expenses/exp-1/payments", payload);
