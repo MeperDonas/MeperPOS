@@ -179,6 +179,8 @@ export interface CartItem {
   product: Product;
   quantity: number;
   unitPrice: number;
+  /** Snapshot of product.salePrice at add-to-cart time — original price before any override */
+  originalUnitPrice: number;
   discountAmount: number;
   /** When set, discount scales with quantity: amount = price × qty × percent / 100 */
   discountPercent?: number;
