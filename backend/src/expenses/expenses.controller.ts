@@ -100,6 +100,17 @@ export class ExpensesController {
     );
   }
 
+  @Post(':id/duplicate')
+  @Roles(OrgRole.ADMIN)
+  @ApiOperation({ summary: 'Duplicar una salida (recurrencia manual)' })
+  duplicate(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.expensesService.duplicate(
+      id,
+      user.userId,
+      user.organizationId,
+    );
+  }
+
   @Delete(':id')
   @Roles(OrgRole.ADMIN)
   @ApiOperation({ summary: 'Desactivar una salida (borrado lógico)' })

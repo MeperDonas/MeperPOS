@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { formatDateInBogota } from '../common/utils/bogota-date';
 import {
   ExpensesService,
   deriveExpensePaymentStatus,
@@ -634,6 +635,124 @@ describe('ExpensesService', () => {
     it('throws BadRequestException when organizationId is missing', async () => {
       await expect(
         service.getMonthlySummary('2026-08', undefined),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('duplicate', () => {
+    const buildExisting = () => ({
+      id: 'exp-1',
+      organizationId: orgId,
+      active: true,
+      categoryId: 'cat-1',
+      supplierId: 'sup-1',
+      purchaseOrderId: 'po-1',
+      description: 'Arriendo agosto',
+      total: new Prisma.Decimal(500000),
+      status: 'PARTIAL',
+      payments: [
+        {
+          id: 'pay-1',
+          amount: new Prisma.Decimal(300000),
+          method: 'CASH',
+          date: new Date('2026-08-05T00:00:00.000Z'),
+        },
+        {
+          id: 'pay-2',
+          amount: new Prisma.Decimal(200000),
+          method: 'TRANSFER',
+          date: new Date('2026-08-10T00:00:00.000Z'),
+        },
+      ],
+    });
+
+    it('copies fields and payments into a new expense dated today in Bogota inside one transaction', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue(buildExisting());
+      txMock.expense.create.mockResolvedValue({
+        id: 'exp-2',
+        status: 'PAID',
+      });
+
+      const result = await service.duplicate('exp-1', userId, orgId);
+
+      expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+      const createArgs = txMock.expense.create.mock.calls[0][0];
+      expect(createArgs.data).toMatchObject({
+        organizationId: orgId,
+        categoryId: 'cat-1',
+        supplierId: 'sup-1',
+        purchaseOrderId: 'po-1',
+        description: 'Arriendo agosto',
+        total: new Prisma.Decimal(500000),
+        status: 'PAID',
+        createdById: userId,
+        date: new Date(formatDateInBogota(new Date())),
+      });
+      expect(createArgs.data.payments.create).toEqual([
+        {
+          organizationId: orgId,
+          amount: new Prisma.Decimal(300000),
+          method: 'CASH',
+          date: new Date('2026-08-05T00:00:00.000Z'),
+        },
+        {
+          organizationId: orgId,
+          amount: new Prisma.Decimal(200000),
+          method: 'TRANSFER',
+          date: new Date('2026-08-10T00:00:00.000Z'),
+        },
+      ]);
+      expect(txMock.auditLog.create).toHaveBeenCalledTimes(1);
+      expect(txMock.auditLog.create.mock.calls[0][0].data).toMatchObject({
+        userId,
+        action: 'EXPENSE_DUPLICATED',
+        resource: 'Expense',
+        resourceId: 'exp-2',
+        organizationId: orgId,
+      });
+      expect(txMock.auditLog.create.mock.calls[0][0].data.metadata).toEqual(
+        expect.objectContaining({ originalId: 'exp-1' }),
+      );
+      expect(result).toEqual({ id: 'exp-2', status: 'PAID' });
+    });
+
+    it('derives the status from the copied payments sum', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue(buildExisting());
+      txMock.expense.create.mockResolvedValue({
+        id: 'exp-2',
+        status: 'PAID',
+      });
+
+      const result = await service.duplicate('exp-1', userId, orgId);
+
+      expect(txMock.expense.create.mock.calls[0][0].data.status).toBe('PAID');
+      expect(result.status).toBe('PAID');
+    });
+
+    it('rejects duplicating an inactive expense with 400 and never opens a transaction', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue({
+        ...buildExisting(),
+        active: false,
+      });
+
+      await expect(service.duplicate('exp-1', userId, orgId)).rejects.toThrow(
+        'No se puede duplicar una salida eliminada',
+      );
+
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException for unknown or cross-org ids', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue(null);
+
+      await expect(service.duplicate('exp-x', userId, orgId)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws BadRequestException when organizationId is missing', async () => {
+      await expect(
+        service.duplicate('exp-1', userId, undefined),
       ).rejects.toThrow(BadRequestException);
     });
   });
