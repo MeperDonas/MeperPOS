@@ -16,6 +16,9 @@ describe('ExpensesService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    expensePayment: {
+      create: jest.fn(),
+    },
     auditLog: {
       create: jest.fn(),
     },
@@ -409,6 +412,167 @@ describe('ExpensesService', () => {
       await expect(
         service.update('exp-x', { description: 'Nuevo' }, userId, orgId),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('clears supplier, purchase order and description links when null is passed', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue({
+        ...buildExisting(),
+        supplierId: 'sup-1',
+        purchaseOrderId: 'po-1',
+      });
+      txMock.expense.update.mockResolvedValue({
+        id: 'exp-1',
+        status: 'PAID',
+        total: new Prisma.Decimal(500000),
+        description: null,
+        supplierId: null,
+        purchaseOrderId: null,
+        date: new Date('2026-08-15T00:00:00.000Z'),
+      });
+
+      const result = await service.update(
+        'exp-1',
+        { supplierId: null, purchaseOrderId: null, description: null },
+        userId,
+        orgId,
+      );
+
+      expect(txMock.expense.update).toHaveBeenCalledWith({
+        where: { id: 'exp-1' },
+        data: expect.objectContaining({
+          supplierId: null,
+          purchaseOrderId: null,
+          description: null,
+        }),
+        include: { category: true, supplier: true, payments: true },
+      });
+      expect(result).toMatchObject({
+        supplierId: null,
+        purchaseOrderId: null,
+        description: null,
+      });
+    });
+  });
+
+  describe('addPayment', () => {
+    const buildExisting = () => ({
+      id: 'exp-1',
+      organizationId: orgId,
+      active: true,
+      total: new Prisma.Decimal(500000),
+      status: 'PARTIAL',
+      payments: [
+        { id: 'pay-1', amount: new Prisma.Decimal(300000) },
+        { id: 'pay-2', amount: new Prisma.Decimal(100000) },
+      ],
+    });
+    const buildPaymentDto = () => ({
+      amount: 100000,
+      method: 'CASH',
+      date: '2026-08-20',
+    });
+
+    it('transitions PARTIAL to PAID inside one transaction when the new payment covers the remaining total', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue(buildExisting());
+      txMock.expensePayment.create.mockResolvedValue({ id: 'pay-3' });
+      txMock.expense.update.mockResolvedValue({ id: 'exp-1', status: 'PAID' });
+
+      const result = await service.addPayment(
+        'exp-1',
+        buildPaymentDto(),
+        userId,
+        orgId,
+      );
+
+      expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+      expect(txMock.expensePayment.create).toHaveBeenCalledWith({
+        data: {
+          expenseId: 'exp-1',
+          organizationId: orgId,
+          amount: new Prisma.Decimal(100000),
+          method: 'CASH',
+          date: new Date('2026-08-20'),
+        },
+      });
+      expect(txMock.expense.update).toHaveBeenCalledWith({
+        where: { id: 'exp-1' },
+        data: { status: 'PAID' },
+        include: { category: true, supplier: true, payments: true },
+      });
+      expect(txMock.auditLog.create).toHaveBeenCalledTimes(1);
+      expect(txMock.auditLog.create.mock.calls[0][0].data).toMatchObject({
+        userId,
+        action: 'EXPENSE_PAYMENT_ADDED',
+        resource: 'Expense',
+        resourceId: 'exp-1',
+        organizationId: orgId,
+      });
+      expect(result).toEqual({ id: 'exp-1', status: 'PAID' });
+    });
+
+    it('keeps PARTIAL when the new payment still leaves a remainder', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue(buildExisting());
+      txMock.expensePayment.create.mockResolvedValue({ id: 'pay-3' });
+      txMock.expense.update.mockResolvedValue({
+        id: 'exp-1',
+        status: 'PARTIAL',
+      });
+
+      const result = await service.addPayment(
+        'exp-1',
+        { ...buildPaymentDto(), amount: 50000 },
+        userId,
+        orgId,
+      );
+
+      expect(txMock.expense.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'PARTIAL' } }),
+      );
+      expect(result.status).toBe('PARTIAL');
+    });
+
+    it('rejects a payment that would exceed the total with 400 and never opens a transaction', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue(buildExisting());
+
+      await expect(
+        service.addPayment(
+          'exp-1',
+          { ...buildPaymentDto(), amount: 150000 },
+          userId,
+          orgId,
+        ),
+      ).rejects.toThrow(
+        'La suma de los pagos no puede superar el total de la salida',
+      );
+
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException for unknown or cross-org expense ids', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.addPayment('exp-x', buildPaymentDto(), userId, orgId),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('rejects payments on an inactive expense with 400 and never opens a transaction', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue({
+        ...buildExisting(),
+        active: false,
+      });
+
+      await expect(
+        service.addPayment('exp-1', buildPaymentDto(), userId, orgId),
+      ).rejects.toThrow('No se pueden registrar pagos en una salida eliminada');
+
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when organizationId is missing', async () => {
+      await expect(
+        service.addPayment('exp-1', buildPaymentDto(), userId, undefined),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

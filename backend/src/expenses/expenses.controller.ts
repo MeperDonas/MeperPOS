@@ -20,6 +20,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { CreateExpensePaymentDto } from './dto/create-expense-payment.dto';
 import { QueryExpensesDto } from './dto/query-expenses.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { ExpensesService } from './expenses.service';
@@ -62,6 +63,22 @@ export class ExpensesController {
     @CurrentUser() user: RequestUser,
   ) {
     return this.expensesService.update(
+      id,
+      dto,
+      user.userId,
+      user.organizationId,
+    );
+  }
+
+  @Post(':id/payments')
+  @Roles(OrgRole.ADMIN)
+  @ApiOperation({ summary: 'Registrar un pago adicional a una salida' })
+  addPayment(
+    @Param('id') id: string,
+    @Body() dto: CreateExpensePaymentDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.expensesService.addPayment(
       id,
       dto,
       user.userId,

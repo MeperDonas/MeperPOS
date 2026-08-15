@@ -13,6 +13,7 @@ describe('ExpensesController', () => {
     findOne: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
+    addPayment: jest.fn(),
   };
 
   const adminUser: RequestUser = {
@@ -48,6 +49,7 @@ describe('ExpensesController', () => {
       controller.findOne,
       controller.update,
       controller.remove,
+      controller.addPayment,
     ];
 
     for (const handler of handlers) {
@@ -110,5 +112,24 @@ describe('ExpensesController', () => {
       'org-1',
     );
     expect(serviceMock.remove).toHaveBeenCalledWith('exp-1', 'user-1', 'org-1');
+  });
+
+  it('delegates addPayment with expense id, payment body, userId and organizationId from the token only', async () => {
+    const controller = new ExpensesController(serviceMock as never);
+    const payment = { amount: 100000, method: 'CASH', date: '2026-08-20' };
+    const expense = { id: 'exp-1', organizationId: 'org-1', status: 'PAID' };
+
+    serviceMock.addPayment.mockResolvedValue(expense);
+
+    await expect(
+      controller.addPayment('exp-1', payment, adminUser),
+    ).resolves.toEqual(expense);
+
+    expect(serviceMock.addPayment).toHaveBeenCalledWith(
+      'exp-1',
+      payment,
+      'user-1',
+      'org-1',
+    );
   });
 });
