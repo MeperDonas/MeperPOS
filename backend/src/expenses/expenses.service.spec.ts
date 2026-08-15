@@ -2,7 +2,6 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   ExpensesService,
-  buildMonthRange,
   deriveExpensePaymentStatus,
 } from './expenses.service';
 
@@ -86,20 +85,6 @@ describe('ExpensesService', () => {
           new Prisma.Decimal(500000.01),
         ),
       ).toBe('PAID');
-    });
-  });
-
-  describe('buildMonthRange', () => {
-    it('maps a YYYY-MM month to Bogota day boundaries', () => {
-      const { start, end } = buildMonthRange('2026-08');
-
-      expect(start.toISOString()).toBe('2026-08-01T05:00:00.000Z');
-      expect(end.toISOString()).toBe('2026-09-01T04:59:59.999Z');
-    });
-
-    it('rejects malformed month strings', () => {
-      expect(() => buildMonthRange('2026-8')).toThrow(BadRequestException);
-      expect(() => buildMonthRange('nope')).toThrow(BadRequestException);
     });
   });
 

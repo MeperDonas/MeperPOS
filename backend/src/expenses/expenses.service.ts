@@ -4,39 +4,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ExpensePaymentStatus, Prisma } from '@prisma/client';
+import { parseBogotaMonthRange } from '../common/utils/bogota-date';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateExpensePaymentDto } from './dto/create-expense-payment.dto';
 import { QueryExpensesDto } from './dto/query-expenses.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 
-const MONTH_REGEX = /^\d{4}-\d{2}$/;
-const BOGOTA_OFFSET_UTC_HOURS = 5;
-
 export function deriveExpensePaymentStatus(
   total: Prisma.Decimal,
   paymentsSum: Prisma.Decimal,
 ): ExpensePaymentStatus {
   return paymentsSum.gte(total) ? 'PAID' : 'PARTIAL';
-}
-
-export function buildMonthRange(month: string): {
-  start: Date;
-  end: Date;
-} {
-  if (!MONTH_REGEX.test(month)) {
-    throw new BadRequestException('El formato del mes debe ser YYYY-MM');
-  }
-
-  const [year, monthIndex] = month.split('-').map(Number);
-  const start = new Date(
-    Date.UTC(year, monthIndex - 1, 1, BOGOTA_OFFSET_UTC_HOURS, 0, 0, 0),
-  );
-  const end = new Date(
-    Date.UTC(year, monthIndex, 1, BOGOTA_OFFSET_UTC_HOURS, 0, 0, 0) - 1,
-  );
-
-  return { start, end };
 }
 
 @Injectable()
@@ -193,7 +172,7 @@ export class ExpensesService {
     };
 
     if (query.month) {
-      const { start, end } = buildMonthRange(query.month);
+      const { start, end } = parseBogotaMonthRange(query.month);
       where.date = { gte: start, lte: end };
     }
     if (query.categoryId) {

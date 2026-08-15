@@ -1,4 +1,7 @@
+import { BadRequestException } from '@nestjs/common';
+
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_ONLY_REGEX = /^\d{4}-\d{2}$/;
 const BOGOTA_OFFSET_UTC_HOURS = 5;
 
 const bogotaDateFormatter = new Intl.DateTimeFormat('en-CA', {
@@ -67,4 +70,23 @@ export function formatDateInBogota(date: Date): string {
   }
 
   return `${year}-${month}-${day}`;
+}
+
+export function parseBogotaMonthRange(month: string): {
+  start: Date;
+  end: Date;
+} {
+  if (!MONTH_ONLY_REGEX.test(month ?? '')) {
+    throw new BadRequestException('El formato del mes debe ser YYYY-MM');
+  }
+
+  const [year, monthIndex] = month.split('-').map(Number);
+  const start = new Date(
+    Date.UTC(year, monthIndex - 1, 1, BOGOTA_OFFSET_UTC_HOURS, 0, 0, 0),
+  );
+  const end = new Date(
+    Date.UTC(year, monthIndex, 1, BOGOTA_OFFSET_UTC_HOURS, 0, 0, 0) - 1,
+  );
+
+  return { start, end };
 }
