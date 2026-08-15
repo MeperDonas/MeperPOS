@@ -517,7 +517,7 @@ postgresql://postgres.[ref]:[pass]@db.[ref].supabase.com:5432/postgres
 
 | Variable | Ejemplo | Requerida |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `https://meper-api.up.railway.app/api` | Si |
+| `NEXT_PUBLIC_API_URL` | `https://meperpos-api.up.railway.app/api` | Si |
 
 ### Supabase (Database)
 
