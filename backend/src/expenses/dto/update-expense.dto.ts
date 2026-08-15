@@ -25,11 +25,11 @@ export class UpdateExpenseDto {
   @IsUUID()
   purchaseOrderId?: string | null;
 
-  @ApiPropertyOptional({ example: 'Arriendo agosto' })
+  @ApiPropertyOptional({ example: 'Arriendo agosto', nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  description?: string;
+  description?: string | null;
 
   @ApiPropertyOptional({ example: '2026-08-15' })
   @IsOptional()

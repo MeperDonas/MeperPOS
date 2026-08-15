@@ -6,6 +6,7 @@ import {
 import { ExpensePaymentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { CreateExpensePaymentDto } from './dto/create-expense-payment.dto';
 import { QueryExpensesDto } from './dto/query-expenses.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 
@@ -331,6 +332,80 @@ export class ExpensesService {
               description: updated.description,
               date: updated.date.toISOString(),
             },
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+
+      return updated;
+    });
+  }
+
+  async addPayment(
+    id: string,
+    dto: CreateExpensePaymentDto,
+    userId: string,
+    organizationId: string | undefined,
+  ) {
+    const orgId = this.requireOrganizationId(organizationId);
+
+    const existing = await this.prisma.expense.findFirst({
+      where: { id, organizationId: orgId },
+      include: { payments: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Salida no encontrada');
+    }
+
+    if (!existing.active) {
+      throw new BadRequestException(
+        'No se pueden registrar pagos en una salida eliminada',
+      );
+    }
+
+    const amount = new Prisma.Decimal(dto.amount);
+    const paymentsSum = this.sumPayments(existing.payments).add(amount);
+
+    if (paymentsSum.gt(existing.total)) {
+      throw new BadRequestException(
+        'La suma de los pagos no puede superar el total de la salida',
+      );
+    }
+
+    const status = deriveExpensePaymentStatus(existing.total, paymentsSum);
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.expensePayment.create({
+        data: {
+          expenseId: id,
+          organizationId: orgId,
+          amount,
+          method: dto.method,
+          date: new Date(dto.date),
+        },
+      });
+
+      const updated = await tx.expense.update({
+        where: { id },
+        data: { status },
+        include: { category: true, supplier: true, payments: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'EXPENSE_PAYMENT_ADDED',
+          resource: 'Expense',
+          resourceId: id,
+          organizationId: orgId,
+          metadata: {
+            summary: `Pago de ${amount.toString()} registrado`,
+            amount: amount.toString(),
+            method: dto.method,
+            date: dto.date,
+            beforeStatus: existing.status,
+            afterStatus: status,
             timestamp: new Date().toISOString(),
           },
         },
