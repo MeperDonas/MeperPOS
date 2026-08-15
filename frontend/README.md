@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend — SPA (Next.js App Router)
 
-## Getting Started
+> Documentación completa del proyecto: [../README.md](../README.md)
 
-First, run the development server:
+Aplicación frontend del Sistema de Gestión de Inventario, construida con Next.js 16 (App Router), React 19 y TailwindCSS v4. Consume la API REST del backend mediante TanStack Query v5 y un cliente Axios con inyección automática de JWT.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Requisitos
+
+- **Node.js** (versión compatible con Next.js 16).
+- **npm**.
+- **Backend en ejecución** en `http://localhost:3001/api` (ver [backend/README.md](../backend/README.md)).
+
+## Puesta en marcha
+
+### 1. Variables de entorno
+
+Crea un archivo `.env.local` en la raíz de `frontend/`:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001/api
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Instalación y desarrollo
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+La aplicación queda disponible en `http://localhost:3000`.
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Script        | Descripción                     |
+| ------------- | ------------------------------- |
+| `npm run dev` | Servidor de desarrollo          |
+| `npm run build` | Build de producción           |
+| `npm run lint`  | ESLint                       |
+| `npm run test`  | Pruebas (Vitest)             |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Estructura de páginas
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Páginas principales en `frontend/src/app/`:
 
-## Deploy on Vercel
+- `login/`, `register/` — Autenticación.
+- `dashboard/` — Resumen principal.
+- `pos/` — Módulo Point of Sale (carrito, favoritos, ventas pausadas, splits de pago e impresión de facturas).
+- `inventory/` — Gestión de inventario y productos.
+- `sales/` — Ventas, con detalle en `sales/[id]/`.
+- `customers/` — Clientes.
+- `reports/` — Reportes.
+- `categories/` — Categorías.
+- `profile/` — Perfil del usuario.
+- `settings/` — Configuración, con `settings/billing/` para facturación.
+- `users/` — Gestión de usuarios.
+- `suppliers/` — Proveedores.
+- `purchase-orders/` — Órdenes de compra (`purchase-orders/new/` y `purchase-orders/[id]/`).
+- `expenses/` — Gastos.
+- `tasks/` — Tareas.
+- `admin/` — Panel de administración (`admin/organizations/[id]/`).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+El layout `DashboardLayout` envuelve todas las páginas autenticadas: renderiza la `Sidebar` y aplica redirecciones según el rol. En móvil usa un slide-over; en escritorio una barra fija de 256px con `lg:ml-64`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Convenciones
+
+- **`cn()`** (`lib/utils.ts`, clsx + tailwind-merge) para combinar clases de Tailwind en los componentes de `components/ui/`.
+- **`formatCurrency(amount)`** para formatear montos en COP; **`formatDate` / `formatDateTime`** con locale es-CO.
+- **`getApiErrorMessage(error, fallback)`** para extraer mensajes de error legibles de los errores de Axios.
+- **Cliente `api`** (`lib/api.ts`): singleton de Axios con inyección automática del JWT y redirección en respuestas `401`.
+- **Contextos**: `AuthContext` (usuario + JWT), `ThemeContext` (tema claro/oscuro) y `ToastContext` (notificaciones).
+- El tema usa variables CSS definidas en `globals.css` (`--primary` teal, `--terracotta` como acento) y fuentes Manrope + JetBrains Mono vía `next/font`.
+
+## Testing
+
+```bash
+npm run test   # Vitest + Testing Library (jsdom)
+```
