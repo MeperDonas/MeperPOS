@@ -26,8 +26,10 @@ import { ExpenseSummaryCards } from "@/components/expenses/ExpenseSummaryCards";
 import { ExpenseFormModal } from "@/components/expenses/ExpenseFormModal";
 import { AddPaymentModal } from "@/components/expenses/AddPaymentModal";
 import { HistoryModal } from "@/components/expenses/HistoryModal";
+import { ExpenseDetailModal } from "@/components/expenses/ExpenseDetailModal";
 import {
   Copy,
+  Eye,
   History,
   Pencil,
   Plus,
@@ -61,6 +63,7 @@ export default function ExpensesPage() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [paymentExpense, setPaymentExpense] = useState<Expense | null>(null);
   const [historyExpense, setHistoryExpense] = useState<Expense | null>(null);
+  const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [duplicateTarget, setDuplicateTarget] = useState<Expense | null>(null);
 
@@ -355,7 +358,13 @@ export default function ExpensesPage() {
                         </td>
                       </tr>
                     ) : (
-                      expenses.map((expense) => (
+                      expenses.map((expense) => {
+                        const isPaid = expense.status === "PAID";
+                        const paymentButtonLabel = isPaid
+                          ? "La salida ya está pagada"
+                          : "Agregar pago";
+
+                        return (
                         <TableRow key={expense.id}>
                           <TableCell className="text-muted-foreground whitespace-nowrap font-mono">
                             {formatDate(expense.date)}
@@ -389,9 +398,20 @@ export default function ExpensesPage() {
                                 size="sm"
                                 variant="ghost"
                                 type="button"
-                                aria-label="Agregar pago"
-                                title="Agregar pago"
-                                disabled={expense.status === "PAID"}
+                                aria-label="Ver detalle"
+                                title="Ver detalle"
+                                onClick={() => setDetailExpense(expense)}
+                                className="p-1.5 h-7 w-7"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                type="button"
+                                aria-label={paymentButtonLabel}
+                                title={paymentButtonLabel}
+                                disabled={isPaid}
                                 onClick={() => setPaymentExpense(expense)}
                                 className="p-1.5 h-7 w-7"
                               >
@@ -463,7 +483,8 @@ export default function ExpensesPage() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
+                        );
+                      })
                     )}
                   </tbody>
                 </Table>
@@ -507,6 +528,14 @@ export default function ExpensesPage() {
           isOpen
           expense={historyExpense}
           onClose={() => setHistoryExpense(null)}
+        />
+      )}
+
+      {detailExpense && (
+        <ExpenseDetailModal
+          isOpen
+          expense={detailExpense}
+          onClose={() => setDetailExpense(null)}
         />
       )}
 
