@@ -1,0 +1,114 @@
+import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { OrgRole } from '@prisma/client';
+import { ROLES_KEY } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import type { RequestUser } from '../common/interfaces/request-user.interface';
+import { ExpensesController } from './expenses.controller';
+
+describe('ExpensesController', () => {
+  const serviceMock = {
+    create: jest.fn(),
+    findAll: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
+    remove: jest.fn(),
+  };
+
+  const adminUser: RequestUser = {
+    userId: 'user-1',
+    email: 'admin@example.com',
+    organizationId: 'org-1',
+    role: OrgRole.ADMIN,
+    tokenVersion: 1,
+    isSuperAdmin: false,
+  };
+
+  const createContext = (
+    handler: (...args: unknown[]) => unknown,
+    role: OrgRole,
+  ): ExecutionContext =>
+    ({
+      getHandler: () => handler,
+      getClass: () => ExpensesController,
+      switchToHttp: () => ({
+        getRequest: () => ({ user: { role } }),
+      }),
+    }) as unknown as ExecutionContext;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('requires ADMIN on every handler', () => {
+    const controller = new ExpensesController(serviceMock as never);
+    const handlers = [
+      controller.create,
+      controller.findAll,
+      controller.findOne,
+      controller.update,
+      controller.remove,
+    ];
+
+    for (const handler of handlers) {
+      expect(Reflect.getMetadata(ROLES_KEY, handler)).toEqual([OrgRole.ADMIN]);
+    }
+  });
+
+  it('allows OWNER through RolesGuard because OWNER inherits ADMIN', () => {
+    const controller = new ExpensesController(serviceMock as never);
+    const guard = new RolesGuard(new Reflector());
+
+    expect(
+      guard.canActivate(createContext(controller.findAll, OrgRole.OWNER)),
+    ).toBe(true);
+  });
+
+  it('denies CASHIER access through RolesGuard', () => {
+    const controller = new ExpensesController(serviceMock as never);
+    const guard = new RolesGuard(new Reflector());
+
+    expect(() =>
+      guard.canActivate(createContext(controller.findAll, OrgRole.CASHIER)),
+    ).toThrow(ForbiddenException);
+  });
+
+  it('delegates CRUD with organizationId and userId from the token only', async () => {
+    const controller = new ExpensesController(serviceMock as never);
+    const body = { categoryId: 'cat-1', date: '2026-08-15', total: 500 };
+    const expense = { id: 'exp-1', organizationId: 'org-1' };
+
+    serviceMock.create.mockResolvedValue(expense);
+    serviceMock.findAll.mockResolvedValue({ data: [expense], meta: {} });
+    serviceMock.findOne.mockResolvedValue(expense);
+    serviceMock.update.mockResolvedValue(expense);
+    serviceMock.remove.mockResolvedValue({ ...expense, active: false });
+
+    await expect(controller.create(body, adminUser)).resolves.toEqual(expense);
+    await expect(controller.findAll({}, adminUser)).resolves.toEqual({
+      data: [expense],
+      meta: {},
+    });
+    await expect(controller.findOne('exp-1', adminUser)).resolves.toEqual(
+      expense,
+    );
+    await expect(controller.update('exp-1', body, adminUser)).resolves.toEqual(
+      expense,
+    );
+    await expect(controller.remove('exp-1', adminUser)).resolves.toEqual({
+      ...expense,
+      active: false,
+    });
+
+    expect(serviceMock.create).toHaveBeenCalledWith(body, 'user-1', 'org-1');
+    expect(serviceMock.findAll).toHaveBeenCalledWith({}, 'org-1');
+    expect(serviceMock.findOne).toHaveBeenCalledWith('exp-1', 'org-1');
+    expect(serviceMock.update).toHaveBeenCalledWith(
+      'exp-1',
+      body,
+      'user-1',
+      'org-1',
+    );
+    expect(serviceMock.remove).toHaveBeenCalledWith('exp-1', 'user-1', 'org-1');
+  });
+});
