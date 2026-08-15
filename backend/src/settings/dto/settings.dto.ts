@@ -1,29 +1,7 @@
-import { IsString, IsOptional, IsNumber, Min } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
-import { ApiPropertyOptional } from '@nestjs/swagger/dist/decorators';
+import { IsString, IsOptional, IsObject } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateSettingsDto {
-  @ApiPropertyOptional({ example: 'Mi Empresa S.A.S.' })
-  @IsString()
-  @IsOptional()
-  companyName?: string;
-
-  @ApiPropertyOptional({ example: 'USD' })
-  @IsString()
-  @IsOptional()
-  currency?: string;
-
-  @ApiPropertyOptional({ example: 19, minimum: 0, maximum: 100 })
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  taxRate?: number;
-
-  @ApiPropertyOptional({ example: 'REC-' })
-  @IsString()
-  @IsOptional()
-  receiptPrefix?: string;
-
   @ApiPropertyOptional({ example: 'Empresa ABC - Comprobante #' })
   @IsString()
   @IsOptional()
@@ -34,31 +12,8 @@ export class UpdateSettingsDto {
   @IsOptional()
   printFooter?: string;
 
-  @ApiPropertyOptional({ example: 'https://example.com/logo.png' })
-  @IsString()
+  @ApiPropertyOptional({ example: { theme: 'dark' } })
+  @IsObject()
   @IsOptional()
-  logoUrl?: string;
-}
-
-export class SettingsResponseDto {
-  @ApiProperty({ example: 'Mi Negocio' })
-  companyName: string;
-
-  @ApiProperty({ example: 'COP' })
-  currency: string;
-
-  @ApiProperty({ example: 19 })
-  taxRate: number;
-
-  @ApiProperty({ example: 'REC-' })
-  receiptPrefix: string;
-
-  @ApiProperty({ example: 'Comprobante de Pago' })
-  printHeader?: string;
-
-  @ApiProperty({ example: 'Gracias por su compra' })
-  printFooter?: string;
-
-  @ApiPropertyOptional({ example: 'https://example.com/logo.png' })
-  logoUrl?: string;
+  custom?: Record<string, unknown>;
 }
