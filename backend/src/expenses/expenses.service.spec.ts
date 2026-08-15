@@ -29,9 +29,11 @@ describe('ExpensesService', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
+      groupBy: jest.fn(),
     },
     expenseCategory: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     supplier: {
       findFirst: jest.fn(),
@@ -557,6 +559,81 @@ describe('ExpensesService', () => {
     it('throws BadRequestException when organizationId is missing', async () => {
       await expect(
         service.addPayment('exp-1', buildPaymentDto(), userId, undefined),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getMonthlySummary', () => {
+    it('returns the month total and per-category breakdown sorted by total desc', async () => {
+      prismaMock.expense.groupBy.mockResolvedValue([
+        { categoryId: 'cat-2', _sum: { total: new Prisma.Decimal(500000) } },
+        { categoryId: 'cat-1', _sum: { total: new Prisma.Decimal(1000000) } },
+      ]);
+      prismaMock.expenseCategory.findMany.mockResolvedValue([
+        { id: 'cat-1', name: 'Arriendo' },
+        { id: 'cat-2', name: 'Caja menor' },
+      ]);
+
+      const result = await service.getMonthlySummary('2026-08', orgId);
+
+      expect(prismaMock.expense.groupBy).toHaveBeenCalledWith({
+        by: ['categoryId'],
+        where: {
+          organizationId: orgId,
+          active: true,
+          date: {
+            gte: new Date('2026-08-01T05:00:00.000Z'),
+            lte: new Date('2026-09-01T04:59:59.999Z'),
+          },
+        },
+        _sum: { total: true },
+      });
+      expect(prismaMock.expenseCategory.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['cat-2', 'cat-1'] } },
+        select: { id: true, name: true },
+      });
+      expect(result).toEqual({
+        month: '2026-08',
+        total: new Prisma.Decimal(1500000),
+        categories: [
+          {
+            categoryId: 'cat-1',
+            name: 'Arriendo',
+            total: new Prisma.Decimal(1000000),
+          },
+          {
+            categoryId: 'cat-2',
+            name: 'Caja menor',
+            total: new Prisma.Decimal(500000),
+          },
+        ],
+      });
+    });
+
+    it('returns zeros for a month without expenses', async () => {
+      prismaMock.expense.groupBy.mockResolvedValue([]);
+      prismaMock.expenseCategory.findMany.mockResolvedValue([]);
+
+      const result = await service.getMonthlySummary('2026-08', orgId);
+
+      expect(result).toEqual({
+        month: '2026-08',
+        total: new Prisma.Decimal(0),
+        categories: [],
+      });
+    });
+
+    it('rejects malformed month strings with 400', async () => {
+      await expect(
+        service.getMonthlySummary('2026-8', orgId),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(prismaMock.expense.groupBy).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when organizationId is missing', async () => {
+      await expect(
+        service.getMonthlySummary('2026-08', undefined),
       ).rejects.toThrow(BadRequestException);
     });
   });
