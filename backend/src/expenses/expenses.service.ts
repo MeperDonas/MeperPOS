@@ -4,7 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ExpensePaymentStatus, Prisma } from '@prisma/client';
-import { parseBogotaMonthRange } from '../common/utils/bogota-date';
+import {
+  formatDateInBogota,
+  parseBogotaMonthRange,
+} from '../common/utils/bogota-date';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateExpensePaymentDto } from './dto/create-expense-payment.dto';
@@ -430,6 +433,88 @@ export class ExpensesService {
       });
 
       return updated;
+    });
+  }
+
+  async duplicate(
+    id: string,
+    userId: string,
+    organizationId: string | undefined,
+  ) {
+    const orgId = this.requireOrganizationId(organizationId);
+
+    const existing = await this.prisma.expense.findFirst({
+      where: { id, organizationId: orgId },
+      include: { payments: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Salida no encontrada');
+    }
+
+    if (!existing.active) {
+      throw new BadRequestException('No se puede duplicar una salida eliminada');
+    }
+
+    if (existing.payments.length === 0) {
+      throw new BadRequestException(
+        'Cada salida debe registrarse con al menos un pago',
+      );
+    }
+
+    const paymentsSum = this.sumPayments(existing.payments);
+
+    if (paymentsSum.gt(existing.total)) {
+      throw new BadRequestException(
+        'La suma de los pagos no puede superar el total de la salida',
+      );
+    }
+
+    const status = deriveExpensePaymentStatus(existing.total, paymentsSum);
+    const today = new Date(formatDateInBogota(new Date()));
+
+    return this.prisma.$transaction(async (tx) => {
+      const duplicated = await tx.expense.create({
+        data: {
+          organizationId: orgId,
+          categoryId: existing.categoryId,
+          supplierId: existing.supplierId,
+          purchaseOrderId: existing.purchaseOrderId,
+          description: existing.description,
+          date: today,
+          total: existing.total,
+          status,
+          createdById: userId,
+          payments: {
+            create: existing.payments.map((payment) => ({
+              organizationId: orgId,
+              amount: payment.amount,
+              method: payment.method,
+              date: payment.date,
+            })),
+          },
+        },
+        include: { payments: true, category: true, supplier: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'EXPENSE_DUPLICATED',
+          resource: 'Expense',
+          resourceId: duplicated.id,
+          organizationId: orgId,
+          metadata: {
+            summary: 'Salida duplicada',
+            originalId: id,
+            total: existing.total.toString(),
+            status,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+
+      return duplicated;
     });
   }
 
