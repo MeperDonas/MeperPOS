@@ -4,10 +4,6 @@ import { ProductsService } from './products.service';
 const prisma = new PrismaClient();
 
 // Minimal mocks for dependencies not under test
-const settingsServiceMock = {
-  find: jest.fn().mockResolvedValue({}),
-};
-
 const cloudinaryServiceMock = {};
 const planLimitServiceMock = {};
 
@@ -20,7 +16,6 @@ describe('ProductsService — Integration (Query Isolation)', () => {
   beforeAll(async () => {
     service = new ProductsService(
       prisma as never,
-      settingsServiceMock as never,
       cloudinaryServiceMock as never,
       planLimitServiceMock as never,
     );

@@ -11,7 +11,6 @@ import { Prisma, type Category } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProductsService } from '../products/products.service';
-import { SettingsService } from '../settings/settings.service';
 import type { RetryImportRowDto } from './dto/import.dto';
 import {
   detectColumnMapping,
@@ -91,7 +90,6 @@ interface ImportJobInternal {
   seenSkusInFileLower: Set<string>;
   seenBarcodesInFileLower: Set<string>;
   categoriesByNormalizedName: Map<string, Category>;
-  settingsTaxRate: number;
 }
 
 const MAX_FILE_ROWS = 5000;
@@ -118,7 +116,6 @@ export class ImportsService implements OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly productsService: ProductsService,
-    private readonly settingsService: SettingsService,
   ) {
     this.cleanupInterval = setInterval(
       () => {
@@ -166,13 +163,12 @@ export class ImportsService implements OnModuleDestroy {
       );
     }
 
-    const [products, categories, settings] = await Promise.all([
+    const [products, categories] = await Promise.all([
       this.prisma.product.findMany({
         where: { organizationId },
         select: { sku: true, barcode: true },
       }),
       this.prisma.category.findMany({ where: { organizationId } }),
-      this.settingsService.find(organizationId),
     ]);
 
     const job: ImportJobInternal = {
@@ -210,7 +206,6 @@ export class ImportsService implements OnModuleDestroy {
           category,
         ]),
       ),
-      settingsTaxRate: settings?.taxRate ? Number(settings.taxRate) : 0,
     };
 
     this.jobs.set(job.id, job);
@@ -272,12 +267,8 @@ export class ImportsService implements OnModuleDestroy {
         dto.rowIndex,
       );
 
-      const effectiveTaxRate = this.resolveEffectiveTaxRate(
-        parsed.data.taxRate,
-        parsed.data.taxRateProvided,
-        category,
-        job,
-      );
+      const taxable = parsed.data.taxRateProvided && parsed.data.taxRate > 0;
+      const taxRate = taxable ? parsed.data.taxRate : 0;
 
       await this.productsService.create(
         {
@@ -287,7 +278,8 @@ export class ImportsService implements OnModuleDestroy {
           description: parsed.data.description,
           costPrice: parsed.data.costPrice,
           salePrice: parsed.data.salePrice,
-          taxRate: effectiveTaxRate,
+          taxable,
+          taxRate,
           stock: parsed.data.stock,
           minStock: parsed.data.minStock,
           categoryId: category.id,
@@ -295,7 +287,6 @@ export class ImportsService implements OnModuleDestroy {
         userId,
         job.organizationId,
       );
-
       job.importedCount += 1;
       job.errorCount = Math.max(0, job.errorCount - 1);
       unresolvedError.retried = true;
@@ -507,12 +498,8 @@ export class ImportsService implements OnModuleDestroy {
         row.rowIndex,
       );
 
-      const effectiveTaxRate = this.resolveEffectiveTaxRate(
-        parsed.data.taxRate,
-        parsed.data.taxRateProvided,
-        category,
-        job,
-      );
+      const taxable = parsed.data.taxRateProvided && parsed.data.taxRate > 0;
+      const taxRate = taxable ? parsed.data.taxRate : 0;
 
       await this.productsService.create(
         {
@@ -522,7 +509,8 @@ export class ImportsService implements OnModuleDestroy {
           description: parsed.data.description,
           costPrice: parsed.data.costPrice,
           salePrice: parsed.data.salePrice,
-          taxRate: effectiveTaxRate,
+          taxable,
+          taxRate,
           stock: parsed.data.stock,
           minStock: parsed.data.minStock,
           categoryId: category.id,
@@ -1038,33 +1026,6 @@ export class ImportsService implements OnModuleDestroy {
 
       throw error;
     }
-  }
-
-  /**
-   * Resolves the effective tax rate for a product based on precedence:
-   * 1. Explicit value from CSV (taxRateProvided=true) → use as-is
-   * 2. Category's defaultTaxRate → if set
-   * 3. Global settings tax rate → fallback
-   * 4. 0 → last resort
-   */
-  private resolveEffectiveTaxRate(
-    parsedTaxRate: number,
-    taxRateProvided: boolean,
-    category: Category,
-    job: ImportJobInternal,
-  ): number {
-    if (taxRateProvided) {
-      return parsedTaxRate;
-    }
-
-    if (
-      category.defaultTaxRate !== null &&
-      category.defaultTaxRate !== undefined
-    ) {
-      return Number(category.defaultTaxRate);
-    }
-
-    return job.settingsTaxRate;
   }
 
   private mapProductCreationError(
