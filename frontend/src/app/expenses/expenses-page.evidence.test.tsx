@@ -44,6 +44,10 @@ vi.mock("@/components/expenses/HistoryModal", () => ({
   HistoryModal: () => <section>HistoryModal</section>,
 }));
 
+vi.mock("@/components/expenses/ExpenseDetailModal", () => ({
+  ExpenseDetailModal: () => <section>ExpenseDetailModal</section>,
+}));
+
 vi.mock("@/contexts/ToastContext", () => ({
   useToast: () => ({
     success: toastSuccessMock,
@@ -94,6 +98,24 @@ const expenseFixture = {
       organizationId: "org-1",
       amount: "300000",
       method: "CASH",
+      date: "2026-08-01T00:00:00.000Z",
+      createdAt: "2026-08-01T00:00:00.000Z",
+    },
+  ],
+};
+
+const paidExpenseFixture = {
+  ...expenseFixture,
+  id: "exp-2",
+  status: "PAID",
+  description: "Renta julio",
+  payments: [
+    {
+      id: "pay-2",
+      expenseId: "exp-2",
+      organizationId: "org-1",
+      amount: "500000",
+      method: "TRANSFER",
       date: "2026-08-01T00:00:00.000Z",
       createdAt: "2026-08-01T00:00:00.000Z",
     },
@@ -225,6 +247,42 @@ describe("Expenses page evidence", () => {
     await user.click(screen.getByRole("button", { name: "Ver historial" }));
 
     expect(screen.getByText("HistoryModal")).toBeTruthy();
+  });
+
+  it("opens the expense detail modal from the row actions", async () => {
+    const user = userEvent.setup();
+
+    render(<ExpensesPage />);
+
+    await user.click(screen.getByRole("button", { name: "Ver detalle" }));
+
+    expect(screen.getByText("ExpenseDetailModal")).toBeTruthy();
+  });
+
+  it("keeps the add payment button enabled with the Agregar pago label for partial expenses", () => {
+    render(<ExpensesPage />);
+
+    const button = screen.getByRole("button", { name: "Agregar pago" });
+    expect(button).not.toBeDisabled();
+    expect(button).toHaveAttribute("title", "Agregar pago");
+  });
+
+  it("disables the add payment button and exposes the reason for paid expenses", () => {
+    useExpensesMock.mockReturnValue({
+      data: {
+        data: [paidExpenseFixture],
+        meta: { total: 1, page: 1, limit: 15, totalPages: 1 },
+      },
+      isLoading: false,
+    });
+
+    render(<ExpensesPage />);
+
+    const button = screen.getByRole("button", {
+      name: "La salida ya está pagada",
+    });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", "La salida ya está pagada");
   });
 
   it("deletes an expense after confirmation (EXP-5)", async () => {
