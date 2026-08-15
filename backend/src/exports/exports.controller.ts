@@ -101,4 +101,20 @@ export class ExportsController {
       res,
     );
   }
+
+  @Post('expenses')
+  @Roles(OrgRole.ADMIN)
+  @ApiOperation({ summary: 'Export expenses data' })
+  @ApiConsumes('application/json')
+  async exportExpenses(
+    @CurrentUser() user: RequestUser,
+    @Body() query: ExportQueryDto,
+    @Res() res: Response,
+  ) {
+    return this.exportsService.exportExpenses(
+      user.organizationId,
+      query,
+      res,
+    );
+  }
 }

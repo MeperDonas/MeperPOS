@@ -99,6 +99,15 @@ export class ExportsService {
     return this.exportData(movements, 'inventory', query.format, response);
   }
 
+  async exportExpenses(
+    organizationId: string | undefined,
+    query: ExportQueryDto,
+    response: any,
+  ) {
+    const expenses = await this.getExpensesData(organizationId, query);
+    return this.exportData(expenses, 'expenses', query.format, response);
+  }
+
   private async getSalesData(organizationId: string | undefined, query: ExportQueryDto) {
     const where: any = { ...(organizationId ? { organizationId } : {}) };
     if (query.startDate || query.endDate) {
@@ -166,6 +175,32 @@ export class ExportsService {
         product: { select: { name: true, sku: true } },
         user: { select: { name: true } },
       },
+    });
+  }
+
+  private async getExpensesData(
+    organizationId: string | undefined,
+    query: ExportQueryDto,
+  ) {
+    const where: any = {
+      ...(organizationId ? { organizationId } : {}),
+      active: true,
+    };
+    if (query.startDate || query.endDate) {
+      where.date = {};
+      if (query.startDate) where.date.gte = new Date(query.startDate);
+      if (query.endDate) {
+        const end = new Date(query.endDate);
+        end.setHours(23, 59, 59, 999);
+        where.date.lte = end;
+      }
+    }
+
+    return this.prisma.expense.findMany({
+      where,
+      take: query.limit || undefined,
+      orderBy: { date: 'desc' },
+      include: { category: { select: { name: true } } },
     });
   }
 
@@ -309,6 +344,7 @@ export class ExportsService {
         'New Stock',
         'User',
       ],
+      expenses: ['Date', 'Category', 'Description', 'Total', 'Status'],
     };
     return headers[type] || [];
   }
@@ -350,6 +386,13 @@ export class ExportsService {
         item.newStock,
         item.user?.name || 'N/A',
       ],
+      expenses: (item) => [
+        new Date(item.date).toLocaleDateString(),
+        item.category?.name || 'N/A',
+        item.description || 'N/A',
+        Number(item.total).toFixed(2),
+        item.status,
+      ],
     };
     return getters[type](item);
   }
@@ -360,6 +403,7 @@ export class ExportsService {
       products: [50, 25, 25, 20, 20, 15, 15],
       customers: [35, 25, 25, 30, 25, 20],
       inventory: [25, 40, 25, 15, 20, 20, 25],
+      expenses: [25, 40, 40, 20, 20],
     };
     return widths[type] || [];
   }
