@@ -1,5 +1,11 @@
+import { Prisma } from '@prisma/client';
 import { ExportsService } from './exports.service';
 import { ExportQueryDto } from './dto/export.dto';
+import * as csv from '@fast-csv/format';
+
+jest.mock('@fast-csv/format', () => ({
+  write: jest.fn(() => ({ pipe: jest.fn() })),
+}));
 
 describe('ExportsService', () => {
   let service: ExportsService;
@@ -18,9 +24,21 @@ describe('ExportsService', () => {
     customer: {
       findMany: jest.fn(),
     },
+    expense: {
+      findMany: jest.fn(),
+    },
   };
 
   const ORG_ID = 'org-1';
+
+  const buildResMock = () => ({
+    setHeader: jest.fn(),
+    end: jest.fn(),
+    write: jest.fn(),
+    flushHeaders: jest.fn(),
+    pipe: jest.fn(),
+    send: jest.fn(),
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -144,6 +162,86 @@ describe('ExportsService', () => {
       expect.objectContaining({
         where: expect.objectContaining({ organizationId: ORG_ID }),
       }),
+    );
+  });
+
+  it('exportExpenses filters by organizationId, active and the expense date range', async () => {
+    prismaMock.expense.findMany.mockResolvedValue([]);
+    const expectedEnd = new Date('2026-08-31');
+    expectedEnd.setHours(23, 59, 59, 999);
+
+    await service.exportExpenses(
+      ORG_ID,
+      {
+        format: 'pdf',
+        type: 'expenses',
+        startDate: '2026-08-01',
+        endDate: '2026-08-31',
+      } as ExportQueryDto,
+      buildResMock(),
+    );
+
+    expect(prismaMock.expense.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId: ORG_ID,
+          active: true,
+          date: {
+            gte: new Date('2026-08-01'),
+            lte: expectedEnd,
+          },
+        },
+        orderBy: { date: 'desc' },
+        include: { category: { select: { name: true } } },
+      }),
+    );
+  });
+
+  it('exportExpenses writes CSV headers and rows with date, category, description, total and status', async () => {
+    const expenseDate = new Date('2026-08-15T00:00:00.000Z');
+    prismaMock.expense.findMany.mockResolvedValue([
+      {
+        date: expenseDate,
+        category: { name: 'Arriendo' },
+        description: 'Arriendo agosto',
+        total: new Prisma.Decimal(500000),
+        status: 'PAID',
+      },
+    ]);
+
+    await service.exportExpenses(
+      ORG_ID,
+      { format: 'csv', type: 'expenses' } as ExportQueryDto,
+      buildResMock(),
+    );
+
+    expect(csv.write).toHaveBeenCalledWith(
+      [
+        ['Date', 'Category', 'Description', 'Total', 'Status'],
+        [
+          expenseDate.toLocaleDateString(),
+          'Arriendo',
+          'Arriendo agosto',
+          '500000.00',
+          'PAID',
+        ],
+      ],
+      { headers: false },
+    );
+  });
+
+  it('exportExpenses exports an empty result with headers only', async () => {
+    prismaMock.expense.findMany.mockResolvedValue([]);
+
+    await service.exportExpenses(
+      ORG_ID,
+      { format: 'csv', type: 'expenses' } as ExportQueryDto,
+      buildResMock(),
+    );
+
+    expect(csv.write).toHaveBeenCalledWith(
+      [['Date', 'Category', 'Description', 'Total', 'Status']],
+      { headers: false },
     );
   });
 });

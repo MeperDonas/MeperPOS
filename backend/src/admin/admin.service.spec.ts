@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { OrgRole, OrgStatus, PlanType } from '@prisma/client';
+import { DEFAULT_EXPENSE_CATEGORY_NAMES } from '../expenses/default-expense-categories';
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -47,6 +48,9 @@ describe('AdminService', () => {
     cashRegister: {
       create: jest.fn(),
       findMany: jest.fn(),
+    },
+    expenseCategory: {
+      createMany: jest.fn(),
     },
     refreshToken: {
       updateMany: jest.fn(),
@@ -175,6 +179,39 @@ describe('AdminService', () => {
       expect(prismaMock.cashRegister.create).toHaveBeenCalled();
       expect(result.tempPassword).toBeUndefined();
       expect(result.message).toContain('Existing user assigned');
+    });
+
+    it('seeds the five default expense categories inside the creation transaction', async () => {
+      prismaMock.organization.findFirst.mockResolvedValue(null);
+      prismaMock.organization.create.mockResolvedValue({
+        id: 'org-1',
+        name: 'Test Org',
+        slug: 'test-org',
+        plan: PlanType.BASIC,
+        status: OrgStatus.TRIAL,
+      });
+      prismaMock.organizationSequence.createMany.mockResolvedValue({
+        count: 2,
+      });
+      prismaMock.cashRegister.create.mockResolvedValue({
+        id: 'cr-1',
+        organizationId: 'org-1',
+        name: 'Caja Principal',
+        isDefault: true,
+      });
+      prismaMock.expenseCategory.createMany.mockResolvedValue({ count: 5 });
+
+      await service.createOrganization({
+        name: 'Test Org',
+        slug: 'test-org',
+      });
+
+      expect(prismaMock.expenseCategory.createMany).toHaveBeenCalledWith({
+        data: DEFAULT_EXPENSE_CATEGORY_NAMES.map((name) => ({
+          name,
+          organizationId: 'org-1',
+        })),
+      });
     });
 
     it('fails if slug already exists', async () => {
