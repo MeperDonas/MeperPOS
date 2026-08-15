@@ -359,8 +359,8 @@ Basado en el análisis del documento de tesis, propongo el siguiente plan de eje
 ### PASO 1: Configuración Inicial (30 minutos)
 ```bash
 # 1. Crear directorio del proyecto
-mkdir gestion-inventario-app
-cd gestion-inventario-app
+mkdir MeperPOS
+cd MeperPOS
 
 # 2. Inicializar repositorio Git
 git init

@@ -1149,4 +1149,4 @@ CSV legacy que aún trae columna stock. Ignorar con warning y sugerir usar plant
 
 ---
 
-_Plan 05 de 7 — roadmap gestion-inventario-app · Fecha: 2026-04-21_
+_Plan 05 de 7 — roadmap MeperPOS · Fecha: 2026-04-21_

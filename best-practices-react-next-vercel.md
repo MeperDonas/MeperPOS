@@ -2064,7 +2064,7 @@ Ahora voy a explorar el codebase del frontend a fondo y leer las reglas detallad
 ```json
 {
   "description": "Explore frontend codebase",
-  "prompt": "Explore the frontend codebase at C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src thoroughly. I need you to:\n\n1. Read ALL component files in components/ directory (every .tsx file)\n2. Read ALL hook files in hooks/ directory\n3. Read ALL context files (AuthContext, ThemeContext, ToastContext, etc.)\n4. Read ALL page files in app/ directory\n5. Read the api client in lib/api.ts and lib/utils.ts\n6. Read the layout files (DashboardLayout, etc.)\n\nFor each file, report back:\n- The file path\n- A summary of what it does\n- The FULL content of the file (this is critical - I need to see every line of code)\n\nBe very thorough - I need to review every single React/Next.js file in the frontend. Do NOT skip any files.",
+  "prompt": "Explore the frontend codebase at C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src thoroughly. I need you to:\n\n1. Read ALL component files in components/ directory (every .tsx file)\n2. Read ALL hook files in hooks/ directory\n3. Read ALL context files (AuthContext, ThemeContext, ToastContext, etc.)\n4. Read ALL page files in app/ directory\n5. Read the api client in lib/api.ts and lib/utils.ts\n6. Read the layout files (DashboardLayout, etc.)\n\nFor each file, report back:\n- The file path\n- A summary of what it does\n- The FULL content of the file (this is critical - I need to see every line of code)\n\nBe very thorough - I need to review every single React/Next.js file in the frontend. Do NOT skip any files.",
   "subagent_type": "explore"
 }
 ```
@@ -2088,7 +2088,7 @@ I have now read every single file in the frontend `src/` directory. Here is the 
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\lib\api.ts` (144 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\lib\api.ts` (144 lines)
 
 **Summary:** Singleton Axios-based API client with JWT auto-injection, 401 redirect handling, and a versatile error message extractor. Provides `get`, `post`, `put`, `delete`, `upload`, `postWithFormData`, and `exportData` (blob download) methods.
 
@@ -2242,7 +2242,7 @@ export const api = new ApiClient();
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\lib\utils.ts` (33 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\lib\utils.ts` (33 lines)
 
 **Summary:** Utility functions: `cn()` for Tailwind class merging (clsx + twMerge), `formatCurrency()` for COP locale, `formatDate()` and `formatDateTime()` for es-CO date formatting.
 
@@ -2289,7 +2289,7 @@ export function formatDateTime(date: string | Date) {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\types\index.ts` (210 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\types\index.ts` (210 lines)
 
 **Summary:** All TypeScript interfaces for the app: `Product`, `Category`, `Customer`, `Sale`, `Payment`, `SaleItem`, `InventoryMovement`, `Settings`, `DashboardData`, `PaginatedResponse<T>`, `CartItem`, `SearchProductResult`, plus report-specific types (`SaleByPaymentMethod`, `SaleByCategory`, `TopSellingProduct`, `CustomerStatistics`, `DailySale`, `User`).
 
@@ -2513,7 +2513,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\contexts\AuthContext.tsx` (118 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\contexts\AuthContext.tsx` (118 lines)
 
 **Summary:** Authentication context providing `user`, `loading`, `login`, `logout`, and `isAuthenticated`. On mount, validates the session by calling `/auth/profile`. Login stores JWT in localStorage and fetches profile. Logout clears storage and redirects to `/login`.
 
@@ -2521,7 +2521,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\contexts\ThemeContext.tsx` (45 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\contexts\ThemeContext.tsx` (45 lines)
 
 **Summary:** Dark/light theme context. Defaults to "dark". Persists preference in localStorage and toggles a `dark` class on `<html>`.
 
@@ -2529,7 +2529,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\contexts\ToastContext.tsx` (116 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\contexts\ToastContext.tsx` (116 lines)
 
 **Summary:** Toast notification system with `success`, `error`, `info` shortcuts. Renders a fixed overlay in the top-right corner with animated toast cards using lucide-react icons (CheckCircle2, AlertCircle, Info). Auto-dismisses after a configurable duration (default 3.5s).
 
@@ -2541,7 +2541,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useProducts.ts` (146 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useProducts.ts` (146 lines)
 
 **Summary:** TanStack Query hooks for products: `useProducts` (paginated list), `useProduct` (single by ID), `useLowStockProducts`, `useSearchProducts` (enabled when query > 2 chars), `useQuickSearch` (by barcode/SKU), `useCreateProduct`, `useUpdateProduct`, `useDeleteProduct`, `useDeactivateProduct`, `useReactivateProduct`, `useUploadProductImage`, `useUploadProductImageById`. All mutations invalidate the `["products"]` query key.
 
@@ -2549,7 +2549,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useSales.ts` (74 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useSales.ts` (74 lines)
 
 **Summary:** TanStack Query hooks for sales: `useSales` (paginated, with date/status filters), `useSale` (by ID), `useSaleByNumber`, `useCreateSale` (with multi-payment support, invalidates sales+products+dashboard), `useUpdateSaleStatus`.
 
@@ -2557,7 +2557,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useCategories.ts` (64 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useCategories.ts` (64 lines)
 
 **Summary:** TanStack Query hooks for categories: `useCategories` (paginated), `useCategory` (by ID), `useCreateCategory`, `useUpdateCategory`, `useDeleteCategory`.
 
@@ -2565,7 +2565,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useCustomers.ts` (76 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useCustomers.ts` (76 lines)
 
 **Summary:** TanStack Query hooks for customers: `useCustomers` (paginated, with search/segment filters), `useCustomer` (by ID), `useCustomerByDocument`, `useCreateCustomer`, `useUpdateCustomer`, `useDeleteCustomer`.
 
@@ -2573,7 +2573,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useReports.ts` (115 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useReports.ts` (115 lines)
 
 **Summary:** TanStack Query hooks for reports: `useDashboard`, `useSalesByPaymentMethod`, `useSalesByCategory`, `useTopSellingProducts`, `useCustomerStatistics`, `useDailySales`. Also exports `useExportData` which triggers a blob download via `api.exportData`.
 
@@ -2581,7 +2581,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useSettings.ts` (40 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useSettings.ts` (40 lines)
 
 **Summary:** TanStack Query hooks for settings: `useSettings` (fetch), `useUpdateSettings` (mutation), `useInventoryMovements` (paginated, fetches from `/exports/inventory` with `format: "json"`).
 
@@ -2589,7 +2589,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useUsers.ts` (25 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useUsers.ts` (25 lines)
 
 **Summary:** TanStack Query hooks for user management: `useUsers` (list all users), `useCreateUser` (mutation to POST `/auth/users`).
 
@@ -2597,7 +2597,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useProfile.ts` (32 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useProfile.ts` (32 lines)
 
 **Summary:** TanStack Query hooks for the current user profile: `useProfile` (fetch), `useUpdateProfile` (mutation that also updates localStorage), `useChangePassword`.
 
@@ -2605,7 +2605,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useInvoice.ts` (11 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useInvoice.ts` (11 lines)
 
 **Summary:** Simple async function `printInvoice(saleId)` that triggers a blob download of the invoice PDF via `api.exportData`.
 
@@ -2613,7 +2613,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\usePausedSales.ts` (87 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\usePausedSales.ts` (87 lines)
 
 **Summary:** Client-side paused sales manager using localStorage (`paused_sales` key). Provides `pauseSale`, `resumeSale`, `deletePausedSale`, `clearAllPausedSales`. Each paused sale stores the cart, customer ID, discount, and a timestamp.
 
@@ -2629,7 +2629,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\ui\Button.tsx` (88 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\ui\Button.tsx` (88 lines)
 
 **Summary:** Reusable `Button` component with `forwardRef`. Supports 6 variants (primary, secondary, danger, ghost, outline, success), 3 sizes (sm, md, lg), a `loading` state with spinner SVG. Uses `cn()` for class merging.
 
@@ -2637,7 +2637,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\ui\Input.tsx` (56 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\ui\Input.tsx` (56 lines)
 
 **Summary:** Reusable `Input` component with `forwardRef`. Supports both `<input>` and `<textarea>` (via `textarea` prop), label, and error message display. Styled with Tailwind, uses `cn()`.
 
@@ -2645,7 +2645,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\ui\Card.tsx` (61 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\ui\Card.tsx` (61 lines)
 
 **Summary:** Card component system: `Card` (container with optional click handler and hover effects), `CardHeader` (with bottom border), `CardContent` (padded content area), `CardFooter` (with top border).
 
@@ -2653,7 +2653,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\ui\Modal.tsx` (79 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\ui\Modal.tsx` (79 lines)
 
 **Summary:** Modal dialog component. Handles Escape key close, body scroll lock, backdrop click close. Supports 5 sizes (sm to 2xl). Has a title bar with close button and scrollable content area.
 
@@ -2661,7 +2661,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\ui\Select.tsx` (49 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\ui\Select.tsx` (49 lines)
 
 **Summary:** Reusable `Select` dropdown with `forwardRef`. Takes an `options` array of `{value, label}`, supports label and error display. Styled consistently with the Input component.
 
@@ -2669,7 +2669,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\ui\Badge.tsx` (36 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\ui\Badge.tsx` (36 lines)
 
 **Summary:** Badge/pill component with 6 variants (default, success, warning, danger, primary, secondary). Each variant has light and dark mode styles with borders.
 
@@ -2677,7 +2677,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\ui\ConfirmDialog.tsx` (95 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\ui\ConfirmDialog.tsx` (95 lines)
 
 **Summary:** Confirmation dialog with backdrop blur, warning icon, title/message, and cancel/confirm buttons. The confirm button has a loading state. Used for delete/deactivate confirmations.
 
@@ -2685,7 +2685,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\ui\ImageUpload.tsx` (147 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\ui\ImageUpload.tsx` (147 lines)
 
 **Summary:** Image upload component with drag-to-click interface. Validates file size (max 5MB) and type (image/*). Shows a preview with remove/change overlay on hover. Supports an `onUpload` callback for server upload or falls back to base64 FileReader.
 
@@ -2697,7 +2697,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\layout\DashboardLayout.tsx` (74 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\layout\DashboardLayout.tsx` (74 lines)
 
 **Summary:** Main authenticated layout wrapper. Enforces auth redirect (to `/login` if not authenticated). Enforces role-based route access via `routeRoleMap` -- redirects unauthorized users to `/pos` (CASHIER) or `/dashboard` (others). Renders the `Sidebar` and a main content area with `lg:ml-64` offset.
 
@@ -2705,7 +2705,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\layout\Sidebar.tsx` (263 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\layout\Sidebar.tsx` (263 lines)
 
 **Summary:** Responsive sidebar navigation. Desktop: fixed 256px left sidebar. Mobile: slide-over with hamburger toggle and overlay. Shows brand logo (Boxes icon), user avatar with initials and role label, navigation items filtered by user role, theme toggle (dark/light), and logout button. Navigation items: Dashboard, POS, Inventario, Ventas, Clientes, Reportes, Categorias, Mi Perfil, Configuracion.
 
@@ -2717,7 +2717,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\products\ProductCard.tsx` (164 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\products\ProductCard.tsx` (164 lines)
 
 **Summary:** Product card used in both POS and inventory modes. Shows product image (or Package icon placeholder), name, SKU, category, price, stock, and status badges (Inactive, Low Stock, Stock OK). POS mode: has a favorite star toggle button. Inventory mode: has deactivate/reactivate buttons.
 
@@ -2729,7 +2729,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\pos\PaymentConfirmationModal.tsx` (398 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\pos\PaymentConfirmationModal.tsx` (398 lines)
 
 **Summary:** Complex payment confirmation modal for the POS. Shows a two-column layout: left side has purchase summary (cart items with images, customer, payment badge), right side has multi-payment management (add/remove CASH/CARD/TRANSFER methods, quick cash amounts, "Complete with Cash" button). Calculates totalPaid, remaining, change. Shows subtotal/tax/discounts/total breakdown. Confirm button is disabled until payment covers the total.
 
@@ -2737,7 +2737,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\pos\QuickAmountButtons.tsx` (50 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\pos\QuickAmountButtons.tsx` (50 lines)
 
 **Summary:** Quick cash denomination buttons (10k, 20k, 50k, 100k COP bills) plus an "Exact" button showing the sale total. Used in the POS for fast cash entry.
 
@@ -2745,7 +2745,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\pos\PaymentMethodCards.tsx` (90 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\pos\PaymentMethodCards.tsx` (90 lines)
 
 **Summary:** Payment method selector rendered as three clickable cards (Efectivo/Tarjeta/Transferencia) with icons (DollarSign/CreditCard/Smartphone). Selected card has a primary-colored checkmark badge and highlighted styling.
 
@@ -2757,7 +2757,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\providers\QueryProvider.tsx` (24 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\providers\QueryProvider.tsx` (24 lines)
 
 **Summary:** TanStack Query (React Query v5) provider. Creates a singleton `QueryClient` with 60s stale time and `refetchOnWindowFocus: false`.
 
@@ -2769,7 +2769,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\layout.tsx` (51 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\layout.tsx` (51 lines)
 
 **Summary:** Root layout. Loads three Google fonts: Syne (headings), DM Sans (body), JetBrains Mono (code/numbers). Wraps children in `QueryProvider > ThemeProvider > ToastProvider > AuthProvider`. Sets lang="es" and metadata title "Gestion de Inventario".
 
@@ -2777,7 +2777,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\globals.css` (280 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\globals.css` (280 lines)
 
 **Summary:** Global CSS with TailwindCSS v4 imports. Defines CSS custom properties for light (`:root`) and dark (`.dark`) themes. Maps them to Tailwind theme tokens via `@theme inline`. Defines body background gradients (subtle blue/amber blobs, dot grid in dark mode), heading typography (Syne font), `.stat-number` monospace class, animations (`fade-in-up`, `fade-in`, `slide-in-left`, `stagger-children`), `.glass` utility, `.sidebar-item` styles with active indicator, and custom scrollbar styles (`.scrollbar-hide`, `.scrollbar-app`).
 
@@ -2785,7 +2785,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\page.tsx` (26 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\page.tsx` (26 lines)
 
 **Summary:** Home page (`/`). Simple redirect: sends authenticated users to `/dashboard`, unauthenticated to `/login`. Shows a spinner while loading.
 
@@ -2793,7 +2793,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\login\page.tsx` (271 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\login\page.tsx` (271 lines)
 
 **Summary:** Login page with a dark, glassmorphism-styled card on a dark background with radial gradient blobs and dot grid. Features email/password fields with inline focus styling, a gradient submit button, a link to register, and test credential buttons for Admin/Cajero/Inventario roles that auto-fill the form. All styled with inline styles rather than Tailwind for the custom dark theme.
 
@@ -2801,7 +2801,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\register\page.tsx` (63 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\register\page.tsx` (63 lines)
 
 **Summary:** Registration page that displays a "restricted access" message explaining that only admins can create accounts. Has a lock icon, explanation text, an amber warning box, and a button to go back to login.
 
@@ -2809,7 +2809,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\dashboard\page.tsx` (185 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\dashboard\page.tsx` (185 lines)
 
 **Summary:** Dashboard page showing a greeting with user's first name, current date, 4 stat cards (total sales, revenue, products, customers) with trend indicators, a low-stock alert banner linking to inventory, and a recent sales table with columns for sale number, customer, items, total, and date.
 
@@ -2817,7 +2817,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\pos\page.tsx` (580 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\pos\page.tsx` (580 lines)
 
 **Summary:** Full Point of Sale page. Left panel (8 columns): product grid with search, favorites filter, customer selector button. Right panel (4 columns): cart with quantity controls, per-item discount editing, subtotal/tax/discount/total summary, pause/resume sale buttons, payment method cards, and "Finalizar Venta" button. Includes modals for: customer selection, payment confirmation (delegates to `PaymentConfirmationModal`), invoice success with print button, per-item discount editing (with 10%/20%/50% shortcuts), paused sales management, and delete confirmation for paused sales. Uses localStorage for favorite product IDs.
 
@@ -2825,7 +2825,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\inventory\page.tsx` (767 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\inventory\page.tsx` (767 lines)
 
 **Summary:** Inventory management page. Features a filter bar with search input, status filter (active/inactive/all), category filter dropdown, low-stock toggle button with count badge, and clear filters button. Shows products in a responsive grid using `ProductCard` in "inventory" mode. Supports creating/editing products via a modal form with image upload (Cloudinary), all product fields (name, SKU, barcode, category, cost/sale prices, tax rate, stock, min stock, description). Has deactivate, reactivate, and permanent delete flows each with confirmation dialogs. Role-gated: only ADMIN and INVENTORY_USER can manage.
 
@@ -2833,7 +2833,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\sales\page.tsx` (523 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\sales\page.tsx` (523 lines)
 
 **Summary:** Sales history page. Filter bar with search by sale number/customer name, date period quick selects (Today, This Week). Sales displayed in a table with columns: sale number, date, customer, payment method badge (with icon), status badge (Completed/Cancelled/Partial), total, and action buttons (view details, download invoice, cancel). Detail modal shows customer, date, status, payment methods breakdown, items list with prices, and subtotal/tax/discount/total summary with invoice download button. Cancel sale requires confirmation dialog.
 
@@ -2841,7 +2841,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\customers\page.tsx` (306 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\customers\page.tsx` (306 lines)
 
 **Summary:** Customer management page. Segment filter tabs (All/VIP/Frequent/Occasional/Inactive) with color-coded styling. Customer cards show avatar with initials, name, segment badge, document type/number, email, phone, address. Cards have hover-reveal edit/delete buttons. Create/edit modal with fields: name, document type (CC/NIT/CE/TI), document number, email, phone, address, segment. Role-gated: ADMIN+CASHIER can create, only ADMIN can edit/delete.
 
@@ -2849,7 +2849,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\reports\page.tsx` (512 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\reports\page.tsx` (512 lines)
 
 **Summary:** Reports/analytics page. Date range filter with quick selects (Today, This Week) and custom date pickers showing day count. Four stat cards. Two chart-like sections: Sales by Payment Method (horizontal progress bars with percentages) and Sales by Category (progress bars). Two ranking sections: Top 5 Selling Products and Top Customers. Export section with 4 data types (sales, products, customers, inventory) each exportable as PDF/Excel/CSV.
 
@@ -2857,7 +2857,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\categories\page.tsx` (204 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\categories\page.tsx` (204 lines)
 
 **Summary:** Categories management page. Shows categories in a color-gradient card grid (cycling through 6 gradient palettes). Each card has a FolderTree icon, name, description, and hover-reveal edit/delete buttons. Create/edit modal with name and description (textarea) fields. Search bar and pagination.
 
@@ -2865,7 +2865,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\profile\page.tsx` (203 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\profile\page.tsx` (203 lines)
 
 **Summary:** User profile page. Shows an avatar card with large initials, name, email, role badge (with Shield icon), and active/inactive status indicator. Personal info form (name editable, email disabled). Password change form with current password, new password, confirm password, and 6-character minimum validation.
 
@@ -2873,7 +2873,7 @@ export interface User {
 
 ---
 
-### File: `C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\settings\page.tsx` (393 lines)
+### File: `C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\settings\page.tsx` (393 lines)
 
 **Summary:** Settings page (ADMIN only). Three sections: (1) General Settings -- company name, currency, tax rate, invoice prefix, logo upload/preview/delete, print header/footer textareas. (2) Receipt Preview -- live preview card showing how the receipt will look with current settings. (3) User Management -- lists all users with avatar, name, email, role badge, active status badge, toggle active/deactivate button, and delete button. Create user modal with name, email, password, role selector.
 
@@ -2952,13 +2952,13 @@ Ahora déjame leer los archivos clave directamente para poder hacer correcciones
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\layout.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\layout.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\layout.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\layout.tsx</path>
 <type>file</type>
 <content>1: import type { Metadata } from "next";
 2: import { Syne, DM_Sans, JetBrains_Mono } from "next/font/google";
@@ -3021,13 +3021,13 @@ Ahora déjame leer los archivos clave directamente para poder hacer correcciones
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\AuthContext.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\AuthContext.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\contexts\AuthContext.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\contexts\AuthContext.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -3157,13 +3157,13 @@ Ahora déjame leer los archivos clave directamente para poder hacer correcciones
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\ThemeContext.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\ThemeContext.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\contexts\ThemeContext.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\contexts\ThemeContext.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -3220,13 +3220,13 @@ Ahora déjame leer los archivos clave directamente para poder hacer correcciones
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\ToastContext.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\ToastContext.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\contexts\ToastContext.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\contexts\ToastContext.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -3354,13 +3354,13 @@ Ahora déjame leer los archivos clave directamente para poder hacer correcciones
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\providers\\QueryProvider.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\providers\\QueryProvider.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\providers\QueryProvider.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\providers\QueryProvider.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -3396,13 +3396,13 @@ Ahora déjame leer los archivos clave directamente para poder hacer correcciones
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\useProducts.ts"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\useProducts.ts"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useProducts.ts</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useProducts.ts</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -3560,13 +3560,13 @@ Ahora déjame leer los archivos clave directamente para poder hacer correcciones
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\useSales.ts"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\useSales.ts"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useSales.ts</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useSales.ts</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -3652,13 +3652,13 @@ Ahora déjame leer los archivos clave directamente para poder hacer correcciones
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\usePausedSales.ts"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\usePausedSales.ts"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\usePausedSales.ts</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\usePausedSales.ts</path>
 <type>file</type>
 <content>1: import { useEffect, useState } from "react";
 2: import type { CartItem } from "@/types";
@@ -3757,13 +3757,13 @@ Ahora déjame leer los archivos clave directamente para poder hacer correcciones
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\lib\\api.ts"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\lib\\api.ts"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\lib\api.ts</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\lib\api.ts</path>
 <type>file</type>
 <content>1: import axios, { AxiosInstance, AxiosError } from "axios";
 2: 
@@ -3929,13 +3929,13 @@ Ahora leamos las páginas más grandes para el análisis detallado:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\pos\\page.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\pos\\page.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\pos\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\pos\page.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -4527,13 +4527,13 @@ Ahora leamos las páginas más grandes para el análisis detallado:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\inventory\\page.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\inventory\\page.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\inventory\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\inventory\page.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -5312,13 +5312,13 @@ Ahora leamos las páginas más grandes para el análisis detallado:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\dashboard\\page.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\dashboard\\page.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\dashboard\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\dashboard\page.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -5515,13 +5515,13 @@ Ahora leamos las páginas más grandes para el análisis detallado:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\layout\\Sidebar.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\layout\\Sidebar.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\layout\Sidebar.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\layout\Sidebar.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -5796,13 +5796,13 @@ Ahora leamos las páginas más grandes para el análisis detallado:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\layout\\DashboardLayout.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\layout\\DashboardLayout.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\layout\DashboardLayout.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\layout\DashboardLayout.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -5898,13 +5898,13 @@ Now let me also read the remaining important files:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\ui\\Modal.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\ui\\Modal.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\ui\Modal.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\ui\Modal.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -5995,13 +5995,13 @@ Now let me also read the remaining important files:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\pos\\PaymentConfirmationModal.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\pos\\PaymentConfirmationModal.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\pos\PaymentConfirmationModal.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\pos\PaymentConfirmationModal.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -6411,13 +6411,13 @@ Now let me also read the remaining important files:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\reports\\page.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\reports\\page.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\reports\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\reports\page.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -6941,13 +6941,13 @@ Now let me also read the remaining important files:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\sales\\page.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\sales\\page.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\sales\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\sales\page.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -7482,13 +7482,13 @@ Now let me also read the remaining important files:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\settings\\page.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\settings\\page.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\settings\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\settings\page.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -7893,13 +7893,13 @@ Now let me also read the remaining important files:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\useReports.ts"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\useReports.ts"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useReports.ts</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useReports.ts</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -8026,13 +8026,13 @@ Now let me also read the remaining important files:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\useSettings.ts"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\useSettings.ts"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useSettings.ts</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useSettings.ts</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -8084,13 +8084,13 @@ Now let me also read the remaining important files:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\useProfile.ts"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\useProfile.ts"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useProfile.ts</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useProfile.ts</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -8134,13 +8134,13 @@ Now let me also read the remaining important files:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\products\\ProductCard.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\products\\ProductCard.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\products\ProductCard.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\products\ProductCard.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 
@@ -8332,7 +8332,7 @@ Let me also check the Next.js config for optimization opportunities:
 
 **Output:**
 ```
-C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\next.config.ts
+C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\next.config.ts
 ```
 
 **Tool: glob**
@@ -8346,7 +8346,7 @@ C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\next.co
 
 **Output:**
 ```
-C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\package.json
+C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\package.json
 ```
 
 ---
@@ -8358,13 +8358,13 @@ C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\package
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\next.config.ts"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\next.config.ts"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\next.config.ts</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\next.config.ts</path>
 <type>file</type>
 <content>1: import type { NextConfig } from "next";
 2: 
@@ -8384,13 +8384,13 @@ C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\package
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\package.json"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\package.json"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\package.json</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\package.json</path>
 <type>file</type>
 <content>1: {
 2:   "name": "frontend",
@@ -8988,7 +8988,7 @@ Empiezo con los fixes. Voy a hacer varios en paralelo cuando no tengan dependenc
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\next.config.ts",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\next.config.ts",
   "oldString": "const nextConfig: NextConfig = {\n  /* config options here */\n  reactCompiler: true,\n};",
   "newString": "const nextConfig: NextConfig = {\n  reactCompiler: true,\n  experimental: {\n    optimizePackageImports: [\"lucide-react\", \"@tanstack/react-query\"],\n  },\n  images: {\n    remotePatterns: [\n      {\n        protocol: \"https\",\n        hostname: \"res.cloudinary.com\",\n      },\n    ],\n  },\n};"
 }
@@ -9010,7 +9010,7 @@ Ahora aplico los fixes 2-8 en paralelo (son independientes entre si):
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\sales\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\sales\\page.tsx",
   "oldString": "  const { data, isLoading } = useSales({\n    page,\n    limit: 20,\n    status: status || undefined,\n  });",
   "newString": "  const { data, isLoading } = useSales({\n    page,\n    limit: 20,\n    status: status || undefined,\n    startDate: startDate || undefined,\n    endDate: endDate || undefined,\n  });"
 }
@@ -9026,7 +9026,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\ThemeContext.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\ThemeContext.tsx",
   "oldString": "import { createContext, useContext, useEffect, useState } from \"react\";",
   "newString": "import { createContext, useCallback, useContext, useEffect, useMemo, useState } from \"react\";"
 }
@@ -9042,7 +9042,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\ThemeContext.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\ThemeContext.tsx",
   "oldString": "  const toggleTheme = () => {\n    setTheme((prev) => (prev === \"dark\" ? \"light\" : \"dark\"));\n  };\n\n  return (\n    <ThemeContext.Provider value={{ theme, toggleTheme }}>\n      {children}\n    </ThemeContext.Provider>\n  );",
   "newString": "  const toggleTheme = useCallback(() => {\n    setTheme((prev) => (prev === \"dark\" ? \"light\" : \"dark\"));\n  }, []);\n\n  const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme]);\n\n  return (\n    <ThemeContext.Provider value={value}>\n      {children}\n    </ThemeContext.Provider>\n  );"
 }
@@ -9058,7 +9058,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\ui\\Modal.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\ui\\Modal.tsx",
   "oldString": "  useEffect(() => {\n    const handleEscape = (e: KeyboardEvent) => {\n      if (e.key === \"Escape\" && isOpen) onClose();\n    };\n    window.addEventListener(\"keydown\", handleEscape);\n    return () => window.removeEventListener(\"keydown\", handleEscape);\n  }, [isOpen, onClose]);",
   "newString": "  useEffect(() => {\n    if (!isOpen) return;\n    const handleEscape = (e: KeyboardEvent) => {\n      if (e.key === \"Escape\") onClose();\n    };\n    window.addEventListener(\"keydown\", handleEscape);\n    return () => window.removeEventListener(\"keydown\", handleEscape);\n  }, [isOpen, onClose]);"
 }
@@ -9074,7 +9074,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\useProducts.ts",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\useProducts.ts",
   "oldString": "export function useUploadProductImage() {\n  const queryClient = useQueryClient();\n\n  return useMutation({\n    mutationFn: (file: File) =>\n      api.upload<{ imageUrl: string }>(\"/products/upload\", file).then(\n        (res) => res.data\n      ),\n  });\n}",
   "newString": "export function useUploadProductImage() {\n  return useMutation({\n    mutationFn: (file: File) =>\n      api.upload<{ imageUrl: string }>(\"/products/upload\", file).then(\n        (res) => res.data\n      ),\n  });\n}"
 }
@@ -9090,7 +9090,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\inventory\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\inventory\\page.tsx",
   "oldString": "  const lowStockProducts = products.filter((p) => p.stock <= p.minStock);\n  const displayProducts = showLowStockOnly\n    ? lowStockProducts.sort((a, b) => a.stock - b.stock)\n    : [...products].sort((a, b) => {\n        const aLow = a.stock <= a.minStock ? 0 : 1;\n        const bLow = b.stock <= b.minStock ? 0 : 1;\n        return aLow - bLow;\n      });",
   "newString": "  const lowStockProducts = products.filter((p) => p.stock <= p.minStock);\n  const displayProducts = showLowStockOnly\n    ? lowStockProducts.toSorted((a, b) => a.stock - b.stock)\n    : products.toSorted((a, b) => {\n        const aLow = a.stock <= a.minStock ? 0 : 1;\n        const bLow = b.stock <= b.minStock ? 0 : 1;\n        return aLow - bLow;\n      });"
 }
@@ -9106,7 +9106,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\usePausedSales.ts",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\usePausedSales.ts",
   "oldString": "      id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9),",
   "newString": "      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 11),"
 }
@@ -9330,17 +9330,17 @@ Edit applied successfully.
 {
   "pattern": "<img\\s",
   "include": "*.tsx",
-  "path": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src"
+  "path": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src"
 }
 ```
 
 **Output:**
 ```
 Found 2 matches
-C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\pos\page.tsx:
+C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\pos\page.tsx:
   Line 318:                         <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover" />
 
-C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\settings\page.tsx:
+C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\settings\page.tsx:
   Line 212:                         <img src={logoPreview || formData.logoUrl} alt="Logo" className="w-full h-full object-contain" />
 ```
 
@@ -9355,7 +9355,7 @@ C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app
 {
   "pattern": "<img$|<img |<img\\n",
   "include": "*.tsx",
-  "path": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src"
+  "path": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src"
 }
 ```
 
@@ -9375,20 +9375,20 @@ No files found
 {
   "pattern": "src=\\{.*imageUrl",
   "include": "*.tsx",
-  "path": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src"
+  "path": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src"
 }
 ```
 
 **Output:**
 ```
 Found 3 matches
-C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\products\ProductCard.tsx:
+C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\products\ProductCard.tsx:
   Line 57:                 src={product.imageUrl}
 
-C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\pos\page.tsx:
+C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\pos\page.tsx:
   Line 318:                         <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover" />
 
-C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\components\pos\PaymentConfirmationModal.tsx:
+C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\components\pos\PaymentConfirmationModal.tsx:
   Line 163:                         src={item.product.imageUrl}
 ```
 
@@ -9403,7 +9403,7 @@ Hay 4 archivos con `<img>` tags para imagenes de productos. Voy a actualizarlos 
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\products\\ProductCard.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\products\\ProductCard.tsx",
   "oldString": "import { Badge } from \"@/components/ui/Badge\";\nimport { Button } from \"@/components/ui/Button\";\nimport { Card, CardContent } from \"@/components/ui/Card\";\nimport { formatCurrency } from \"@/lib/utils\";\nimport { Package, Power, RotateCcw, Star } from \"lucide-react\";",
   "newString": "import Image from \"next/image\";\nimport { Badge } from \"@/components/ui/Badge\";\nimport { Button } from \"@/components/ui/Button\";\nimport { Card, CardContent } from \"@/components/ui/Card\";\nimport { formatCurrency } from \"@/lib/utils\";\nimport { Package, Power, RotateCcw, Star } from \"lucide-react\";"
 }
@@ -9419,7 +9419,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\products\\ProductCard.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\products\\ProductCard.tsx",
   "oldString": "            {product.imageUrl ? (\n              <img\n                src={product.imageUrl}\n                alt={product.name}\n                className=\"h-full w-full object-cover\"\n              />\n            ) : (",
   "newString": "            {product.imageUrl ? (\n              <Image\n                src={product.imageUrl}\n                alt={product.name}\n                fill\n                sizes=\"(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw\"\n                className=\"object-cover\"\n              />\n            ) : ("
 }
@@ -9435,7 +9435,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\pos\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\pos\\page.tsx",
   "oldString": "import { useState, useCallback, useMemo, useEffect } from \"react\";\nimport { DashboardLayout } from \"@/components/layout/DashboardLayout\";",
   "newString": "import { useState, useCallback, useMemo, useEffect } from \"react\";\nimport Image from \"next/image\";\nimport { DashboardLayout } from \"@/components/layout/DashboardLayout\";"
 }
@@ -9451,7 +9451,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\pos\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\pos\\page.tsx",
   "oldString": "                      {item.product.imageUrl ? (\n                        <img src={item.product.imageUrl} alt={item.product.name} className=\"w-full h-full object-cover\" />\n                      ) : (",
   "newString": "                      {item.product.imageUrl ? (\n                        <Image src={item.product.imageUrl} alt={item.product.name} fill sizes=\"40px\" className=\"object-cover\" />\n                      ) : ("
 }
@@ -9467,7 +9467,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\pos\\PaymentConfirmationModal.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\pos\\PaymentConfirmationModal.tsx",
   "oldString": "\"use client\";\n\nimport { useMemo } from \"react\";\nimport { Modal } from \"@/components/ui/Modal\";",
   "newString": "\"use client\";\n\nimport { useMemo } from \"react\";\nimport Image from \"next/image\";\nimport { Modal } from \"@/components/ui/Modal\";"
 }
@@ -9483,7 +9483,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\pos\\PaymentConfirmationModal.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\pos\\PaymentConfirmationModal.tsx",
   "oldString": "                    {item.product.imageUrl ? (\n                      <img\n                        src={item.product.imageUrl}\n                        alt={item.product.name}\n                        className=\"w-full h-full object-cover\"\n                      />\n                    ) : (",
   "newString": "                    {item.product.imageUrl ? (\n                      <Image\n                        src={item.product.imageUrl}\n                        alt={item.product.name}\n                        fill\n                        sizes=\"48px\"\n                        className=\"object-cover\"\n                      />\n                    ) : ("
 }
@@ -9499,7 +9499,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\settings\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\settings\\page.tsx",
   "oldString": "\"use client\";\n\nimport { useState, useEffect } from \"react\";\nimport { DashboardLayout } from \"@/components/layout/DashboardLayout\";",
   "newString": "\"use client\";\n\nimport { useState, useEffect } from \"react\";\nimport Image from \"next/image\";\nimport { DashboardLayout } from \"@/components/layout/DashboardLayout\";"
 }
@@ -9515,7 +9515,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\settings\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\settings\\page.tsx",
   "oldString": "                        <img src={logoPreview || formData.logoUrl} alt=\"Logo\" className=\"w-full h-full object-contain\" />",
   "newString": "                        <Image src={logoPreview || formData.logoUrl} alt=\"Logo\" fill sizes=\"64px\" className=\"object-contain\" />"
 }
@@ -9537,7 +9537,7 @@ Necesito agregar `relative` a los contenedores de las imagenes para que `fill` f
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\products\\ProductCard.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\products\\ProductCard.tsx",
   "oldString": "          <div className=\"aspect-[4/3] flex items-center justify-center\">",
   "newString": "          <div className=\"relative aspect-[4/3] flex items-center justify-center\">"
 }
@@ -9553,7 +9553,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\pos\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\pos\\page.tsx",
   "oldString": "                    <div className=\"w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 overflow-hidden\">",
   "newString": "                    <div className=\"relative w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 overflow-hidden\">"
 }
@@ -9569,7 +9569,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\pos\\PaymentConfirmationModal.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\pos\\PaymentConfirmationModal.tsx",
   "oldString": "                  <div className=\"w-12 h-12 bg-gradient-to-br from-primary/10 to-terracotta/10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden\">",
   "newString": "                  <div className=\"relative w-12 h-12 bg-gradient-to-br from-primary/10 to-terracotta/10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden\">"
 }
@@ -9585,7 +9585,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\settings\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\settings\\page.tsx",
   "oldString": "                      <div className=\"w-16 h-16 bg-muted/50 rounded-xl border border-border/60 flex items-center justify-center overflow-hidden\">",
   "newString": "                      <div className=\"relative w-16 h-16 bg-muted/50 rounded-xl border border-border/60 flex items-center justify-center overflow-hidden\">"
 }
@@ -9807,7 +9807,7 @@ Ahora **Fix 5: Sidebar.tsx** - extraer SidebarContent fuera del componente:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\layout\\Sidebar.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\layout\\Sidebar.tsx",
   "oldString": "  const SidebarContent = () => (\n    <>\n      {/* Brand */}\n      <div className=\"px-5 py-5 border-b border-white/[0.06]\">\n        <div className=\"flex items-center gap-3\">\n          <div className=\"w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/30\">\n            <Boxes className=\"w-4 h-4 text-white\" />\n          </div>\n          <div className=\"min-w-0\">\n            <p className=\"text-sm font-bold text-white truncate leading-tight\"\n               style={{ fontFamily: \"var(--font-syne, sans-serif)\" }}>\n              Inventario\n            </p>\n            <p className=\"text-[10px] text-white/35 uppercase tracking-widest leading-tight\">\n              Sistema de Gestión\n            </p>\n          </div>\n        </div>\n      </div>\n\n      {/* User */}\n      {user && (\n        <div className=\"px-5 py-3.5 border-b border-white/[0.06]\">\n          <div className=\"flex items-center gap-3\">\n            <div className=\"w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0\">\n              <span className=\"text-xs font-bold text-primary\"\n                    style={{ fontFamily: \"var(--font-syne, sans-serif)\" }}>\n                {initials}\n              </span>\n            </div>\n            <div className=\"min-w-0\">\n              <p className=\"text-xs font-semibold text-white/80 truncate leading-tight\">\n                {user.name}\n              </p>\n              <p className=\"text-[10px] text-white/35 truncate leading-tight\">\n                {roleLabels[user.role] ?? user.role}\n              </p>\n            </div>\n          </div>\n        </div>\n      )}\n\n      {/* Nav */}\n      <nav className=\"flex-1 overflow-y-auto px-3 py-3 scrollbar-hide\">\n        <ul className=\"space-y-0.5\">\n          {filteredItems.map((item) => {\n            const isActive = pathname === item.href;\n            return (\n              <li key={item.href}>\n                <Link\n                  href={item.href}\n                  onClick={closeMobileMenu}\n                  className={cn(\"sidebar-item\", isActive && \"active\")}\n                >\n                  <span className={cn(\n                    \"shrink-0 transition-colors duration-200\",\n                    isActive ? \"text-primary\" : \"text-white/40\"\n                  )}>\n                    {item.icon}\n                  </span>\n                  <span>{item.label}</span>\n                </Link>\n              </li>\n            );\n          })}\n        </ul>\n      </nav>\n\n      {/* Footer */}\n      <div className=\"px-3 py-3 border-t border-white/[0.06] space-y-0.5\">\n        <button\n          onClick={toggleTheme}\n          className=\"sidebar-item w-full\"\n        >\n          <span className=\"text-white/40 shrink-0\">\n            {theme === \"dark\" ? (\n              <Sun className=\"w-4 h-4\" />\n            ) : (\n              <Moon className=\"w-4 h-4\" />\n            )}\n          </span>\n          <span>{theme === \"dark\" ? \"Modo Claro\" : \"Modo Oscuro\"}</span>\n        </button>\n        <button\n          onClick={logout}\n          className=\"sidebar-item w-full !text-red-400/70 hover:!text-red-400 hover:!bg-red-500/10\"\n        >\n          <LogOut className=\"w-4 h-4 shrink-0\" />\n          <span>Cerrar Sesión</span>\n        </button>\n      </div>\n    </>\n  );\n\n  return (\n    <>\n      {/* Mobile Header */}\n      <header\n        className=\"lg:hidden fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 border-b\"\n        style={{ backgroundColor: \"var(--sidebar-bg)\", borderColor: \"rgba(255,255,255,0.06)\" }}\n      >\n        <div className=\"flex items-center gap-2.5\">\n          <div className=\"w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/30\">\n            <Boxes className=\"w-3.5 h-3.5 text-white\" />\n          </div>\n          <span className=\"text-sm font-bold text-white\"\n                style={{ fontFamily: \"var(--font-syne, sans-serif)\" }}>\n            Inventario\n          </span>\n        </div>\n        <button\n          onClick={toggleMobileMenu}\n          className=\"p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors\"\n          aria-label={isMobileMenuOpen ? \"Cerrar menú\" : \"Abrir menú\"}\n        >\n          {isMobileMenuOpen ? <X className=\"w-5 h-5\" /> : <Menu className=\"w-5 h-5\" />}\n        </button>\n      </header>\n\n      {/* Mobile Overlay */}\n      {isMobileMenuOpen && (\n        <div\n          className=\"lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40\"\n          onClick={closeMobileMenu}\n        />\n      )}\n\n      {/* Sidebar */}\n      <aside\n        className={cn(\n          \"fixed top-0 left-0 h-screen flex flex-col z-50 w-64\",\n          \"transition-transform duration-300 ease-in-out\",\n          \"lg:translate-x-0\",\n          isMobileMenuOpen ? \"translate-x-0\" : \"-translate-x-full\",\n          \"lg:mt-0 mt-14\"\n        )}\n        style={{\n          backgroundColor: \"var(--sidebar-bg)\",\n          borderRight: \"1px solid rgba(255,255,255,0.05)\",\n        }}\n      >\n        <div className=\"hidden lg:flex flex-col flex-1 min-h-0\">\n          <SidebarContent />\n        </div>\n        <div className=\"flex lg:hidden flex-col flex-1 min-h-0\">\n          <SidebarContent />\n        </div>\n      </aside>\n    </>\n  );\n}",
   "newString": "  const sidebarContent = (\n    <>\n      {/* Brand */}\n      <div className=\"px-5 py-5 border-b border-white/[0.06]\">\n        <div className=\"flex items-center gap-3\">\n          <div className=\"w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/30\">\n            <Boxes className=\"w-4 h-4 text-white\" />\n          </div>\n          <div className=\"min-w-0\">\n            <p className=\"text-sm font-bold text-white truncate leading-tight\"\n               style={{ fontFamily: \"var(--font-syne, sans-serif)\" }}>\n              Inventario\n            </p>\n            <p className=\"text-[10px] text-white/35 uppercase tracking-widest leading-tight\">\n              Sistema de Gestión\n            </p>\n          </div>\n        </div>\n      </div>\n\n      {/* User */}\n      {user ? (\n        <div className=\"px-5 py-3.5 border-b border-white/[0.06]\">\n          <div className=\"flex items-center gap-3\">\n            <div className=\"w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0\">\n              <span className=\"text-xs font-bold text-primary\"\n                    style={{ fontFamily: \"var(--font-syne, sans-serif)\" }}>\n                {initials}\n              </span>\n            </div>\n            <div className=\"min-w-0\">\n              <p className=\"text-xs font-semibold text-white/80 truncate leading-tight\">\n                {user.name}\n              </p>\n              <p className=\"text-[10px] text-white/35 truncate leading-tight\">\n                {roleLabels[user.role] ?? user.role}\n              </p>\n            </div>\n          </div>\n        </div>\n      ) : null}\n\n      {/* Nav */}\n      <nav className=\"flex-1 overflow-y-auto px-3 py-3 scrollbar-hide\">\n        <ul className=\"space-y-0.5\">\n          {filteredItems.map((item) => {\n            const isActive = pathname === item.href;\n            return (\n              <li key={item.href}>\n                <Link\n                  href={item.href}\n                  onClick={closeMobileMenu}\n                  className={cn(\"sidebar-item\", isActive && \"active\")}\n                >\n                  <span className={cn(\n                    \"shrink-0 transition-colors duration-200\",\n                    isActive ? \"text-primary\" : \"text-white/40\"\n                  )}>\n                    {item.icon}\n                  </span>\n                  <span>{item.label}</span>\n                </Link>\n              </li>\n            );\n          })}\n        </ul>\n      </nav>\n\n      {/* Footer */}\n      <div className=\"px-3 py-3 border-t border-white/[0.06] space-y-0.5\">\n        <button\n          onClick={toggleTheme}\n          className=\"sidebar-item w-full\"\n        >\n          <span className=\"text-white/40 shrink-0\">\n            {theme === \"dark\" ? (\n              <Sun className=\"w-4 h-4\" />\n            ) : (\n              <Moon className=\"w-4 h-4\" />\n            )}\n          </span>\n          <span>{theme === \"dark\" ? \"Modo Claro\" : \"Modo Oscuro\"}</span>\n        </button>\n        <button\n          onClick={logout}\n          className=\"sidebar-item w-full !text-red-400/70 hover:!text-red-400 hover:!bg-red-500/10\"\n        >\n          <LogOut className=\"w-4 h-4 shrink-0\" />\n          <span>Cerrar Sesión</span>\n        </button>\n      </div>\n    </>\n  );\n\n  return (\n    <>\n      {/* Mobile Header */}\n      <header\n        className=\"lg:hidden fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 border-b\"\n        style={{ backgroundColor: \"var(--sidebar-bg)\", borderColor: \"rgba(255,255,255,0.06)\" }}\n      >\n        <div className=\"flex items-center gap-2.5\">\n          <div className=\"w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/30\">\n            <Boxes className=\"w-3.5 h-3.5 text-white\" />\n          </div>\n          <span className=\"text-sm font-bold text-white\"\n                style={{ fontFamily: \"var(--font-syne, sans-serif)\" }}>\n            Inventario\n          </span>\n        </div>\n        <button\n          onClick={toggleMobileMenu}\n          className=\"p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors\"\n          aria-label={isMobileMenuOpen ? \"Cerrar menú\" : \"Abrir menú\"}\n        >\n          {isMobileMenuOpen ? <X className=\"w-5 h-5\" /> : <Menu className=\"w-5 h-5\" />}\n        </button>\n      </header>\n\n      {/* Mobile Overlay */}\n      {isMobileMenuOpen ? (\n        <div\n          className=\"lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40\"\n          onClick={closeMobileMenu}\n        />\n      ) : null}\n\n      {/* Sidebar */}\n      <aside\n        className={cn(\n          \"fixed top-0 left-0 h-screen flex flex-col z-50 w-64\",\n          \"transition-transform duration-300 ease-in-out\",\n          \"lg:translate-x-0\",\n          isMobileMenuOpen ? \"translate-x-0\" : \"-translate-x-full\",\n          \"lg:mt-0 mt-14\"\n        )}\n        style={{\n          backgroundColor: \"var(--sidebar-bg)\",\n          borderRight: \"1px solid rgba(255,255,255,0.05)\",\n        }}\n      >\n        <div className=\"flex flex-col flex-1 min-h-0\">\n          {sidebarContent}\n        </div>\n      </aside>\n    </>\n  );\n}"
 }
@@ -9829,7 +9829,7 @@ Ahora los fixes 9-11, 13-17 en paralelo:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\ToastContext.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\ToastContext.tsx",
   "oldString": "function ToastCard({\n  toast,\n  onClose,\n}: {\n  toast: ToastItem;\n  onClose: (id: string) => void;\n}) {\n  const iconByType = {\n    success: <CheckCircle2 className=\"h-5 w-5 text-emerald-600\" />,\n    error: <AlertCircle className=\"h-5 w-5 text-red-600\" />,\n    info: <Info className=\"h-5 w-5 text-sky-600\" />,\n  };\n\n  const accentByType = {\n    success: \"border-l-4 border-l-emerald-500\",\n    error: \"border-l-4 border-l-red-500\",\n    info: \"border-l-4 border-l-sky-500\",\n  };",
   "newString": "const ICON_BY_TYPE = {\n  success: <CheckCircle2 className=\"h-5 w-5 text-emerald-600\" />,\n  error: <AlertCircle className=\"h-5 w-5 text-red-600\" />,\n  info: <Info className=\"h-5 w-5 text-sky-600\" />,\n} as const;\n\nconst ACCENT_BY_TYPE = {\n  success: \"border-l-4 border-l-emerald-500\",\n  error: \"border-l-4 border-l-red-500\",\n  info: \"border-l-4 border-l-sky-500\",\n} as const;\n\nfunction ToastCard({\n  toast,\n  onClose,\n}: {\n  toast: ToastItem;\n  onClose: (id: string) => void;\n}) {"
 }
@@ -9845,7 +9845,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\ToastContext.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\ToastContext.tsx",
   "oldString": "        \"animate-in slide-in-from-top-2 duration-200\",\n        accentByType[toast.type],\n      )}\n    >\n      <div className=\"mt-0.5\">{iconByType[toast.type]}</div>",
   "newString": "        \"animate-in slide-in-from-top-2 duration-200\",\n        ACCENT_BY_TYPE[toast.type],\n      )}\n    >\n      <div className=\"mt-0.5\">{ICON_BY_TYPE[toast.type]}</div>"
 }
@@ -9861,7 +9861,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\pos\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\pos\\page.tsx",
   "oldString": "            {lastSale.amountPaid && (",
   "newString": "            {lastSale.amountPaid != null && lastSale.amountPaid > 0 ? ("
 }
@@ -9877,7 +9877,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\pos\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\pos\\page.tsx",
   "offset": 487,
   "limit": 20
 }
@@ -9885,7 +9885,7 @@ Edit applied successfully.
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\pos\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\pos\page.tsx</path>
 <type>file</type>
 <content>487: 
 488:             {lastSale.amountPaid != null && lastSale.amountPaid > 0 ? (
@@ -9923,7 +9923,7 @@ Necesito cerrar el ternario (cambiar `)}` por `) : null}`):
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\pos\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\pos\\page.tsx",
   "oldString": "            {lastSale.amountPaid != null && lastSale.amountPaid > 0 ? (\n              <div className=\"p-3 rounded-xl bg-muted/40 border border-border/50 space-y-1.5\">\n                <div className=\"flex justify-between text-sm\">\n                  <span className=\"text-muted-foreground\">Pagado:</span>\n                  <span className=\"font-medium text-foreground\">{formatCurrency(lastSale.amountPaid)}</span>\n                </div>\n                {lastSale.change !== null && (\n                  <div className=\"flex justify-between text-sm\">\n                    <span className=\"text-muted-foreground\">Cambio:</span>\n                    <span className=\"stat-number font-bold text-terracotta\">{formatCurrency(lastSale.change)}</span>\n                  </div>\n                )}\n              </div>\n            )}",
   "newString": "            {lastSale.amountPaid != null && lastSale.amountPaid > 0 ? (\n              <div className=\"p-3 rounded-xl bg-muted/40 border border-border/50 space-y-1.5\">\n                <div className=\"flex justify-between text-sm\">\n                  <span className=\"text-muted-foreground\">Pagado:</span>\n                  <span className=\"font-medium text-foreground\">{formatCurrency(lastSale.amountPaid)}</span>\n                </div>\n                {lastSale.change !== null ? (\n                  <div className=\"flex justify-between text-sm\">\n                    <span className=\"text-muted-foreground\">Cambio:</span>\n                    <span className=\"stat-number font-bold text-terracotta\">{formatCurrency(lastSale.change)}</span>\n                  </div>\n                ) : null}\n              </div>\n            ) : null}"
 }
@@ -9945,13 +9945,13 @@ Ahora **Fix 13: localStorage try-catch** - Voy a crear un helper seguro:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\lib\\utils.ts"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\lib\\utils.ts"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\lib\utils.ts</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\lib\utils.ts</path>
 <type>file</type>
 <content>1: import { clsx, type ClassValue } from "clsx";
 2: import { twMerge } from "tailwind-merge";
@@ -10000,7 +10000,7 @@ Ahora **Fix 13: localStorage try-catch** - Voy a crear un helper seguro:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\lib\\utils.ts",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\lib\\utils.ts",
   "oldString": "export function formatDateTime(date: string | Date) {\n  return new Intl.DateTimeFormat(\"es-CO\", {\n    year: \"numeric\",\n    month: \"long\",\n    day: \"numeric\",\n    hour: \"2-digit\",\n    minute: \"2-digit\",\n  }).format(new Date(date));\n}",
   "newString": "export function formatDateTime(date: string | Date) {\n  return new Intl.DateTimeFormat(\"es-CO\", {\n    year: \"numeric\",\n    month: \"long\",\n    day: \"numeric\",\n    hour: \"2-digit\",\n    minute: \"2-digit\",\n  }).format(new Date(date));\n}\n\n/**\n * Safe localStorage helpers.\n * localStorage throws in incognito/private browsing (Safari, Firefox),\n * when quota is exceeded, or when disabled.\n */\nexport function safeGetItem(key: string): string | null {\n  try {\n    return localStorage.getItem(key);\n  } catch {\n    return null;\n  }\n}\n\nexport function safeSetItem(key: string, value: string): void {\n  try {\n    localStorage.setItem(key, value);\n  } catch {\n    // Silently fail — quota exceeded or private browsing\n  }\n}\n\nexport function safeRemoveItem(key: string): void {\n  try {\n    localStorage.removeItem(key);\n  } catch {\n    // Silently fail\n  }\n}"
 }
@@ -10022,7 +10022,7 @@ Ahora actualizo los archivos que usan localStorage directamente para usar los he
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\lib\\api.ts",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\lib\\api.ts",
   "oldString": "import axios, { AxiosInstance, AxiosError } from \"axios\";",
   "newString": "import axios, { AxiosInstance, AxiosError } from \"axios\";\nimport { safeGetItem, safeRemoveItem } from \"@/lib/utils\";"
 }
@@ -10038,7 +10038,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\lib\\api.ts",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\lib\\api.ts",
   "oldString": "    this.client.interceptors.request.use(\n      (config) => {\n        const token = localStorage.getItem(\"token\");\n        if (token) {\n          config.headers.Authorization = `Bearer ${token}`;\n        }\n        return config;\n      },\n      (error) => Promise.reject(error)\n    );\n\n    this.client.interceptors.response.use(\n      (response) => response,\n      (error: AxiosError) => {\n        if (error.response?.status === 401) {\n          localStorage.removeItem(\"token\");\n          localStorage.removeItem(\"user\");\n          window.location.href = \"/login\";\n        }\n        return Promise.reject(error);\n      }\n    );",
   "newString": "    this.client.interceptors.request.use(\n      (config) => {\n        const token = safeGetItem(\"token\");\n        if (token) {\n          config.headers.Authorization = `Bearer ${token}`;\n        }\n        return config;\n      },\n      (error) => Promise.reject(error)\n    );\n\n    this.client.interceptors.response.use(\n      (response) => response,\n      (error: AxiosError) => {\n        if (error.response?.status === 401) {\n          safeRemoveItem(\"token\");\n          safeRemoveItem(\"user\");\n          window.location.href = \"/login\";\n        }\n        return Promise.reject(error);\n      }\n    );"
 }
@@ -10054,7 +10054,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\AuthContext.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\AuthContext.tsx",
   "oldString": "import { api } from \"@/lib/api\";\nimport { useRouter } from \"next/navigation\";",
   "newString": "import { api } from \"@/lib/api\";\nimport { safeGetItem, safeSetItem, safeRemoveItem } from \"@/lib/utils\";\nimport { useRouter } from \"next/navigation\";"
 }
@@ -10070,7 +10070,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\AuthContext.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\AuthContext.tsx",
   "oldString": "    const validateSession = async () => {\n      const token = localStorage.getItem(\"token\");\n      const savedUser = localStorage.getItem(\"user\");\n\n      if (!token || !savedUser) {\n        setLoading(false);\n        return;\n      }\n\n      try {\n        JSON.parse(savedUser);\n        const profileResponse = await api.get<User>(\"/auth/profile\");\n        setUser(profileResponse.data);\n        localStorage.setItem(\"user\", JSON.stringify(profileResponse.data));\n      } catch {\n        localStorage.removeItem(\"token\");\n        localStorage.removeItem(\"user\");\n        setUser(null);\n      } finally {\n        setLoading(false);\n      }\n    };",
   "newString": "    const validateSession = async () => {\n      const token = safeGetItem(\"token\");\n      const savedUser = safeGetItem(\"user\");\n\n      if (!token || !savedUser) {\n        setLoading(false);\n        return;\n      }\n\n      try {\n        JSON.parse(savedUser);\n        const profileResponse = await api.get<User>(\"/auth/profile\");\n        setUser(profileResponse.data);\n        safeSetItem(\"user\", JSON.stringify(profileResponse.data));\n      } catch {\n        safeRemoveItem(\"token\");\n        safeRemoveItem(\"user\");\n        setUser(null);\n      } finally {\n        setLoading(false);\n      }\n    };"
 }
@@ -10086,7 +10086,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\AuthContext.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\AuthContext.tsx",
   "oldString": "        const token = response.data.access_token;\n        localStorage.setItem(\"token\", token);\n\n        const profileResponse = await api.get<User>(\"/auth/profile\");\n        setUser(profileResponse.data);\n        localStorage.setItem(\"user\", JSON.stringify(profileResponse.data));",
   "newString": "        const token = response.data.access_token;\n        safeSetItem(\"token\", token);\n\n        const profileResponse = await api.get<User>(\"/auth/profile\");\n        setUser(profileResponse.data);\n        safeSetItem(\"user\", JSON.stringify(profileResponse.data));"
 }
@@ -10102,7 +10102,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\AuthContext.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\AuthContext.tsx",
   "oldString": "  const logout = useCallback(() => {\n    localStorage.removeItem(\"token\");\n    localStorage.removeItem(\"user\");\n    setUser(null);\n    router.push(\"/login\");\n  }, [router]);",
   "newString": "  const logout = useCallback(() => {\n    safeRemoveItem(\"token\");\n    safeRemoveItem(\"user\");\n    setUser(null);\n    router.push(\"/login\");\n  }, [router]);"
 }
@@ -10118,7 +10118,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\ThemeContext.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\ThemeContext.tsx",
   "oldString": "import { createContext, useCallback, useContext, useEffect, useMemo, useState } from \"react\";",
   "newString": "import { createContext, useCallback, useContext, useEffect, useMemo, useState } from \"react\";\nimport { safeGetItem, safeSetItem } from \"@/lib/utils\";"
 }
@@ -10134,7 +10134,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\contexts\\ThemeContext.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\contexts\\ThemeContext.tsx",
   "oldString": "  const [theme, setTheme] = useState<Theme>(() => {\n    if (typeof window !== 'undefined') {\n      const saved = localStorage.getItem(\"theme\") as Theme;\n      return saved || \"dark\";\n    }\n    return \"dark\";\n  });\n\n  useEffect(() => {\n    localStorage.setItem(\"theme\", theme);",
   "newString": "  const [theme, setTheme] = useState<Theme>(() => {\n    if (typeof window !== 'undefined') {\n      const saved = safeGetItem(\"theme\") as Theme;\n      return saved || \"dark\";\n    }\n    return \"dark\";\n  });\n\n  useEffect(() => {\n    safeSetItem(\"theme\", theme);"
 }
@@ -10150,7 +10150,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\usePausedSales.ts",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\usePausedSales.ts",
   "oldString": "import { useEffect, useState } from \"react\";\nimport type { CartItem } from \"@/types\";",
   "newString": "import { useEffect, useState } from \"react\";\nimport { safeGetItem, safeSetItem } from \"@/lib/utils\";\nimport type { CartItem } from \"@/types\";"
 }
@@ -10166,7 +10166,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\usePausedSales.ts",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\usePausedSales.ts",
   "oldString": "  const [pausedSales, setPausedSales] = useState<PausedSale[]>(() => {\n    if (typeof window === \"undefined\") {\n      return [];\n    }\n\n    const saved = localStorage.getItem(PAUSED_SALES_KEY);\n    if (!saved) {\n      return [];\n    }\n\n    try {\n      return JSON.parse(saved) as PausedSale[];\n    } catch {\n      console.error(\"Error loading paused sales\");\n      return [];\n    }\n  });\n\n  useEffect(() => {\n    localStorage.setItem(PAUSED_SALES_KEY, JSON.stringify(pausedSales));\n  }, [pausedSales]);",
   "newString": "  const [pausedSales, setPausedSales] = useState<PausedSale[]>(() => {\n    if (typeof window === \"undefined\") {\n      return [];\n    }\n\n    const saved = safeGetItem(PAUSED_SALES_KEY);\n    if (!saved) {\n      return [];\n    }\n\n    try {\n      return JSON.parse(saved) as PausedSale[];\n    } catch {\n      return [];\n    }\n  });\n\n  useEffect(() => {\n    safeSetItem(PAUSED_SALES_KEY, JSON.stringify(pausedSales));\n  }, [pausedSales]);"
 }
@@ -10182,7 +10182,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\pos\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\pos\\page.tsx",
   "oldString": "import { formatCurrency } from \"@/lib/utils\";",
   "newString": "import { formatCurrency, safeGetItem, safeSetItem } from \"@/lib/utils\";"
 }
@@ -10198,7 +10198,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\pos\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\pos\\page.tsx",
   "oldString": "  const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>(() => {\n    if (typeof window === \"undefined\") return [];\n    const saved = localStorage.getItem(FAVORITE_PRODUCTS_KEY);\n    if (!saved) return [];\n    try {\n      const parsed = JSON.parse(saved) as string[];\n      return Array.isArray(parsed) ? parsed : [];\n    } catch {\n      return [];\n    }\n  });",
   "newString": "  const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>(() => {\n    if (typeof window === \"undefined\") return [];\n    const saved = safeGetItem(FAVORITE_PRODUCTS_KEY);\n    if (!saved) return [];\n    try {\n      const parsed = JSON.parse(saved) as string[];\n      return Array.isArray(parsed) ? parsed : [];\n    } catch {\n      return [];\n    }\n  });"
 }
@@ -10214,7 +10214,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\pos\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\pos\\page.tsx",
   "oldString": "  useEffect(() => {\n    localStorage.setItem(FAVORITE_PRODUCTS_KEY, JSON.stringify(favoriteProductIds));\n  }, [favoriteProductIds]);",
   "newString": "  useEffect(() => {\n    safeSetItem(FAVORITE_PRODUCTS_KEY, JSON.stringify(favoriteProductIds));\n  }, [favoriteProductIds]);"
 }
@@ -10236,7 +10236,7 @@ Ahora tambien el `useProfile.ts` que usa localStorage:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\useProfile.ts",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\useProfile.ts",
   "oldString": "import { useMutation, useQueryClient, useQuery } from \"@tanstack/react-query\";\nimport { api } from \"@/lib/api\";\nimport type { User } from \"@/contexts/AuthContext\";",
   "newString": "import { useMutation, useQueryClient, useQuery } from \"@tanstack/react-query\";\nimport { api } from \"@/lib/api\";\nimport { safeSetItem } from \"@/lib/utils\";\nimport type { User } from \"@/contexts/AuthContext\";"
 }
@@ -10252,7 +10252,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\useProfile.ts",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\useProfile.ts",
   "oldString": "    onSuccess: (data) => {\n      localStorage.setItem(\"user\", JSON.stringify(data));\n      queryClient.setQueryData([\"auth\"], data);\n    },",
   "newString": "    onSuccess: (data) => {\n      safeSetItem(\"user\", JSON.stringify(data));\n      queryClient.setQueryData([\"auth\"], data);\n    },"
 }
@@ -10274,7 +10274,7 @@ Ahora **Fix 14: DashboardLayout effect dependencies** y **Fix 10: reports reduce
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\components\\layout\\DashboardLayout.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\components\\layout\\DashboardLayout.tsx",
   "oldString": "  useEffect(() => {\n    if (!loading && !isAuthenticated) {\n      router.push(\"/login\");\n    }\n  }, [isAuthenticated, loading, router]);\n\n  useEffect(() => {\n    if (loading || !isAuthenticated || !user) return;\n\n    const routeConfig = routeRoleMap.find(\n      (route) => pathname === route.prefix || pathname.startsWith(`${route.prefix}/`)\n    );\n\n    if (!routeConfig) return;\n\n    if (!routeConfig.roles.includes(user.role)) {\n      router.replace(user.role === \"CASHIER\" ? \"/pos\" : \"/dashboard\");\n    }\n  }, [isAuthenticated, loading, pathname, router, user]);",
   "newString": "  const userRole = user?.role;\n\n  useEffect(() => {\n    if (!loading && !isAuthenticated) {\n      router.push(\"/login\");\n    }\n  }, [isAuthenticated, loading, router]);\n\n  useEffect(() => {\n    if (loading || !isAuthenticated || !userRole) return;\n\n    const routeConfig = routeRoleMap.find(\n      (route) => pathname === route.prefix || pathname.startsWith(`${route.prefix}/`)\n    );\n\n    if (!routeConfig) return;\n\n    if (!routeConfig.roles.includes(userRole)) {\n      router.replace(userRole === \"CASHIER\" ? \"/pos\" : \"/dashboard\");\n    }\n  }, [isAuthenticated, loading, pathname, router, userRole]);"
 }
@@ -10296,7 +10296,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\reports\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\reports\\page.tsx",
   "oldString": "export default function ReportsPage() {",
   "newString": "const LOADING_SPINNER = (\n  <div className=\"flex items-center justify-center py-10\">\n    <div className=\"w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse\">\n      <BarChart3 className=\"w-4 h-4 text-primary/50\" />\n    </div>\n  </div>\n);\n\nexport default function ReportsPage() {"
 }
@@ -10312,7 +10312,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\reports\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\reports\\page.tsx",
   "oldString": "  const LoadingSpinner = () => (\n    <div className=\"flex items-center justify-center py-10\">\n      <div className=\"w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse\">\n        <BarChart3 className=\"w-4 h-4 text-primary/50\" />\n      </div>\n    </div>\n  );",
   "newString": "  // LoadingSpinner hoisted to module level as LOADING_SPINNER"
 }
@@ -10334,7 +10334,7 @@ Ahora reemplazar todas las referencias a `<LoadingSpinner />` por `{LOADING_SPIN
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\reports\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\reports\\page.tsx",
   "oldString": "<LoadingSpinner />",
   "newString": "{LOADING_SPINNER}",
   "replaceAll": true
@@ -10357,7 +10357,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\reports\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\reports\\page.tsx",
   "offset": 255,
   "limit": 40
 }
@@ -10365,7 +10365,7 @@ Edit applied successfully.
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\reports\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\reports\page.tsx</path>
 <type>file</type>
 <content>255:             </div>
 256:             <div className="p-5">
@@ -10421,7 +10421,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\reports\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\reports\\page.tsx",
   "oldString": "              ) : paymentMethods && paymentMethods.length > 0 ? (\n                <div className=\"space-y-4\">\n                  {paymentMethods.map((item) => {\n                    const total = paymentMethods.reduce(\n                      (sum, p) => sum + p.count,\n                      0,\n                    );\n                    const pct = total > 0 ? (item.count / total) * 100 : 0;",
   "newString": "              ) : paymentMethods && paymentMethods.length > 0 ? (\n                <div className=\"space-y-4\">\n                  {(() => {\n                    const totalCount = paymentMethods.reduce((sum, p) => sum + p.count, 0);\n                    return paymentMethods.map((item) => {\n                    const pct = totalCount > 0 ? (item.count / totalCount) * 100 : 0;"
 }
@@ -10441,7 +10441,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\reports\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\reports\\page.tsx",
   "offset": 290,
   "limit": 20
 }
@@ -10449,7 +10449,7 @@ Edit applied successfully.
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\reports\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\reports\page.tsx</path>
 <type>file</type>
 <content>290:                         </div>
 291:                       </div>
@@ -10487,7 +10487,7 @@ Necesito cerrar la IIFE:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\reports\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\reports\\page.tsx",
   "oldString": "                      </div>\n                    );\n                  })}\n                </div>",
   "newString": "                      </div>\n                    );\n                  });\n                  })()}\n                </div>"
 }
@@ -10509,7 +10509,7 @@ Ahora el mismo fix para salesByCategory:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\reports\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\reports\\page.tsx",
   "offset": 314,
   "limit": 40
 }
@@ -10517,7 +10517,7 @@ Ahora el mismo fix para salesByCategory:
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\reports\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\reports\page.tsx</path>
 <type>file</type>
 <content>314:             <div className="p-5">
 315:               {categoryLoading ? (
@@ -10573,7 +10573,7 @@ Ahora el mismo fix para salesByCategory:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\reports\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\reports\\page.tsx",
   "oldString": "              ) : salesByCategory && salesByCategory.length > 0 ? (\n                <div className=\"space-y-4\">\n                  {salesByCategory.map((item) => {\n                    const total = salesByCategory.reduce(\n                      (sum, c) => sum + c.total,\n                      0,\n                    );\n                    const pct = total > 0 ? (item.total / total) * 100 : 0;\n                    return (\n                      <div key={item.category}>\n                        <div className=\"flex items-center justify-between mb-1.5\">\n                          <span className=\"text-sm font-medium text-foreground\">\n                            {item.category}\n                          </span>\n                          <span className=\"stat-number text-sm font-bold text-terracotta\">\n                            {formatCurrency(item.total)}\n                          </span>\n                        </div>\n                        <div className=\"w-full bg-border/60 rounded-full h-1.5\">\n                          <div\n                            className=\"bg-gradient-to-r from-terracotta to-terracotta/60 h-1.5 rounded-full transition-all duration-500\"\n                            style={{ width: `${pct}%` }}\n                          />\n                        </div>\n                        <p className=\"text-xs text-muted-foreground mt-1\">\n                          {item.quantity} productos vendidos\n                        </p>\n                      </div>\n                    );\n                  })}\n                </div>",
   "newString": "              ) : salesByCategory && salesByCategory.length > 0 ? (\n                <div className=\"space-y-4\">\n                  {(() => {\n                    const totalAmount = salesByCategory.reduce((sum, c) => sum + c.total, 0);\n                    return salesByCategory.map((item) => {\n                    const pct = totalAmount > 0 ? (item.total / totalAmount) * 100 : 0;\n                    return (\n                      <div key={item.category}>\n                        <div className=\"flex items-center justify-between mb-1.5\">\n                          <span className=\"text-sm font-medium text-foreground\">\n                            {item.category}\n                          </span>\n                          <span className=\"stat-number text-sm font-bold text-terracotta\">\n                            {formatCurrency(item.total)}\n                          </span>\n                        </div>\n                        <div className=\"w-full bg-border/60 rounded-full h-1.5\">\n                          <div\n                            className=\"bg-gradient-to-r from-terracotta to-terracotta/60 h-1.5 rounded-full transition-all duration-500\"\n                            style={{ width: `${pct}%` }}\n                          />\n                        </div>\n                        <p className=\"text-xs text-muted-foreground mt-1\">\n                          {item.quantity} productos vendidos\n                        </p>\n                      </div>\n                    );\n                  });\n                  })()}\n                </div>"
 }
@@ -10595,7 +10595,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\hooks\\useSales.ts",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\hooks\\useSales.ts",
   "offset": 7,
   "limit": 15
 }
@@ -10603,7 +10603,7 @@ Edit applied successfully.
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\hooks\useSales.ts</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\hooks\useSales.ts</path>
 <type>file</type>
 <content>7: export function useSales(params?: {
 8:   page?: number;
@@ -10644,7 +10644,7 @@ El fix 16 (search al server) requiere cambios en el backend tambien, asi que lo 
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\dashboard\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\dashboard\\page.tsx",
   "offset": 57,
   "limit": 15
 }
@@ -10652,7 +10652,7 @@ El fix 16 (search al server) requiere cambios en el backend tambien, asi que lo 
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\dashboard\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\dashboard\page.tsx</path>
 <type>file</type>
 <content>57:         {/* Page Header */}
 58:         <div className="animate-fade-in-up">
@@ -10683,7 +10683,7 @@ El fix 16 (search al server) requiere cambios en el backend tambien, asi que lo 
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\dashboard\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\dashboard\\page.tsx",
   "oldString": "\"use client\";\n\nimport { DashboardLayout } from \"@/components/layout/DashboardLayout\";\nimport { useDashboard } from \"@/hooks/useReports\";\nimport { Badge } from \"@/components/ui/Badge\";\nimport {\n  TrendingUp,\n  Package,\n  Users,\n  ShoppingCart,\n  AlertTriangle,\n  ArrowUpRight,\n  LayoutDashboard,\n} from \"lucide-react\";\nimport { formatCurrency } from \"@/lib/utils\";\nimport { useAuth } from \"@/contexts/AuthContext\";",
   "newString": "\"use client\";\n\nimport { useMemo } from \"react\";\nimport { DashboardLayout } from \"@/components/layout/DashboardLayout\";\nimport { useDashboard } from \"@/hooks/useReports\";\nimport { Badge } from \"@/components/ui/Badge\";\nimport {\n  TrendingUp,\n  Package,\n  Users,\n  ShoppingCart,\n  AlertTriangle,\n  ArrowUpRight,\n  LayoutDashboard,\n} from \"lucide-react\";\nimport { formatCurrency } from \"@/lib/utils\";\nimport { useAuth } from \"@/contexts/AuthContext\";"
 }
@@ -10699,7 +10699,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\dashboard\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\dashboard\\page.tsx",
   "oldString": "  const { data: dashboard, isLoading } = useDashboard();\n  const { user } = useAuth();",
   "newString": "  const { data: dashboard, isLoading } = useDashboard();\n  const { user } = useAuth();\n\n  const todayFormatted = useMemo(\n    () => new Date().toLocaleDateString(\"es-CO\", { weekday: \"long\", day: \"numeric\", month: \"long\" }),\n    []\n  );"
 }
@@ -10715,7 +10715,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\dashboard\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\dashboard\\page.tsx",
   "oldString": "              {new Date().toLocaleDateString(\"es-CO\", { weekday: \"long\", day: \"numeric\", month: \"long\" })}",
   "newString": "              {todayFormatted}"
 }
@@ -10939,7 +10939,7 @@ Ahora actualizo los todos y corro el build para verificar:
 {
   "command": "npm run build 2>&1",
   "description": "Build frontend to verify changes",
-  "workdir": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend",
+  "workdir": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend",
   "timeout": 120000
 }
 ```
@@ -10991,7 +10991,7 @@ Hay un error de sintaxis en reports. Dejame revisar y corregir:
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\reports\\page.tsx",
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\reports\\page.tsx",
   "offset": 255,
   "limit": 50
 }
@@ -10999,7 +10999,7 @@ Hay un error de sintaxis en reports. Dejame revisar y corregir:
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\reports\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\reports\page.tsx</path>
 <type>file</type>
 <content>255:               </h3>
 256:             </div>
@@ -11169,13 +11169,13 @@ Let me check the current state of `reports/page.tsx` to fix the syntax error tha
 **Input:**
 ```json
 {
-  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\gestion-inventario-app\\frontend\\src\\app\\reports\\page.tsx"
+  "filePath": "C:\\Users\\meper\\desktop\\Proyecto de Grado\\MeperPOS\\frontend\\src\\app\\reports\\page.tsx"
 }
 ```
 
 **Output:**
 ```
-<path>C:\Users\meper\desktop\Proyecto de Grado\gestion-inventario-app\frontend\src\app\reports\page.tsx</path>
+<path>C:\Users\meper\desktop\Proyecto de Grado\MeperPOS\frontend\src\app\reports\page.tsx</path>
 <type>file</type>
 <content>1: "use client";
 2: 

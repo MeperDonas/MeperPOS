@@ -908,7 +908,7 @@ export default function LoginPage() {
               Bienvenido de nuevo
             </h1>
             <p className="text-sm text-muted-foreground">
-              Sistema de Gestion de Inventario
+              MeperPOS
             </p>
           </div>
 

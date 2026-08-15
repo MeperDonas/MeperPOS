@@ -1,6 +1,6 @@
 # 📊 Diagramas de Casos de Uso por Módulo
 
-Esta carpeta contiene los diagramas de casos de uso del Sistema de Gestión de Inventario y Punto de Venta, organizados por módulo funcional.
+Esta carpeta contiene los diagramas de casos de uso del MeperPOS y Punto de Venta, organizados por módulo funcional.
 
 ## 📁 Estructura de Archivos
 
@@ -203,4 +203,4 @@ Esta carpeta contiene los diagramas de casos de uso del Sistema de Gestión de I
 
 ---
 
-*Documentación generada para el proyecto de Sistema de Gestión de Inventario y Punto de Venta*
+*Documentación generada para el proyecto de MeperPOS y Punto de Venta*

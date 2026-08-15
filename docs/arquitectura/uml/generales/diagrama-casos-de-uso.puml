@@ -1,4 +1,4 @@
-@startuml Diagrama de Casos de Uso - Sistema de Gestion de Inventario y POS
+@startuml Diagrama de Casos de Uso - MeperPOS y POS
 
 !define RECTANGLE class
 
@@ -20,7 +20,7 @@ skinparam package {
     BorderColor<<Modulo>> Orange
 }
 
-title Diagrama de Casos de Uso - Sistema de Gestion de Inventario y Punto de Venta
+title Diagrama de Casos de Uso - MeperPOS y Punto de Venta
 
 ' Actores
 left to right direction

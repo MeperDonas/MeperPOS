@@ -1,4 +1,4 @@
-# Plan de Despliegue - Sistema de Gestion de Inventario
+# Plan de Despliegue - MeperPOS
 
 **Fecha**: 2026-03-05 (rev. 2026-03-06)
 **Estado**: Aprobado - Revision 2 (correccion de hallazgos Codex)
@@ -506,7 +506,7 @@ postgresql://postgres.[ref]:[pass]@db.[ref].supabase.com:5432/postgres
 | `DATABASE_URL` | `postgresql://postgres.abc:pass@aws-0-us-east-1.pooler.supabase.com:5432/postgres` | Si |
 | `DIRECT_URL` | `postgresql://postgres.abc:pass@db.abc.supabase.com:5432/postgres` | Si |
 | `JWT_SECRET` | `a1b2c3...64hexchars` | Si |
-| `CORS_ORIGIN` | `https://gestion-inventario.vercel.app` | Si |
+| `CORS_ORIGIN` | `https://meperpos.vercel.app` | Si |
 | `NODE_ENV` | `production` | Si |
 | `CLOUDINARY_CLOUD_NAME` | `dxxxxxx` | Si |
 | `CLOUDINARY_API_KEY` | `123456789` | Si |
@@ -517,7 +517,7 @@ postgresql://postgres.[ref]:[pass]@db.[ref].supabase.com:5432/postgres
 
 | Variable | Ejemplo | Requerida |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `https://gestion-inventario-api.up.railway.app/api` | Si |
+| `NEXT_PUBLIC_API_URL` | `https://meperpos-api.up.railway.app/api` | Si |
 
 ### Supabase (Database)
 

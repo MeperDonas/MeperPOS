@@ -1,4 +1,4 @@
-@startuml Diagrama de Componentes - Sistema de Gestion de Inventario y POS
+@startuml Diagrama de Componentes - MeperPOS y POS
 
 !define component(x) component "x" <<Component>>
 !define service(x) component "x" <<Service>>
@@ -9,7 +9,7 @@
 skinparam backgroundColor #FEFEFE
 skinparam componentStyle rectangle
 
-title Diagrama de Componentes - Sistema de Gestion de Inventario y Punto de Venta
+title Diagrama de Componentes - MeperPOS y Punto de Venta
 
 ' ==================== CLIENTE ====================
 package "Cliente" <<Rectangle>> {

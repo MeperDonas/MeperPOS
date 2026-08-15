@@ -829,4 +829,4 @@ Cargar todos los lotes activos del producto en cada venta podría tardar. Mitiga
 
 ---
 
-_Plan 06 de 7 — roadmap gestion-inventario-app · Fecha: 2026-04-21_
+_Plan 06 de 7 — roadmap MeperPOS · Fecha: 2026-04-21_

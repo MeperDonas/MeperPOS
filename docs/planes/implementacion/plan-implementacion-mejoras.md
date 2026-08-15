@@ -1,6 +1,6 @@
-# Plan de Implementación de Mejoras — gestion-inventario-app
+# Plan de Implementación de Mejoras — MeperPOS
 
-Basado en el [code-review-consolidado.md](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/docs/reportes/revisiones/code-review-consolidado.md), este plan organiza todas las correcciones en **4 fases** ordenadas por prioridad y dependencia entre cambios.
+Basado en el [code-review-consolidado.md](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/docs/reportes/revisiones/code-review-consolidado.md), este plan organiza todas las correcciones en **4 fases** ordenadas por prioridad y dependencia entre cambios.
 
 > [!IMPORTANT]
 > **Principio rector:** Cada fase debe dejar la aplicación funcional al terminar. No se avanza a la siguiente sin verificar la actual.
@@ -15,12 +15,12 @@ Todos los problemas que permiten acceso no autorizado o forja de tokens. Se resu
 
 ### 1.1 JWT Secret sin fallback
 
-#### [MODIFY] [jwt.strategy.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/auth/jwt.strategy.ts)
+#### [MODIFY] [jwt.strategy.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/auth/jwt.strategy.ts)
 
 - Reemplazar `configService.get('JWT_SECRET') || 'fallback-secret'` por `configService.getOrThrow('JWT_SECRET')`.
 - La app debe **crashear al arrancar** si no hay secret configurado.
 
-#### [MODIFY] [auth.module.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/auth/auth.module.ts)
+#### [MODIFY] [auth.module.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/auth/auth.module.ts)
 
 - Mismo cambio: `configService.getOrThrow('JWT_SECRET')` en `JwtModule.registerAsync`.
 
@@ -28,12 +28,12 @@ Todos los problemas que permiten acceso no autorizado o forja de tokens. Se resu
 
 ### 1.2 RBAC incompleto — Agregar `RolesGuard` donde falta
 
-#### [MODIFY] [settings.controller.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/settings/settings.controller.ts)
+#### [MODIFY] [settings.controller.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/settings/settings.controller.ts)
 
 - Línea 26: cambiar `@UseGuards(JwtAuthGuard)` → `@UseGuards(JwtAuthGuard, RolesGuard)`.
 - Importar `RolesGuard` desde `../common/guards/roles.guard`.
 
-#### [MODIFY] [exports.controller.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/exports/exports.controller.ts)
+#### [MODIFY] [exports.controller.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/exports/exports.controller.ts)
 
 - Línea 15: cambiar `@UseGuards(JwtAuthGuard)` → `@UseGuards(JwtAuthGuard, RolesGuard)`.
 - Importar `RolesGuard`.
@@ -42,12 +42,12 @@ Todos los problemas que permiten acceso no autorizado o forja de tokens. Se resu
 
 ### 1.3 Resolver controlador de búsqueda duplicado e inseguro
 
-#### [MODIFY] [products-search.controller.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/products/products-search.controller.ts)
+#### [MODIFY] [products-search.controller.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/products/products-search.controller.ts)
 
 - Línea 14: cambiar `@UseGuards(RolesGuard)` → `@UseGuards(JwtAuthGuard, RolesGuard)`.
 - Importar `JwtAuthGuard` desde `../auth/jwt.strategy`.
 
-#### [MODIFY] [products.controller.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/products/products.controller.ts)
+#### [MODIFY] [products.controller.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/products/products.controller.ts)
 
 - Eliminar los métodos `search()` (línea 78-84) y `quickSearch()` (línea 86-91) que están duplicados en `ProductsSearchController`.
 - También eliminar los imports de `@ApiQuery` si ya no se necesitan (o mantener si se usan en otros métodos).
@@ -56,7 +56,7 @@ Todos los problemas que permiten acceso no autorizado o forja de tokens. Se resu
 
 ### 1.4 Registro abierto: proteger o eliminar
 
-#### [MODIFY] [auth.controller.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/auth/auth.controller.ts)
+#### [MODIFY] [auth.controller.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/auth/auth.controller.ts)
 
 - **Opción A (recomendada):** Eliminar el endpoint `POST /auth/register` ya que existe `POST /auth/users` (protegido con ADMIN) que cumple la misma función con `CreateUserDto`.
 - **Opción B:** Proteger `register` con `@UseGuards(JwtAuthGuard, RolesGuard)` y `@Roles('ADMIN')`.
@@ -68,7 +68,7 @@ Todos los problemas que permiten acceso no autorizado o forja de tokens. Se resu
 
 ### 1.5 CORS restringido
 
-#### [MODIFY] [main.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/main.ts)
+#### [MODIFY] [main.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/main.ts)
 
 - Reemplazar `app.enableCors()` por:
 
@@ -91,7 +91,7 @@ Corrige bugs que producen datos incorrectos o comportamiento impredecible.
 
 ### 2.1 Precio de venta desde BD, no desde el cliente
 
-#### [MODIFY] [sales.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/sales/sales.service.ts)
+#### [MODIFY] [sales.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/sales/sales.service.ts)
 
 - En `create()`, cambiar el cálculo de `itemSubtotal` (línea ~61):
 
@@ -109,7 +109,7 @@ Corrige bugs que producen datos incorrectos o comportamiento impredecible.
 
 - Evaluar si `unitPrice` debe mantenerse en `SaleItemDto` (podría usarse para precios personalizados con autorización de ADMIN).
 
-#### [MODIFY] [sales.dto.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/sales/dto/sales.dto.ts)
+#### [MODIFY] [sales.dto.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/sales/dto/sales.dto.ts)
 
 - Hacer `unitPrice` opcional en `SaleItemDto` o eliminarlo, ya que el precio se toma de BD.
 
@@ -117,12 +117,12 @@ Corrige bugs que producen datos incorrectos o comportamiento impredecible.
 
 ### 2.2 `saleNumber` con autoincrement
 
-#### [MODIFY] [schema.prisma](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/prisma/schema.prisma)
+#### [MODIFY] [schema.prisma](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/prisma/schema.prisma)
 
 - Cambiar `saleNumber Int @unique` a `saleNumber Int @unique @default(autoincrement())`.
 - Esto elimina la lógica manual y la race condition.
 
-#### [MODIFY] [sales.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/sales/sales.service.ts)
+#### [MODIFY] [sales.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/sales/sales.service.ts)
 
 - Eliminar las líneas 102-105 (búsqueda manual del saleNumber).
 - Eliminar `saleNumber` del `tx.sale.create({ data: { ... } })` — PostgreSQL lo asignará automáticamente.
@@ -132,7 +132,7 @@ Corrige bugs que producen datos incorrectos o comportamiento impredecible.
 
 ### 2.3 `getLowStockProducts` corregido con raw query
 
-#### [MODIFY] [products.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/products/products.service.ts)
+#### [MODIFY] [products.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/products/products.service.ts)
 
 - Reemplazar el contenido de `getLowStockProducts()` con una raw query:
 
@@ -150,7 +150,7 @@ async getLowStockProducts() {
 
 - Actualizar el mismo patrón en `reports.service.ts` donde se usa `this.prisma.product.fields.minStock`.
 
-#### [MODIFY] [reports.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/reports/reports.service.ts)
+#### [MODIFY] [reports.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/reports/reports.service.ts)
 
 - Línea 56-59: reemplazar el count de `lowStockProducts` con:
 
@@ -165,7 +165,7 @@ this.prisma.$queryRaw<[{ count: bigint }]>`
 
 ### 2.4 Filtros de fecha corregidos en Exports
 
-#### [MODIFY] [exports.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/exports/exports.service.ts)
+#### [MODIFY] [exports.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/exports/exports.service.ts)
 
 - En `getSalesData()` y `getInventoryData()`, combinar las condiciones de fecha:
 
@@ -187,7 +187,7 @@ if (query.startDate || query.endDate) {
 
 ### 2.5 KPIs: filtrar solo ventas completadas
 
-#### [MODIFY] [reports.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/reports/reports.service.ts)
+#### [MODIFY] [reports.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/reports/reports.service.ts)
 
 - En `getDashboardKPIs()`: agregar `status: 'COMPLETED'` al `where` de `totalSales`, `totalRevenue`, y `recentSales`.
 - En `getSalesByPaymentMethod()`: agregar `where.status = 'COMPLETED'` y filtrar en la query de `sale.findMany`.
@@ -196,7 +196,7 @@ if (query.startDate || query.endDate) {
 
 ### 2.6 Tipo de movimiento de inventario correcto
 
-#### [MODIFY] [products.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/products/products.service.ts)
+#### [MODIFY] [products.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/products/products.service.ts)
 
 - En `update()`, línea ~163, diferenciar:
 
@@ -223,7 +223,7 @@ Limpieza que no cambia comportamiento funcional pero mejora mantenibilidad.
 
 ### 3.1 Soft-delete de productos
 
-#### [MODIFY] [products.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/products/products.service.ts)
+#### [MODIFY] [products.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/products/products.service.ts)
 
 - Reemplazar `remove()` con soft-delete:
 
@@ -240,7 +240,7 @@ async remove(id: string) {
 
 ### 3.2 Concurrencia optimista con `version`
 
-#### [MODIFY] [products.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/products/products.service.ts)
+#### [MODIFY] [products.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/products/products.service.ts)
 
 - En `update()`, verificar y incrementar `version`:
 
@@ -256,22 +256,22 @@ const product = await this.prisma.product.update({
 
 ### 3.3 Eliminar imports muertos y `require()`
 
-#### [MODIFY] [products.controller.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/products/products.controller.ts)
+#### [MODIFY] [products.controller.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/products/products.controller.ts)
 
 - Eliminar import de `FileFieldsInterceptor`.
 
-#### [MODIFY] [sales.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/sales/sales.service.ts)
+#### [MODIFY] [sales.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/sales/sales.service.ts)
 
 - Reemplazar `const { jsPDF } = require('jspdf')` → `import { jsPDF } from 'jspdf'`.
 
-#### [MODIFY] [exports.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/src/exports/exports.service.ts)
+#### [MODIFY] [exports.service.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/src/exports/exports.service.ts)
 
 - Reemplazar `require('jspdf')` → `import { jsPDF } from 'jspdf'`.
 - Reemplazar `require('@fast-csv/format')` → `import * as csv from '@fast-csv/format'` (al inicio del archivo).
 
 ### 3.4 Mover dependencias al lugar correcto
 
-#### [MODIFY] [package.json (backend)](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/package.json)
+#### [MODIFY] [package.json (backend)](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/package.json)
 
 - Mover `@faker-js/faker` de `dependencies` → `devDependencies`.
 - Mover `prisma` de `dependencies` → `devDependencies`.
@@ -279,14 +279,14 @@ const product = await this.prisma.product.update({
 
 ### 3.5 Git: dejar de trackear `dist/`
 
-#### [MODIFY] [.gitignore (backend)](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/.gitignore)
+#### [MODIFY] [.gitignore (backend)](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/.gitignore)
 
 - Agregar `dist/` al `.gitignore`.
 - Ejecutar `git rm -r --cached backend/dist` para dejar de trackear los archivos existentes.
 
 ### 3.6 Validación de token al cargar la app
 
-#### [MODIFY] [AuthContext.tsx](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/frontend/src/contexts/AuthContext.tsx)
+#### [MODIFY] [AuthContext.tsx](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/frontend/src/contexts/AuthContext.tsx)
 
 - En el `useEffect` inicial, después de parsear el token de `localStorage`, hacer una verificación:
 
@@ -303,7 +303,7 @@ try {
 
 ### 3.7 Inconsistencias frontend ↔ backend
 
-#### [MODIFY] [useSales.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/frontend/src/hooks/useSales.ts)
+#### [MODIFY] [useSales.ts](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/frontend/src/hooks/useSales.ts)
 
 - Eliminar `search` del tipo de `params` ya que el backend no lo soporta.
 
@@ -317,7 +317,7 @@ Mejoras al schema de Prisma que optimizan rendimiento y refuerzan integridad ref
 
 ### 4.1 Índices, FKs y cascade rules
 
-#### [MODIFY] [schema.prisma](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/gestion-inventario-app/backend/prisma/schema.prisma)
+#### [MODIFY] [schema.prisma](file:///c:/Users/meper/Desktop/Proyecto%20de%20Grado/MeperPOS/backend/prisma/schema.prisma)
 
 ```diff
  model Sale {

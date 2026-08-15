@@ -1,6 +1,6 @@
 # 🎓 Guía de Presentación - Diagramas de Casos de Uso
 
-## Sistema de Gestión de Inventario y Punto de Venta
+## MeperPOS y Punto de Venta
 
 ---
 
@@ -522,4 +522,4 @@ Inv. Usuario:     Solo inventario y stock
 
 ---
 
-*Guía creada para el proyecto de Sistema de Gestión de Inventario y Punto de Venta*
+*Guía creada para el proyecto de MeperPOS y Punto de Venta*

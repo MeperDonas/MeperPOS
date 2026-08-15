@@ -27,7 +27,7 @@ actor "Administrador" as Admin #E3F2FD
 actor "Cajero" as Cajero #FFF3E0
 actor "Usuario de Inventario" as InvUser #E8F5E9
 
-rectangle "Sistema de Gestión de Inventario y Punto de Venta" {
+rectangle "MeperPOS y Punto de Venta" {
     
     package "Módulo de Reportes" {
         usecase (UC60: Ver Dashboard) as UC60 <<Primary>>

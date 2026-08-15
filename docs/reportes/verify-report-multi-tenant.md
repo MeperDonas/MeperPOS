@@ -1,6 +1,6 @@
 # Multi-Tenant Implementation Verification Report
 
-**Project**: gestion-inventario-app  
+**Project**: MeperPOS  
 **Branch**: feat/multi-tenant  
 **Date**: 2026-04-24  
 **Verifier**: sdd-verify agent  

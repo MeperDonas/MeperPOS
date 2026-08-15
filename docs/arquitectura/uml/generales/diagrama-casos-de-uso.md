@@ -1,5 +1,5 @@
 # Diagrama de Casos de Uso
-## Sistema de Gestión de Inventario y Punto de Venta
+## MeperPOS y Punto de Venta
 
 ---
 
@@ -398,4 +398,4 @@ sequenceDiagram
 
 ---
 
-*Documento generado para el proyecto de Sistema de Gestion de Inventario y Punto de Venta*
+*Documento generado para el proyecto de MeperPOS y Punto de Venta*

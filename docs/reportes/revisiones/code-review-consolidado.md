@@ -1,4 +1,4 @@
-# 📋 Code Review Consolidado — gestion-inventario-app
+# 📋 Code Review Consolidado — MeperPOS
 
 > Revisión técnica combinada: análisis de Antigravity (Google DeepMind) + GPT Codex 5.3  
 > Fecha: 19/02/2026

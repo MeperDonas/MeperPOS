@@ -1,6 +1,6 @@
 # Reporte Ejecutivo de Cambios
 
-**Proyecto:** Sistema de Gestion de Inventario y POS  
+**Proyecto:** MeperPOS y POS  
 **Fecha de corte:** 2026-03-04  
 **Documento:** Consolidado tecnico funcional  
 **Base de referencia:** `best-practices-react-next-vercel.md`

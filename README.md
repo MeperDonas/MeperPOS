@@ -1,4 +1,4 @@
-# Sistema de Gestión de Inventario
+# MeperPOS
 
 Sistema full-stack de gestión de inventario con módulo Point of Sale (POS), diseñado para el contexto de negocio colombiano (moneda COP, locale es-CO).
 
@@ -77,7 +77,7 @@ Sistema full-stack de gestión de inventario con módulo Point of Sale (POS), di
 ## Estructura del repositorio
 
 ```
-gestion-inventario-app/
+MeperPOS/
 ├── backend/    # API REST NestJS + Prisma + PostgreSQL (puerto 3001)
 └── frontend/   # SPA Next.js App Router (puerto 3000)
 ```

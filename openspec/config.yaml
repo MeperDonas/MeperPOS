@@ -1,7 +1,7 @@
 schema: spec-driven
 
 context: |
-  Full-stack inventory management system (Sistema de Gestión de Inventario) with POS module.
+  Full-stack inventory management system (MeperPOS) with POS module.
   Backend: NestJS 11 + Prisma 6 + PostgreSQL on port 3001.
   Frontend: Next.js 16 (App Router) + React 19 + TailwindCSS v4 on port 3000.
   Colombian business context: COP currency, es-CO locale.

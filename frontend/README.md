@@ -2,7 +2,7 @@
 
 > Documentación completa del proyecto: [../README.md](../README.md)
 
-Aplicación frontend del Sistema de Gestión de Inventario, construida con Next.js 16 (App Router), React 19 y TailwindCSS v4. Consume la API REST del backend mediante TanStack Query v5 y un cliente Axios con inyección automática de JWT.
+Aplicación frontend del MeperPOS, construida con Next.js 16 (App Router), React 19 y TailwindCSS v4. Consume la API REST del backend mediante TanStack Query v5 y un cliente Axios con inyección automática de JWT.
 
 ## Requisitos
 

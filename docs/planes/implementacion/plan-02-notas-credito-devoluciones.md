@@ -817,4 +817,4 @@ Tests frontend
 
 ---
 
-*Documento generado: 2026-04-21. Referencia: proyecto `gestion-inventario-app`, rama `master`.*
+*Documento generado: 2026-04-21. Referencia: proyecto `MeperPOS`, rama `master`.*

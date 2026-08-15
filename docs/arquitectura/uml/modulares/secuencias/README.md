@@ -1,6 +1,6 @@
 # 🔄 Diagramas de Secuencia
 
-Esta carpeta contiene los diagramas de secuencia que ilustran los flujos principales del Sistema de Gestión de Inventario y Punto de Venta.
+Esta carpeta contiene los diagramas de secuencia que ilustran los flujos principales del MeperPOS y Punto de Venta.
 
 ## 📁 Estructura de Archivos
 
@@ -295,4 +295,4 @@ end
 
 ---
 
-*Documentación generada para el proyecto de Sistema de Gestión de Inventario y Punto de Venta*
+*Documentación generada para el proyecto de MeperPOS y Punto de Venta*

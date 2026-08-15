@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Full-stack inventory management system (Sistema de Gestión de Inventario) with a Point of Sale (POS) module. Built for a Colombian business context (currency: COP, locale: es-CO).
+Full-stack inventory management system (MeperPOS) with a Point of Sale (POS) module. Built for a Colombian business context (currency: COP, locale: es-CO).
 
 - **Backend**: NestJS 11 + Prisma 6 + PostgreSQL, running on port 3001
 - **Frontend**: Next.js 16 (App Router) + React 19 + TailwindCSS v4, running on port 3000

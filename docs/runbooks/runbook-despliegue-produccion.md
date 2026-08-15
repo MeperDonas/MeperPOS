@@ -1,6 +1,6 @@
 # Runbook de Despliegue y Operacion en Produccion
 
-**Proyecto:** Sistema de Gestion de Inventario + POS  
+**Proyecto:** MeperPOS + POS  
 **Stack:** Next.js (Vercel) + NestJS/Prisma (Railway) + Supabase Postgres  
 **Ultima actualizacion:** 2026-03-11
 

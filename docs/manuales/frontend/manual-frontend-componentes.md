@@ -1,6 +1,6 @@
 # Manual Profesional de Componentes Frontend
 
-**Proyecto:** Sistema de Gestion de Inventario (Next.js App Router)
+**Proyecto:** MeperPOS (Next.js App Router)
 **Alcance:** `frontend/src`
 **Ultima actualizacion:** 2026-03-12
 

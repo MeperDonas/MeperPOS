@@ -1,5 +1,5 @@
 # 📚 GUÍA MAESTRA DEL PROYECTO
-## Sistema de Gestión de Inventario y Punto de Venta
+## MeperPOS y Punto de Venta
 
 ---
 
@@ -2183,4 +2183,4 @@ npm run test           # Ejecutar tests
 **Documentación creada por:** Tu Asistente AI  
 **Fecha:** Enero 2026  
 **Versión:** 1.0  
-**Para:** Sistema de Gestión de Inventario y Punto de Venta
+**Para:** MeperPOS y Punto de Venta

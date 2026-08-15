@@ -1,6 +1,6 @@
 # Guía de Onboarding para Desarrollo
 
-¡Bienvenido/a al equipo! Este documento contiene todo lo necesario para configurar tu entorno local y comenzar a aportar valor al Sistema de Gestión de Inventario (POS).
+¡Bienvenido/a al equipo! Este documento contiene todo lo necesario para configurar tu entorno local y comenzar a aportar valor al MeperPOS (POS).
 
 ## 1. Arquitectura a Alto Nivel
 
@@ -26,7 +26,7 @@ Antes de comenzar, asegúrate de tener instalados los siguientes componentes en 
 
 ```bash
 git clone <url-del-repositorio>
-cd gestion-inventario-app
+cd MeperPOS
 ```
 
 ### Configuración del Backend
