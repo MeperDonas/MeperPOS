@@ -16,6 +16,7 @@ describe('ExpensesController', () => {
     addPayment: jest.fn(),
     getMonthlySummary: jest.fn(),
     duplicate: jest.fn(),
+    getHistory: jest.fn(),
   };
 
   const adminUser: RequestUser = {
@@ -54,6 +55,7 @@ describe('ExpensesController', () => {
       controller.remove,
       controller.addPayment,
       controller.duplicate,
+      controller.getHistory,
     ];
 
     for (const handler of handlers) {
@@ -153,6 +155,19 @@ describe('ExpensesController', () => {
       'user-1',
       'org-1',
     );
+  });
+
+  it('delegates getHistory with expense id and organizationId from the token only', async () => {
+    const controller = new ExpensesController(serviceMock as never);
+    const entries = [{ id: 'a-1', action: 'EXPENSE_CREATED' }];
+
+    serviceMock.getHistory.mockResolvedValue(entries);
+
+    await expect(controller.getHistory('exp-1', adminUser)).resolves.toEqual(
+      entries,
+    );
+
+    expect(serviceMock.getHistory).toHaveBeenCalledWith('exp-1', 'org-1');
   });
 
   it('delegates addPayment with expense id, payment body, userId and organizationId from the token only', async () => {

@@ -68,6 +68,13 @@ export class ExpensesController {
     return this.expensesService.findOne(id, user.organizationId);
   }
 
+  @Get(':id/history')
+  @Roles(OrgRole.ADMIN)
+  @ApiOperation({ summary: 'Ver historial de cambios de una salida' })
+  getHistory(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.expensesService.getHistory(id, user.organizationId);
+  }
+
   @Patch(':id')
   @Roles(OrgRole.ADMIN)
   @ApiOperation({ summary: 'Actualizar una salida' })
