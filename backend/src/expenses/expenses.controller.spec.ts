@@ -14,6 +14,10 @@ describe('ExpensesController', () => {
     update: jest.fn(),
     remove: jest.fn(),
     addPayment: jest.fn(),
+    getMonthlySummary: jest.fn(),
+    duplicate: jest.fn(),
+    getHistory: jest.fn(),
+    uploadReceipt: jest.fn(),
   };
 
   const adminUser: RequestUser = {
@@ -46,10 +50,14 @@ describe('ExpensesController', () => {
     const handlers = [
       controller.create,
       controller.findAll,
+      controller.getMonthlySummary,
       controller.findOne,
       controller.update,
       controller.remove,
       controller.addPayment,
+      controller.duplicate,
+      controller.getHistory,
+      controller.uploadReceipt,
     ];
 
     for (const handler of handlers) {
@@ -112,6 +120,78 @@ describe('ExpensesController', () => {
       'org-1',
     );
     expect(serviceMock.remove).toHaveBeenCalledWith('exp-1', 'user-1', 'org-1');
+  });
+
+  it('delegates getMonthlySummary with month and organizationId from the token only', async () => {
+    const controller = new ExpensesController(serviceMock as never);
+    const summary = {
+      month: '2026-08',
+      total: 0,
+      categories: [],
+    };
+
+    serviceMock.getMonthlySummary.mockResolvedValue(summary);
+
+    await expect(
+      controller.getMonthlySummary({ month: '2026-08' }, adminUser),
+    ).resolves.toEqual(summary);
+
+    expect(serviceMock.getMonthlySummary).toHaveBeenCalledWith(
+      '2026-08',
+      'org-1',
+    );
+  });
+
+  it('delegates duplicate with expense id, userId and organizationId from the token only', async () => {
+    const controller = new ExpensesController(serviceMock as never);
+    const duplicated = { id: 'exp-2', organizationId: 'org-1', status: 'PAID' };
+
+    serviceMock.duplicate.mockResolvedValue(duplicated);
+
+    await expect(controller.duplicate('exp-1', adminUser)).resolves.toEqual(
+      duplicated,
+    );
+
+    expect(serviceMock.duplicate).toHaveBeenCalledWith(
+      'exp-1',
+      'user-1',
+      'org-1',
+    );
+  });
+
+  it('delegates getHistory with expense id and organizationId from the token only', async () => {
+    const controller = new ExpensesController(serviceMock as never);
+    const entries = [{ id: 'a-1', action: 'EXPENSE_CREATED' }];
+
+    serviceMock.getHistory.mockResolvedValue(entries);
+
+    await expect(controller.getHistory('exp-1', adminUser)).resolves.toEqual(
+      entries,
+    );
+
+    expect(serviceMock.getHistory).toHaveBeenCalledWith('exp-1', 'org-1');
+  });
+
+  it('delegates uploadReceipt with expense id, file, userId and organizationId from the token only', async () => {
+    const controller = new ExpensesController(serviceMock as never);
+    const file = {
+      buffer: Buffer.from('fake'),
+      originalname: 'receipt.jpg',
+    } as unknown as Express.Multer.File;
+    const updated = { id: 'exp-1', receiptUrl: 'https://cloud.example/r1.jpg' };
+
+    serviceMock.uploadReceipt.mockResolvedValue(updated);
+
+    await expect(
+      controller.uploadReceipt('exp-1', adminUser, file),
+    ).resolves.toEqual(updated);
+
+    expect(serviceMock.uploadReceipt).toHaveBeenCalledWith(
+      'exp-1',
+      file,
+      'user-1',
+      'org-1',
+    );
   });
 
   it('delegates addPayment with expense id, payment body, userId and organizationId from the token only', async () => {

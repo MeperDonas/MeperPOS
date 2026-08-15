@@ -4,14 +4,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ExpensePaymentStatus, Prisma } from '@prisma/client';
+import {
+  formatDateInBogota,
+  parseBogotaMonthRange,
+} from '../common/utils/bogota-date';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateExpensePaymentDto } from './dto/create-expense-payment.dto';
 import { QueryExpensesDto } from './dto/query-expenses.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
-
-const MONTH_REGEX = /^\d{4}-\d{2}$/;
-const BOGOTA_OFFSET_UTC_HOURS = 5;
 
 export function deriveExpensePaymentStatus(
   total: Prisma.Decimal,
@@ -20,28 +22,12 @@ export function deriveExpensePaymentStatus(
   return paymentsSum.gte(total) ? 'PAID' : 'PARTIAL';
 }
 
-export function buildMonthRange(month: string): {
-  start: Date;
-  end: Date;
-} {
-  if (!MONTH_REGEX.test(month)) {
-    throw new BadRequestException('El formato del mes debe ser YYYY-MM');
-  }
-
-  const [year, monthIndex] = month.split('-').map(Number);
-  const start = new Date(
-    Date.UTC(year, monthIndex - 1, 1, BOGOTA_OFFSET_UTC_HOURS, 0, 0, 0),
-  );
-  const end = new Date(
-    Date.UTC(year, monthIndex, 1, BOGOTA_OFFSET_UTC_HOURS, 0, 0, 0) - 1,
-  );
-
-  return { start, end };
-}
-
 @Injectable()
 export class ExpensesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cloudinaryService: CloudinaryService,
+  ) {}
 
   private requireOrganizationId(organizationId: string | undefined): string {
     if (!organizationId) {
@@ -193,7 +179,7 @@ export class ExpensesService {
     };
 
     if (query.month) {
-      const { start, end } = buildMonthRange(query.month);
+      const { start, end } = parseBogotaMonthRange(query.month);
       where.date = { gte: start, lte: end };
     }
     if (query.categoryId) {
@@ -231,6 +217,45 @@ export class ExpensesService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async getMonthlySummary(month: string, organizationId: string | undefined) {
+    const orgId = this.requireOrganizationId(organizationId);
+    const { start, end } = parseBogotaMonthRange(month);
+
+    const grouped = await this.prisma.expense.groupBy({
+      by: ['categoryId'],
+      where: {
+        organizationId: orgId,
+        active: true,
+        date: { gte: start, lte: end },
+      },
+      _sum: { total: true },
+    });
+
+    const categories = await this.prisma.expenseCategory.findMany({
+      where: { id: { in: grouped.map((row) => row.categoryId) } },
+      select: { id: true, name: true },
+    });
+
+    const namesById = new Map(
+      categories.map((category) => [category.id, category.name]),
+    );
+
+    const rows = grouped
+      .map((row) => ({
+        categoryId: row.categoryId,
+        name: namesById.get(row.categoryId) ?? 'Sin categoría',
+        total: row._sum.total ?? new Prisma.Decimal(0),
+      }))
+      .sort((a, b) => b.total.comparedTo(a.total));
+
+    const total = rows.reduce(
+      (sum, row) => sum.add(row.total),
+      new Prisma.Decimal(0),
+    );
+
+    return { month, total, categories: rows };
   }
 
   async findOne(id: string, organizationId: string | undefined) {
@@ -406,6 +431,164 @@ export class ExpensesService {
             date: dto.date,
             beforeStatus: existing.status,
             afterStatus: status,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+
+      return updated;
+    });
+  }
+
+  async duplicate(
+    id: string,
+    userId: string,
+    organizationId: string | undefined,
+  ) {
+    const orgId = this.requireOrganizationId(organizationId);
+
+    const existing = await this.prisma.expense.findFirst({
+      where: { id, organizationId: orgId },
+      include: { payments: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Salida no encontrada');
+    }
+
+    if (!existing.active) {
+      throw new BadRequestException(
+        'No se puede duplicar una salida eliminada',
+      );
+    }
+
+    if (existing.payments.length === 0) {
+      throw new BadRequestException(
+        'Cada salida debe registrarse con al menos un pago',
+      );
+    }
+
+    const paymentsSum = this.sumPayments(existing.payments);
+
+    if (paymentsSum.gt(existing.total)) {
+      throw new BadRequestException(
+        'La suma de los pagos no puede superar el total de la salida',
+      );
+    }
+
+    const status = deriveExpensePaymentStatus(existing.total, paymentsSum);
+    const today = new Date(formatDateInBogota(new Date()));
+
+    return this.prisma.$transaction(async (tx) => {
+      const duplicated = await tx.expense.create({
+        data: {
+          organizationId: orgId,
+          categoryId: existing.categoryId,
+          supplierId: existing.supplierId,
+          purchaseOrderId: existing.purchaseOrderId,
+          description: existing.description,
+          date: today,
+          total: existing.total,
+          status,
+          createdById: userId,
+          payments: {
+            create: existing.payments.map((payment) => ({
+              organizationId: orgId,
+              amount: payment.amount,
+              method: payment.method,
+              date: payment.date,
+            })),
+          },
+        },
+        include: { payments: true, category: true, supplier: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'EXPENSE_DUPLICATED',
+          resource: 'Expense',
+          resourceId: duplicated.id,
+          organizationId: orgId,
+          metadata: {
+            summary: 'Salida duplicada',
+            originalId: id,
+            total: existing.total.toString(),
+            status,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+
+      return duplicated;
+    });
+  }
+
+  async getHistory(id: string, organizationId: string | undefined) {
+    const orgId = this.requireOrganizationId(organizationId);
+
+    const expense = await this.prisma.expense.findFirst({
+      where: { id, organizationId: orgId },
+      select: { id: true },
+    });
+
+    if (!expense) {
+      throw new NotFoundException('Salida no encontrada');
+    }
+
+    return this.prisma.auditLog.findMany({
+      where: { resource: 'Expense', resourceId: id, organizationId: orgId },
+      orderBy: { createdAt: 'asc' },
+      include: { user: { select: { name: true, email: true } } },
+    });
+  }
+
+  async uploadReceipt(
+    id: string,
+    file: Express.Multer.File,
+    userId: string,
+    organizationId: string | undefined,
+  ) {
+    const orgId = this.requireOrganizationId(organizationId);
+
+    const existing = await this.prisma.expense.findFirst({
+      where: { id, organizationId: orgId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Salida no encontrada');
+    }
+
+    const receiptUrl = await this.cloudinaryService.uploadImage(
+      file,
+      'expense-receipts',
+    );
+
+    if (existing.receiptUrl) {
+      try {
+        await this.cloudinaryService.deleteImage(existing.receiptUrl);
+      } catch (error) {
+        console.error('Error deleting old receipt:', error);
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.expense.update({
+        where: { id },
+        data: { receiptUrl },
+        include: { category: true, supplier: true, payments: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'EXPENSE_RECEIPT_UPLOADED',
+          resource: 'Expense',
+          resourceId: id,
+          organizationId: orgId,
+          metadata: {
+            summary: 'Comprobante adjuntado',
+            receiptUrl,
             timestamp: new Date().toISOString(),
           },
         },
