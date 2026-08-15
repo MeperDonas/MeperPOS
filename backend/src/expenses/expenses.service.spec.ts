@@ -42,6 +42,9 @@ describe('ExpensesService', () => {
     purchaseOrder: {
       findFirst: jest.fn(),
     },
+    auditLog: {
+      findMany: jest.fn(),
+    },
   };
 
   const buildValidCreateDto = () => ({
@@ -754,6 +757,52 @@ describe('ExpensesService', () => {
       await expect(
         service.duplicate('exp-1', userId, undefined),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getHistory', () => {
+    it('returns the org-scoped audit entries for the expense ordered ascending', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue({ id: 'exp-1' });
+      prismaMock.auditLog.findMany.mockResolvedValue([
+        { id: 'a-1', action: 'EXPENSE_CREATED' },
+        { id: 'a-2', action: 'EXPENSE_UPDATED' },
+      ]);
+
+      const result = await service.getHistory('exp-1', orgId);
+
+      expect(prismaMock.expense.findFirst).toHaveBeenCalledWith({
+        where: { id: 'exp-1', organizationId: orgId },
+        select: { id: true },
+      });
+      expect(prismaMock.auditLog.findMany).toHaveBeenCalledWith({
+        where: {
+          resource: 'Expense',
+          resourceId: 'exp-1',
+          organizationId: orgId,
+        },
+        orderBy: { createdAt: 'asc' },
+        include: { user: { select: { name: true, email: true } } },
+      });
+      expect(result).toEqual([
+        { id: 'a-1', action: 'EXPENSE_CREATED' },
+        { id: 'a-2', action: 'EXPENSE_UPDATED' },
+      ]);
+    });
+
+    it('throws NotFoundException for unknown or cross-org expense ids without reading the audit log', async () => {
+      prismaMock.expense.findFirst.mockResolvedValue(null);
+
+      await expect(service.getHistory('exp-x', orgId)).rejects.toThrow(
+        NotFoundException,
+      );
+
+      expect(prismaMock.auditLog.findMany).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when organizationId is missing', async () => {
+      await expect(service.getHistory('exp-1', undefined)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 

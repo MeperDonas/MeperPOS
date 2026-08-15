@@ -518,6 +518,25 @@ export class ExpensesService {
     });
   }
 
+  async getHistory(id: string, organizationId: string | undefined) {
+    const orgId = this.requireOrganizationId(organizationId);
+
+    const expense = await this.prisma.expense.findFirst({
+      where: { id, organizationId: orgId },
+      select: { id: true },
+    });
+
+    if (!expense) {
+      throw new NotFoundException('Salida no encontrada');
+    }
+
+    return this.prisma.auditLog.findMany({
+      where: { resource: 'Expense', resourceId: id, organizationId: orgId },
+      orderBy: { createdAt: 'asc' },
+      include: { user: { select: { name: true, email: true } } },
+    });
+  }
+
   async remove(id: string, userId: string, organizationId: string | undefined) {
     const orgId = this.requireOrganizationId(organizationId);
 
