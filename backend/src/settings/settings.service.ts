@@ -1,17 +1,83 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateSettingsDto } from './dto/settings.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import {
+  CORE_KEY_SET,
+  SYSTEM_KEY_SET,
+  type SettingsView,
+} from './schema';
+import { DEFAULT_INVOICING, DEFAULT_LOCALE } from './defaults';
+import { validateInvoicing } from './validator';
 
-export interface OrganizationSettings {
-  companyName?: string;
-  currency?: string;
-  taxRate?: number;
-  receiptPrefix?: string;
-  printHeader?: string;
-  printFooter?: string;
-  logoUrl?: string;
-  [key: string]: unknown;
+/** Type guard for plain objects (Prisma `Json` values come back as objects). */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Surfaces the free-form `custom` section plus any unknown ad-hoc keys that
+ * still live at the root of the persisted blob.
+ */
+export function extractCustom(
+  settings: Record<string, unknown>,
+): Record<string, unknown> {
+  const custom: Record<string, unknown> = isRecord(settings.custom)
+    ? { ...settings.custom }
+    : {};
+
+  for (const [key, value] of Object.entries(settings)) {
+    if (CORE_KEY_SET.has(key) || SYSTEM_KEY_SET.has(key) || key === 'custom') {
+      continue;
+    }
+    custom[key] = value;
+  }
+
+  return custom;
+}
+
+/**
+ * Merge-on-write helper. Never full-replaces:
+ *
+ * - system keys (`downgradeFlags`) are copied through untouched;
+ * - typed core params (`printHeader`, `printFooter`) are overlaid from `incoming`;
+ * - `custom` is merged key-by-key;
+ * - unknown persisted root keys are normalized into `custom` (no data loss).
+ */
+export function mergeSettingsJson(
+  existing: Record<string, unknown>,
+  incoming: UpdateSettingsDto,
+): Record<string, unknown> {
+  const next: Record<string, unknown> = {};
+  const custom: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(existing)) {
+    if (SYSTEM_KEY_SET.has(key)) {
+      next[key] = value;
+    } else if (CORE_KEY_SET.has(key)) {
+      next[key] = value;
+    } else if (key === 'custom') {
+      if (isRecord(value)) Object.assign(custom, value);
+    } else {
+      custom[key] = value;
+    }
+  }
+
+  if (incoming.printHeader !== undefined) next.printHeader = incoming.printHeader;
+  if (incoming.printFooter !== undefined) next.printFooter = incoming.printFooter;
+  if (incoming.custom !== undefined && isRecord(incoming.custom)) {
+    Object.assign(custom, incoming.custom);
+  }
+
+  if (Object.keys(custom).length > 0) next.custom = custom;
+
+  return next;
 }
 
 @Injectable()
@@ -21,37 +87,85 @@ export class SettingsService {
     private cloudinaryService: CloudinaryService,
   ) {}
 
-  async find(organizationId: string | undefined): Promise<OrganizationSettings> {
+  /**
+   * Single read path for organization settings.
+   * Hydrates `Organization` (name/logoUrl/settings/version) + the SALE
+   * sequence prefix into a `SettingsView`, applying defaults on invalid values.
+   */
+  async find(organizationId?: string): Promise<SettingsView> {
     if (!organizationId) {
-      return {};
+      return this.buildDefaultView();
     }
+
     const org = await this.prisma.organization.findUnique({
       where: { id: organizationId },
-      select: { settings: true },
+      select: { name: true, logoUrl: true, settings: true, settingsVersion: true },
     });
-    return (org?.settings as OrganizationSettings) ?? {};
+
+    if (!org) {
+      return this.buildDefaultView();
+    }
+
+    const prefix = await this.readSalePrefix(organizationId);
+
+    return this.buildView(
+      org.name,
+      org.logoUrl,
+      isRecord(org.settings) ? org.settings : {},
+      prefix,
+    );
   }
 
+  /**
+   * Merge-on-write with optimistic locking.
+   *
+   * Reads the current `settingsVersion`, overlays typed params + `custom` onto
+   * the existing blob (never full-replace), then writes via `updateMany`
+   * guarded by that version. A concurrent write yields `count === 0` → 409.
+   */
   async update(
     organizationId: string | undefined,
     dto: UpdateSettingsDto,
-  ): Promise<unknown> {
+  ): Promise<SettingsView> {
     if (!organizationId) {
       throw new BadRequestException('Organization ID is required for this operation');
     }
-    return this.prisma.organization.update({
+
+    this.assertNoSystemKeyWrites(dto);
+
+    const org = await this.prisma.organization.findUnique({
       where: { id: organizationId },
-      data: { settings: dto as any },
+      select: { name: true, logoUrl: true, settings: true, settingsVersion: true },
     });
+
+    if (!org) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    const existing = isRecord(org.settings) ? org.settings : {};
+    const merged = mergeSettingsJson(existing, dto);
+
+    const result = await this.prisma.organization.updateMany({
+      where: { id: organizationId, settingsVersion: org.settingsVersion },
+      data: {
+        settings: merged as Prisma.InputJsonValue,
+        settingsVersion: { increment: 1 },
+      },
+    });
+
+    if (result.count === 0) {
+      throw new ConflictException(
+        'Settings were modified concurrently. Please reload and try again.',
+      );
+    }
+
+    const prefix = await this.readSalePrefix(organizationId);
+
+    return this.buildView(org.name, org.logoUrl, merged, prefix);
   }
 
-  getDefaultSettings(): Partial<OrganizationSettings> {
-    return {
-      companyName: 'Mi Negocio',
-      currency: 'COP',
-      taxRate: 19,
-      receiptPrefix: 'REC-',
-    };
+  getDefaultSettings(): SettingsView {
+    return this.buildDefaultView();
   }
 
   async uploadLogo(
@@ -69,14 +183,54 @@ export class SettingsService {
 
     await this.prisma.organization.update({
       where: { id: organizationId },
-      data: {
-        settings: {
-          ...(await this.find(organizationId)),
-          logoUrl,
-        } as any,
-      },
+      data: { logoUrl },
     });
 
     return { logoUrl };
+  }
+
+  private async readSalePrefix(organizationId: string): Promise<string | null> {
+    const sequence = await this.prisma.organizationSequence.findFirst({
+      where: { organizationId, type: 'SALE' },
+      orderBy: { year: 'desc' },
+      select: { prefix: true },
+    });
+    return sequence?.prefix ?? null;
+  }
+
+  private assertNoSystemKeyWrites(dto: UpdateSettingsDto): void {
+    const payload = dto as Record<string, unknown>;
+    for (const key of SYSTEM_KEY_SET) {
+      if (key in payload && payload[key] !== undefined) {
+        throw new BadRequestException(
+          `Setting '${key}' is system-managed and cannot be updated`,
+        );
+      }
+    }
+  }
+
+  private buildView(
+    name: string,
+    logoUrl: string | null,
+    settings: Record<string, unknown>,
+    prefix: string | null,
+  ): SettingsView {
+    return {
+      organization: { name, logoUrl },
+      invoicing: validateInvoicing(settings),
+      receipt: { prefix },
+      locale: { ...DEFAULT_LOCALE },
+      custom: extractCustom(settings),
+    };
+  }
+
+  private buildDefaultView(): SettingsView {
+    return {
+      organization: { name: '', logoUrl: null },
+      invoicing: { ...DEFAULT_INVOICING },
+      receipt: { prefix: null },
+      locale: { ...DEFAULT_LOCALE },
+      custom: {},
+    };
   }
 }
