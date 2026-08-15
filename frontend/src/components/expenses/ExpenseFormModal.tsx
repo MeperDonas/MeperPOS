@@ -1,0 +1,432 @@
+"use client";
+
+import { useId, useState } from "react";
+import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
+import { ImageUpload } from "@/components/ui/ImageUpload";
+import {
+  useCreateExpense,
+  useExpenseCategories,
+  useUpdateExpense,
+  useUploadExpenseReceipt,
+} from "@/hooks/useExpenses";
+import { useSuppliers } from "@/hooks/useSuppliers";
+import { usePurchaseOrders } from "@/hooks/usePurchaseOrders";
+import { useToast } from "@/contexts/ToastContext";
+import { getApiErrorMessage } from "@/lib/api";
+import { formatCurrency, getBogotaDateInputValue } from "@/lib/utils";
+import { Plus, Trash2 } from "lucide-react";
+import type { Expense, ExpensePayment } from "@/types";
+
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  expense?: Expense | null;
+}
+
+interface PaymentRow {
+  tempId: string;
+  amount: string;
+  method: ExpensePayment["method"];
+  date: string;
+}
+
+const PAYMENT_METHOD_OPTIONS = [
+  { value: "CASH", label: "Efectivo" },
+  { value: "CARD", label: "Tarjeta" },
+  { value: "TRANSFER", label: "Transferencia" },
+];
+
+function genId() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function newRow(): PaymentRow {
+  return {
+    tempId: genId(),
+    amount: "",
+    method: "CASH",
+    date: getBogotaDateInputValue(),
+  };
+}
+
+export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
+  const toast = useToast();
+  const uid = useId();
+  const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
+  const uploadReceipt = useUploadExpenseReceipt();
+
+  const { data: categoriesData } = useExpenseCategories();
+  const { data: suppliersData } = useSuppliers({ limit: 200, status: "active" });
+  const { data: ordersData } = usePurchaseOrders({ limit: 200 });
+
+  const categories = categoriesData ?? [];
+  const suppliers = suppliersData?.data ?? [];
+  const orders = ordersData?.data ?? [];
+
+  const [categoryId, setCategoryId] = useState(expense?.categoryId ?? "");
+  const [supplierId, setSupplierId] = useState(expense?.supplierId ?? "");
+  const [purchaseOrderId, setPurchaseOrderId] = useState(
+    expense?.purchaseOrderId ?? "",
+  );
+  const [description, setDescription] = useState(expense?.description ?? "");
+  const [date, setDate] = useState(
+    expense ? expense.date.slice(0, 10) : getBogotaDateInputValue(),
+  );
+  const [total, setTotal] = useState(expense ? String(expense.total) : "");
+  const [rows, setRows] = useState<PaymentRow[]>(() =>
+    expense ? [] : [newRow()],
+  );
+  const [pendingReceiptFile, setPendingReceiptFile] = useState<File | null>(
+    null,
+  );
+
+  const numericTotal = Number(total) || 0;
+  const paymentsSum = rows.reduce(
+    (acc, row) => acc + (Number(row.amount) || 0),
+    0,
+  );
+  const hasValidPayment = rows.some((row) => (Number(row.amount) || 0) > 0);
+  const existingPaymentsSum = expense
+    ? (expense.payments ?? []).reduce(
+        (acc, payment) => acc + (Number(payment.amount) || 0),
+        0,
+      )
+    : 0;
+
+  const error = !categoryId
+    ? "Selecciona una categoría"
+    : !date
+      ? "Selecciona una fecha"
+      : numericTotal <= 0
+        ? "Ingresa un total válido"
+        : expense
+          ? numericTotal < existingPaymentsSum
+            ? "El nuevo total no puede ser menor a los pagos registrados"
+            : null
+          : !hasValidPayment
+            ? "Agrega al menos un pago válido"
+            : paymentsSum > numericTotal
+              ? "El total de pagos supera el total del gasto"
+              : null;
+
+  const handleSubmit = async () => {
+    if (error) return;
+    try {
+      if (expense) {
+        await updateExpense.mutateAsync({
+          id: expense.id,
+          data: {
+            categoryId,
+            supplierId: supplierId || null,
+            purchaseOrderId: purchaseOrderId || null,
+            description: description.trim() || null,
+            date,
+            total: numericTotal,
+          },
+        });
+        toast.success("Gasto actualizado");
+      } else {
+        const created = await createExpense.mutateAsync({
+          categoryId,
+          supplierId: supplierId || undefined,
+          purchaseOrderId: purchaseOrderId || undefined,
+          description: description.trim() || undefined,
+          date,
+          total: numericTotal,
+          payments: rows
+            .filter((row) => (Number(row.amount) || 0) > 0)
+            .map((row) => ({
+              amount: Number(row.amount),
+              method: row.method,
+              date: row.date,
+            })),
+        });
+        if (pendingReceiptFile) {
+          try {
+            await uploadReceipt.mutateAsync({
+              id: created.id,
+              file: pendingReceiptFile,
+            });
+          } catch (err) {
+            toast.error(
+              getApiErrorMessage(
+                err,
+                "El gasto se creó pero no se pudo subir el comprobante",
+              ),
+            );
+          }
+        }
+        toast.success("Gasto registrado");
+      }
+      onClose();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "No se pudo guardar el gasto"));
+    }
+  };
+
+  const updateRow = (tempId: string, patch: Partial<PaymentRow>) => {
+    setRows((prev) =>
+      prev.map((row) => (row.tempId === tempId ? { ...row, ...patch } : row)),
+    );
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={expense ? "Editar gasto" : "Nuevo gasto"}
+      size="lg"
+    >
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Select
+            label="Categoría"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            options={[
+              { value: "", label: "Selecciona una categoría" },
+              ...categories
+                .filter((category) => category.active)
+                .map((category) => ({
+                  value: category.id,
+                  label: category.name,
+                })),
+            ]}
+          />
+
+          <Select
+            label="Proveedor"
+            value={supplierId}
+            onChange={(e) => setSupplierId(e.target.value)}
+            options={[
+              { value: "", label: "Sin proveedor" },
+              ...suppliers.map((supplier) => ({
+                value: supplier.id,
+                label: supplier.name,
+              })),
+            ]}
+          />
+
+          <Select
+            label="Orden de compra"
+            value={purchaseOrderId}
+            onChange={(e) => setPurchaseOrderId(e.target.value)}
+            options={[
+              { value: "", label: "Sin orden de compra" },
+              ...orders.map((order) => ({
+                value: order.id,
+                label: `OC-${order.orderNumber}`,
+              })),
+            ]}
+          />
+
+          <div>
+            <label
+              htmlFor={`${uid}-date`}
+              className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+            >
+              Fecha
+            </label>
+            <input
+              id={`${uid}-date`}
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor={`${uid}-total`}
+              className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+            >
+              Total (COP)
+            </label>
+            <input
+              id={`${uid}-total`}
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="Total del gasto"
+              value={total}
+              onChange={(e) => setTotal(e.target.value)}
+              className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label
+              htmlFor={`${uid}-description`}
+              className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+            >
+              Descripción
+            </label>
+            <textarea
+              id={`${uid}-description`}
+              rows={2}
+              placeholder="Descripción (opcional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary/50 resize-none"
+            />
+          </div>
+        </div>
+
+        {!expense && (
+          <div className="rounded-xl border border-border/60 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60 bg-muted/30">
+              <span className="text-xs font-semibold text-foreground">
+                Pagos
+              </span>
+              <Button
+                size="sm"
+                type="button"
+                variant="secondary"
+                onClick={() => setRows((prev) => [...prev, newRow()])}
+              >
+                <Plus className="w-3.5 h-3.5" /> Agregar pago
+              </Button>
+            </div>
+            <div className="space-y-3 p-4">
+              {rows.map((row, index) => (
+                <div key={row.tempId} className="flex flex-wrap gap-2 items-end">
+                  <div className="min-w-[120px] flex-1">
+                    <label
+                      htmlFor={`${uid}-amount-${row.tempId}`}
+                      className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
+                      Valor
+                    </label>
+                    <input
+                      id={`${uid}-amount-${row.tempId}`}
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="Valor del pago"
+                      value={row.amount}
+                      onChange={(e) =>
+                        updateRow(row.tempId, { amount: e.target.value })
+                      }
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor={`${uid}-method-${row.tempId}`}
+                      className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
+                      Método
+                    </label>
+                    <select
+                      id={`${uid}-method-${row.tempId}`}
+                      aria-label={`Método de pago ${index + 1}`}
+                      value={row.method}
+                      onChange={(e) =>
+                        updateRow(row.tempId, {
+                          method: e.target.value as ExpensePayment["method"],
+                        })
+                      }
+                      className="rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
+                    >
+                      {PAYMENT_METHOD_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor={`${uid}-paydate-${row.tempId}`}
+                      className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
+                      Fecha pago
+                    </label>
+                    <input
+                      id={`${uid}-paydate-${row.tempId}`}
+                      type="date"
+                      aria-label="Fecha del pago"
+                      value={row.date}
+                      onChange={(e) =>
+                        updateRow(row.tempId, { date: e.target.value })
+                      }
+                      className="rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Eliminar pago"
+                    onClick={() =>
+                      setRows((prev) =>
+                        prev.filter((r) => r.tempId !== row.tempId),
+                      )
+                    }
+                    disabled={rows.length === 1}
+                    className="p-2 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground">
+                Total de pagos:{" "}
+                <span className="font-bold text-foreground stat-number">
+                  {formatCurrency(paymentsSum)}
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Comprobante
+          </p>
+          {expense ? (
+            <ImageUpload
+              value={expense.receiptUrl ?? undefined}
+              onChange={() => {}}
+              onUpload={async (file) => {
+                const updated = await uploadReceipt.mutateAsync({
+                  id: expense.id,
+                  file,
+                });
+                return updated.receiptUrl ?? "";
+              }}
+            />
+          ) : (
+            <ImageUpload
+              onChange={() => {}}
+              onUpload={(file) => {
+                setPendingReceiptFile(file);
+                return Promise.resolve(URL.createObjectURL(file));
+              }}
+            />
+          )}
+        </div>
+
+        {error && (
+          <p className="text-xs font-medium text-red-500">{error}</p>
+        )}
+
+        <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!!error}
+            loading={createExpense.isPending || updateExpense.isPending}
+          >
+            {expense ? "Guardar cambios" : "Registrar gasto"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}

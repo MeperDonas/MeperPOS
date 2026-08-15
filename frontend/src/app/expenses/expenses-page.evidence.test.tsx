@@ -1,0 +1,273 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
+
+const { exportDataMock } = vi.hoisted(() => ({ exportDataMock: vi.fn() }));
+
+const useExpensesMock = vi.fn();
+const useExpenseSummaryMock = vi.fn();
+const useExpenseCategoriesMock = vi.fn();
+const useSuppliersMock = vi.fn();
+const deleteMutateAsyncMock = vi.fn();
+const duplicateMutateAsyncMock = vi.fn();
+const uploadReceiptMutateAsyncMock = vi.fn();
+const toastSuccessMock = vi.fn();
+const toastErrorMock = vi.fn();
+
+vi.mock("@/components/layout/DashboardLayout", () => ({
+  DashboardLayout: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/hooks/useExpenses", () => ({
+  useExpenses: (params?: unknown) => useExpensesMock(params),
+  useExpenseSummary: (month?: string) => useExpenseSummaryMock(month),
+  useExpenseCategories: () => useExpenseCategoriesMock(),
+  useDeleteExpense: () => ({ mutateAsync: deleteMutateAsyncMock }),
+  useDuplicateExpense: () => ({ mutateAsync: duplicateMutateAsyncMock }),
+  useUploadExpenseReceipt: () => ({ mutateAsync: uploadReceiptMutateAsyncMock }),
+}));
+
+vi.mock("@/hooks/useSuppliers", () => ({
+  useSuppliers: () => useSuppliersMock(),
+}));
+
+vi.mock("@/components/expenses/ExpenseFormModal", () => ({
+  ExpenseFormModal: () => <section>ExpenseFormModal</section>,
+}));
+
+vi.mock("@/components/expenses/AddPaymentModal", () => ({
+  AddPaymentModal: () => <section>AddPaymentModal</section>,
+}));
+
+vi.mock("@/components/expenses/HistoryModal", () => ({
+  HistoryModal: () => <section>HistoryModal</section>,
+}));
+
+vi.mock("@/contexts/ToastContext", () => ({
+  useToast: () => ({
+    success: toastSuccessMock,
+    error: toastErrorMock,
+    info: vi.fn(),
+  }),
+}));
+
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return {
+    ...actual,
+    api: {
+      exportData: exportDataMock,
+    },
+  };
+});
+
+import ExpensesPage from "./page";
+
+const expenseFixture = {
+  id: "exp-1",
+  organizationId: "org-1",
+  categoryId: "cat-1",
+  category: {
+    id: "cat-1",
+    organizationId: "org-1",
+    name: "Arriendo",
+    active: true,
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  },
+  supplierId: null,
+  purchaseOrderId: null,
+  description: "Renta agosto",
+  date: "2026-08-01T00:00:00.000Z",
+  total: "500000",
+  status: "PARTIAL",
+  receiptUrl: null,
+  active: true,
+  createdById: "user-1",
+  createdAt: "2026-08-01T00:00:00.000Z",
+  updatedAt: "2026-08-01T00:00:00.000Z",
+  payments: [
+    {
+      id: "pay-1",
+      expenseId: "exp-1",
+      organizationId: "org-1",
+      amount: "300000",
+      method: "CASH",
+      date: "2026-08-01T00:00:00.000Z",
+      createdAt: "2026-08-01T00:00:00.000Z",
+    },
+  ],
+};
+
+describe("Expenses page evidence", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    exportDataMock.mockResolvedValue(undefined);
+    deleteMutateAsyncMock.mockResolvedValue({} as never);
+    duplicateMutateAsyncMock.mockResolvedValue({} as never);
+    uploadReceiptMutateAsyncMock.mockResolvedValue({} as never);
+
+    useExpenseSummaryMock.mockReturnValue({
+      data: {
+        month: "2026-08",
+        total: "800000",
+        categories: [
+          { categoryId: "cat-1", name: "Arriendo", total: "500000" },
+          { categoryId: "cat-2", name: "Caja menor", total: "300000" },
+        ],
+      },
+      isLoading: false,
+    });
+
+    useExpensesMock.mockReturnValue({
+      data: {
+        data: [expenseFixture],
+        meta: { total: 1, page: 1, limit: 15, totalPages: 1 },
+      },
+      isLoading: false,
+    });
+
+    useExpenseCategoriesMock.mockReturnValue({
+      data: [
+        {
+          id: "cat-1",
+          organizationId: "org-1",
+          name: "Arriendo",
+          active: true,
+          createdAt: "2026-08-01T00:00:00.000Z",
+          updatedAt: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+      isLoading: false,
+    });
+
+    useSuppliersMock.mockReturnValue({ data: { data: [] }, isLoading: false });
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("renders the month total and per-category summary cards (EXP-8)", () => {
+    render(<ExpensesPage />);
+
+    expect(screen.getByText("Total del mes")).toBeTruthy();
+    expect(screen.getByText(/800\.000/)).toBeTruthy();
+    expect(screen.getAllByText("Arriendo").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Caja menor")).toBeTruthy();
+    expect(useExpenseSummaryMock).toHaveBeenCalledWith("2026-08");
+  });
+
+  it("renders the expense list with status badge and COP totals", () => {
+    render(<ExpensesPage />);
+
+    expect(screen.getByText("Renta agosto")).toBeTruthy();
+    expect(screen.getAllByText("Parcial").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/500\.000/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("applies the month filter to the list query", () => {
+    render(<ExpensesPage />);
+
+    expect(useExpensesMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ month: "2026-08" }),
+    );
+
+    fireEvent.change(screen.getByLabelText("Mes"), {
+      target: { value: "2026-07" },
+    });
+
+    expect(useExpensesMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ month: "2026-07", page: 1 }),
+    );
+  });
+
+  it("exports the filtered list through the exports endpoint (EXP-9)", async () => {
+    const user = userEvent.setup();
+
+    render(<ExpensesPage />);
+
+    await user.click(screen.getByRole("button", { name: /Exportar/i }));
+
+    expect(exportDataMock).toHaveBeenCalledWith(
+      "/exports/expenses",
+      expect.objectContaining({ type: "expenses" }),
+    );
+    expect(toastSuccessMock).toHaveBeenCalled();
+  });
+
+  it("opens the create form modal", async () => {
+    const user = userEvent.setup();
+
+    render(<ExpensesPage />);
+
+    await user.click(screen.getByRole("button", { name: /Nuevo gasto/i }));
+
+    expect(screen.getByText("ExpenseFormModal")).toBeTruthy();
+  });
+
+  it("opens the add payment modal from the row actions", async () => {
+    const user = userEvent.setup();
+
+    render(<ExpensesPage />);
+
+    await user.click(screen.getByRole("button", { name: "Agregar pago" }));
+
+    expect(screen.getByText("AddPaymentModal")).toBeTruthy();
+  });
+
+  it("opens the history modal from the row actions", async () => {
+    const user = userEvent.setup();
+
+    render(<ExpensesPage />);
+
+    await user.click(screen.getByRole("button", { name: "Ver historial" }));
+
+    expect(screen.getByText("HistoryModal")).toBeTruthy();
+  });
+
+  it("deletes an expense after confirmation (EXP-5)", async () => {
+    const user = userEvent.setup();
+
+    render(<ExpensesPage />);
+
+    await user.click(screen.getByRole("button", { name: "Eliminar gasto" }));
+    expect(screen.getByText("Eliminar gasto")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Sí, eliminar" }));
+
+    expect(deleteMutateAsyncMock).toHaveBeenCalledWith("exp-1");
+    expect(toastSuccessMock).toHaveBeenCalledWith("Gasto eliminado");
+  });
+
+  it("duplicates an expense after confirmation (EXP-10)", async () => {
+    const user = userEvent.setup();
+
+    render(<ExpensesPage />);
+
+    await user.click(screen.getByRole("button", { name: "Duplicar gasto" }));
+    expect(screen.getByText("Duplicar gasto")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Sí, duplicar" }));
+
+    expect(duplicateMutateAsyncMock).toHaveBeenCalledWith("exp-1");
+    expect(toastSuccessMock).toHaveBeenCalledWith("Gasto duplicado");
+  });
+
+  it("uploads a receipt from the row actions", async () => {
+    const user = userEvent.setup();
+
+    render(<ExpensesPage />);
+
+    const file = new File(["receipt"], "recibo.png", { type: "image/png" });
+    const input = screen.getByLabelText("Subir comprobante");
+    await user.upload(input, file);
+
+    expect(uploadReceiptMutateAsyncMock).toHaveBeenCalledWith({
+      id: "exp-1",
+      file,
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Comprobante subido");
+  });
+});

@@ -26,6 +26,8 @@ import { PlanLimitsModule } from './plan-limits/plan-limits.module';
 import { OrganizationStatusGuard } from './common/guards/organization-status.guard';
 import { CashRegistersModule } from './cash-registers/cash-registers.module';
 import { BillingModule } from './billing/billing.module';
+import { ExpenseCategoriesModule } from './expenses/expense-categories.module';
+import { ExpensesModule } from './expenses/expenses.module';
 
 @Module({
   imports: [
@@ -59,6 +61,8 @@ import { BillingModule } from './billing/billing.module';
     PlanLimitsModule,
     CashRegistersModule,
     BillingModule,
+    ExpenseCategoriesModule,
+    ExpensesModule,
   ],
   controllers: [AppController],
   providers: [

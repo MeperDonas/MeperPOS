@@ -26,6 +26,7 @@ import {
   Clock3,
   ClipboardList,
   Truck,
+  Wallet,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
@@ -76,6 +77,12 @@ const navItems: NavItem[] = [
     href: "/sales",
     icon: <Receipt className="w-4 h-4" />,
     roles: ["ADMIN", "CASHIER"],
+  },
+  {
+    label: "Salidas",
+    href: "/expenses",
+    icon: <Wallet className="w-4 h-4" />,
+    roles: ["ADMIN"],
   },
   {
     label: "Clientes",
