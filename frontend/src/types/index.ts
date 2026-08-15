@@ -466,3 +466,77 @@ export interface BillingStatus {
   trialEndsAt: string | null;
   billingStatus: "PENDING" | "PAID" | "OVERDUE";
 }
+
+export type ExpenseStatus = "PARTIAL" | "PAID";
+
+export interface ExpensePayment {
+  id: string;
+  expenseId: string;
+  organizationId: string;
+  amount: number;
+  method: "CASH" | "CARD" | "TRANSFER";
+  date: string;
+  createdAt: string;
+}
+
+export interface ExpenseCategory {
+  id: string;
+  organizationId: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Expense {
+  id: string;
+  organizationId: string;
+  categoryId: string;
+  category?: ExpenseCategory;
+  supplierId: string | null;
+  supplier?: Supplier | null;
+  purchaseOrderId: string | null;
+  purchaseOrder?: PurchaseOrder | null;
+  description: string | null;
+  date: string;
+  total: number;
+  status: ExpenseStatus;
+  receiptUrl: string | null;
+  active: boolean;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  payments?: ExpensePayment[];
+}
+
+export interface ExpenseMonthlySummary {
+  month: string;
+  total: number;
+  categories: Array<{
+    categoryId: string;
+    name: string;
+    total: number;
+  }>;
+}
+
+export interface ExpenseAuditEntry {
+  id: string;
+  userId: string | null;
+  action: string;
+  resource: string;
+  resourceId: string | null;
+  metadata: unknown;
+  createdAt: string;
+  organizationId: string;
+  user?: { name: string; email: string } | null;
+}
+
+export type ExpenseQueryParams = {
+  page?: number;
+  limit?: number;
+  month?: string;
+  categoryId?: string;
+  supplierId?: string;
+  status?: ExpenseStatus;
+  search?: string;
+};
