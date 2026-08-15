@@ -24,7 +24,11 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
     overrides: Partial<{
       date: string | Date;
       total: number;
-      payments: { amount: number; method: 'CASH' | 'CARD' | 'TRANSFER'; date: string }[];
+      payments: {
+        amount: number;
+        method: 'CASH' | 'CARD' | 'TRANSFER';
+        date: string;
+      }[];
       description: string;
     }> = {},
   ) => ({
@@ -33,7 +37,11 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
     date: (overrides.date ?? '2026-08-15') as string,
     total: overrides.total ?? 500000,
     payments: overrides.payments ?? [
-      { amount: overrides.total ?? 500000, method: 'CASH' as const, date: '2026-08-15' },
+      {
+        amount: overrides.total ?? 500000,
+        method: 'CASH' as const,
+        date: '2026-08-15',
+      },
     ],
   });
 

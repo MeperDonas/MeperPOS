@@ -79,11 +79,7 @@ export class ExportsController {
     @Body() query: ExportQueryDto,
     @Res() res: Response,
   ) {
-    return this.exportsService.exportCustomers(
-      user.organizationId,
-      query,
-      res,
-    );
+    return this.exportsService.exportCustomers(user.organizationId, query, res);
   }
 
   @Post('inventory')
@@ -95,11 +91,7 @@ export class ExportsController {
     @Body() query: ExportQueryDto,
     @Res() res: Response,
   ) {
-    return this.exportsService.exportInventory(
-      user.organizationId,
-      query,
-      res,
-    );
+    return this.exportsService.exportInventory(user.organizationId, query, res);
   }
 
   @Post('expenses')
@@ -111,10 +103,6 @@ export class ExportsController {
     @Body() query: ExportQueryDto,
     @Res() res: Response,
   ) {
-    return this.exportsService.exportExpenses(
-      user.organizationId,
-      query,
-      res,
-    );
+    return this.exportsService.exportExpenses(user.organizationId, query, res);
   }
 }

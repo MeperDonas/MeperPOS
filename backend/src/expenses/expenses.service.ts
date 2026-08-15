@@ -457,7 +457,9 @@ export class ExpensesService {
     }
 
     if (!existing.active) {
-      throw new BadRequestException('No se puede duplicar una salida eliminada');
+      throw new BadRequestException(
+        'No se puede duplicar una salida eliminada',
+      );
     }
 
     if (existing.payments.length === 0) {

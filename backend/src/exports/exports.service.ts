@@ -17,7 +17,9 @@ export class ExportsService {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = { ...(organizationId ? { organizationId } : {}) };
+    const where: Record<string, unknown> = {
+      ...(organizationId ? { organizationId } : {}),
+    };
 
     if (query.productId) {
       where.productId = query.productId;
@@ -108,7 +110,10 @@ export class ExportsService {
     return this.exportData(expenses, 'expenses', query.format, response);
   }
 
-  private async getSalesData(organizationId: string | undefined, query: ExportQueryDto) {
+  private async getSalesData(
+    organizationId: string | undefined,
+    query: ExportQueryDto,
+  ) {
     const where: any = { ...(organizationId ? { organizationId } : {}) };
     if (query.startDate || query.endDate) {
       where.createdAt = {};
@@ -132,7 +137,10 @@ export class ExportsService {
     });
   }
 
-  private async getProductsData(organizationId: string | undefined, query: ExportQueryDto) {
+  private async getProductsData(
+    organizationId: string | undefined,
+    query: ExportQueryDto,
+  ) {
     return this.prisma.product.findMany({
       where: { ...(organizationId ? { organizationId } : {}), active: true },
       take: query.limit || undefined,
