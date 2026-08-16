@@ -1,5 +1,19 @@
-import { IsString, IsOptional, IsObject } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsObject, IsNotEmpty } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class UpdateOrganizationNameDto {
+  @ApiProperty({ example: 'Acme Corp' })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+}
+
+export class UpdateReceiptPrefixDto {
+  @ApiPropertyOptional({ example: 'REC-' })
+  @IsString()
+  @IsOptional()
+  prefix?: string;
+}
 
 export class UpdateSettingsDto {
   @ApiPropertyOptional({ example: 'Empresa ABC - Comprobante #' })
