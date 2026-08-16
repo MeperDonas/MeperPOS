@@ -4,6 +4,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Settings, InventoryMovement, PaginatedResponse } from "@/types";
 
+export interface UpdateSettingsInput {
+  printHeader?: string;
+  printFooter?: string;
+  custom?: Record<string, unknown>;
+}
+
 export function useSettings() {
   return useQuery({
     queryKey: ["settings"],
@@ -16,8 +22,25 @@ export function useUpdateSettings() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: Partial<Settings>) =>
+    mutationFn: (data: UpdateSettingsInput) =>
       api.put<Settings>("/settings", data).then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+}
+
+export function useUploadLogo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return api
+        .postWithFormData<{ logoUrl: string }>("/settings/logo", formData)
+        .then((res) => res.data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
