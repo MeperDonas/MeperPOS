@@ -181,14 +181,11 @@ vi.mock("@/hooks/useReceipt", () => ({
 vi.mock("@/hooks/useSettings", () => ({
   useSettings: () => ({
     data: {
-      id: "settings-1",
-      companyName: "Mi Tienda",
-      currency: "COP",
-      taxRate: 19,
-      receiptPrefix: "REC",
-      printHeader: null,
-      printFooter: null,
-      logoUrl: null,
+      organization: { name: "Mi Tienda", logoUrl: null },
+      invoicing: { printHeader: null, printFooter: null },
+      receipt: { prefix: "REC" },
+      locale: { currency: "COP", locale: "es-CO", timezone: "America/Bogota" },
+      custom: {},
     },
   }),
 }));

@@ -400,9 +400,10 @@ describe('SalesService', () => {
       name: 'Test Product',
       active: true,
       salePrice: 100,
+      taxable: true,
       taxRate: 19,
       stock: 10,
-      category: { defaultTaxRate: null },
+      category: { taxable: false, defaultTaxRate: null },
     });
     prismaMock.customer.findFirst.mockResolvedValue({ id: 'cust-1' });
     txMock.sale.create.mockResolvedValue({ id: 'sale-new', saleNumber: 42 });
@@ -454,6 +455,129 @@ describe('SalesService', () => {
     );
   });
 
+  it('create computes tax via the shared opt-in resolver (taxable product → product rate)', async () => {
+    const txMock = {
+      sale: { create: jest.fn() },
+      saleItem: { create: jest.fn() },
+      product: {
+        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      inventoryMovement: { create: jest.fn() },
+      payment: { create: jest.fn() },
+    };
+
+    prismaMock.$transaction.mockImplementation(
+      async (callback: (tx: unknown) => unknown) => callback(txMock),
+    );
+    sequenceServiceMock.nextNumber.mockResolvedValue({
+      number: 42,
+      formatted: '42',
+    });
+    prismaMock.product.findFirst.mockResolvedValue({
+      id: 'prod-1',
+      name: 'Taxable Product',
+      active: true,
+      salePrice: 100,
+      taxable: true,
+      taxRate: 19,
+      stock: 10,
+      category: { taxable: false, defaultTaxRate: null },
+    });
+    prismaMock.customer.findFirst.mockResolvedValue({ id: 'cust-1' });
+    txMock.sale.create.mockResolvedValue({ id: 'sale-new', saleNumber: 42 });
+    prismaMock.sale.findFirst.mockResolvedValue({
+      id: 'sale-new',
+      saleNumber: 42,
+      userId: 'user-1',
+      user: { id: 'user-1', name: 'User', email: 'user@example.com' },
+      customer: null,
+      items: [],
+      payments: [],
+    });
+
+    await service.create(
+      {
+        customerId: 'cust-1',
+        items: [{ productId: 'prod-1', quantity: 1, discountAmount: 0 }],
+        discountAmount: 0,
+        payments: [{ method: 'CASH' as const, amount: 119 }],
+      },
+      'user-1',
+      'org-1',
+    );
+
+    expect(txMock.saleItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ taxRate: 19, total: 119 }),
+      }),
+    );
+    expect(txMock.sale.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ taxAmount: 19, total: 119 }),
+      }),
+    );
+  });
+
+  it('create falls back to the category rate when the product is not taxable', async () => {
+    const txMock = {
+      sale: { create: jest.fn() },
+      saleItem: { create: jest.fn() },
+      product: {
+        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      inventoryMovement: { create: jest.fn() },
+      payment: { create: jest.fn() },
+    };
+
+    prismaMock.$transaction.mockImplementation(
+      async (callback: (tx: unknown) => unknown) => callback(txMock),
+    );
+    sequenceServiceMock.nextNumber.mockResolvedValue({
+      number: 43,
+      formatted: '43',
+    });
+    prismaMock.product.findFirst.mockResolvedValue({
+      id: 'prod-1',
+      name: 'Inherited Tax Product',
+      active: true,
+      salePrice: 100,
+      taxable: false,
+      taxRate: 0,
+      stock: 10,
+      category: { taxable: true, defaultTaxRate: 16 },
+    });
+    prismaMock.customer.findFirst.mockResolvedValue({ id: 'cust-1' });
+    txMock.sale.create.mockResolvedValue({ id: 'sale-new', saleNumber: 43 });
+    prismaMock.sale.findFirst.mockResolvedValue({
+      id: 'sale-new',
+      saleNumber: 43,
+      userId: 'user-1',
+      user: { id: 'user-1', name: 'User', email: 'user@example.com' },
+      customer: null,
+      items: [],
+      payments: [],
+    });
+
+    await service.create(
+      {
+        customerId: 'cust-1',
+        items: [{ productId: 'prod-1', quantity: 1, discountAmount: 0 }],
+        discountAmount: 0,
+        payments: [{ method: 'CASH' as const, amount: 116 }],
+      },
+      'user-1',
+      'org-1',
+    );
+
+    expect(txMock.saleItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ taxRate: 16, total: 116 }),
+      }),
+    );
+  });
+
   it('create throws ServiceUnavailableException on P2028 transaction timeout', async () => {
     const error = new Prisma.PrismaClientKnownRequestError(
       'Transaction timeout',
@@ -468,9 +592,10 @@ describe('SalesService', () => {
       name: 'Test Product',
       active: true,
       salePrice: 100,
+      taxable: true,
       taxRate: 19,
       stock: 10,
-      category: { defaultTaxRate: null },
+      category: { taxable: false, defaultTaxRate: null },
     });
     prismaMock.customer.findFirst.mockResolvedValue({ id: 'cust-1' });
 

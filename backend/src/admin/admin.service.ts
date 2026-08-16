@@ -16,6 +16,7 @@ import { OrgRole, OrgStatus, PlanType, Prisma } from '@prisma/client';
 import { PlanLimitService } from '../plan-limits/plan-limits.service';
 import { PLAN_LIMITS, LimitType } from '../plan-limits/plan-limits.constants';
 import { DEFAULT_EXPENSE_CATEGORY_NAMES } from '../expenses/default-expense-categories';
+import { applySystemKeys } from '../settings/settings.service';
 
 @Injectable()
 export class AdminService {
@@ -214,10 +215,9 @@ export class AdminService {
 
     if (organization.plan === PlanType.PRO && dto.plan === PlanType.BASIC) {
       const downgradeFlags = await this.calculateDowngradeFlags(id);
-      data.settings = {
-        ...existingSettings,
+      data.settings = applySystemKeys(existingSettings, {
         downgradeFlags,
-      } as Prisma.InputJsonObject;
+      }) as Prisma.InputJsonObject;
     }
 
     return this.prisma.organization.update({

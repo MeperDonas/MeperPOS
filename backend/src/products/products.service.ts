@@ -8,7 +8,6 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
-import { SettingsService } from '../settings/settings.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
 import { PlanLimitService } from '../plan-limits/plan-limits.service';
 
@@ -17,7 +16,6 @@ export class ProductsService {
   constructor(
     private prisma: PrismaService,
     private cloudinaryService: CloudinaryService,
-    private settingsService: SettingsService,
     private planLimitService: PlanLimitService,
   ) {}
 
@@ -29,7 +27,8 @@ export class ProductsService {
     if (!organizationId) {
       throw new BadRequestException('Organization ID is required for this operation');
     }
-    const { sku, barcode: rawBarcode, categoryId, taxRate, ...rest } = createProductDto;
+    const { sku, barcode: rawBarcode, categoryId, taxRate, taxable, ...rest } =
+      createProductDto;
     // Normalize empty barcode to null so PostgreSQL unique constraint ignores it
     const barcode = rawBarcode?.trim() || null;
 
@@ -59,19 +58,20 @@ export class ProductsService {
       }
     }
 
-    // Resolve effective tax rate if not explicitly provided
+    // Tax is opt-in: a taxable product must carry a positive rate; otherwise
+    // the rate is forced to 0 and the effective rate is resolved at read time
+    // (product.taxable → category.taxable → 0).
+    const resolvedTaxable = taxable ?? false;
     let resolvedTaxRate: number;
-    if (taxRate != null) {
-      // Explicitly provided — use as-is
-      resolvedTaxRate = taxRate;
+    if (resolvedTaxable) {
+      if (taxRate == null || Number(taxRate) <= 0) {
+        throw new BadRequestException(
+          'Taxable products require a tax rate greater than 0',
+        );
+      }
+      resolvedTaxRate = Number(taxRate);
     } else {
-      // Not provided — resolve from category default → settings fallback
-      const settings = await this.settingsService.find(organizationId);
-      resolvedTaxRate = resolveEffectiveTaxRate(
-        null,
-        category.defaultTaxRate,
-        settings.taxRate ?? 19,
-      );
+      resolvedTaxRate = 0;
     }
 
     const product = await this.prisma.product.create({
@@ -81,6 +81,7 @@ export class ProductsService {
         barcode,
         categoryId,
         organizationId,
+        taxable: resolvedTaxable,
         taxRate: resolvedTaxRate,
       },
       include: { category: true },
@@ -222,10 +223,28 @@ export class ProductsService {
     const previousStock = existingProduct.stock;
     const newStock = updateProductDto.stock ?? previousStock;
 
+    // Apply the same opt-in tax invariant as create: `taxable=true` requires a
+    // positive rate; `taxable=false` forces the stored rate back to 0.
+    const taxData =
+      updateProductDto.taxable === true
+        ? (() => {
+            const rate = updateProductDto.taxRate ?? existingProduct.taxRate;
+            if (rate == null || Number(rate) <= 0) {
+              throw new BadRequestException(
+                'Taxable products require a tax rate greater than 0',
+              );
+            }
+            return { taxable: true, taxRate: Number(rate) };
+          })()
+        : updateProductDto.taxable === false
+          ? { taxable: false, taxRate: 0 }
+          : {};
+
     const updateResult = await this.prisma.product.updateMany({
       where: { id, version: existingProduct.version, active: true },
       data: {
         ...updateProductDto,
+        ...taxData,
         barcode: normalizedBarcode,
         version: { increment: 1 },
       },
@@ -353,12 +372,9 @@ export class ProductsService {
       barcode: p.barcode,
       salePrice: p.salePrice,
       stock: p.stock,
+      taxable: p.taxable,
       taxRate: p.taxRate,
-      effectiveTaxRate: resolveEffectiveTaxRate(
-        p.taxRate,
-        p.category?.defaultTaxRate ?? null,
-        0,
-      ),
+      effectiveTaxRate: resolveEffectiveTaxRate(p, p.category),
       minStock: p.minStock,
       isLowStock: p.stock <= p.minStock,
       category: p.category,
@@ -398,12 +414,9 @@ export class ProductsService {
       barcode: product.barcode,
       salePrice: product.salePrice,
       stock: product.stock,
+      taxable: product.taxable,
       taxRate: product.taxRate,
-      effectiveTaxRate: resolveEffectiveTaxRate(
-        product.taxRate,
-        product.category?.defaultTaxRate ?? null,
-        0,
-      ),
+      effectiveTaxRate: resolveEffectiveTaxRate(product, product.category),
       minStock: product.minStock,
       isLowStock: product.stock <= product.minStock,
       category: product.category,
@@ -414,23 +427,22 @@ export class ProductsService {
   /**
    * Enriches a product with effective tax rate information.
    *
-   * Uses resolveEffectiveTaxRate so that a product with taxRate === 0
-   * (the schema default, meaning "not explicitly set") falls back to
-   * the category's defaultTaxRate.
+   * Uses the shared `resolveEffectiveTaxRate(product, category)` so the
+   * read-time value agrees with sale-time resolution (opt-in precedence:
+   * product.taxable → category.taxable → 0).
    */
   private enrichWithEffectiveTax<
     T extends {
+      taxable: boolean;
       taxRate: Prisma.Decimal | number;
-      category?: { defaultTaxRate: Prisma.Decimal | null } | null;
+      category?:
+        | { taxable: boolean; defaultTaxRate: Prisma.Decimal | null }
+        | null;
     },
   >(product: T): T & { effectiveTaxRate: number } {
     return {
       ...product,
-      effectiveTaxRate: resolveEffectiveTaxRate(
-        product.taxRate,
-        product.category?.defaultTaxRate ?? null,
-        0,
-      ),
+      effectiveTaxRate: resolveEffectiveTaxRate(product, product.category),
     };
   }
 
