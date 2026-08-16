@@ -109,14 +109,23 @@ export interface InventoryMovement {
 }
 
 export interface Settings {
-  id: string;
-  companyName: string;
-  currency: string;
-  taxRate: number;
-  receiptPrefix: string;
-  printHeader: string | null;
-  printFooter: string | null;
-  logoUrl: string | null;
+  organization: {
+    name: string;
+    logoUrl: string | null;
+  };
+  invoicing: {
+    printHeader: string;
+    printFooter: string;
+  };
+  receipt: {
+    prefix: string | null;
+  };
+  locale: {
+    currency: string;
+    locale: string;
+    timezone: string;
+  };
+  custom: Record<string, unknown>;
 }
 
 export interface AppliedRange {
