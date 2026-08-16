@@ -15,6 +15,7 @@ model Organization {
   phone              String?
   address            String?
   settings           Json                   @default("{}")
+  settingsVersion    Int                    @default(0)
   active             Boolean                @default(true)
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
@@ -136,6 +137,7 @@ model Category {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   defaultTaxRate Decimal?     @db.Decimal(5, 2)
+  taxable        Boolean      @default(false)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   products       Product[]
@@ -153,6 +155,7 @@ model Product {
   costPrice           Decimal             @db.Decimal(10, 2)
   salePrice           Decimal             @db.Decimal(10, 2)
   taxRate             Decimal             @default(0) @db.Decimal(5, 2)
+  taxable             Boolean             @default(false)
   stock               Int                 @default(0)
   minStock            Int                 @default(0)
   imageUrl            String?
