@@ -1,14 +1,15 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { CURRENCY, LOCALE, TIMEZONE } from "@/lib/constants";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency: string = "COP") {
-  const isCop = currency.toUpperCase() === "COP";
+export function formatCurrency(amount: number, currency: string = CURRENCY) {
+  const isCop = currency.toUpperCase() === CURRENCY;
 
-  return new Intl.NumberFormat("es-CO", {
+  return new Intl.NumberFormat(LOCALE, {
     style: "currency",
     currency,
     minimumFractionDigits: isCop ? 0 : 2,
@@ -17,7 +18,7 @@ export function formatCurrency(amount: number, currency: string = "COP") {
 }
 
 export function formatDate(date: string | Date) {
-  return new Intl.DateTimeFormat("es-CO", {
+  return new Intl.DateTimeFormat(LOCALE, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -25,7 +26,7 @@ export function formatDate(date: string | Date) {
 }
 
 export function formatDateTime(date: string | Date) {
-  return new Intl.DateTimeFormat("es-CO", {
+  return new Intl.DateTimeFormat(LOCALE, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -35,7 +36,7 @@ export function formatDateTime(date: string | Date) {
 }
 
 const bogotaDateFormatter = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "America/Bogota",
+  timeZone: TIMEZONE,
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
