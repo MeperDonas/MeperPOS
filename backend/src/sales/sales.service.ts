@@ -18,6 +18,7 @@ import {
 import { CacheService } from '../common/services/cache.service';
 import { SettingsService } from '../settings/settings.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
+import { CURRENCY, LOCALE, TIMEZONE } from '../common/constants/locale.constants';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { SequenceService } from '../common/sequences/sequence.service';
 import { PLAN_LIMITS } from '../plan-limits/plan-limits.constants';
@@ -117,11 +118,7 @@ export class SalesService {
       }
 
       const itemSubtotal = grossSubtotal - itemDiscount;
-      const effectiveTaxRate = resolveEffectiveTaxRate(
-        product.taxRate,
-        product.category?.defaultTaxRate ?? null,
-        0,
-      );
+      const effectiveTaxRate = resolveEffectiveTaxRate(product, product.category);
       const itemTax = itemSubtotal * (effectiveTaxRate / 100);
       const itemTotal = itemSubtotal + itemTax;
 
@@ -586,19 +583,20 @@ export class SalesService {
 
   async generateReceipt(id: string, response: Response, user?: RequestUser) {
     const sale = await this.findOne(id, user?.organizationId, user);
-    const settings = user
-      ? await this.settingsService.find(user.organizationId)
-      : {};
+    const settings = await this.settingsService.find(user?.organizationId);
 
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: [80, 300],
     });
-    const companyName = settings?.companyName || 'Mi Negocio';
-    const printHeader = settings?.printHeader || '';
-    const printFooter = settings?.printFooter || '';
-    const logoUrl = settings?.logoUrl;
+    const companyName = settings.organization.name || 'Mi Negocio';
+    const printHeader = settings.invoicing.printHeader || '';
+    const printFooter = settings.invoicing.printFooter || '';
+    const logoUrl = settings.organization.logoUrl;
+    const receiptNumber = settings.receipt.prefix
+      ? `${settings.receipt.prefix}-${sale.saleNumber}`
+      : String(sale.saleNumber);
 
     const margin = 4;
     const maxWidth = 80 - margin * 2;
@@ -644,13 +642,16 @@ export class SalesService {
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    const receiptDate = new Date(sale.createdAt).toLocaleDateString('es-CO');
-    const receiptTime = new Date(sale.createdAt).toLocaleTimeString('es-CO', {
+    const receiptDate = new Date(sale.createdAt).toLocaleDateString(LOCALE, {
+      timeZone: TIMEZONE,
+    });
+    const receiptTime = new Date(sale.createdAt).toLocaleTimeString(LOCALE, {
+      timeZone: TIMEZONE,
       hour: '2-digit',
       minute: '2-digit',
     });
     doc.text(
-      `No. ${sale.saleNumber}    ${receiptDate} ${receiptTime}`,
+      `No. ${receiptNumber}    ${receiptDate} ${receiptTime}`,
       margin,
       y,
     );
@@ -855,9 +856,9 @@ export class SalesService {
   }
 
   private formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('es-CO', {
+    return new Intl.NumberFormat(LOCALE, {
       style: 'currency',
-      currency: 'COP',
+      currency: CURRENCY,
     }).format(amount);
   }
 }

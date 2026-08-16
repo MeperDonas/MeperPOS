@@ -43,6 +43,11 @@ export class CreateProductDto {
   @IsOptional()
   taxRate?: number;
 
+  @ApiProperty({ example: false, required: false })
+  @IsBoolean()
+  @IsOptional()
+  taxable?: boolean;
+
   @ApiProperty({ example: 10 })
   @IsNumber()
   @Min(0)
@@ -101,6 +106,11 @@ export class UpdateProductDto {
   @Min(0)
   @IsOptional()
   taxRate?: number;
+
+  @ApiProperty({ example: false, required: false })
+  @IsBoolean()
+  @IsOptional()
+  taxable?: boolean;
 
   @ApiProperty({ example: 10, required: false })
   @IsNumber()
