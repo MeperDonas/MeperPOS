@@ -107,7 +107,7 @@ export class SalesService {
         throw new BadRequestException(`Product ${product.name} is not active`);
       }
 
-      const unitPrice = Number(product.salePrice);
+      const unitPrice = Number(item.unitPrice ?? product.salePrice);
       const grossSubtotal = unitPrice * item.quantity;
       const itemDiscount = Math.max(0, item.discountAmount || 0);
 
