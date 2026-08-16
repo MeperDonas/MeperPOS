@@ -47,6 +47,32 @@ export function useUploadLogo() {
   });
 }
 
+export function useUpdateOrganizationName() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (name: string) =>
+      api.patch<Settings>("/settings/organization", { name }).then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+}
+
+export function useUpdateReceiptPrefix() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (prefix: string) =>
+      api
+        .patch<Settings>("/settings/receipt-prefix", { prefix })
+        .then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+}
+
 export function useInventoryMovements(params?: {
   page?: number;
   limit?: number;

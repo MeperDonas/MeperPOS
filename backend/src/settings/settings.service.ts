@@ -164,6 +164,79 @@ export class SettingsService {
     return this.buildView(org.name, org.logoUrl, merged, prefix);
   }
 
+  async updateOrganizationName(
+    organizationId: string | undefined,
+    name: string,
+  ): Promise<SettingsView> {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
+
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (!trimmed) {
+      throw new BadRequestException('Organization name cannot be empty');
+    }
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!org) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    await this.prisma.organization.update({
+      where: { id: organizationId },
+      data: { name: trimmed },
+    });
+
+    return this.find(organizationId);
+  }
+
+  async updateSalePrefix(
+    organizationId: string | undefined,
+    prefix: string | undefined,
+  ): Promise<SettingsView> {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for this operation');
+    }
+
+    const trimmed = typeof prefix === 'string' ? prefix.trim() : '';
+    const value = trimmed.length > 0 ? trimmed : null;
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!org) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    const sequence = await this.prisma.organizationSequence.findFirst({
+      where: { organizationId, type: 'SALE' },
+      orderBy: { year: 'desc' },
+    });
+
+    if (sequence) {
+      await this.prisma.organizationSequence.update({
+        where: { id: sequence.id },
+        data: { prefix: value },
+      });
+    } else {
+      await this.prisma.organizationSequence.create({
+        data: {
+          organizationId,
+          type: 'SALE',
+          currentNumber: 0,
+          year: new Date().getFullYear(),
+          prefix: value,
+        },
+      });
+    }
+
+    return this.find(organizationId);
+  }
+
   getDefaultSettings(): SettingsView {
     return this.buildDefaultView();
   }

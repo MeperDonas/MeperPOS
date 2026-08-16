@@ -4,10 +4,12 @@ import userEvent from "@testing-library/user-event";
 
 const {
   uploadLogoMutateAsyncMock,
+  updateOrganizationNameMutateAsyncMock,
   toastSuccessMock,
   settingsData,
 } = vi.hoisted(() => ({
   uploadLogoMutateAsyncMock: vi.fn(),
+  updateOrganizationNameMutateAsyncMock: vi.fn(),
   toastSuccessMock: vi.fn(),
   settingsData: {
     organization: { name: "Mi Empresa", logoUrl: null },
@@ -30,6 +32,10 @@ vi.mock("@/hooks/useSettings", () => ({
     mutateAsync: uploadLogoMutateAsyncMock,
     isPending: false,
   }),
+  useUpdateOrganizationName: () => ({
+    mutateAsync: updateOrganizationNameMutateAsyncMock,
+    isPending: false,
+  }),
 }));
 
 vi.mock("@/contexts/ToastContext", () => ({
@@ -46,15 +52,32 @@ describe("General settings page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     uploadLogoMutateAsyncMock.mockResolvedValue({ logoUrl: "https://cdn/logo.png" });
+    updateOrganizationNameMutateAsyncMock.mockResolvedValue(settingsData);
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it("shows the organization name from the settings view", () => {
+  it("shows the organization name as an editable input", () => {
     render(<GeneralSettingsPage />);
-    expect(screen.getByText("Mi Empresa")).toBeInTheDocument();
+    expect(screen.getByLabelText(/nombre de la organización/i)).toHaveValue(
+      "Mi Empresa"
+    );
+  });
+
+  it("saves the organization name through the organization endpoint", async () => {
+    const user = userEvent.setup();
+    render(<GeneralSettingsPage />);
+
+    const nameInput = screen.getByLabelText(/nombre de la organización/i);
+    await user.clear(nameInput);
+    await user.type(nameInput, "Nueva Empresa");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(updateOrganizationNameMutateAsyncMock).toHaveBeenCalledWith(
+      "Nueva Empresa"
+    );
   });
 
   it("uploads a logo through the logo endpoint", async () => {

@@ -1,9 +1,14 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { useSettings, useUploadLogo } from "@/hooks/useSettings";
+import {
+  useSettings,
+  useUploadLogo,
+  useUpdateOrganizationName,
+} from "@/hooks/useSettings";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { SettingsCard } from "../../_components/SettingsCard";
 import { useToast } from "@/contexts/ToastContext";
@@ -14,7 +19,16 @@ export default function GeneralSettingsPage() {
   const toast = useToast();
   const { data: settings, isLoading } = useSettings();
   const uploadLogo = useUploadLogo();
+  const updateOrganizationName = useUpdateOrganizationName();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [name, setName] = useState("");
+
+  useEffect(() => {
+    if (settings) {
+      setName(settings.organization.name ?? "");
+    }
+  }, [settings]);
 
   if (isLoading || !settings) {
     return (
@@ -38,6 +52,16 @@ export default function GeneralSettingsPage() {
     }
   };
 
+  const handleNameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateOrganizationName.mutateAsync(name);
+      toast.success("Nombre actualizado correctamente");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Error al actualizar el nombre"));
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3 mb-5">
@@ -51,17 +75,23 @@ export default function GeneralSettingsPage() {
         icon={<Building2 className="w-4 h-4 text-primary" />}
       >
         <div className="space-y-6">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Nombre de la organización
-            </p>
-            <p className="text-base font-medium text-foreground mt-1">
-              {settings.organization.name || "Sin nombre"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              El nombre de la organización se gestiona desde tu cuenta.
-            </p>
-          </div>
+          <form onSubmit={handleNameSubmit} className="space-y-3">
+            <Input
+              label="Nombre de la organización"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nombre de tu negocio"
+            />
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                size="sm"
+                loading={updateOrganizationName.isPending}
+              >
+                Guardar
+              </Button>
+            </div>
+          </form>
 
           <div className="pt-4 border-t border-black/5 dark:border-white/5">
             <p className="text-xs font-semibold uppercase tracking-wide text-foreground mb-3">
