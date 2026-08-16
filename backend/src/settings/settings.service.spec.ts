@@ -3,7 +3,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { SettingsService } from './settings.service';
+import { SettingsService, applySystemKeys } from './settings.service';
 
 describe('SettingsService', () => {
   let service: SettingsService;
@@ -388,5 +388,32 @@ describe('SettingsService', () => {
         custom: {},
       });
     });
+  });
+});
+
+describe('applySystemKeys', () => {
+  it('preserves user-owned keys and overlays system keys', () => {
+    const existing = {
+      printHeader: 'Mi Negocio',
+      printFooter: 'Gracias',
+      custom: { loyalty: 'true' },
+    };
+
+    const result = applySystemKeys(existing, { downgradeFlags: { users: 2 } });
+
+    expect(result).toEqual({
+      printHeader: 'Mi Negocio',
+      printFooter: 'Gracias',
+      custom: { loyalty: 'true' },
+      downgradeFlags: { users: 2 },
+    });
+  });
+
+  it('does not mutate the existing object', () => {
+    const existing = { printHeader: 'A' };
+    applySystemKeys(existing, { downgradeFlags: {} });
+
+    expect(existing).toEqual({ printHeader: 'A' });
+    expect(existing).not.toHaveProperty('downgradeFlags');
   });
 });
