@@ -1,7 +1,11 @@
-import { NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ProductsService } from './products.service';
 
-describe('ProductsService — Tax Precedence', () => {
+describe('ProductsService — Opt-in tax resolution', () => {
   let service: ProductsService;
 
   // ── Mocks ──────────────────────────────────────────────────────────
@@ -24,10 +28,6 @@ describe('ProductsService — Tax Precedence', () => {
     },
   };
 
-  const settingsServiceMock = {
-    find: jest.fn(),
-  };
-
   const cloudinaryServiceMock = {};
 
   const planLimitServiceMock = {
@@ -38,11 +38,15 @@ describe('ProductsService — Tax Precedence', () => {
   const ORG_ID = 'org-1';
 
   // ── Shared fixtures ────────────────────────────────────────────────
-  const categoryWithDefault = (defaultTaxRate: number | null) => ({
+  const categoryWithDefault = (
+    defaultTaxRate: number | null,
+    taxable = false,
+  ) => ({
     id: 'cat-1',
     name: 'Electrónica',
     description: null,
     defaultTaxRate,
+    taxable,
     active: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -56,6 +60,7 @@ describe('ProductsService — Tax Precedence', () => {
     description: null,
     costPrice: 100,
     salePrice: 150,
+    taxable: overrides.taxable ?? false,
     taxRate: overrides.taxRate ?? 0,
     stock: 10,
     minStock: 5,
@@ -65,7 +70,7 @@ describe('ProductsService — Tax Precedence', () => {
     version: 1,
     createdAt: new Date(),
     updatedAt: new Date(),
-    category: overrides.category ?? categoryWithDefault(16),
+    category: overrides.category ?? categoryWithDefault(null, false),
     ...overrides,
   });
 
@@ -75,7 +80,6 @@ describe('ProductsService — Tax Precedence', () => {
     service = new ProductsService(
       prismaMock as never,
       cloudinaryServiceMock as never,
-      settingsServiceMock as never,
       planLimitServiceMock as never,
     );
   });
@@ -94,166 +98,124 @@ describe('ProductsService — Tax Precedence', () => {
       categoryId: 'cat-1',
     };
 
-    it('uses explicit taxRate when provided — ignores category default and settings', async () => {
-      prismaMock.category.findFirst.mockResolvedValue(categoryWithDefault(16));
-      prismaMock.product.findUnique.mockResolvedValue(null); // no SKU/barcode conflict
+    it('stores taxable=true with the provided rate', async () => {
+      prismaMock.category.findFirst.mockResolvedValue(
+        categoryWithDefault(null, false),
+      );
+      prismaMock.product.findUnique.mockResolvedValue(null);
       prismaMock.product.create.mockResolvedValue(
-        buildProduct({ taxRate: 8, category: categoryWithDefault(16) }),
+        buildProduct({
+          taxable: true,
+          taxRate: 8,
+          category: categoryWithDefault(null, false),
+        }),
       );
       prismaMock.inventoryMovement.create.mockResolvedValue({});
 
       const result = await service.create(
-        { ...baseDto, taxRate: 8 },
+        { ...baseDto, taxable: true, taxRate: 8 },
         USER_ID,
         ORG_ID,
       );
 
-      // The create call should receive the explicit taxRate, NOT the category default
       expect(prismaMock.product.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ taxRate: 8 }),
+          data: expect.objectContaining({ taxable: true, taxRate: 8 }),
         }),
       );
-      // Settings should NOT be fetched when taxRate is explicit
-      expect(settingsServiceMock.find).not.toHaveBeenCalled();
-      expect(result.taxRate).toBe(8);
+      expect(result.taxable).toBe(true);
       expect(result.effectiveTaxRate).toBe(8);
     });
 
-    it('falls back to category defaultTaxRate when product has no override', async () => {
-      prismaMock.category.findFirst.mockResolvedValue(categoryWithDefault(16));
-      prismaMock.product.findUnique.mockResolvedValue(null);
-      prismaMock.product.create.mockResolvedValue(
-        buildProduct({ taxRate: 16, category: categoryWithDefault(16) }),
-      );
-      prismaMock.inventoryMovement.create.mockResolvedValue({});
-      settingsServiceMock.find.mockResolvedValue({ taxRate: 19 });
-
-      // No taxRate in the DTO
-      const result = await service.create(
-        {
-          name: 'Test',
-          sku: 'SKU-002',
-          costPrice: 100,
-          salePrice: 150,
-          stock: 10,
-          minStock: 5,
-          categoryId: 'cat-1',
-        },
-        USER_ID,
-        ORG_ID,
-      );
-
-      expect(prismaMock.product.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ taxRate: 16 }),
-        }),
-      );
-      expect(settingsServiceMock.find).toHaveBeenCalled();
-      expect(result.taxRate).toBe(16);
-    });
-
-    it('falls back to settings taxRate when category has no defaultTaxRate', async () => {
+    it('forces taxRate to 0 when taxable is false even if a rate is supplied', async () => {
       prismaMock.category.findFirst.mockResolvedValue(
-        categoryWithDefault(null),
+        categoryWithDefault(null, false),
       );
       prismaMock.product.findUnique.mockResolvedValue(null);
       prismaMock.product.create.mockResolvedValue(
-        buildProduct({ taxRate: 19, category: categoryWithDefault(null) }),
-      );
-      prismaMock.inventoryMovement.create.mockResolvedValue({});
-      settingsServiceMock.find.mockResolvedValue({ taxRate: 19 });
-
-      const result = await service.create(
-        {
-          name: 'Test',
-          sku: 'SKU-003',
-          costPrice: 100,
-          salePrice: 150,
-          stock: 10,
-          minStock: 5,
-          categoryId: 'cat-1',
-        },
-        USER_ID,
-        ORG_ID,
-      );
-
-      expect(prismaMock.product.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ taxRate: 19 }),
+        buildProduct({
+          taxable: false,
+          taxRate: 0,
+          category: categoryWithDefault(null, false),
         }),
       );
-      expect(result.taxRate).toBe(19);
-    });
-
-    it('falls back to settings when category defaultTaxRate is zero', async () => {
-      prismaMock.category.findFirst.mockResolvedValue(categoryWithDefault(0));
-      prismaMock.product.findUnique.mockResolvedValue(null);
-      prismaMock.product.create.mockResolvedValue(
-        buildProduct({ taxRate: 19, category: categoryWithDefault(0) }),
-      );
       prismaMock.inventoryMovement.create.mockResolvedValue({});
-      settingsServiceMock.find.mockResolvedValue({ taxRate: 19 });
 
       await service.create(
-        {
-          name: 'Test',
-          sku: 'SKU-004',
-          costPrice: 100,
-          salePrice: 150,
-          stock: 10,
-          minStock: 5,
-          categoryId: 'cat-1',
-        },
+        { ...baseDto, taxable: false, taxRate: 8 },
         USER_ID,
         ORG_ID,
       );
 
       expect(prismaMock.product.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ taxRate: 19 }),
+          data: expect.objectContaining({ taxable: false, taxRate: 0 }),
         }),
       );
+    });
+
+    it('defaults to non-taxable (rate 0) when taxable is omitted', async () => {
+      prismaMock.category.findFirst.mockResolvedValue(
+        categoryWithDefault(null, false),
+      );
+      prismaMock.product.findUnique.mockResolvedValue(null);
+      prismaMock.product.create.mockResolvedValue(
+        buildProduct({
+          taxable: false,
+          taxRate: 0,
+          category: categoryWithDefault(null, false),
+        }),
+      );
+      prismaMock.inventoryMovement.create.mockResolvedValue({});
+
+      const result = await service.create(baseDto, USER_ID, ORG_ID);
+
+      expect(prismaMock.product.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ taxable: false, taxRate: 0 }),
+        }),
+      );
+      expect(result.effectiveTaxRate).toBe(0);
+    });
+
+    it('throws BadRequestException when taxable is true without a rate', async () => {
+      prismaMock.category.findFirst.mockResolvedValue(
+        categoryWithDefault(null, false),
+      );
+      prismaMock.product.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.create({ ...baseDto, taxable: true }, USER_ID, ORG_ID),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws BadRequestException when taxable is true with rate 0', async () => {
+      prismaMock.category.findFirst.mockResolvedValue(
+        categoryWithDefault(null, false),
+      );
+      prismaMock.product.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.create({ ...baseDto, taxable: true, taxRate: 0 }, USER_ID, ORG_ID),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('throws NotFoundException when category does not exist', async () => {
       prismaMock.category.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.create(
-          {
-            name: 'Test',
-            sku: 'SKU-005',
-            costPrice: 100,
-            salePrice: 150,
-            stock: 10,
-            minStock: 5,
-            categoryId: 'non-existent',
-          },
-          USER_ID,
-          ORG_ID,
-        ),
+        service.create({ ...baseDto, sku: 'SKU-005' }, USER_ID, ORG_ID),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('throws ConflictException when SKU already exists', async () => {
-      prismaMock.category.findFirst.mockResolvedValue(categoryWithDefault(16));
+      prismaMock.category.findFirst.mockResolvedValue(
+        categoryWithDefault(null, false),
+      );
       prismaMock.product.findUnique.mockResolvedValue({ id: 'existing' });
 
       await expect(
-        service.create(
-          {
-            name: 'Test',
-            sku: 'DUPLICATE-SKU',
-            costPrice: 100,
-            salePrice: 150,
-            stock: 10,
-            minStock: 5,
-            categoryId: 'cat-1',
-          },
-          USER_ID,
-          ORG_ID,
-        ),
+        service.create({ ...baseDto, sku: 'DUPLICATE-SKU' }, USER_ID, ORG_ID),
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -262,247 +224,134 @@ describe('ProductsService — Tax Precedence', () => {
   // Product Update — tax behavior
   // ════════════════════════════════════════════════════════════════════
   describe('Product Update', () => {
-    it('preserves explicit override when category changes — update does not recalculate tax', async () => {
-      const existing = buildProduct({
-        id: 'prod-1',
-        taxRate: 8,
-        categoryId: 'cat-1',
-        category: categoryWithDefault(16),
-        version: 1,
-      });
-      prismaMock.product.findFirst.mockResolvedValue(existing);
-      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
-
-      const newCategory = { ...categoryWithDefault(20), id: 'cat-2' };
-      const updated = buildProduct({
-        id: 'prod-1',
-        taxRate: 8, // explicit override preserved
-        categoryId: 'cat-2',
-        category: newCategory,
-        version: 2,
-      });
-      // After updateMany, the service does findFirst again
+    it('stores taxable + rate when explicitly provided', async () => {
+      const existing = buildProduct({ taxRate: 16, version: 1 });
       prismaMock.product.findFirst.mockResolvedValueOnce(existing);
-      prismaMock.product.findFirst.mockResolvedValueOnce(updated);
+      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
+      prismaMock.product.findFirst.mockResolvedValueOnce(
+        buildProduct({ taxable: true, taxRate: 5, version: 2 }),
+      );
       prismaMock.inventoryMovement.create.mockResolvedValue({});
 
       const result = await service.update(
         'prod-1',
-        { categoryId: 'cat-2' }, // changing category, no taxRate in DTO
-        USER_ID,
-        ORG_ID,
-      );
-
-      // The updateMany should NOT have changed the taxRate
-      expect(prismaMock.product.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.not.objectContaining({ taxRate: expect.any(Number) }),
-        }),
-      );
-      expect(result.taxRate).toBe(8);
-      expect(result.effectiveTaxRate).toBe(8);
-    });
-
-    it('updates effective tax when explicitly providing a new taxRate', async () => {
-      const existing = buildProduct({
-        id: 'prod-1',
-        taxRate: 16,
-        version: 1,
-      });
-      prismaMock.product.findFirst.mockResolvedValueOnce(existing);
-      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
-
-      const updated = buildProduct({
-        id: 'prod-1',
-        taxRate: 5,
-        version: 2,
-      });
-      prismaMock.product.findFirst.mockResolvedValueOnce(updated);
-      prismaMock.inventoryMovement.create.mockResolvedValue({});
-
-      const result = await service.update(
-        'prod-1',
-        { taxRate: 5 },
+        { taxable: true, taxRate: 5 },
         USER_ID,
         ORG_ID,
       );
 
       expect(prismaMock.product.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ taxRate: 5 }),
+          data: expect.objectContaining({ taxable: true, taxRate: 5 }),
         }),
       );
-      expect(result.taxRate).toBe(5);
+      expect(result.taxable).toBe(true);
       expect(result.effectiveTaxRate).toBe(5);
     });
 
-    it('does not change taxRate when update has no taxRate or categoryId fields', async () => {
-      const existing = buildProduct({
-        id: 'prod-1',
-        taxRate: 16,
-        version: 1,
-      });
-      prismaMock.product.findFirst.mockResolvedValue(existing);
+    it('forces taxRate to 0 when taxable is set to false', async () => {
+      const existing = buildProduct({ taxable: true, taxRate: 8, version: 1 });
+      prismaMock.product.findFirst.mockResolvedValueOnce(existing);
       prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
+      prismaMock.product.findFirst.mockResolvedValueOnce(
+        buildProduct({ taxable: false, taxRate: 0, version: 2 }),
+      );
       prismaMock.inventoryMovement.create.mockResolvedValue({});
 
-      await service.update(
-        'prod-1',
-        { name: 'Renamed Product' },
-        USER_ID,
-        ORG_ID,
-      );
+      await service.update('prod-1', { taxable: false }, USER_ID, ORG_ID);
 
-      // updateMany data should only contain the name, not taxRate
+      expect(prismaMock.product.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ taxable: false, taxRate: 0 }),
+        }),
+      );
+    });
+
+    it('throws BadRequestException when taxable=true without a valid rate', async () => {
+      const existing = buildProduct({ taxable: false, taxRate: 0, version: 1 });
+      prismaMock.product.findFirst.mockResolvedValueOnce(existing);
+
+      await expect(
+        service.update('prod-1', { taxable: true }, USER_ID, ORG_ID),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('does not change taxable/taxRate when both are omitted', async () => {
+      const existing = buildProduct({ taxable: true, taxRate: 16, version: 1 });
+      prismaMock.product.findFirst.mockResolvedValueOnce(existing);
+      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
+      prismaMock.product.findFirst.mockResolvedValueOnce(
+        buildProduct({ name: 'Renamed', version: 2 }),
+      );
+      prismaMock.inventoryMovement.create.mockResolvedValue({});
+
+      await service.update('prod-1', { name: 'Renamed Product' }, USER_ID, ORG_ID);
+
       const updateCall = prismaMock.product.updateMany.mock.calls[0][0];
       expect(updateCall.data.name).toBe('Renamed Product');
+      expect(updateCall.data.taxable).toBeUndefined();
       expect(updateCall.data.taxRate).toBeUndefined();
     });
   });
 
   // ════════════════════════════════════════════════════════════════════
-  // Category Reassignment
+  // Effective tax resolution (read path)
   // ════════════════════════════════════════════════════════════════════
-  describe('Category Reassignment', () => {
-    it('applies new category default when product has no override — via create', async () => {
-      // Product created without explicit taxRate in category with default 10
-      prismaMock.category.findFirst.mockResolvedValue(categoryWithDefault(10));
-      prismaMock.product.findUnique.mockResolvedValue(null);
-      prismaMock.product.create.mockResolvedValue(
-        buildProduct({ taxRate: 10, category: categoryWithDefault(10) }),
-      );
-      prismaMock.inventoryMovement.create.mockResolvedValue({});
-      settingsServiceMock.find.mockResolvedValue({ taxRate: 19 });
-
-      const result = await service.create(
-        {
-          name: 'Test',
-          sku: 'SKU-REASSIGN-1',
-          costPrice: 100,
-          salePrice: 150,
-          stock: 10,
-          minStock: 5,
-          categoryId: 'cat-1',
-        },
-        USER_ID,
-        ORG_ID,
-      );
-
-      expect(result.taxRate).toBe(10); // category default, not settings 19
-    });
-
-    it('preserves product override regardless of category during update', async () => {
-      // Product has explicit taxRate 5, moving to category with default 20
-      const existing = buildProduct({
-        taxRate: 5,
-        categoryId: 'cat-1',
-        category: categoryWithDefault(10),
-        version: 1,
-      });
-      prismaMock.product.findFirst.mockResolvedValueOnce(existing);
-      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
-
-      const newCategory = { ...categoryWithDefault(20), id: 'cat-2' };
-      const updated = buildProduct({
-        taxRate: 5, // override preserved
-        categoryId: 'cat-2',
-        category: newCategory,
-        version: 2,
-      });
-      prismaMock.product.findFirst.mockResolvedValueOnce(updated);
-      prismaMock.inventoryMovement.create.mockResolvedValue({});
-
-      const result = await service.update(
-        'prod-1',
-        { categoryId: 'cat-2' },
-        USER_ID,
-        ORG_ID,
-      );
-
-      expect(result.taxRate).toBe(5); // override, not new category's 20
-      expect(result.effectiveTaxRate).toBe(5);
-    });
-
-    it('drops override when explicitly setting taxRate to 0 on update', async () => {
-      const existing = buildProduct({
-        taxRate: 8,
-        version: 1,
-      });
-      prismaMock.product.findFirst.mockResolvedValueOnce(existing);
-      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
-
-      const updated = buildProduct({
+  describe('Effective tax resolution (read path)', () => {
+    it('falls back to the category rate when the product is not opted-in', async () => {
+      const product = buildProduct({
+        taxable: false,
         taxRate: 0,
-        version: 2,
+        category: categoryWithDefault(16, true),
       });
-      prismaMock.product.findFirst.mockResolvedValueOnce(updated);
-      prismaMock.inventoryMovement.create.mockResolvedValue({});
+      prismaMock.product.findFirst.mockResolvedValue(product);
 
-      const result = await service.update(
-        'prod-1',
-        { taxRate: 0 }, // explicitly clearing the override
-        USER_ID,
-        ORG_ID,
-      );
+      const result = await service.findOne('prod-1', ORG_ID);
 
-      expect(prismaMock.product.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ taxRate: 0 }),
-        }),
-      );
-      expect(result.taxRate).toBe(0);
-    });
-  });
-
-  // ════════════════════════════════════════════════════════════════════
-  // Precedence consistency — creation vs enrichment
-  // ════════════════════════════════════════════════════════════════════
-  describe('Precedence consistency', () => {
-    it('enrichWithEffectiveTax returns stored taxRate as effectiveTaxRate (create+read match)', async () => {
-      prismaMock.category.findFirst.mockResolvedValue(categoryWithDefault(16));
-      prismaMock.product.findUnique.mockResolvedValue(null);
-      prismaMock.product.create.mockResolvedValue(
-        buildProduct({ taxRate: 16, category: categoryWithDefault(16) }),
-      );
-      prismaMock.inventoryMovement.create.mockResolvedValue({});
-      settingsServiceMock.find.mockResolvedValue({ taxRate: 19 });
-
-      const created = await service.create(
-        {
-          name: 'Test',
-          sku: 'SKU-CONSISTENCY',
-          costPrice: 100,
-          salePrice: 150,
-          stock: 10,
-          minStock: 5,
-          categoryId: 'cat-1',
-        },
-        USER_ID,
-        ORG_ID,
-      );
-
-      // Now simulate a read (findOne)
-      prismaMock.product.findFirst.mockResolvedValue(
-        buildProduct({
-          id: 'prod-1',
-          taxRate: 16,
-          category: categoryWithDefault(16),
-          movements: [],
-        }),
-      );
-
-      const read = await service.findOne('prod-1', ORG_ID);
-
-      // The effectiveTaxRate from create and findOne must match
-      expect(created.effectiveTaxRate).toBe(read.effectiveTaxRate);
-      expect(created.taxRate).toBe(read.taxRate);
+      expect(result.effectiveTaxRate).toBe(16);
     });
 
-    it('findAll enriches all products with effectiveTaxRate', async () => {
+    it('uses the product rate when the product is opted-in (overrides category)', async () => {
+      const product = buildProduct({
+        taxable: true,
+        taxRate: 8,
+        category: categoryWithDefault(16, true),
+      });
+      prismaMock.product.findFirst.mockResolvedValue(product);
+
+      const result = await service.findOne('prod-1', ORG_ID);
+
+      expect(result.effectiveTaxRate).toBe(8);
+    });
+
+    it('returns 0 when neither product nor category is opted-in', async () => {
+      const product = buildProduct({
+        taxable: false,
+        taxRate: 0,
+        category: categoryWithDefault(null, false),
+      });
+      prismaMock.product.findFirst.mockResolvedValue(product);
+
+      const result = await service.findOne('prod-1', ORG_ID);
+
+      expect(result.effectiveTaxRate).toBe(0);
+    });
+
+    it('findAll enriches every product with effectiveTaxRate', async () => {
       prismaMock.product.findMany.mockResolvedValue([
-        buildProduct({ id: 'p1', taxRate: 8 }),
-        buildProduct({ id: 'p2', taxRate: 16 }),
-        buildProduct({ id: 'p3', taxRate: 19 }),
+        buildProduct({ id: 'p1', taxable: true, taxRate: 8 }),
+        buildProduct({
+          id: 'p2',
+          taxable: false,
+          taxRate: 0,
+          category: categoryWithDefault(16, true),
+        }),
+        buildProduct({
+          id: 'p3',
+          taxable: false,
+          taxRate: 0,
+          category: categoryWithDefault(null, false),
+        }),
       ]);
       prismaMock.product.count.mockResolvedValue(3);
 
@@ -510,7 +359,7 @@ describe('ProductsService — Tax Precedence', () => {
 
       expect(result.data[0].effectiveTaxRate).toBe(8);
       expect(result.data[1].effectiveTaxRate).toBe(16);
-      expect(result.data[2].effectiveTaxRate).toBe(19);
+      expect(result.data[2].effectiveTaxRate).toBe(0);
     });
   });
 
@@ -539,18 +388,8 @@ describe('ProductsService — Tax Precedence', () => {
             organizationId: ORG_ID,
             active: true,
             OR: [
-              {
-                barcode: {
-                  equals: '7701234567890',
-                  mode: 'insensitive',
-                },
-              },
-              {
-                sku: {
-                  equals: '7701234567890',
-                  mode: 'insensitive',
-                },
-              },
+              { barcode: { equals: '7701234567890', mode: 'insensitive' } },
+              { sku: { equals: '7701234567890', mode: 'insensitive' } },
             ],
           },
         }),

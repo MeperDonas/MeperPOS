@@ -3,7 +3,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { SettingsService } from './settings.service';
+import { SettingsService, applySystemKeys } from './settings.service';
 
 describe('SettingsService', () => {
   let service: SettingsService;
@@ -16,6 +16,8 @@ describe('SettingsService', () => {
     },
     organizationSequence: {
       findFirst: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
     },
   };
 
@@ -235,6 +237,147 @@ describe('SettingsService', () => {
     });
   });
 
+  describe('updateOrganizationName', () => {
+    it('trims and persists the name, returning the refreshed view', async () => {
+      prismaMock.organization.findUnique
+        .mockResolvedValueOnce({ id: 'org-1' })
+        .mockResolvedValue({
+          name: 'Acme Corp',
+          logoUrl: null,
+          settings: {},
+          settingsVersion: 0,
+        });
+      prismaMock.organization.update.mockResolvedValue({ id: 'org-1' });
+      prismaMock.organizationSequence.findFirst.mockResolvedValue(null);
+
+      const result = await service.updateOrganizationName('org-1', '  Acme Corp  ');
+
+      expect(prismaMock.organization.update).toHaveBeenCalledWith({
+        where: { id: 'org-1' },
+        data: { name: 'Acme Corp' },
+      });
+      expect(result.organization.name).toBe('Acme Corp');
+    });
+
+    it('throws BadRequestException for an empty or whitespace-only name', async () => {
+      await expect(
+        service.updateOrganizationName('org-1', '   '),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prismaMock.organization.update).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException without an organizationId', async () => {
+      await expect(
+        service.updateOrganizationName(undefined, 'Acme'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws NotFoundException when the organization does not exist', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateOrganizationName('missing', 'Acme'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('updateSalePrefix', () => {
+    it('updates the prefix of the latest SALE sequence (mirrors readSalePrefix)', async () => {
+      prismaMock.organization.findUnique
+        .mockResolvedValueOnce({ id: 'org-1' })
+        .mockResolvedValue({
+          name: 'Acme',
+          logoUrl: null,
+          settings: {},
+          settingsVersion: 0,
+        });
+      prismaMock.organizationSequence.findFirst
+        .mockResolvedValueOnce({ id: 'seq-1' })
+        .mockResolvedValue({ prefix: 'REC-' });
+      prismaMock.organizationSequence.update.mockResolvedValue({
+        id: 'seq-1',
+        prefix: 'REC-',
+      });
+
+      const result = await service.updateSalePrefix('org-1', ' REC- ');
+
+      expect(prismaMock.organizationSequence.findFirst).toHaveBeenCalledWith({
+        where: { organizationId: 'org-1', type: 'SALE' },
+        orderBy: { year: 'desc' },
+      });
+      expect(prismaMock.organizationSequence.update).toHaveBeenCalledWith({
+        where: { id: 'seq-1' },
+        data: { prefix: 'REC-' },
+      });
+      expect(result.receipt.prefix).toBe('REC-');
+    });
+
+    it('clears the prefix to null when the value is empty or whitespace', async () => {
+      prismaMock.organization.findUnique
+        .mockResolvedValueOnce({ id: 'org-1' })
+        .mockResolvedValue({
+          name: 'Acme',
+          logoUrl: null,
+          settings: {},
+          settingsVersion: 0,
+        });
+      prismaMock.organizationSequence.findFirst
+        .mockResolvedValueOnce({ id: 'seq-1' })
+        .mockResolvedValue({ prefix: null });
+      prismaMock.organizationSequence.update.mockResolvedValue({
+        id: 'seq-1',
+        prefix: null,
+      });
+
+      await service.updateSalePrefix('org-1', '   ');
+
+      expect(prismaMock.organizationSequence.update).toHaveBeenCalledWith({
+        where: { id: 'seq-1' },
+        data: { prefix: null },
+      });
+    });
+
+    it('creates a current-year SALE sequence when none exists yet', async () => {
+      prismaMock.organization.findUnique
+        .mockResolvedValueOnce({ id: 'org-1' })
+        .mockResolvedValue({
+          name: 'Acme',
+          logoUrl: null,
+          settings: {},
+          settingsVersion: 0,
+        });
+      prismaMock.organizationSequence.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue({ prefix: 'REC-' });
+      prismaMock.organizationSequence.create.mockResolvedValue({ id: 'seq-2' });
+
+      await service.updateSalePrefix('org-1', 'REC-');
+
+      expect(prismaMock.organizationSequence.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          organizationId: 'org-1',
+          type: 'SALE',
+          currentNumber: 0,
+          prefix: 'REC-',
+        }),
+      });
+    });
+
+    it('throws BadRequestException without an organizationId', async () => {
+      await expect(
+        service.updateSalePrefix(undefined, 'REC-'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws NotFoundException when the organization does not exist', async () => {
+      prismaMock.organization.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateSalePrefix('missing', 'REC-'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
   describe('getDefaultSettings', () => {
     it('returns the defaults registry as a SettingsView', () => {
       expect(service.getDefaultSettings()).toEqual({
@@ -245,5 +388,32 @@ describe('SettingsService', () => {
         custom: {},
       });
     });
+  });
+});
+
+describe('applySystemKeys', () => {
+  it('preserves user-owned keys and overlays system keys', () => {
+    const existing = {
+      printHeader: 'Mi Negocio',
+      printFooter: 'Gracias',
+      custom: { loyalty: 'true' },
+    };
+
+    const result = applySystemKeys(existing, { downgradeFlags: { users: 2 } });
+
+    expect(result).toEqual({
+      printHeader: 'Mi Negocio',
+      printFooter: 'Gracias',
+      custom: { loyalty: 'true' },
+      downgradeFlags: { users: 2 },
+    });
+  });
+
+  it('does not mutate the existing object', () => {
+    const existing = { printHeader: 'A' };
+    applySystemKeys(existing, { downgradeFlags: {} });
+
+    expect(existing).toEqual({ printHeader: 'A' });
+    expect(existing).not.toHaveProperty('downgradeFlags');
   });
 });

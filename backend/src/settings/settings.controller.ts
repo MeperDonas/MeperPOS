@@ -3,6 +3,7 @@ import {
   Get,
   Put,
   Post,
+  Patch,
   Body,
   UseGuards,
   UseInterceptors,
@@ -16,7 +17,11 @@ import {
 } from '@nestjs/swagger';
 import { OrgRole } from '@prisma/client';
 import { SettingsService } from './settings.service';
-import { UpdateSettingsDto } from './dto/settings.dto';
+import {
+  UpdateSettingsDto,
+  UpdateOrganizationNameDto,
+  UpdateReceiptPrefixDto,
+} from './dto/settings.dto';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -68,5 +73,31 @@ export class SettingsController {
     @CurrentUser() user: RequestUser,
   ) {
     return this.settingsService.uploadLogo(user.organizationId, file);
+  }
+
+  @Patch('organization')
+  @Roles(OrgRole.ADMIN)
+  @ApiOperation({ summary: 'Update organization name' })
+  async updateOrganizationName(
+    @Body() updateOrganizationNameDto: UpdateOrganizationNameDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.settingsService.updateOrganizationName(
+      user.organizationId,
+      updateOrganizationNameDto.name,
+    );
+  }
+
+  @Patch('receipt-prefix')
+  @Roles(OrgRole.ADMIN)
+  @ApiOperation({ summary: 'Update receipt prefix' })
+  async updateReceiptPrefix(
+    @Body() updateReceiptPrefixDto: UpdateReceiptPrefixDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.settingsService.updateSalePrefix(
+      user.organizationId,
+      updateReceiptPrefixDto.prefix,
+    );
   }
 }
