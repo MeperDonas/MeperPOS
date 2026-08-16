@@ -80,6 +80,18 @@ export function mergeSettingsJson(
   return next;
 }
 
+/**
+ * Applies a system-key overlay (e.g. `downgradeFlags`) onto existing settings
+ * for write paths outside the user-facing settings PUT (e.g. `admin.updatePlan`).
+ * Preserves every user-owned key; only the given system keys are overlaid.
+ */
+export function applySystemKeys(
+  existing: Record<string, unknown>,
+  systemKeys: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...existing, ...systemKeys };
+}
+
 @Injectable()
 export class SettingsService {
   constructor(
