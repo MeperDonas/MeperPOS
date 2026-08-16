@@ -1,27 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
+import {
+  useSettings,
+  useUpdateSettings,
+  useUpdateReceiptPrefix,
+} from "@/hooks/useSettings";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { SettingsCard } from "../../_components/SettingsCard";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage } from "@/lib/api";
-import { Receipt } from "lucide-react";
+import { Receipt, Hash } from "lucide-react";
 
 export default function InvoicingSettingsPage() {
   const toast = useToast();
   const { data: settings, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
+  const updateReceiptPrefix = useUpdateReceiptPrefix();
 
   const [printHeader, setPrintHeader] = useState("");
   const [printFooter, setPrintFooter] = useState("");
+  const [prefix, setPrefix] = useState("");
 
   useEffect(() => {
     if (settings) {
       setPrintHeader(settings.invoicing.printHeader ?? "");
       setPrintFooter(settings.invoicing.printFooter ?? "");
+      setPrefix(settings.receipt.prefix ?? "");
     }
   }, [settings]);
 
@@ -41,6 +48,16 @@ export default function InvoicingSettingsPage() {
       toast.success("Configuración guardada correctamente");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Error al guardar la configuración"));
+    }
+  };
+
+  const handlePrefixSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateReceiptPrefix.mutateAsync(prefix);
+      toast.success("Prefijo guardado correctamente");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Error al guardar el prefijo"));
     }
   };
 
@@ -76,21 +93,30 @@ export default function InvoicingSettingsPage() {
             placeholder="Información que aparecerá al pie de los recibos"
           />
 
-          <div className="rounded-xl border border-border bg-card px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Prefijo de comprobante
-            </p>
-            <p className="text-sm font-mono text-foreground mt-1">
-              {settings.receipt.prefix ?? "—"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Se toma de la secuencia de ventas configurada.
-            </p>
-          </div>
-
           <div className="flex justify-end pt-2">
             <Button type="submit" loading={updateSettings.isPending}>
               Guardar
+            </Button>
+          </div>
+        </form>
+      </SettingsCard>
+
+      <SettingsCard
+        title="Prefijo de comprobante"
+        description="Prefijo que antecede al número de cada recibo"
+        icon={<Hash className="w-4 h-4 text-primary" />}
+      >
+        <form onSubmit={handlePrefixSubmit} className="space-y-4">
+          <Input
+            label="Prefijo de comprobante"
+            value={prefix}
+            onChange={(e) => setPrefix(e.target.value)}
+            placeholder="Ej. REC-"
+          />
+
+          <div className="flex justify-end pt-2">
+            <Button type="submit" loading={updateReceiptPrefix.isPending}>
+              Guardar prefijo
             </Button>
           </div>
         </form>
