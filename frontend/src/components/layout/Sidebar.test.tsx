@@ -131,6 +131,34 @@ describe("Sidebar", () => {
     expect(link).toHaveAttribute("href", "/expenses");
   });
 
+  it("uses the approved operational order and keeps users out of the main sidebar", async () => {
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { organizations },
+    });
+
+    render(<Sidebar />, { wrapper });
+
+    await waitFor(() => expect(screen.getByText("Org A")).toBeInTheDocument());
+
+    const links = screen.getAllByRole("link").map((link) => link.textContent?.trim());
+    expect(links).toEqual([
+      "Dashboard",
+      "POS",
+      "Ventas",
+      "Clientes",
+      "Inventario",
+      "Categorías",
+      "Proveedores",
+      "Compras",
+      "Salidas",
+      "Reportes",
+      "Tareas",
+      "Mi perfil",
+      "Configuración",
+    ]);
+    expect(screen.queryByRole("link", { name: "Usuarios" })).not.toBeInTheDocument();
+  });
+
   it("hides the Salidas nav item for CASHIER users", async () => {
     useAuthMock.mockReturnValue({
       user: {
