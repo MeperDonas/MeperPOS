@@ -188,9 +188,9 @@ async function createDemoProducts(
   orgId: string,
   categoryIds: string[],
   count: number,
-): Promise<{ id: string; salePrice: Prisma.Decimal }[]> {
+): Promise<{ id: string; costPrice: Prisma.Decimal; salePrice: Prisma.Decimal }[]> {
   const prefixes = ['BEB', 'ALI', 'LIM', 'ELEC', 'ROP', 'HOG', 'PAPEL', 'CUID', 'MASC', 'FARM'];
-  const products: { id: string; salePrice: Prisma.Decimal }[] = [];
+  const products: { id: string; costPrice: Prisma.Decimal; salePrice: Prisma.Decimal }[] = [];
 
   for (let i = 0; i < count; i++) {
     const prefix = prefixes[i % prefixes.length];
@@ -219,7 +219,11 @@ async function createDemoProducts(
       },
     });
 
-    products.push({ id: product.id, salePrice: d(salePrice) });
+    products.push({
+      id: product.id,
+      costPrice: d(costPrice),
+      salePrice: d(salePrice),
+    });
   }
 
   console.log(`  📦 ${count} productos creados`);
@@ -256,7 +260,7 @@ async function createDemoSales(
   orgId: string,
   userIds: string[],
   customerIds: string[],
-  products: { id: string; salePrice: Prisma.Decimal }[],
+  products: { id: string; costPrice: Prisma.Decimal; salePrice: Prisma.Decimal }[],
   count: number,
 ): Promise<void> {
   for (let i = 0; i < count; i++) {
@@ -268,6 +272,7 @@ async function createDemoSales(
       productId: string;
       quantity: number;
       unitPrice: Prisma.Decimal;
+      costPriceSnapshot: Prisma.Decimal;
       taxRate: Prisma.Decimal;
       subtotal: Prisma.Decimal;
       total: Prisma.Decimal;
@@ -284,6 +289,7 @@ async function createDemoSales(
         productId: product.id,
         quantity,
         unitPrice,
+        costPriceSnapshot: product.costPrice,
         taxRate,
         subtotal: itemSubtotal,
         total: itemTotal,
@@ -318,6 +324,7 @@ async function createDemoSales(
             productId: item.productId,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
+            costPriceSnapshot: item.costPriceSnapshot,
             taxRate: item.taxRate,
             discountAmount: d(0),
             subtotal: item.subtotal,
