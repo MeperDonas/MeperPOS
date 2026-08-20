@@ -140,6 +140,75 @@ export interface ReportEnvelope<T> {
   comparisonRange?: AppliedRange;
 }
 
+export interface FinancialDataQuality {
+  snapshotBackedItems: number;
+  excludedItems: number;
+  excludedQuantity: number;
+}
+
+export interface FinancialProductMargin {
+  productId: string;
+  productName: string;
+  categoryName: string;
+  quantity: number;
+  netRevenue: string;
+  cogs: string;
+  grossProfit: string;
+  marginPercentage: number | null;
+}
+
+export interface FinancialReport {
+  netIncome: string;
+  tax: string;
+  cogs: string;
+  grossProfit: string;
+  grossMarginPercentage: number | null;
+  operatingExpenses: string;
+  netProfit: string;
+  netMarginPercentage: number | null;
+  products: FinancialProductMargin[];
+  dataQuality: FinancialDataQuality;
+}
+
+export interface FinancialDelta {
+  absolute: string;
+  percentage: number | null;
+}
+
+export interface FinancialOverview {
+  current: FinancialReport;
+  previous: FinancialReport;
+  deltas: Record<string, FinancialDelta>;
+  appliedRange: AppliedRange;
+  comparisonRange: AppliedRange;
+}
+
+export interface CashFlowReport {
+  accountingBasis: string;
+  collections: {
+    total: string;
+    byPaymentMethod: Array<{ paymentMethod: string; total: string; count: number }>;
+  };
+  expensePayments: {
+    total: string;
+    byPaymentMethod: Array<{ paymentMethod: string; total: string; count: number }>;
+  };
+  appliedRange: AppliedRange;
+}
+
+export interface InventorySnapshotReport {
+  isCurrentSnapshot: boolean;
+  valuationBasis: string;
+  current: {
+    stockQuantity: number;
+    stockValue: string;
+    retailValue: string;
+    potentialProfit: string;
+  };
+  movements: { totalQuantity: number; byType: Record<string, number> };
+  appliedRange: AppliedRange;
+}
+
 export interface DashboardData {
   totalSales: number;
   totalRevenue: number;
@@ -374,11 +443,6 @@ export interface TaskListResult {
   source: TaskDataSource;
 }
 
-export interface UserPerformanceComparison {
-  revenuePct: number | null;
-  salesPct: number | null;
-}
-
 export type PurchaseOrderStatus =
   | "DRAFT"
   | "PENDING"
@@ -431,17 +495,6 @@ export interface PurchaseOrder {
   createdAt: string;
   updatedAt: string;
   items?: PurchaseOrderItem[];
-}
-
-export interface UserPerformance {
-  userId: string;
-  userName: string;
-  role: "ADMIN" | "CASHIER" | "INVENTORY_USER";
-  salesCount: number;
-  revenue: number;
-  avgTicket: number;
-  uniqueCustomers: number;
-  comparison?: UserPerformanceComparison;
 }
 
 export interface PlanLimit {
