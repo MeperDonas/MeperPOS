@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../common/services/cache.service';
 import {
@@ -6,6 +7,18 @@ import {
   parseBogotaEndOfDay,
   parseBogotaStartOfDay,
 } from '../common/utils/bogota-date';
+import { ExpensesService } from '../expenses/expenses.service';
+import {
+  aggregateFinancialSales,
+  compareFinancialReports,
+  serializeFinancialReport,
+} from './financial-aggregator';
+import type {
+  FinancialDelta,
+  FinancialReport,
+  FinancialSale,
+  FinancialSaleItem,
+} from './financial-aggregator';
 
 // ─── Local types ──────────────────────────────────────────────────────────────
 
@@ -14,6 +27,18 @@ type SaleStatusType = 'COMPLETED' | 'CANCELLED' | 'RETURNED_PARTIAL';
 interface DateFilter {
   gte?: Date;
   lte?: Date;
+}
+
+interface FinancialSaleRecord extends FinancialSale {
+  createdAt: Date;
+  cancelledAt: Date | null;
+  status: string;
+  inventoryMovements: Array<{
+    type: string;
+    quantity: number;
+    productId: string;
+    createdAt: Date;
+  }>;
 }
 
 interface SaleWhereInput {
@@ -115,6 +140,14 @@ function buildAppliedRange(
   };
 }
 
+function buildFinancialRangeMeta(dateFilter: DateFilter): AppliedRangeMeta {
+  return {
+    startDate: dateFilter.gte ? formatDateInBogota(dateFilter.gte) : null,
+    endDate: dateFilter.lte ? formatDateInBogota(dateFilter.lte) : null,
+    timezone: 'America/Bogota',
+  };
+}
+
 function buildComparisonRangeMeta(
   comparisonPeriod: ComparisonPeriod,
 ): AppliedRangeMeta {
@@ -185,6 +218,32 @@ function buildComparisonPeriod(
   };
 }
 
+function buildFinancialComparisonPeriod(
+  startDate?: string,
+  endDate?: string,
+): ComparisonPeriod {
+  if (startDate || endDate) {
+    return buildComparisonPeriod(startDate, endDate);
+  }
+
+  const today = formatDateInBogota(new Date());
+  const [year, month] = today.split('-').map(Number);
+  const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+  const nextMonthStart = new Date(Date.UTC(year, month, 1, 5));
+  const currentEnd = new Date(nextMonthStart.getTime() - 1);
+  const currentStart = parseBogotaStartOfDay(monthStart)!;
+  const durationMs = currentEnd.getTime() - currentStart.getTime() + 1;
+  const previousEnd = new Date(currentStart.getTime() - 1);
+
+  return {
+    current: { gte: currentStart, lte: currentEnd },
+    previous: {
+      gte: new Date(previousEnd.getTime() - durationMs + 1),
+      lte: previousEnd,
+    },
+  };
+}
+
 function calculatePercentageChange(
   currentValue: number,
   previousValue: number,
@@ -208,6 +267,117 @@ function normalizeUserIds(userIds?: string[]): string[] | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+export interface FinancialOverviewResponse {
+  current: FinancialReport;
+  previous: FinancialReport;
+  deltas: Record<string, FinancialDelta>;
+  appliedRange: AppliedRangeMeta;
+  comparisonRange: AppliedRangeMeta;
+}
+
+function aggregateCashPayments(
+  payments: Array<{ amount: Prisma.Decimal; method: string }>,
+) {
+  const byMethod = new Map<string, { total: Prisma.Decimal; count: number }>();
+  for (const payment of payments) {
+    const current = byMethod.get(payment.method) ?? {
+      total: new Prisma.Decimal(0),
+      count: 0,
+    };
+    current.total = current.total.add(payment.amount);
+    current.count += 1;
+    byMethod.set(payment.method, current);
+  }
+
+  return {
+    total: Array.from(byMethod.values()).reduce(
+      (sum, entry) => sum.add(entry.total),
+      new Prisma.Decimal(0),
+    ).toFixed(2),
+    byPaymentMethod: Array.from(byMethod.entries()).map(([paymentMethod, entry]) => ({
+      paymentMethod,
+      total: entry.total.toFixed(2),
+      count: entry.count,
+    })),
+  };
+}
+
+function isInDateFilter(date: Date | null | undefined, filter: DateFilter): boolean {
+  return Boolean(
+    date &&
+      (!filter.gte || date >= filter.gte) &&
+      (!filter.lte || date <= filter.lte),
+  );
+}
+
+function signedSale(
+  sale: FinancialSaleRecord,
+  items: FinancialSaleItem[],
+  sign: 1 | -1,
+): FinancialSale {
+  const itemSubtotal = items.reduce(
+    (sum, item) => sum.add(item.subtotal),
+    new Prisma.Decimal(0),
+  );
+  const ratio = sale.subtotal.isZero() ? new Prisma.Decimal(1) : itemSubtotal.div(sale.subtotal);
+
+  return {
+    subtotal: sale.subtotal.mul(sign).mul(ratio),
+    discountAmount: sale.discountAmount.mul(sign).mul(ratio),
+    taxAmount: sale.taxAmount.mul(sign).mul(ratio),
+    items: items.map((item) => ({
+      ...item,
+      quantity: item.quantity * sign,
+      subtotal: item.subtotal.mul(sign),
+      discountAmount: item.discountAmount.mul(sign),
+    })),
+  };
+}
+
+function expandFinancialSale(sale: FinancialSaleRecord, dateFilter: DateFilter): FinancialSale[] {
+  const records: FinancialSale[] = [];
+
+  if (isInDateFilter(sale.createdAt, dateFilter)) {
+    records.push(sale);
+  }
+
+  if (isInDateFilter(sale.cancelledAt, dateFilter)) {
+    records.push(signedSale(sale, sale.items, -1));
+  }
+
+  if (sale.status !== 'CANCELLED') {
+    const returnedByProduct = new Map<string, number>();
+    for (const movement of sale.inventoryMovements) {
+      if (movement.type === 'RETURN' && isInDateFilter(movement.createdAt, dateFilter)) {
+        returnedByProduct.set(
+          movement.productId,
+          (returnedByProduct.get(movement.productId) ?? 0) + movement.quantity,
+        );
+      }
+    }
+
+    const returnedItems = sale.items
+      .map((item) => {
+        const returnedQuantity = returnedByProduct.get(item.productId) ?? 0;
+        if (!returnedQuantity || item.quantity === 0) return null;
+        const ratio = new Prisma.Decimal(returnedQuantity).div(item.quantity);
+        return {
+          ...item,
+          quantity: returnedQuantity,
+          subtotal: item.subtotal.mul(ratio),
+          discountAmount: item.discountAmount.mul(ratio),
+        };
+      })
+      .filter((item): item is FinancialSaleItem => item !== null);
+
+    if (returnedItems.length > 0) {
+      records.push(signedSale(sale, returnedItems, -1));
+    }
+  }
+
+  return records;
+}
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -215,7 +385,237 @@ export class ReportsService {
   constructor(
     private prisma: PrismaService,
     private cache: CacheService,
+    private expensesService?: ExpensesService,
   ) {}
+
+  async getFinancialOverview(
+    organizationId: string | undefined,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<FinancialOverviewResponse> {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for reports');
+    }
+    validateDateRange(startDate, endDate);
+
+    const period = buildFinancialComparisonPeriod(startDate, endDate);
+    const cacheKey = `financial:${organizationId}:${period.current.gte?.toISOString()}:${period.current.lte?.toISOString()}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached as FinancialOverviewResponse;
+
+    const [currentSales, previousSales, currentExpenses] = await Promise.all([
+      this.findFinancialSales(organizationId, period.current),
+      this.findFinancialSales(organizationId, period.previous),
+      this.findFinancialExpenses(organizationId, period.current),
+    ]);
+    const current = serializeFinancialReport(
+      aggregateFinancialSales(currentSales, currentExpenses),
+    );
+    const previous = serializeFinancialReport(
+      aggregateFinancialSales(
+        previousSales,
+        await this.findFinancialExpenses(organizationId, period.previous),
+      ),
+    );
+
+    const result = {
+      current,
+      previous,
+      deltas: compareFinancialReports(current, previous),
+      appliedRange: buildFinancialRangeMeta(period.current),
+      comparisonRange: buildComparisonRangeMeta(period),
+    };
+    this.cache.set(cacheKey, result, 5 * 60 * 1000);
+    return result;
+  }
+
+  async getCashFlow(
+    organizationId: string | undefined,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const orgId = this.requireOrganizationId(organizationId);
+    validateDateRange(startDate, endDate);
+    const period = buildFinancialComparisonPeriod(startDate, endDate);
+    const [collections, expensePayments] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: {
+          organizationId: orgId,
+          createdAt: period.current,
+          sale: { status: 'COMPLETED' },
+        },
+        select: { amount: true, method: true },
+      }),
+      this.prisma.expensePayment.findMany({
+        where: { organizationId: orgId, date: period.current },
+        select: { amount: true, method: true },
+      }),
+    ]);
+
+    return {
+      accountingBasis: 'CASH_BY_PAYMENT_DATE',
+      collections: aggregateCashPayments(collections),
+      expensePayments: aggregateCashPayments(expensePayments),
+      appliedRange: buildFinancialRangeMeta(period.current),
+    };
+  }
+
+  async getInventorySnapshot(
+    organizationId: string | undefined,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const orgId = this.requireOrganizationId(organizationId);
+    validateDateRange(startDate, endDate);
+    const period = buildFinancialComparisonPeriod(startDate, endDate);
+    const [products, movements] = await Promise.all([
+      this.prisma.product.findMany({
+        where: { organizationId: orgId, active: true },
+        select: { stock: true, costPrice: true, salePrice: true },
+      }),
+      this.prisma.inventoryMovement.findMany({
+        where: { organizationId: orgId, createdAt: period.current },
+        select: { type: true, quantity: true },
+      }),
+    ]);
+
+    const current = products.reduce(
+      (totals, product) => ({
+        stockQuantity: totals.stockQuantity + product.stock,
+        stockValue: totals.stockValue.add(product.costPrice.mul(product.stock)),
+        retailValue: totals.retailValue.add(product.salePrice.mul(product.stock)),
+      }),
+      {
+        stockQuantity: 0,
+        stockValue: new Prisma.Decimal(0),
+        retailValue: new Prisma.Decimal(0),
+      },
+    );
+    const movementTotals = movements.reduce(
+      (totals, movement) => {
+        totals.totalQuantity += movement.quantity;
+        totals.byType[movement.type] =
+          (totals.byType[movement.type] ?? 0) + movement.quantity;
+        return totals;
+      },
+      { totalQuantity: 0, byType: {} as Record<string, number> },
+    );
+
+    return {
+      isCurrentSnapshot: true,
+      valuationBasis: 'CURRENT_STOCK_AT_CURRENT_COST',
+      current: {
+        stockQuantity: current.stockQuantity,
+        stockValue: current.stockValue.toFixed(2),
+        retailValue: current.retailValue.toFixed(2),
+        potentialProfit: current.retailValue.sub(current.stockValue).toFixed(2),
+      },
+      movements: movementTotals,
+      appliedRange: buildFinancialRangeMeta(period.current),
+    };
+  }
+
+  async getEconomicExport(
+    organizationId: string | undefined,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const [financial, cash, inventory] = await Promise.all([
+      this.getFinancialOverview(organizationId, startDate, endDate),
+      this.getCashFlow(organizationId, startDate, endDate),
+      this.getInventorySnapshot(organizationId, startDate, endDate),
+    ]);
+
+    return { financial, cash, inventory };
+  }
+
+  private requireOrganizationId(organizationId: string | undefined): string {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for reports');
+    }
+    return organizationId;
+  }
+
+  private async findFinancialSales(organizationId: string, dateFilter: DateFilter) {
+    const sales = await this.prisma.sale.findMany({
+      where: {
+        organizationId,
+        OR: [
+          { createdAt: dateFilter },
+          { cancelledAt: dateFilter },
+          { inventoryMovements: { some: { type: 'RETURN', createdAt: dateFilter } } },
+        ],
+      },
+      select: {
+        createdAt: true,
+        cancelledAt: true,
+        status: true,
+        subtotal: true,
+        discountAmount: true,
+        taxAmount: true,
+        items: {
+          select: {
+            productId: true,
+            quantity: true,
+            subtotal: true,
+            discountAmount: true,
+            costPriceSnapshot: true,
+            product: { select: { name: true, category: { select: { name: true } } } },
+          },
+        },
+        inventoryMovements: {
+          where: { type: 'RETURN', createdAt: dateFilter },
+          select: { type: true, quantity: true, productId: true, createdAt: true },
+        },
+      },
+    });
+
+    return sales.flatMap((sale) =>
+      expandFinancialSale(
+        {
+          createdAt: sale.createdAt,
+          cancelledAt: sale.cancelledAt,
+          status: sale.status,
+          subtotal: sale.subtotal,
+          discountAmount: sale.discountAmount,
+          taxAmount: sale.taxAmount,
+          items: sale.items.map((item) => ({
+            productId: item.productId,
+            productName: item.product.name,
+            categoryName: item.product.category.name,
+            quantity: item.quantity,
+            subtotal: item.subtotal,
+            discountAmount: item.discountAmount,
+            costPriceSnapshot: item.costPriceSnapshot,
+          })),
+          inventoryMovements: sale.inventoryMovements,
+        },
+        dateFilter,
+      ),
+    );
+  }
+
+  private async findFinancialExpenses(
+    organizationId: string,
+    dateFilter: DateFilter,
+  ) {
+    if (!dateFilter.gte || !dateFilter.lte) return [];
+    if (this.expensesService) {
+      return this.expensesService.findForReports(
+        organizationId,
+        dateFilter.gte,
+        dateFilter.lte,
+      );
+    }
+    return this.prisma.expense.findMany({
+      where: {
+        organizationId,
+        active: true,
+        date: { gte: dateFilter.gte, lte: dateFilter.lte },
+      },
+      select: { total: true, purchaseOrderId: true },
+    });
+  }
 
   async getDashboardKPIs(
     organizationId: string | undefined,

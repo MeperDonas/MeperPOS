@@ -258,6 +258,21 @@ export class ExpensesService {
     return { month, total, categories: rows };
   }
 
+  async findForReports(
+    organizationId: string,
+    start: Date,
+    end: Date,
+  ) {
+    return this.prisma.expense.findMany({
+      where: {
+        organizationId: this.requireOrganizationId(organizationId),
+        active: true,
+        date: { gte: start, lte: end },
+      },
+      select: { total: true, purchaseOrderId: true },
+    });
+  }
+
   async findOne(id: string, organizationId: string | undefined) {
     const orgId = this.requireOrganizationId(organizationId);
 

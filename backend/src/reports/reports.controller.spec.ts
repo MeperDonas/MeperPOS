@@ -25,6 +25,9 @@ describe('ReportsController', () => {
   const reportsServiceMock = {
     getDashboardKPIs: jest.fn(),
     getUserPerformance: jest.fn(),
+    getFinancialOverview: jest.fn(),
+    getCashFlow: jest.fn(),
+    getInventorySnapshot: jest.fn(),
   };
 
   beforeEach(() => {
@@ -111,6 +114,39 @@ describe('ReportsController', () => {
     );
     expect(result.appliedRange.timezone).toBe('America/Bogota');
     expect(result.comparisonRange).toBeDefined();
+  });
+
+  it('forwards organization scope to the financial endpoint', async () => {
+    const controller = new ReportsController(reportsServiceMock as never);
+    reportsServiceMock.getFinancialOverview.mockResolvedValue({
+      current: { netIncome: '0.00' },
+    });
+
+    await controller.getEconomic(mockUser, '2026-03-01', '2026-03-31');
+
+    expect(reportsServiceMock.getFinancialOverview).toHaveBeenCalledWith(
+      'org-1',
+      '2026-03-01',
+      '2026-03-31',
+    );
+  });
+
+  it('forwards organization scope to cash and inventory contracts', async () => {
+    const controller = new ReportsController(reportsServiceMock as never);
+
+    await controller.getCash(mockUser, '2026-03-01', '2026-03-31');
+    await controller.getInventory(mockUser, '2026-03-01', '2026-03-31');
+
+    expect(reportsServiceMock.getCashFlow).toHaveBeenCalledWith(
+      'org-1',
+      '2026-03-01',
+      '2026-03-31',
+    );
+    expect(reportsServiceMock.getInventorySnapshot).toHaveBeenCalledWith(
+      'org-1',
+      '2026-03-01',
+      '2026-03-31',
+    );
   });
 
   it('parses compare and userIds before delegating user performance analytics', async () => {
