@@ -71,6 +71,22 @@ export class ReportsController {
     );
   }
 
+  @Get('economic')
+  @ApiOperation({ summary: 'Get organization financial economics' })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  getEconomic(
+    @CurrentUser() user: RequestUser,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getFinancialOverview(
+      user.organizationId,
+      startDate,
+      endDate,
+    );
+  }
+
   @Get('sales/payment-method')
   @ApiOperation({ summary: 'Get sales by payment method' })
   @ApiQuery({ name: 'startDate', required: false })

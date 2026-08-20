@@ -6,6 +6,12 @@ import {
   parseBogotaEndOfDay,
   parseBogotaStartOfDay,
 } from '../common/utils/bogota-date';
+import { ExpensesService } from '../expenses/expenses.service';
+import {
+  aggregateFinancialSales,
+  compareFinancialReports,
+  serializeFinancialReport,
+} from './financial-aggregator';
 
 // ─── Local types ──────────────────────────────────────────────────────────────
 
@@ -115,6 +121,14 @@ function buildAppliedRange(
   };
 }
 
+function buildFinancialRangeMeta(dateFilter: DateFilter): AppliedRangeMeta {
+  return {
+    startDate: dateFilter.gte ? formatDateInBogota(dateFilter.gte) : null,
+    endDate: dateFilter.lte ? formatDateInBogota(dateFilter.lte) : null,
+    timezone: 'America/Bogota',
+  };
+}
+
 function buildComparisonRangeMeta(
   comparisonPeriod: ComparisonPeriod,
 ): AppliedRangeMeta {
@@ -185,6 +199,32 @@ function buildComparisonPeriod(
   };
 }
 
+function buildFinancialComparisonPeriod(
+  startDate?: string,
+  endDate?: string,
+): ComparisonPeriod {
+  if (startDate || endDate) {
+    return buildComparisonPeriod(startDate, endDate);
+  }
+
+  const today = formatDateInBogota(new Date());
+  const [year, month] = today.split('-').map(Number);
+  const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+  const nextMonthStart = new Date(Date.UTC(year, month, 1, 5));
+  const currentEnd = new Date(nextMonthStart.getTime() - 1);
+  const currentStart = parseBogotaStartOfDay(monthStart)!;
+  const durationMs = currentEnd.getTime() - currentStart.getTime() + 1;
+  const previousEnd = new Date(currentStart.getTime() - 1);
+
+  return {
+    current: { gte: currentStart, lte: currentEnd },
+    previous: {
+      gte: new Date(previousEnd.getTime() - durationMs + 1),
+      lte: previousEnd,
+    },
+  };
+}
+
 function calculatePercentageChange(
   currentValue: number,
   previousValue: number,
@@ -215,7 +255,107 @@ export class ReportsService {
   constructor(
     private prisma: PrismaService,
     private cache: CacheService,
+    private expensesService?: ExpensesService,
   ) {}
+
+  async getFinancialOverview(
+    organizationId: string | undefined,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for reports');
+    }
+    validateDateRange(startDate, endDate);
+
+    const period = buildFinancialComparisonPeriod(startDate, endDate);
+    const cacheKey = `financial:${organizationId}:${period.current.gte?.toISOString()}:${period.current.lte?.toISOString()}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const [currentSales, previousSales, currentExpenses] = await Promise.all([
+      this.findFinancialSales(organizationId, period.current),
+      this.findFinancialSales(organizationId, period.previous),
+      this.findFinancialExpenses(organizationId, period.current),
+    ]);
+    const current = serializeFinancialReport(
+      aggregateFinancialSales(currentSales, currentExpenses),
+    );
+    const previous = serializeFinancialReport(
+      aggregateFinancialSales(
+        previousSales,
+        await this.findFinancialExpenses(organizationId, period.previous),
+      ),
+    );
+
+    const result = {
+      current,
+      previous,
+      deltas: compareFinancialReports(current, previous),
+      appliedRange: buildFinancialRangeMeta(period.current),
+      comparisonRange: buildComparisonRangeMeta(period),
+    };
+    this.cache.set(cacheKey, result, 5 * 60 * 1000);
+    return result;
+  }
+
+  private async findFinancialSales(organizationId: string, dateFilter: DateFilter) {
+    const sales = await this.prisma.sale.findMany({
+      where: { organizationId, status: 'COMPLETED', createdAt: dateFilter },
+      select: {
+        subtotal: true,
+        discountAmount: true,
+        taxAmount: true,
+        items: {
+          select: {
+            productId: true,
+            quantity: true,
+            subtotal: true,
+            discountAmount: true,
+            costPriceSnapshot: true,
+            product: { select: { name: true, category: { select: { name: true } } } },
+          },
+        },
+      },
+    });
+
+    return sales.map((sale) => ({
+      subtotal: sale.subtotal,
+      discountAmount: sale.discountAmount,
+      taxAmount: sale.taxAmount,
+      items: sale.items.map((item) => ({
+        productId: item.productId,
+        productName: item.product.name,
+        categoryName: item.product.category.name,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+        discountAmount: item.discountAmount,
+        costPriceSnapshot: item.costPriceSnapshot,
+      })),
+    }));
+  }
+
+  private async findFinancialExpenses(
+    organizationId: string,
+    dateFilter: DateFilter,
+  ) {
+    if (!dateFilter.gte || !dateFilter.lte) return [];
+    if (this.expensesService) {
+      return this.expensesService.findForReports(
+        organizationId,
+        dateFilter.gte,
+        dateFilter.lte,
+      );
+    }
+    return this.prisma.expense.findMany({
+      where: {
+        organizationId,
+        active: true,
+        date: { gte: dateFilter.gte, lte: dateFilter.lte },
+      },
+      select: { total: true, purchaseOrderId: true },
+    });
+  }
 
   async getDashboardKPIs(
     organizationId: string | undefined,
