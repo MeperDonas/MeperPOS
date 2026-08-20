@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const {
@@ -55,10 +55,38 @@ describe("Invoicing & Receipts settings page", () => {
 
   it("shows print header/footer and the editable receipt prefix", () => {
     render(<InvoicingSettingsPage />);
+    const preview = within(screen.getByRole("article", { name: /vista previa del comprobante/i }));
 
     expect(screen.getByLabelText(/encabezado/i)).toHaveValue("Header actual");
     expect(screen.getByLabelText(/pie de página/i)).toHaveValue("Footer actual");
     expect(screen.getByLabelText(/prefijo/i)).toHaveValue("REC-");
+    expect(preview.getByText("Mi Empresa")).toBeInTheDocument();
+    expect(preview.getByText("Header actual")).toBeInTheDocument();
+    expect(preview.getByText("Footer actual")).toBeInTheDocument();
+    expect(preview.getByText(/REC-000184/)).toBeInTheDocument();
+  });
+
+  it("shows a balanced fallback when the organization has no logo", () => {
+    render(<InvoicingSettingsPage />);
+
+    expect(screen.getByLabelText("Sin logo configurado")).toBeInTheDocument();
+  });
+
+  it("updates the preview as the form values change", async () => {
+    const user = userEvent.setup();
+    render(<InvoicingSettingsPage />);
+    const preview = within(screen.getByRole("article", { name: /vista previa del comprobante/i }));
+
+    const header = screen.getByLabelText(/encabezado/i);
+    const prefix = screen.getByLabelText(/prefijo/i);
+
+    await user.clear(header);
+    await user.type(header, "Nuevo encabezado");
+    await user.clear(prefix);
+    await user.type(prefix, "FAC-");
+
+    expect(preview.getByText("Nuevo encabezado")).toBeInTheDocument();
+    expect(preview.getByText(/FAC-000184/)).toBeInTheDocument();
   });
 
   it("saves only printHeader and printFooter on submit", async () => {
