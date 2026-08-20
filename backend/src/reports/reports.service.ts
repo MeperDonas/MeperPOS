@@ -13,7 +13,12 @@ import {
   compareFinancialReports,
   serializeFinancialReport,
 } from './financial-aggregator';
-import type { FinancialDelta, FinancialReport } from './financial-aggregator';
+import type {
+  FinancialDelta,
+  FinancialReport,
+  FinancialSale,
+  FinancialSaleItem,
+} from './financial-aggregator';
 
 // ─── Local types ──────────────────────────────────────────────────────────────
 
@@ -22,6 +27,18 @@ type SaleStatusType = 'COMPLETED' | 'CANCELLED' | 'RETURNED_PARTIAL';
 interface DateFilter {
   gte?: Date;
   lte?: Date;
+}
+
+interface FinancialSaleRecord extends FinancialSale {
+  createdAt: Date;
+  cancelledAt: Date | null;
+  status: string;
+  inventoryMovements: Array<{
+    type: string;
+    quantity: number;
+    productId: string;
+    createdAt: Date;
+  }>;
 }
 
 interface SaleWhereInput {
@@ -285,6 +302,82 @@ function aggregateCashPayments(
   };
 }
 
+function isInDateFilter(date: Date | null | undefined, filter: DateFilter): boolean {
+  return Boolean(
+    date &&
+      (!filter.gte || date >= filter.gte) &&
+      (!filter.lte || date <= filter.lte),
+  );
+}
+
+function signedSale(
+  sale: FinancialSaleRecord,
+  items: FinancialSaleItem[],
+  sign: 1 | -1,
+): FinancialSale {
+  const itemSubtotal = items.reduce(
+    (sum, item) => sum.add(item.subtotal),
+    new Prisma.Decimal(0),
+  );
+  const ratio = sale.subtotal.isZero() ? new Prisma.Decimal(1) : itemSubtotal.div(sale.subtotal);
+
+  return {
+    subtotal: sale.subtotal.mul(sign).mul(ratio),
+    discountAmount: sale.discountAmount.mul(sign).mul(ratio),
+    taxAmount: sale.taxAmount.mul(sign).mul(ratio),
+    items: items.map((item) => ({
+      ...item,
+      quantity: item.quantity * sign,
+      subtotal: item.subtotal.mul(sign),
+      discountAmount: item.discountAmount.mul(sign),
+    })),
+  };
+}
+
+function expandFinancialSale(sale: FinancialSaleRecord, dateFilter: DateFilter): FinancialSale[] {
+  const records: FinancialSale[] = [];
+
+  if (isInDateFilter(sale.createdAt, dateFilter)) {
+    records.push(sale);
+  }
+
+  if (isInDateFilter(sale.cancelledAt, dateFilter)) {
+    records.push(signedSale(sale, sale.items, -1));
+  }
+
+  if (sale.status !== 'CANCELLED') {
+    const returnedByProduct = new Map<string, number>();
+    for (const movement of sale.inventoryMovements) {
+      if (movement.type === 'RETURN' && isInDateFilter(movement.createdAt, dateFilter)) {
+        returnedByProduct.set(
+          movement.productId,
+          (returnedByProduct.get(movement.productId) ?? 0) + movement.quantity,
+        );
+      }
+    }
+
+    const returnedItems = sale.items
+      .map((item) => {
+        const returnedQuantity = returnedByProduct.get(item.productId) ?? 0;
+        if (!returnedQuantity || item.quantity === 0) return null;
+        const ratio = new Prisma.Decimal(returnedQuantity).div(item.quantity);
+        return {
+          ...item,
+          quantity: returnedQuantity,
+          subtotal: item.subtotal.mul(ratio),
+          discountAmount: item.discountAmount.mul(ratio),
+        };
+      })
+      .filter((item): item is FinancialSaleItem => item !== null);
+
+    if (returnedItems.length > 0) {
+      records.push(signedSale(sale, returnedItems, -1));
+    }
+  }
+
+  return records;
+}
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -445,8 +538,18 @@ export class ReportsService {
 
   private async findFinancialSales(organizationId: string, dateFilter: DateFilter) {
     const sales = await this.prisma.sale.findMany({
-      where: { organizationId, status: 'COMPLETED', createdAt: dateFilter },
+      where: {
+        organizationId,
+        OR: [
+          { createdAt: dateFilter },
+          { cancelledAt: dateFilter },
+          { inventoryMovements: { some: { type: 'RETURN', createdAt: dateFilter } } },
+        ],
+      },
       select: {
+        createdAt: true,
+        cancelledAt: true,
+        status: true,
         subtotal: true,
         discountAmount: true,
         taxAmount: true,
@@ -460,23 +563,36 @@ export class ReportsService {
             product: { select: { name: true, category: { select: { name: true } } } },
           },
         },
+        inventoryMovements: {
+          where: { type: 'RETURN', createdAt: dateFilter },
+          select: { type: true, quantity: true, productId: true, createdAt: true },
+        },
       },
     });
 
-    return sales.map((sale) => ({
-      subtotal: sale.subtotal,
-      discountAmount: sale.discountAmount,
-      taxAmount: sale.taxAmount,
-      items: sale.items.map((item) => ({
-        productId: item.productId,
-        productName: item.product.name,
-        categoryName: item.product.category.name,
-        quantity: item.quantity,
-        subtotal: item.subtotal,
-        discountAmount: item.discountAmount,
-        costPriceSnapshot: item.costPriceSnapshot,
-      })),
-    }));
+    return sales.flatMap((sale) =>
+      expandFinancialSale(
+        {
+          createdAt: sale.createdAt,
+          cancelledAt: sale.cancelledAt,
+          status: sale.status,
+          subtotal: sale.subtotal,
+          discountAmount: sale.discountAmount,
+          taxAmount: sale.taxAmount,
+          items: sale.items.map((item) => ({
+            productId: item.productId,
+            productName: item.product.name,
+            categoryName: item.product.category.name,
+            quantity: item.quantity,
+            subtotal: item.subtotal,
+            discountAmount: item.discountAmount,
+            costPriceSnapshot: item.costPriceSnapshot,
+          })),
+          inventoryMovements: sale.inventoryMovements,
+        },
+        dateFilter,
+      ),
+    );
   }
 
   private async findFinancialExpenses(
