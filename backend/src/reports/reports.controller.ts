@@ -71,6 +71,54 @@ export class ReportsController {
     );
   }
 
+  @Get('economic')
+  @ApiOperation({ summary: 'Get organization financial economics' })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  getEconomic(
+    @CurrentUser() user: RequestUser,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getFinancialOverview(
+      user.organizationId,
+      startDate,
+      endDate,
+    );
+  }
+
+  @Get('economic/cash')
+  @ApiOperation({ summary: 'Get cash collections and expense payments' })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  getCash(
+    @CurrentUser() user: RequestUser,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getCashFlow(
+      user.organizationId,
+      startDate,
+      endDate,
+    );
+  }
+
+  @Get('economic/inventory')
+  @ApiOperation({ summary: 'Get current inventory economics and movements' })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  getInventory(
+    @CurrentUser() user: RequestUser,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getInventorySnapshot(
+      user.organizationId,
+      startDate,
+      endDate,
+    );
+  }
+
   @Get('sales/payment-method')
   @ApiOperation({ summary: 'Get sales by payment method' })
   @ApiQuery({ name: 'startDate', required: false })

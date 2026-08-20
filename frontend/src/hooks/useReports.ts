@@ -11,28 +11,15 @@ import type {
   CustomerStatistics,
   DailySale,
   ReportEnvelope,
-  UserPerformance,
+  FinancialOverview,
+  CashFlowReport,
+  InventorySnapshotReport,
 } from "@/types";
 
 type DashboardResponse = DashboardData & {
   appliedRange: AppliedRange;
   comparisonRange?: AppliedRange;
 };
-
-type UserPerformanceResponse = ReportEnvelope<UserPerformance[]>;
-
-function buildUserPerformanceParams(
-  startDate?: string,
-  endDate?: string,
-  compare?: boolean,
-  userIds?: string[],
-) {
-  return {
-    ...buildDateRangeParams(startDate, endDate),
-    ...(typeof compare === "boolean" ? { compare } : {}),
-    ...(userIds && userIds.length > 0 ? { userIds: userIds.join(",") } : {}),
-  };
-}
 
 function buildDateRangeParams(startDate?: string, endDate?: string) {
   const params: Record<string, string> = {};
@@ -57,6 +44,36 @@ export function useDashboard(startDate?: string, endDate?: string) {
           "/reports/dashboard",
           buildDateRangeParams(startDate, endDate),
         )
+        .then((res) => res.data),
+  });
+}
+
+export function useEconomicOverview(startDate?: string, endDate?: string) {
+  return useQuery({
+    queryKey: ["reports", "economic", startDate, endDate],
+    queryFn: () =>
+      api
+        .get<FinancialOverview>("/reports/economic", buildDateRangeParams(startDate, endDate))
+        .then((res) => res.data),
+  });
+}
+
+export function useCashFlow(startDate?: string, endDate?: string) {
+  return useQuery({
+    queryKey: ["reports", "economic", "cash", startDate, endDate],
+    queryFn: () =>
+      api
+        .get<CashFlowReport>("/reports/economic/cash", buildDateRangeParams(startDate, endDate))
+        .then((res) => res.data),
+  });
+}
+
+export function useInventorySnapshot(startDate?: string, endDate?: string) {
+  return useQuery({
+    queryKey: ["reports", "economic", "inventory", startDate, endDate],
+    queryFn: () =>
+      api
+        .get<InventorySnapshotReport>("/reports/economic/inventory", buildDateRangeParams(startDate, endDate))
         .then((res) => res.data),
   });
 }
@@ -137,39 +154,6 @@ export function useDailySales(startDate: string, endDate: string) {
         })
         .then((res) => res.data),
     enabled: !!startDate && !!endDate,
-  });
-}
-
-export function useUserPerformance(
-  startDate?: string,
-  endDate?: string,
-  compare = true,
-  userIds?: string[],
-) {
-  const normalizedUserIds = userIds?.filter(Boolean) ?? [];
-
-  return useQuery({
-    queryKey: [
-      "reports",
-      "users",
-      "performance",
-      startDate,
-      endDate,
-      compare,
-      normalizedUserIds.join(","),
-    ],
-    queryFn: () =>
-      api
-        .get<UserPerformanceResponse>(
-          "/reports/users/performance",
-          buildUserPerformanceParams(
-            startDate,
-            endDate,
-            compare,
-            normalizedUserIds,
-          ),
-        )
-        .then((res) => res.data),
   });
 }
 

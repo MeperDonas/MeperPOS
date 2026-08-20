@@ -85,6 +85,7 @@ export class SalesService {
       productId: string;
       quantity: number;
       unitPrice: number;
+      costPriceSnapshot: Prisma.Decimal;
       taxRate: number;
       discountAmount: number;
       subtotal: number;
@@ -129,6 +130,7 @@ export class SalesService {
         productId: product.id,
         quantity: item.quantity,
         unitPrice,
+        costPriceSnapshot: product.costPrice,
         taxRate: effectiveTaxRate,
         discountAmount: itemDiscount,
         subtotal: itemSubtotal,
@@ -202,6 +204,7 @@ export class SalesService {
                 productId: saleItem.productId,
                 quantity: saleItem.quantity,
                 unitPrice: saleItem.unitPrice,
+                costPriceSnapshot: saleItem.costPriceSnapshot,
                 taxRate: saleItem.taxRate,
                 discountAmount: saleItem.discountAmount,
                 subtotal: saleItem.subtotal,
