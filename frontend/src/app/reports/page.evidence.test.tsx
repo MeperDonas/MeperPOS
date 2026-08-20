@@ -1,22 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
-const useDashboardMock = vi.fn();
+const useEconomicOverviewMock = vi.fn();
+const useCashFlowMock = vi.fn();
+const useInventorySnapshotMock = vi.fn();
 const useSalesByPaymentMethodMock = vi.fn();
 const useSalesByCategoryMock = vi.fn();
 const useTopSellingProductsMock = vi.fn();
 const useCustomerStatisticsMock = vi.fn();
-const useUserPerformanceMock = vi.fn();
-const useUsersMock = vi.fn();
 
 vi.mock("@/components/layout/DashboardLayout", () => ({
   DashboardLayout: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("@/components/reports/ImportSection", () => ({
-  ImportSection: () => <section>ImportSection</section>,
 }));
 
 vi.mock("@/components/ui/Button", () => ({
@@ -43,8 +38,12 @@ vi.mock("@/lib/api", () => ({
 }));
 
 vi.mock("@/hooks/useReports", () => ({
-  useDashboard: (startDate?: string, endDate?: string) =>
-    useDashboardMock(startDate, endDate),
+  useEconomicOverview: (startDate?: string, endDate?: string) =>
+    useEconomicOverviewMock(startDate, endDate),
+  useCashFlow: (startDate?: string, endDate?: string) =>
+    useCashFlowMock(startDate, endDate),
+  useInventorySnapshot: (startDate?: string, endDate?: string) =>
+    useInventorySnapshotMock(startDate, endDate),
   useSalesByPaymentMethod: (startDate?: string, endDate?: string) =>
     useSalesByPaymentMethodMock(startDate, endDate),
   useSalesByCategory: (startDate?: string, endDate?: string) =>
@@ -53,49 +52,60 @@ vi.mock("@/hooks/useReports", () => ({
     useTopSellingProductsMock(startDate, endDate, limit),
   useCustomerStatistics: (startDate?: string, endDate?: string) =>
     useCustomerStatisticsMock(startDate, endDate),
-  useUserPerformance: (
-    startDate?: string,
-    endDate?: string,
-    compare?: boolean,
-    userIds?: string[],
-  ) => useUserPerformanceMock(startDate, endDate, compare, userIds),
-}));
-
-vi.mock("@/hooks/useUsers", () => ({
-  useUsers: () => useUsersMock(),
 }));
 
 import ReportsPage from "./page";
 
-describe("Reports range label semantics evidence (#16)", () => {
+const range = {
+  startDate: "2026-01-10",
+  endDate: "2026-01-12",
+  timezone: "America/Bogota",
+};
+
+describe("Reports economics-first evidence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    useDashboardMock.mockReturnValue({
+    useEconomicOverviewMock.mockReturnValue({
       data: {
-        totalSales: 3,
-        totalRevenue: 100000,
-        totalProducts: 20,
-        totalCustomers: 6,
-        lowStockProducts: 2,
-        trends: { totalSales: 1, totalRevenue: 2, totalCustomers: 1 },
-        recentSales: [],
-        appliedRange: {
-          startDate: "2026-01-10",
-          endDate: "2026-01-12",
-          timezone: "America/Bogota",
+        current: {
+          netIncome: "100000.25",
+          tax: "19000.05",
+          cogs: "40000.00",
+          grossProfit: "60000.25",
+          grossMarginPercentage: 60.0001,
+          operatingExpenses: "10000.00",
+          netProfit: "50000.25",
+          netMarginPercentage: 50.0001,
+          products: [],
+          dataQuality: { snapshotBackedItems: 3, excludedItems: 1, excludedQuantity: 2 },
         },
+        previous: {
+          netIncome: "80000.00",
+          tax: "15000.00",
+          cogs: "30000.00",
+          grossProfit: "50000.00",
+          grossMarginPercentage: 62.5,
+          operatingExpenses: "10000.00",
+          netProfit: "40000.00",
+          netMarginPercentage: 50,
+          products: [],
+          dataQuality: { snapshotBackedItems: 2, excludedItems: 0, excludedQuantity: 0 },
+        },
+        deltas: { netIncome: { absolute: "20000.25", percentage: 25.31 } },
+        appliedRange: range,
+        comparisonRange: { ...range, startDate: "2026-01-07", endDate: "2026-01-09" },
       },
+      isLoading: false,
+      error: null,
     });
 
+    useCashFlowMock.mockReturnValue({ data: { collections: { total: "70000.00", byPaymentMethod: [] }, expensePayments: { total: "5000.00", byPaymentMethod: [] }, appliedRange: range }, isLoading: false, error: null });
+    useInventorySnapshotMock.mockReturnValue({ data: { isCurrentSnapshot: true, valuationBasis: "CURRENT_STOCK_AT_CURRENT_COST", current: { stockQuantity: 10, stockValue: "50000.00", retailValue: "90000.00", potentialProfit: "40000.00" }, movements: { totalQuantity: 4, byType: {} }, appliedRange: range }, isLoading: false, error: null });
     useSalesByPaymentMethodMock.mockReturnValue({
       data: {
         data: [{ paymentMethod: "CASH", total: 100000, subtotal: 90000, count: 3 }],
-        appliedRange: {
-          startDate: "2026-01-10",
-          endDate: "2026-01-12",
-          timezone: "America/Bogota",
-        },
+        appliedRange: range,
       },
       isLoading: false,
     });
@@ -103,11 +113,7 @@ describe("Reports range label semantics evidence (#16)", () => {
     useSalesByCategoryMock.mockReturnValue({
       data: {
         data: [{ category: "Repuestos", total: 100000, quantity: 4 }],
-        appliedRange: {
-          startDate: "2026-01-10",
-          endDate: "2026-01-12",
-          timezone: "America/Bogota",
-        },
+        appliedRange: range,
       },
       isLoading: false,
     });
@@ -115,11 +121,7 @@ describe("Reports range label semantics evidence (#16)", () => {
     useTopSellingProductsMock.mockReturnValue({
       data: {
         data: [{ productId: "p-1", productName: "Casco", quantity: 4, total: 100000, stock: 8 }],
-        appliedRange: {
-          startDate: "2026-01-10",
-          endDate: "2026-01-12",
-          timezone: "America/Bogota",
-        },
+        appliedRange: range,
       },
       isLoading: false,
     });
@@ -136,94 +138,53 @@ describe("Reports range label semantics evidence (#16)", () => {
             totalRevenue: 50000,
           },
         ],
-        appliedRange: {
-          startDate: "2026-01-10",
-          endDate: "2026-01-12",
-          timezone: "America/Bogota",
-        },
+        appliedRange: range,
       },
       isLoading: false,
     });
 
-    useUserPerformanceMock.mockReturnValue({
-      data: {
-        data: [],
-        appliedRange: {
-          startDate: "2026-01-10",
-          endDate: "2026-01-12",
-          timezone: "America/Bogota",
-        },
-        comparisonRange: {
-          startDate: "2026-01-07",
-          endDate: "2026-01-09",
-          timezone: "America/Bogota",
-        },
-      },
-      isLoading: false,
-      error: null,
-    });
-
-    useUsersMock.mockReturnValue({
-      data: [
-        {
-          id: "user-1",
-          name: "Ana Admin",
-          email: "ana@example.com",
-          role: "ADMIN",
-          active: true,
-          createdAt: "2026-01-01T00:00:00.000Z",
-          updatedAt: "2026-01-01T00:00:00.000Z",
-        },
-        {
-          id: "user-2",
-          name: "Carlos Caja",
-          email: "carlos@example.com",
-          role: "CASHIER",
-          active: true,
-          createdAt: "2026-01-01T00:00:00.000Z",
-          updatedAt: "2026-01-01T00:00:00.000Z",
-        },
-      ],
-      isLoading: false,
-    });
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it("shows appliedRange labels consistently in key report sections", async () => {
+  it("puts economics first and renders Decimal strings as presentation values", () => {
     render(<ReportsPage />);
 
-    const rangeChips = screen.getAllByText(
-      /10\s+de\s+ene\s+de\s+2026\s+-\s+12\s+de\s+ene\s+de\s+2026/i,
-    );
-    expect(rangeChips.length).toBeGreaterThanOrEqual(5);
-
-    expect(screen.getByText("Composición por Categoría")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Economía" })).toBeTruthy();
+    expect(screen.getAllByText(/100\.000/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Comparación con período anterior/)).toBeTruthy();
     expect(screen.getByText("Productos Más Vendidos")).toBeTruthy();
     expect(screen.getByText("Top Clientes")).toBeTruthy();
     expect(screen.getByText("Métodos de Pago")).toBeTruthy();
-    expect(
-      screen.getAllByText(/10\s+de\s+ene\s+de\s+2026\s+-\s+12\s+de\s+ene\s+de\s+2026/i)
-        .length,
-    ).toBeGreaterThanOrEqual(6);
-    expect(screen.getByText(/vs\.?\s*07\s+de\s+ene\s+de\s+2026\s+-\s+09\s+de\s+ene\s+de\s+2026/i)).toBeTruthy();
+    expect(screen.queryByText("Rendimiento por vendedor")).toBeNull();
+    expect(screen.queryByText("Importar Inventario")).toBeNull();
   });
 
-  it("passes a selected user subset to the performance hook", async () => {
+  it("exposes the financial data-quality warning instead of estimating costs", () => {
     render(<ReportsPage />);
 
-    expect(useUserPerformanceMock).toHaveBeenCalledWith("", "", true, undefined);
+    expect(screen.getByRole("status")).toHaveTextContent(/1 registro/);
+    expect(screen.getByText(/registros con costo exacto/)).toBeTruthy();
+  });
 
-    await userEvent.click(screen.getByRole("button", { name: "Carlos Caja" }));
+  it("announces the economic loading state", () => {
+    useEconomicOverviewMock.mockReturnValueOnce({ data: undefined, isLoading: true, error: null });
+    render(<ReportsPage />);
+    expect(screen.getByText("Cargando economía...")).toBeTruthy();
+    expect(document.querySelector("[aria-busy='true']")).toBeTruthy();
+  });
 
-    expect(useUserPerformanceMock).toHaveBeenLastCalledWith(
-      "",
-      "",
-      true,
-      ["user-2"],
-    );
-    expect(screen.getByText("1 seleccionado")).toBeTruthy();
+  it("announces an economic request error", () => {
+    useEconomicOverviewMock.mockReturnValueOnce({ data: undefined, isLoading: false, error: new Error("network") });
+    render(<ReportsPage />);
+    expect(screen.getAllByRole("alert").length).toBeGreaterThan(0);
+  });
+
+  it("renders an intentional empty state when economics has no data", () => {
+    useEconomicOverviewMock.mockReturnValueOnce({ data: undefined, isLoading: false, error: null });
+    render(<ReportsPage />);
+    expect(screen.getByText("Sin datos de economía")).toBeTruthy();
   });
 });
