@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../common/services/cache.service';
 import {
@@ -12,6 +13,7 @@ import {
   compareFinancialReports,
   serializeFinancialReport,
 } from './financial-aggregator';
+import type { FinancialDelta, FinancialReport } from './financial-aggregator';
 
 // ─── Local types ──────────────────────────────────────────────────────────────
 
@@ -248,6 +250,41 @@ function normalizeUserIds(userIds?: string[]): string[] | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+export interface FinancialOverviewResponse {
+  current: FinancialReport;
+  previous: FinancialReport;
+  deltas: Record<string, FinancialDelta>;
+  appliedRange: AppliedRangeMeta;
+  comparisonRange: AppliedRangeMeta;
+}
+
+function aggregateCashPayments(
+  payments: Array<{ amount: Prisma.Decimal; method: string }>,
+) {
+  const byMethod = new Map<string, { total: Prisma.Decimal; count: number }>();
+  for (const payment of payments) {
+    const current = byMethod.get(payment.method) ?? {
+      total: new Prisma.Decimal(0),
+      count: 0,
+    };
+    current.total = current.total.add(payment.amount);
+    current.count += 1;
+    byMethod.set(payment.method, current);
+  }
+
+  return {
+    total: Array.from(byMethod.values()).reduce(
+      (sum, entry) => sum.add(entry.total),
+      new Prisma.Decimal(0),
+    ).toFixed(2),
+    byPaymentMethod: Array.from(byMethod.entries()).map(([paymentMethod, entry]) => ({
+      paymentMethod,
+      total: entry.total.toFixed(2),
+      count: entry.count,
+    })),
+  };
+}
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -262,7 +299,7 @@ export class ReportsService {
     organizationId: string | undefined,
     startDate?: string,
     endDate?: string,
-  ) {
+  ): Promise<FinancialOverviewResponse> {
     if (!organizationId) {
       throw new BadRequestException('Organization ID is required for reports');
     }
@@ -271,7 +308,7 @@ export class ReportsService {
     const period = buildFinancialComparisonPeriod(startDate, endDate);
     const cacheKey = `financial:${organizationId}:${period.current.gte?.toISOString()}:${period.current.lte?.toISOString()}`;
     const cached = this.cache.get(cacheKey);
-    if (cached) return cached;
+    if (cached) return cached as FinancialOverviewResponse;
 
     const [currentSales, previousSales, currentExpenses] = await Promise.all([
       this.findFinancialSales(organizationId, period.current),
@@ -297,6 +334,113 @@ export class ReportsService {
     };
     this.cache.set(cacheKey, result, 5 * 60 * 1000);
     return result;
+  }
+
+  async getCashFlow(
+    organizationId: string | undefined,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const orgId = this.requireOrganizationId(organizationId);
+    validateDateRange(startDate, endDate);
+    const period = buildFinancialComparisonPeriod(startDate, endDate);
+    const [collections, expensePayments] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: {
+          organizationId: orgId,
+          createdAt: period.current,
+          sale: { status: 'COMPLETED' },
+        },
+        select: { amount: true, method: true },
+      }),
+      this.prisma.expensePayment.findMany({
+        where: { organizationId: orgId, date: period.current },
+        select: { amount: true, method: true },
+      }),
+    ]);
+
+    return {
+      accountingBasis: 'CASH_BY_PAYMENT_DATE',
+      collections: aggregateCashPayments(collections),
+      expensePayments: aggregateCashPayments(expensePayments),
+      appliedRange: buildFinancialRangeMeta(period.current),
+    };
+  }
+
+  async getInventorySnapshot(
+    organizationId: string | undefined,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const orgId = this.requireOrganizationId(organizationId);
+    validateDateRange(startDate, endDate);
+    const period = buildFinancialComparisonPeriod(startDate, endDate);
+    const [products, movements] = await Promise.all([
+      this.prisma.product.findMany({
+        where: { organizationId: orgId, active: true },
+        select: { stock: true, costPrice: true, salePrice: true },
+      }),
+      this.prisma.inventoryMovement.findMany({
+        where: { organizationId: orgId, createdAt: period.current },
+        select: { type: true, quantity: true },
+      }),
+    ]);
+
+    const current = products.reduce(
+      (totals, product) => ({
+        stockQuantity: totals.stockQuantity + product.stock,
+        stockValue: totals.stockValue.add(product.costPrice.mul(product.stock)),
+        retailValue: totals.retailValue.add(product.salePrice.mul(product.stock)),
+      }),
+      {
+        stockQuantity: 0,
+        stockValue: new Prisma.Decimal(0),
+        retailValue: new Prisma.Decimal(0),
+      },
+    );
+    const movementTotals = movements.reduce(
+      (totals, movement) => {
+        totals.totalQuantity += movement.quantity;
+        totals.byType[movement.type] =
+          (totals.byType[movement.type] ?? 0) + movement.quantity;
+        return totals;
+      },
+      { totalQuantity: 0, byType: {} as Record<string, number> },
+    );
+
+    return {
+      isCurrentSnapshot: true,
+      valuationBasis: 'CURRENT_STOCK_AT_CURRENT_COST',
+      current: {
+        stockQuantity: current.stockQuantity,
+        stockValue: current.stockValue.toFixed(2),
+        retailValue: current.retailValue.toFixed(2),
+        potentialProfit: current.retailValue.sub(current.stockValue).toFixed(2),
+      },
+      movements: movementTotals,
+      appliedRange: buildFinancialRangeMeta(period.current),
+    };
+  }
+
+  async getEconomicExport(
+    organizationId: string | undefined,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const [financial, cash, inventory] = await Promise.all([
+      this.getFinancialOverview(organizationId, startDate, endDate),
+      this.getCashFlow(organizationId, startDate, endDate),
+      this.getInventorySnapshot(organizationId, startDate, endDate),
+    ]);
+
+    return { financial, cash, inventory };
+  }
+
+  private requireOrganizationId(organizationId: string | undefined): string {
+    if (!organizationId) {
+      throw new BadRequestException('Organization ID is required for reports');
+    }
+    return organizationId;
   }
 
   private async findFinancialSales(organizationId: string, dateFilter: DateFilter) {

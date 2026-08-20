@@ -6,6 +6,10 @@ const decimal = (value: string | number) => new Prisma.Decimal(value);
 describe('ReportsService financial read model', () => {
   const prismaMock = {
     sale: { findMany: jest.fn() },
+    payment: { findMany: jest.fn() },
+    expensePayment: { findMany: jest.fn() },
+    product: { findMany: jest.fn() },
+    inventoryMovement: { findMany: jest.fn() },
   };
   const cacheMock = { get: jest.fn(), set: jest.fn() };
   const expensesMock = { findForReports: jest.fn() };
@@ -107,5 +111,62 @@ describe('ReportsService financial read model', () => {
       'Organization ID is required for reports',
     );
     expect(prismaMock.sale.findMany).not.toHaveBeenCalled();
+  });
+
+  it('reports sale collections and expense payments by payment date and method', async () => {
+    prismaMock.payment.findMany.mockResolvedValue([
+      { amount: decimal('10.25'), method: 'CASH', createdAt: new Date('2026-03-11') },
+      { amount: decimal('5.75'), method: 'CARD', createdAt: new Date('2026-03-12') },
+    ]);
+    prismaMock.expensePayment.findMany.mockResolvedValue([
+      { amount: decimal('3.50'), method: 'TRANSFER', date: new Date('2026-03-12') },
+    ]);
+    const service = new ReportsService(prismaMock as never, cacheMock as never);
+
+    const result = await service.getCashFlow('org-a', '2026-03-10', '2026-03-12');
+
+    expect(prismaMock.payment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        organizationId: 'org-a',
+        createdAt: expect.any(Object),
+        sale: { status: 'COMPLETED' },
+      }),
+    }));
+    expect(prismaMock.expensePayment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { organizationId: 'org-a', date: expect.any(Object) },
+    }));
+    expect(result.collections.total).toBe('16.00');
+    expect(result.collections.byPaymentMethod).toEqual([
+      { paymentMethod: 'CASH', total: '10.25', count: 1 },
+      { paymentMethod: 'CARD', total: '5.75', count: 1 },
+    ]);
+    expect(result.expensePayments.total).toBe('3.50');
+  });
+
+  it('returns current inventory valuation and period movement quantities separately', async () => {
+    prismaMock.product.findMany.mockResolvedValue([
+      { stock: 3, costPrice: decimal('10.00'), salePrice: decimal('18.00') },
+      { stock: 2, costPrice: decimal('4.50'), salePrice: decimal('9.00') },
+    ]);
+    prismaMock.inventoryMovement.findMany.mockResolvedValue([
+      { type: 'SALE', quantity: 2 },
+      { type: 'RETURN', quantity: 1 },
+    ]);
+    const service = new ReportsService(prismaMock as never, cacheMock as never);
+
+    const result = await service.getInventorySnapshot('org-a', '2026-03-10', '2026-03-12');
+
+    expect(result.isCurrentSnapshot).toBe(true);
+    expect(result.valuationBasis).toBe('CURRENT_STOCK_AT_CURRENT_COST');
+    expect(result.current.stockValue).toBe('39.00');
+    expect(result.current.retailValue).toBe('72.00');
+    expect(result.current.potentialProfit).toBe('33.00');
+    expect(result.movements).toEqual({
+      totalQuantity: 3,
+      byType: { SALE: 2, RETURN: 1 },
+    });
+    expect(prismaMock.product.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { organizationId: 'org-a', active: true },
+    }));
   });
 });
