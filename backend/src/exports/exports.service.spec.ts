@@ -28,6 +28,7 @@ describe('ExportsService', () => {
       findMany: jest.fn(),
     },
   };
+  const reportsMock = { getEconomicExport: jest.fn() };
 
   const ORG_ID = 'org-1';
 
@@ -42,7 +43,7 @@ describe('ExportsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new ExportsService(prismaMock as never);
+    service = new ExportsService(prismaMock as never, reportsMock as never);
   });
 
   it('getInventoryMovements filters by organizationId', async () => {
@@ -241,6 +242,33 @@ describe('ExportsService', () => {
 
     expect(csv.write).toHaveBeenCalledWith(
       [['Date', 'Category', 'Description', 'Total', 'Status']],
+      { headers: false },
+    );
+  });
+
+  it('exports the Reports financial contract without converting decimal strings to numbers', async () => {
+    reportsMock.getEconomicExport.mockResolvedValue({
+      financial: { current: { netIncome: '100.10', grossProfit: '40.05', netProfit: '30.05' } },
+      cash: { collections: { total: '120.10' }, expensePayments: { total: '10.00' } },
+      inventory: { current: { stockValue: '50.00', retailValue: '80.00', potentialProfit: '30.00' } },
+    });
+
+    await service.exportEconomic(
+      ORG_ID,
+      { format: 'csv', type: 'economic', startDate: '2026-03-01', endDate: '2026-03-31' } as ExportQueryDto,
+      buildResMock(),
+    );
+
+    expect(reportsMock.getEconomicExport).toHaveBeenCalledWith(
+      ORG_ID,
+      '2026-03-01',
+      '2026-03-31',
+    );
+    expect(csv.write).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        ['financial', 'netIncome', '100.10'],
+        ['inventory', 'potentialProfit', '30.00'],
+      ]),
       { headers: false },
     );
   });
