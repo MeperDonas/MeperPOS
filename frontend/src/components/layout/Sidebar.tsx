@@ -55,10 +55,28 @@ const navItems: NavItem[] = [
     roles: ["ADMIN", "CASHIER"],
   },
   {
+    label: "Ventas",
+    href: "/sales",
+    icon: <Receipt className="w-4 h-4" />,
+    roles: ["ADMIN", "CASHIER"],
+  },
+  {
+    label: "Clientes",
+    href: "/customers",
+    icon: <Users className="w-4 h-4" />,
+    roles: ["ADMIN", "CASHIER"],
+  },
+  {
     label: "Inventario",
     href: "/inventory",
     icon: <Package className="w-4 h-4" />,
     roles: ["ADMIN", "CASHIER", "INVENTORY_USER"],
+  },
+  {
+    label: "Categorías",
+    href: "/categories",
+    icon: <FolderTree className="w-4 h-4" />,
+    roles: ["ADMIN", "INVENTORY_USER"],
   },
   {
     label: "Proveedores",
@@ -73,44 +91,15 @@ const navItems: NavItem[] = [
     roles: ["ADMIN", "INVENTORY_USER"],
   },
   {
-    label: "Ventas",
-    href: "/sales",
-    icon: <Receipt className="w-4 h-4" />,
-    roles: ["ADMIN", "CASHIER"],
-  },
-  {
     label: "Salidas",
     href: "/expenses",
     icon: <Wallet className="w-4 h-4" />,
     roles: ["ADMIN"],
   },
   {
-    label: "Clientes",
-    href: "/customers",
-    icon: <Users className="w-4 h-4" />,
-    roles: ["ADMIN", "CASHIER"],
-  },
-  {
     label: "Reportes",
     href: "/reports",
     icon: <TrendingUp className="w-4 h-4" />,
-    roles: ["ADMIN"],
-  },
-  {
-    label: "Categorias",
-    href: "/categories",
-    icon: <FolderTree className="w-4 h-4" />,
-    roles: ["ADMIN", "INVENTORY_USER"],
-  },
-  {
-    label: "Mi Perfil",
-    href: "/profile",
-    icon: <UserIcon className="w-4 h-4" />,
-  },
-  {
-    label: "Usuarios",
-    href: "/users",
-    icon: <Shield className="w-4 h-4" />,
     roles: ["ADMIN"],
   },
   {
@@ -120,7 +109,12 @@ const navItems: NavItem[] = [
     roles: ["ADMIN", "CASHIER", "INVENTORY_USER"],
   },
   {
-    label: "Configuracion",
+    label: "Mi perfil",
+    href: "/profile",
+    icon: <UserIcon className="w-4 h-4" />,
+  },
+  {
+    label: "Configuración",
     href: "/settings",
     icon: <Settings className="w-4 h-4" />,
     roles: ["ADMIN"],

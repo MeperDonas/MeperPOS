@@ -74,7 +74,7 @@ vi.mock("@/lib/api", () => ({
   getApiErrorMessage: () => "Error",
 }));
 
-import UsersPage from "./page";
+import UsersPage from "@/components/users/UsersManagementPage";
 
 describe("Users page centralized admin behavior (#27)", () => {
   beforeEach(() => {
