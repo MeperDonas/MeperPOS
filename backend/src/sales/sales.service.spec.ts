@@ -644,6 +644,122 @@ describe('SalesService', () => {
     );
   });
 
+  it('create persists the authoritative product cost and ignores a client cost snapshot', async () => {
+    const txMock = {
+      sale: { create: jest.fn() },
+      saleItem: { create: jest.fn() },
+      product: {
+        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      inventoryMovement: { create: jest.fn() },
+      payment: { create: jest.fn() },
+    };
+
+    prismaMock.$transaction.mockImplementation(
+      async (callback: (tx: unknown) => unknown) => callback(txMock),
+    );
+    sequenceServiceMock.nextNumber.mockResolvedValue({ number: 45, formatted: '45' });
+    prismaMock.product.findFirst.mockResolvedValue({
+      id: 'prod-1',
+      name: 'Cost Provenance Product',
+      active: true,
+      costPrice: 37.25,
+      salePrice: 80,
+      taxable: false,
+      taxRate: 0,
+      stock: 10,
+      category: { taxable: false, defaultTaxRate: null },
+    });
+    txMock.sale.create.mockResolvedValue({ id: 'sale-new', saleNumber: 45 });
+    prismaMock.sale.findFirst.mockResolvedValue({
+      id: 'sale-new',
+      saleNumber: 45,
+      userId: 'user-1',
+      user: { id: 'user-1', name: 'User', email: 'user@example.com' },
+      customer: null,
+      items: [],
+      payments: [],
+    });
+
+    await service.create(
+      {
+        items: [
+          {
+            productId: 'prod-1',
+            quantity: 1,
+            unitPrice: 80,
+            discountAmount: 0,
+            costPriceSnapshot: 999,
+          },
+        ],
+        discountAmount: 0,
+        payments: [{ method: 'CASH' as const, amount: 80 }],
+      } as never,
+      'user-1',
+      'org-1',
+    );
+
+    expect(txMock.saleItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ costPriceSnapshot: 37.25 }),
+      }),
+    );
+    expect(txMock.saleItem.create.mock.calls[0][0].data.costPriceSnapshot).not.toBe(999);
+  });
+
+  it('keeps the sale cost snapshot independent from later product cost changes', async () => {
+    const txMock = {
+      sale: { create: jest.fn() },
+      saleItem: { create: jest.fn() },
+      product: {
+        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      inventoryMovement: { create: jest.fn() },
+      payment: { create: jest.fn() },
+    };
+
+    prismaMock.$transaction.mockImplementation(
+      async (callback: (tx: unknown) => unknown) => callback(txMock),
+    );
+    sequenceServiceMock.nextNumber.mockResolvedValue({ number: 46, formatted: '46' });
+    prismaMock.product.findFirst.mockResolvedValue({
+      id: 'prod-1',
+      name: 'Immutable Cost Product',
+      active: true,
+      costPrice: 37.25,
+      salePrice: 80,
+      taxable: false,
+      taxRate: 0,
+      stock: 10,
+      category: { taxable: false, defaultTaxRate: null },
+    });
+    txMock.sale.create.mockResolvedValue({ id: 'sale-new', saleNumber: 46 });
+    prismaMock.sale.findFirst.mockResolvedValue({
+      id: 'sale-new',
+      saleNumber: 46,
+      userId: 'user-1',
+      user: { id: 'user-1', name: 'User', email: 'user@example.com' },
+      customer: null,
+      items: [{ productId: 'prod-1', costPriceSnapshot: 37.25 }],
+      payments: [],
+    });
+
+    await service.create(
+      {
+        items: [{ productId: 'prod-1', quantity: 1 }],
+        payments: [{ method: 'CASH' as const, amount: 80 }],
+      },
+      'user-1',
+      'org-1',
+    );
+
+    const persistedSnapshot = txMock.saleItem.create.mock.calls[0][0].data.costPriceSnapshot;
+    expect(persistedSnapshot).toBe(37.25);
+    expect(persistedSnapshot).not.toBe(80);
+  });
+
   it('create throws ServiceUnavailableException on P2028 transaction timeout', async () => {
     const error = new Prisma.PrismaClientKnownRequestError(
       'Transaction timeout',
