@@ -33,18 +33,16 @@ describe('ReportsService financial read model', () => {
       '2026-03-12',
     );
 
-    expect(prismaMock.sale.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          organizationId: 'org-a',
-          status: 'COMPLETED',
-          createdAt: expect.objectContaining({
-            gte: expect.any(Date),
-            lte: expect.any(Date),
-          }),
-        },
+    expect(prismaMock.sale.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        organizationId: 'org-a',
+        OR: expect.arrayContaining([
+          { createdAt: expect.any(Object) },
+          { cancelledAt: expect.any(Object) },
+          { inventoryMovements: { some: expect.any(Object) } },
+        ]),
       }),
-    );
+    }));
     expect(expensesMock.findForReports).toHaveBeenCalledWith(
       'org-a',
       expect.any(Date),
@@ -61,6 +59,9 @@ describe('ReportsService financial read model', () => {
     prismaMock.sale.findMany
       .mockResolvedValueOnce([
         {
+          createdAt: new Date('2026-03-11T15:00:00.000Z'),
+          cancelledAt: null,
+          status: 'COMPLETED',
           subtotal: decimal('100.00'),
           discountAmount: decimal('0.00'),
           taxAmount: decimal('19.00'),
@@ -74,6 +75,7 @@ describe('ReportsService financial read model', () => {
               product: { name: 'A', category: { name: 'General' } },
             },
           ],
+          inventoryMovements: [],
         },
       ])
       .mockResolvedValueOnce([]);
@@ -98,6 +100,89 @@ describe('ReportsService financial read model', () => {
     expect(result.previous.netIncome).toBe('0.00');
     expect(result.deltas.netIncome).toEqual({ absolute: '100.00', percentage: 100 });
     expect(result.current.netIncome).toEqual(expect.any(String));
+  });
+
+  it('applies cancellation and return events in their period without requiring the sale creation period', async () => {
+    prismaMock.sale.findMany.mockResolvedValue([
+      {
+        createdAt: new Date('2026-02-20T15:00:00.000Z'),
+        cancelledAt: new Date('2026-03-11T15:00:00.000Z'),
+        status: 'CANCELLED',
+        subtotal: decimal('100.00'),
+        discountAmount: decimal('10.00'),
+        taxAmount: decimal('19.00'),
+        items: [
+          {
+            quantity: 2,
+            subtotal: decimal('100.00'),
+            discountAmount: decimal('10.00'),
+            costPriceSnapshot: decimal('40.00'),
+            productId: 'p-1',
+            product: { name: 'A', category: { name: 'General' } },
+          },
+        ],
+        inventoryMovements: [
+          {
+            type: 'RETURN',
+            quantity: 1,
+            createdAt: new Date('2026-03-12T15:00:00.000Z'),
+            productId: 'p-1',
+          },
+        ],
+      },
+      {
+        createdAt: new Date('2026-02-20T15:00:00.000Z'),
+        cancelledAt: null,
+        status: 'RETURNED_PARTIAL',
+        subtotal: decimal('100.00'),
+        discountAmount: decimal('10.00'),
+        taxAmount: decimal('19.00'),
+        items: [
+          {
+            quantity: 2,
+            subtotal: decimal('100.00'),
+            discountAmount: decimal('10.00'),
+            costPriceSnapshot: decimal('40.00'),
+            productId: 'p-1',
+            product: { name: 'A', category: { name: 'General' } },
+          },
+        ],
+        inventoryMovements: [
+          {
+            type: 'RETURN',
+            quantity: 1,
+            createdAt: new Date('2026-03-12T15:00:00.000Z'),
+            productId: 'p-1',
+          },
+        ],
+      },
+    ]);
+    expensesMock.findForReports.mockResolvedValue([]);
+    const service = new ReportsService(
+      prismaMock as never,
+      cacheMock as never,
+      expensesMock as never,
+    );
+
+    const result = await service.getFinancialOverview(
+      'org-a',
+      '2026-03-10',
+      '2026-03-12',
+    );
+
+    expect(prismaMock.sale.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        organizationId: 'org-a',
+        OR: expect.arrayContaining([
+          { createdAt: expect.any(Object) },
+          { cancelledAt: expect.any(Object) },
+          { inventoryMovements: { some: { type: 'RETURN', createdAt: expect.any(Object) } } },
+        ]),
+      }),
+    }));
+    expect(result.current.netIncome).toBe('-135.00');
+    expect(result.current.cogs).toBe('-120.00');
+    expect(result.current.grossProfit).toBe('-15.00');
   });
 
   it('never builds a financial query without the requested organization', async () => {

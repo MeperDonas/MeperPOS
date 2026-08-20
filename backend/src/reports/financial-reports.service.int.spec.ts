@@ -19,11 +19,14 @@ describe('ReportsService financial integration', () => {
   let purchaseExpenseId: string;
   let supplierId: string;
   let purchaseOrderId: string;
+  let saleNumberSequence: number;
+  const eventSaleIds: string[] = [];
 
   beforeAll(async () => {
     service = new ReportsService(prisma as never, new CacheService());
     const suffix = Date.now();
     const sequence = suffix % 1_000_000_000;
+    saleNumberSequence = sequence;
     const [orgA, orgB] = await Promise.all([
       prisma.organization.create({
         data: { name: 'Reports INT A', slug: `reports-int-a-${suffix}`, plan: PlanType.BASIC },
@@ -152,6 +155,9 @@ describe('ReportsService financial integration', () => {
   });
 
   afterAll(async () => {
+    await prisma.inventoryMovement.deleteMany({ where: { saleId: { in: eventSaleIds } } });
+    await prisma.saleItem.deleteMany({ where: { saleId: { in: eventSaleIds } } });
+    await prisma.sale.deleteMany({ where: { id: { in: eventSaleIds } } });
     await prisma.expense.deleteMany({ where: { id: { in: [expenseAId, purchaseExpenseId] } } });
     await prisma.purchaseOrder.delete({ where: { id: purchaseOrderId } });
     await prisma.supplier.delete({ where: { id: supplierId } });
@@ -175,5 +181,103 @@ describe('ReportsService financial integration', () => {
     expect(reportA.current.netProfit).toBe('35.00');
     expect(reportB.current.netIncome).toBe('900.00');
     expect(reportB.current.cogs).toBe('0.00');
+  });
+
+  it('applies cancellation and partial return adjustments by event date when sales predate the range', async () => {
+    const cancellation = await prisma.sale.create({
+      data: {
+        saleNumber: saleNumberSequence + 1,
+        subtotal: 200,
+        taxAmount: 0,
+        discountAmount: 0,
+        total: 200,
+        amountPaid: 200,
+        status: 'CANCELLED',
+        cancelledAt: new Date('2026-08-20T15:00:00.000Z'),
+        userId,
+        organizationId: orgAId,
+        createdAt: new Date('2026-07-20T15:00:00.000Z'),
+      },
+    });
+    const partial = await prisma.sale.create({
+      data: {
+        saleNumber: saleNumberSequence + 2,
+        subtotal: 200,
+        taxAmount: 0,
+        discountAmount: 0,
+        total: 200,
+        amountPaid: 200,
+        status: 'RETURNED_PARTIAL',
+        userId,
+        organizationId: orgAId,
+        createdAt: new Date('2026-07-20T15:00:00.000Z'),
+      },
+    });
+    const cancelledLater = await prisma.sale.create({
+      data: {
+        saleNumber: saleNumberSequence + 3,
+        subtotal: 200,
+        taxAmount: 0,
+        discountAmount: 0,
+        total: 200,
+        amountPaid: 200,
+        status: 'CANCELLED',
+        cancelledAt: new Date('2026-08-30T15:00:00.000Z'),
+        userId,
+        organizationId: orgAId,
+        createdAt: new Date('2026-08-20T15:00:00.000Z'),
+      },
+    });
+    eventSaleIds.push(cancellation.id, partial.id, cancelledLater.id);
+
+    for (const sale of [cancellation, partial, cancelledLater]) {
+      await prisma.saleItem.create({
+        data: {
+          saleId: sale.id,
+          productId: productAId,
+          quantity: 2,
+          unitPrice: 100,
+          costPriceSnapshot: 40,
+          taxRate: 0,
+          subtotal: 200,
+          total: 200,
+          organizationId: orgAId,
+        },
+      });
+    }
+    await prisma.inventoryMovement.create({
+      data: {
+        productId: productAId,
+        type: 'RETURN',
+        quantity: 1,
+        previousStock: 0,
+        newStock: 1,
+        reason: 'Partial return',
+        userId,
+        saleId: partial.id,
+        organizationId: orgAId,
+        createdAt: new Date('2026-08-21T15:00:00.000Z'),
+      },
+    });
+    await prisma.inventoryMovement.create({
+      data: {
+        productId: productAId,
+        type: 'RETURN',
+        quantity: 2,
+        previousStock: 0,
+        newStock: 2,
+        reason: 'Sale cancelled',
+        userId,
+        saleId: cancelledLater.id,
+        organizationId: orgAId,
+        createdAt: new Date('2026-08-21T15:00:00.000Z'),
+      },
+    });
+
+    const report = await service.getFinancialOverview(orgAId, '2026-08-20', '2026-08-21');
+
+    expect(report.current.netIncome).toBe('-100.00');
+    expect(report.current.cogs).toBe('-40.00');
+    expect(report.current.grossProfit).toBe('-60.00');
   });
 });
