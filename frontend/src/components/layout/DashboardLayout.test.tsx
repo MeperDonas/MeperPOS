@@ -91,4 +91,17 @@ describe("DashboardLayout route gating for /expenses", () => {
 
     expect(replaceMock).not.toHaveBeenCalled();
   });
+
+  it("keeps Team & Access ADMIN-only", () => {
+    currentPathname = "/settings/team";
+    setUser("CASHIER");
+
+    render(
+      <DashboardLayout>
+        <p>Equipo y acceso</p>
+      </DashboardLayout>
+    );
+
+    expect(replaceMock).toHaveBeenCalledWith("/pos");
+  });
 });

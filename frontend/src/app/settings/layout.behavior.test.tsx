@@ -34,7 +34,7 @@ vi.mock("@/components/layout/DashboardLayout", () => ({
 import SettingsLayout from "./layout";
 
 describe("settings sub-sidebar layout", () => {
-  it("renders all five sections as links with visible labels", () => {
+  it("renders only the three approved sections as links", () => {
     render(
       <SettingsLayout>
         <div>Contenido</div>
@@ -43,15 +43,14 @@ describe("settings sub-sidebar layout", () => {
 
     expect(screen.getByRole("link", { name: "General" })).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Facturación y Recibos" })
+      screen.getByRole("link", { name: "Facturación y recibos" })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Moneda y Región" })
+      screen.getByRole("link", { name: "Equipo y acceso" })
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Suscripción" })
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Avanzado" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Moneda y Región" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Suscripción" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Avanzado" })).not.toBeInTheDocument();
   });
 
   it("marks the active section and navigates without scrolling the page", () => {
@@ -66,7 +65,7 @@ describe("settings sub-sidebar layout", () => {
     expect(generalLink).toHaveAttribute("data-scroll", "false");
 
     const invoicingLink = screen.getByRole("link", {
-      name: "Facturación y Recibos",
+      name: "Facturación y recibos",
     });
     expect(invoicingLink).not.toHaveAttribute("aria-current");
     expect(invoicingLink).toHaveAttribute("data-scroll", "false");

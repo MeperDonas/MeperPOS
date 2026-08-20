@@ -1,9 +1,7 @@
 import {
   Building2,
   Receipt,
-  Globe2,
-  CreditCard,
-  SlidersHorizontal,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,26 +21,14 @@ export const settingsSections: SettingsSection[] = [
   },
   {
     key: "invoicing",
-    label: "Facturación y Recibos",
+    label: "Facturación y recibos",
     href: "/settings/invoicing",
     icon: Receipt,
   },
   {
-    key: "locale",
-    label: "Moneda y Región",
-    href: "/settings/locale",
-    icon: Globe2,
-  },
-  {
-    key: "billing",
-    label: "Suscripción",
-    href: "/settings/billing",
-    icon: CreditCard,
-  },
-  {
-    key: "advanced",
-    label: "Avanzado",
-    href: "/settings/advanced",
-    icon: SlidersHorizontal,
+    key: "team",
+    label: "Equipo y acceso",
+    href: "/settings/team",
+    icon: UsersRound,
   },
 ];

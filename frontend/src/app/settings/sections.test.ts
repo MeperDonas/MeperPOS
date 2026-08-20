@@ -2,13 +2,11 @@ import { describe, expect, it } from "vitest";
 import { settingsSections } from "./sections";
 
 describe("settings sections registry", () => {
-  it("defines the five settings sections in the required order", () => {
+  it("defines the three approved settings sections in the required order", () => {
     expect(settingsSections.map((section) => section.key)).toEqual([
       "general",
       "invoicing",
-      "locale",
-      "billing",
-      "advanced",
+      "team",
     ]);
   });
 
