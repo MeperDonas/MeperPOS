@@ -20,11 +20,11 @@ export class ExportQueryDto {
   format: ExportFormat;
 
   @ApiProperty({
-    enum: ['sales', 'products', 'customers', 'inventory', 'expenses'],
+    enum: ['sales', 'products', 'customers', 'inventory', 'expenses', 'economic'],
     example: 'sales',
   })
-  @IsEnum(['sales', 'products', 'customers', 'inventory', 'expenses'])
-  type: 'sales' | 'products' | 'customers' | 'inventory' | 'expenses';
+  @IsEnum(['sales', 'products', 'customers', 'inventory', 'expenses', 'economic'])
+  type: 'sales' | 'products' | 'customers' | 'inventory' | 'expenses' | 'economic';
 
   @ApiPropertyOptional({ example: '2024-01-01' })
   @IsOptional()

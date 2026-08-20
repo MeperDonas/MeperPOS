@@ -105,4 +105,16 @@ export class ExportsController {
   ) {
     return this.exportsService.exportExpenses(user.organizationId, query, res);
   }
+
+  @Post('economic')
+  @Roles(OrgRole.ADMIN)
+  @ApiOperation({ summary: 'Export the consolidated economic report' })
+  @ApiConsumes('application/json')
+  async exportEconomic(
+    @CurrentUser() user: RequestUser,
+    @Body() query: ExportQueryDto,
+    @Res() res: Response,
+  ) {
+    return this.exportsService.exportEconomic(user.organizationId, query, res);
+  }
 }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReportsService } from '../reports/reports.service';
 import { ExportQueryDto, InventoryMovementsQueryDto } from './dto/export.dto';
 import * as ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
@@ -7,7 +8,10 @@ import * as csv from '@fast-csv/format';
 
 @Injectable()
 export class ExportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private reportsService?: ReportsService,
+  ) {}
 
   async getInventoryMovements(
     organizationId: string | undefined,
@@ -108,6 +112,32 @@ export class ExportsService {
   ) {
     const expenses = await this.getExpensesData(organizationId, query);
     return this.exportData(expenses, 'expenses', query.format, response);
+  }
+
+  async exportEconomic(
+    organizationId: string | undefined,
+    query: ExportQueryDto,
+    response: any,
+  ) {
+    if (!this.reportsService) {
+      throw new Error('Reports service is required for economic exports');
+    }
+    const report = await this.reportsService.getEconomicExport(
+      organizationId,
+      query.startDate,
+      query.endDate,
+    );
+    const rows = [
+      ['financial', 'netIncome', report.financial.current.netIncome],
+      ['financial', 'grossProfit', report.financial.current.grossProfit],
+      ['financial', 'netProfit', report.financial.current.netProfit],
+      ['cash', 'collections', report.cash.collections.total],
+      ['cash', 'expensePayments', report.cash.expensePayments.total],
+      ['inventory', 'stockValue', report.inventory.current.stockValue],
+      ['inventory', 'retailValue', report.inventory.current.retailValue],
+      ['inventory', 'potentialProfit', report.inventory.current.potentialProfit],
+    ];
+    return this.exportData(rows, 'economic', query.format, response);
   }
 
   private async getSalesData(
@@ -353,6 +383,7 @@ export class ExportsService {
         'User',
       ],
       expenses: ['Date', 'Category', 'Description', 'Total', 'Status'],
+      economic: ['Section', 'Metric', 'Value'],
     };
     return headers[type] || [];
   }
@@ -401,6 +432,7 @@ export class ExportsService {
         Number(item.total).toFixed(2),
         item.status,
       ],
+      economic: (item) => item,
     };
     return getters[type](item);
   }
@@ -412,6 +444,7 @@ export class ExportsService {
       customers: [35, 25, 25, 30, 25, 20],
       inventory: [25, 40, 25, 15, 20, 20, 25],
       expenses: [25, 40, 40, 20, 20],
+      economic: [30, 40, 30],
     };
     return widths[type] || [];
   }
