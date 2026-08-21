@@ -42,36 +42,36 @@ export function Pagination({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-between gap-3",
+        "flex flex-wrap items-center justify-between gap-3 font-mono text-xs",
         className,
       )}
     >
       {hasRange ? (
-        <p className="text-xs text-muted-foreground">
-          Mostrando {rangeStart}-{rangeEnd} de {totalItems}
+        <p className="text-muted-foreground">
+          Mostrando <span className="font-bold text-foreground">{rangeStart} - {rangeEnd}</span> de <span className="font-bold text-foreground">{totalItems}</span>
         </p>
       ) : hasTotal ? (
-        <p className="text-xs text-muted-foreground">
-          {totalItems} {itemLabel}
+        <p className="text-muted-foreground">
+          <span className="font-bold text-foreground">{totalItems}</span> {itemLabel}
           {pluralSuffix}
         </p>
       ) : (
         <span />
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 font-mono">
         <Button
           type="button"
           variant="secondary"
           size="sm"
           onClick={prev}
           disabled={clamped <= 1 || isDisabled}
-          className="px-2"
+          className="px-2.5 rounded-xl font-mono text-xs"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-3.5 w-3.5 mr-1" />
           Anterior
         </Button>
-        <span className="text-xs font-medium text-foreground tabular-nums">
+        <span className="px-3 py-1 rounded-xl bg-muted border border-border/60 text-xs font-bold text-foreground">
           {clamped} / {totalPages}
         </span>
         <Button
@@ -80,10 +80,10 @@ export function Pagination({
           size="sm"
           onClick={next}
           disabled={clamped >= totalPages || isDisabled}
-          className="px-2"
+          className="px-2.5 rounded-xl font-mono text-xs"
         >
           Siguiente
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-3.5 w-3.5 ml-1" />
         </Button>
       </div>
     </div>

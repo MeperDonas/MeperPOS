@@ -11,9 +11,9 @@ export function Card({ children, className = "", onClick }: CardProps) {
     <div
       onClick={onClick}
       className={cn(
-        "rounded-xl border border-border/70 bg-card shadow-sm",
+        "rounded-2xl lg:rounded-3xl border border-border/80 bg-card shadow-xs transition-all duration-200",
         onClick &&
-          "cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md hover:shadow-primary/5",
+          "cursor-pointer hover:border-primary/40 hover:shadow-md",
         className,
       )}
     >
@@ -30,7 +30,7 @@ export function CardHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("border-b border-border/60 p-6", className)}>
+    <div className={cn("border-b border-border/60 p-5", className)}>
       {children}
     </div>
   );

@@ -22,23 +22,23 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const variants = {
       primary:
-        "bg-primary text-white shadow-md shadow-primary/15 hover:bg-primary-dark hover:shadow-primary/25",
+        "bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary-dark hover:shadow-primary/30",
       secondary:
-        "bg-card text-foreground border border-border hover:border-primary/40 hover:bg-muted",
+        "bg-card text-foreground border border-border hover:border-primary/40 hover:bg-primary-light hover:text-primary",
       danger:
-        "bg-danger text-white shadow-md shadow-danger/15 hover:opacity-90 hover:shadow-danger/20",
+        "bg-danger text-white shadow-md shadow-danger/20 hover:opacity-90 hover:shadow-danger/30",
       ghost:
-        "text-muted-foreground hover:text-foreground hover:bg-muted",
+        "text-muted-foreground hover:text-foreground hover:bg-muted/80",
       outline:
-        "border border-primary/60 text-primary hover:bg-primary hover:text-white hover:border-primary",
+        "border border-border text-foreground hover:bg-primary-light hover:text-primary hover:border-primary/40",
       success:
-        "bg-success text-white shadow-md shadow-success/15 hover:opacity-90 hover:shadow-success/20",
+        "bg-success text-white shadow-md shadow-success/20 hover:opacity-90 hover:shadow-success/30",
     };
 
     const sizes = {
-      sm: "px-3 py-1.5 text-sm gap-1.5",
-      md: "px-4 py-2.5 text-sm gap-2",
-      lg: "px-6 py-3 text-base gap-2",
+      sm: "px-3 py-1.5 text-xs gap-1.5 rounded-lg",
+      md: "px-4 py-2.5 text-xs font-semibold gap-2 rounded-xl",
+      lg: "px-6 py-3 text-sm font-semibold gap-2.5 rounded-xl",
     };
 
     return (
@@ -46,9 +46,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          "inline-flex items-center justify-center rounded-lg font-semibold",
+          "inline-flex items-center justify-center font-medium",
           "transition-all duration-200",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           "active:scale-[0.97]",
           "disabled:cursor-not-allowed disabled:opacity-50",
           variants[variant],
