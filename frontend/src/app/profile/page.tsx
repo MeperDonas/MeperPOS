@@ -47,8 +47,8 @@ export default function ProfilePage() {
       toast.error("Las contraseñas no coinciden");
       return;
     }
-    if (passwordData.newPassword.length < 6) {
-      toast.error("La contraseña debe tener al menos 6 caracteres");
+    if (passwordData.newPassword.length < 10) {
+      toast.error("La contraseña debe tener al menos 10 caracteres");
       return;
     }
     try {
@@ -171,7 +171,7 @@ export default function ProfilePage() {
                 value={passwordData.newPassword}
                 onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                 required
-                minLength={6}
+                minLength={10}
               />
               <Input
                 label="Confirmar Nueva Contraseña"
@@ -179,9 +179,9 @@ export default function ProfilePage() {
                 value={passwordData.confirmPassword}
                 onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                 required
-                minLength={6}
+                minLength={10}
               />
-              <p className="text-xs text-muted-foreground">Mínimo 6 caracteres</p>
+              <p className="text-xs text-muted-foreground">Mínimo 10 caracteres</p>
               <div className="flex justify-end pt-2 border-t border-primary/20">
                 <Button type="submit" loading={changePassword.isPending}>Cambiar Contraseña</Button>
               </div>
