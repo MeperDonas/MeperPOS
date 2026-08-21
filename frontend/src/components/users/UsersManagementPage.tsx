@@ -279,7 +279,8 @@ export default function UsersPage() {
         <form onSubmit={handleCreate} className="space-y-4">
           <Input label="Nombre" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
           <Input label="Correo" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
-          <Input label="Contraseña" type="password" minLength={8} value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required />
+          <Input label="Contraseña" type="password" minLength={10} value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required />
+          <p className="text-xs text-muted-foreground">Mínimo 10 caracteres</p>
           <Select
             label="Rol"
             value={formData.role}
@@ -307,11 +308,12 @@ export default function UsersPage() {
             <Input
               label="Nueva contraseña"
               type="password"
-              minLength={8}
+              minLength={10}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
             />
+            <p className="text-xs text-muted-foreground">Mínimo 10 caracteres</p>
             <div className="flex justify-end gap-3 border-t border-border/60 pt-4">
               <Button type="button" variant="secondary" onClick={() => setShowResetModal(false)}>Cancelar</Button>
               <Button type="submit" loading={resetPassword.isPending}>Guardar</Button>
