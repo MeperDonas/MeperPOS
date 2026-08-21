@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PlanType } from '@prisma/client';
+import { IsValidPassword } from '../../common/validators/password.policy';
 
 class CreateAdminDto {
   @IsString()
@@ -22,7 +23,7 @@ class CreateAdminDto {
 
   @IsString()
   @IsOptional()
-  @MinLength(6)
+  @IsValidPassword()
   password?: string;
 }
 
