@@ -9,7 +9,11 @@ import {
   useMemo,
 } from "react";
 import { api, getApiErrorMessage } from "@/lib/api";
-import { safeGetItem, safeSetItem, safeRemoveItem } from "@/lib/utils";
+import { safeSetItem, safeRemoveItem } from "@/lib/utils";
+import {
+  setAccessToken,
+  clearAccessToken,
+} from "@/lib/session";
 import { useRouter } from "next/navigation";
 import { OrganizationSelectModal } from "@/components/auth/OrganizationSelectModal";
 import { useToast } from "@/contexts/ToastContext";
@@ -40,6 +44,30 @@ interface PendingOrganizationSelection {
   organizations: Array<{ id: string; name: string; role: string; plan: string }>;
 }
 
+/**
+ * Auth responses keep returning tokens in the JSON body (dual-mode backend)
+ * while also setting httpOnly cookies. Only the access token is consumed and
+ * it is stored in memory only — the refresh token is never kept client-side.
+ */
+interface AuthTokenResponse {
+  accessToken?: string;
+  /** Legacy alias still accepted by some endpoints. */
+  token?: string;
+  refreshToken?: string;
+  user?: User;
+}
+
+/** localStorage key for the user object. Display cache only, NOT auth material. */
+const USER_DISPLAY_CACHE_KEY = "user";
+
+function extractAccessToken(payload: {
+  accessToken?: string;
+  token?: string;
+}): string | null {
+  const token = payload.accessToken ?? payload.token ?? null;
+  return token && token.trim() ? token : null;
+}
+
 interface AuthContextType {
   user: User | null;
   organization: Organization | null;
@@ -63,37 +91,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { error: showError } = useToast();
 
   useEffect(() => {
-    const validateSession = async () => {
-      const token = safeGetItem("token");
-      const savedUser = safeGetItem("user");
+    const restoreSession = async () => {
+      // Migration scrub: legacy localStorage tokens are no longer read by the
+      // request layer, so remove any leftovers from previous versions.
+      safeRemoveItem("token");
+      safeRemoveItem("refreshToken");
 
-      if (!token || !savedUser) {
-        setLoading(false);
-        return;
-      }
-
+      // Silent restore: the httpOnly refresh_token cookie is the only
+      // persisted credential. Refresh -> in-memory token -> revalidate user.
       try {
-        JSON.parse(savedUser);
+        const response = await api.post<AuthTokenResponse>("/auth/refresh", {});
+        const accessToken = extractAccessToken(response.data);
+        if (!accessToken) {
+          throw new Error("No access token in refresh response");
+        }
+        setAccessToken(accessToken);
+
         const profileResponse = await api.get<User>("/auth/profile");
         setUser(profileResponse.data);
-        safeSetItem("user", JSON.stringify(profileResponse.data));
+        safeSetItem(USER_DISPLAY_CACHE_KEY, JSON.stringify(profileResponse.data));
       } catch {
-        safeRemoveItem("token");
-        safeRemoveItem("user");
+        clearAccessToken();
+        safeRemoveItem(USER_DISPLAY_CACHE_KEY);
         setUser(null);
       } finally {
         setLoading(false);
       }
     };
 
-    void validateSession();
+    void restoreSession();
   }, []);
 
   const login = useCallback(
     async (email: string, password: string) => {
       try {
         const response = await api.post<
-          | { accessToken: string; refreshToken: string; user: User }
+          | AuthTokenResponse
           | {
               requiresOrganizationSelection: true;
               preAuthToken: string;
@@ -119,14 +152,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const token = data.accessToken;
-        safeSetItem("token", token);
-        safeSetItem("refreshToken", data.refreshToken);
+        // Access token in memory only — never persisted.
+        const accessToken = extractAccessToken(data);
+        const authenticatedUser = data.user;
+        if (!accessToken || !authenticatedUser) {
+          throw new Error("Invalid login response");
+        }
+        setAccessToken(accessToken);
 
-        setUser(data.user);
-        safeSetItem("user", JSON.stringify(data.user));
+        setUser(authenticatedUser);
+        safeSetItem(USER_DISPLAY_CACHE_KEY, JSON.stringify(authenticatedUser));
 
-        if (data.user.role === "SUPER_ADMIN") {
+        if (authenticatedUser.role === "SUPER_ADMIN") {
           router.push("/admin");
         } else {
           router.push("/dashboard");
@@ -143,21 +180,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (organizationId: string) => {
       if (!pendingSelection) return;
 
-      const response = await api.post<{
-        accessToken: string;
-        refreshToken: string;
-        user: User;
-      }>("/auth/select-organization", {
-        preAuthToken: pendingSelection.preAuthToken,
-        organizationId,
-      });
+      const response = await api.post<AuthTokenResponse>(
+        "/auth/select-organization",
+        {
+          preAuthToken: pendingSelection.preAuthToken,
+          organizationId,
+        }
+      );
 
-      const { accessToken, refreshToken, user: selectedUser } = response.data;
-
-      safeSetItem("token", accessToken);
-      safeSetItem("refreshToken", refreshToken);
+      // New token pair goes to memory only — never persisted.
+      const accessToken = extractAccessToken(response.data);
+      const selectedUser = response.data.user;
+      if (!accessToken || !selectedUser) {
+        throw new Error("Invalid select-organization response");
+      }
+      setAccessToken(accessToken);
       setUser(selectedUser);
-      safeSetItem("user", JSON.stringify(selectedUser));
+      safeSetItem(USER_DISPLAY_CACHE_KEY, JSON.stringify(selectedUser));
       setPendingSelection(null);
 
       if (selectedUser.role === "SUPER_ADMIN") {
@@ -172,17 +211,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const switchOrganization = useCallback(
     async (organizationId: string) => {
       try {
-        const response = await api.post<{
-          accessToken: string;
-          refreshToken: string;
-          user: User;
-        }>("/auth/select-org", { organizationId });
+        const response = await api.post<AuthTokenResponse>("/auth/select-org", {
+          organizationId,
+        });
 
-        const { accessToken, refreshToken, user: switchedUser } = response.data;
-
-        safeSetItem("token", accessToken);
-        safeSetItem("refreshToken", refreshToken);
-        safeSetItem("user", JSON.stringify(switchedUser));
+        // New token pair goes to memory only — never persisted.
+        const accessToken = extractAccessToken(response.data);
+        const switchedUser = response.data.user;
+        if (!accessToken || !switchedUser) {
+          throw new Error("Invalid select-org response");
+        }
+        setAccessToken(accessToken);
+        safeSetItem(USER_DISPLAY_CACHE_KEY, JSON.stringify(switchedUser));
         setUser(switchedUser);
 
         queryClient.invalidateQueries({
@@ -204,9 +244,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    safeRemoveItem("token");
-    safeRemoveItem("refreshToken");
-    safeRemoveItem("user");
+    // Best-effort server logout: revokes the refresh token and clears the
+    // httpOnly cookies. Errors are ignored — local cleanup happens anyway.
+    void api.post("/auth/logout").catch(() => undefined);
+    clearAccessToken();
+    safeRemoveItem(USER_DISPLAY_CACHE_KEY);
     setUser(null);
     setPendingSelection(null);
     router.push("/login");

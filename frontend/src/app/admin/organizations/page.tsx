@@ -243,12 +243,13 @@ export default function OrganizationsPage() {
                 label="Contraseña del admin"
                 type="password"
                 placeholder="Dejar vacío para generar automáticamente"
+                minLength={10}
                 value={formData.adminPassword}
                 onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
                 error={formErrors.adminPassword}
               />
               <p className="text-xs text-muted-foreground">
-                Si dejas este campo vacío, se generará una contraseña temporal automáticamente.
+                Si dejas este campo vacío, se generará una contraseña temporal automáticamente. Mínimo 10 caracteres.
               </p>
             </div>
           )}
