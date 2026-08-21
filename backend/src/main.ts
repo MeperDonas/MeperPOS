@@ -1,11 +1,19 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { validateJwtSecretOrExit } from './config/runtime-env';
 
 async function bootstrap() {
+  // Fail fast on insecure runtime configuration before wiring anything up.
+  validateJwtSecretOrExit(process.env);
+
   const app = await NestFactory.create(AppModule);
+
+  // CSP is disabled because Swagger UI assets conflict with strict policies and this API serves no HTML to end users.
+  app.use(helmet({ contentSecurityPolicy: false }));
 
   const corsOrigins = (process.env.CORS_ORIGIN ?? '')
     .split(',')
@@ -40,21 +48,29 @@ async function bootstrap() {
 
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  const config = new DocumentBuilder()
-    .setTitle('MeperPOS API')
-    .setDescription(
-      'API para gestión integrada de inventario, ventas y clientes',
-    )
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
+  // Swagger is a development tool only; never expose the schema in production.
+  const swaggerEnabled = process.env.NODE_ENV !== 'production';
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  if (swaggerEnabled) {
+    const config = new DocumentBuilder()
+      .setTitle('MeperPOS API')
+      .setDescription(
+        'API para gestión integrada de inventario, ventas y clientes',
+      )
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 Server running on http://localhost:${port}`);
-  console.log(`📚 Swagger documentation: http://localhost:${port}/api/docs`);
+
+  if (swaggerEnabled) {
+    console.log(`📚 Swagger documentation: http://localhost:${port}/api/docs`);
+  }
 }
 void bootstrap();
