@@ -8,8 +8,10 @@ import {
   UseInterceptors,
   Put,
   UnauthorizedException,
+  Res,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import {
   LoginDto,
@@ -23,11 +25,52 @@ import { JwtAuthGuard } from './jwt.strategy';
 import { AuditAction } from '../common/decorators/audit.decorator';
 import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
 import { Throttle } from '@nestjs/throttler';
+import {
+  CSRF_TOKEN_COOKIE,
+  REFRESH_TOKEN_COOKIE,
+  applyAuthCookies,
+  clearAuthCookies,
+} from './cookies.helper';
+
+interface AuthRequest {
+  ip?: string;
+  headers?: Record<string, string | string[] | undefined>;
+  cookies?: Record<string, string | undefined>;
+  user?: { userId: string };
+}
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+
+  /**
+   * Dual-mode sessions: token pairs keep returning in JSON bodies (legacy
+   * Bearer frontend) while httpOnly cookies are set in addition. Cookies are
+   * only written when the service actually issued a token pair — a
+   * requiresOrganizationSelection response has no session yet.
+   */
+  private setSessionCookies(
+    res: Response,
+    req: AuthRequest,
+    result: unknown,
+  ): void {
+    if (
+      typeof result === 'object' &&
+      result !== null &&
+      'accessToken' in result &&
+      'refreshToken' in result
+    ) {
+      const tokens = result as { accessToken: string; refreshToken: string };
+      applyAuthCookies(res, tokens, this.existingCsrfToken(req));
+    }
+  }
+
+  private existingCsrfToken(req: AuthRequest): string | null {
+    return typeof req.cookies?.[CSRF_TOKEN_COOKIE] === 'string'
+      ? (req.cookies[CSRF_TOKEN_COOKIE] as string)
+      : null;
+  }
 
   @Post('login')
   @UseInterceptors(AuditInterceptor)
@@ -38,21 +81,34 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Request()
     req: { ip?: string; headers?: Record<string, string | string[]> },
+    @Res({ passthrough: true }) res: Response,
   ) {
     const ipAddress = req.ip;
     const userAgent = Array.isArray(req.headers?.['user-agent'])
       ? req.headers['user-agent'][0]
       : req.headers?.['user-agent'];
-    return this.authService.login(loginDto, ipAddress, userAgent);
+    const result = await this.authService.login(loginDto, ipAddress, userAgent);
+
+    this.setSessionCookies(res, req, result);
+
+    return result;
   }
 
   @Post('select-organization')
   @ApiOperation({ summary: 'Select organization and complete login' })
-  async selectOrganization(@Body() dto: SelectOrganizationDto) {
-    return this.authService.selectOrganization(
+  async selectOrganization(
+    @Body() dto: SelectOrganizationDto,
+    @Request() req: AuthRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.selectOrganization(
       dto.preAuthToken,
       dto.organizationId,
     );
+
+    this.setSessionCookies(res, req, result);
+
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -93,10 +149,58 @@ export class AuthController {
     return this.authService.changePassword(req.user.userId, changePasswordDto);
   }
 
+  /**
+   * Accepts the refresh token from the refresh_token cookie first and falls
+   * back to the legacy body field. The rotated pair is returned in the body
+   * AND refreshed into cookies.
+   */
   @Post('refresh')
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refresh(refreshTokenDto.refreshToken);
+  async refresh(
+    @Body() refreshTokenDto: RefreshTokenDto,
+    @Request() req: AuthRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const cookieToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
+    const rawRefreshToken =
+      cookieToken && cookieToken.length > 0
+        ? cookieToken
+        : refreshTokenDto.refreshToken;
+
+    if (!rawRefreshToken) {
+      throw new UnauthorizedException('Refresh token missing');
+    }
+
+    const result = await this.authService.refresh(rawRefreshToken);
+
+    applyAuthCookies(res, result, this.existingCsrfToken(req));
+
+    return result;
+  }
+
+  /**
+   * Revokes the server-side refresh token when one is presented (cookie or
+   * legacy body) and expires all auth cookies. Intentionally unauthenticated:
+   * it must work for both Bearer and cookie-only clients.
+   */
+  @Post('logout')
+  @ApiOperation({ summary: 'Revoke refresh token and clear auth cookies' })
+  async logout(
+    @Body() refreshTokenDto: RefreshTokenDto,
+    @Request() req: AuthRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const cookieToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
+    const rawRefreshToken =
+      cookieToken && cookieToken.length > 0
+        ? cookieToken
+        : refreshTokenDto.refreshToken;
+
+    await this.authService.logout(rawRefreshToken);
+
+    clearAuthCookies(res);
+
+    return { message: 'Logged out successfully' };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -105,11 +209,16 @@ export class AuthController {
   @ApiOperation({ summary: 'Select active organization and re-issue JWT' })
   async selectOrg(
     @Body() selectOrgDto: SelectOrgDto,
-    @Request() req: { user: { userId: string } },
+    @Request() req: { user: { userId: string }; cookies?: Record<string, string | undefined> },
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.selectOrg(
+    const result = await this.authService.selectOrg(
       req.user.userId,
       selectOrgDto.organizationId,
     );
+
+    this.setSessionCookies(res, req, result);
+
+    return result;
   }
 }

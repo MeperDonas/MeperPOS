@@ -121,11 +121,13 @@ export class AdminResetPasswordDto {
 export class RefreshTokenDto {
   @ApiProperty({
     example: 'a1b2c3d4e5f6...',
-    description: 'Refresh token raw string',
+    description:
+      'Refresh token raw string. Optional: when omitted, the refresh_token cookie is used.',
+    required: false,
   })
   @IsString()
-  @IsNotEmpty()
-  refreshToken: string;
+  @IsOptional()
+  refreshToken?: string;
 }
 
 export class SelectOrgDto {
