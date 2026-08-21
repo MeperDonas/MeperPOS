@@ -68,10 +68,10 @@ export const DashboardLayout = memo(function DashboardLayout({
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center animate-pulse">
-            <div className="w-4 h-4 rounded-sm bg-primary/60" />
+          <div className="w-10 h-10 rounded-xl bg-primary-light border border-primary/30 flex items-center justify-center animate-pulse">
+            <div className="w-4 h-4 rounded-sm bg-primary" />
           </div>
-          <div className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce" />
+          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" />
         </div>
       </div>
     );
@@ -82,8 +82,8 @@ export const DashboardLayout = memo(function DashboardLayout({
   return (
     <div className="min-h-screen bg-background" data-org-status={organizationStatus}>
       <Sidebar />
-      <main className="px-4 pb-6 pt-16 lg:ml-64 lg:px-8 lg:pb-8 lg:pt-8">
-        <div className="mx-auto w-full max-w-[1500px]">
+      <main className="px-4 pb-6 pt-16 lg:ml-[320px] lg:px-8 lg:pb-8 lg:pt-8">
+        <div className="mx-auto w-full max-w-[1600px]">
           <PlanLimitBanner />
           {children}
         </div>
