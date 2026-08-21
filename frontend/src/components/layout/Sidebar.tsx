@@ -22,8 +22,6 @@ import {
   Menu,
   X,
   Boxes,
-  CalendarDays,
-  Clock3,
   ClipboardList,
   Truck,
   Wallet,
@@ -158,12 +156,12 @@ export function Sidebar() {
 
   useEffect(() => {
     if (isMobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, [isMobileMenuOpen]);
 
@@ -184,7 +182,12 @@ export function Sidebar() {
   }, [pathname]);
 
   const initials = user?.name
-    ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
     : "?";
 
   const formattedDate = new Intl.DateTimeFormat("es-CO", {
@@ -201,68 +204,78 @@ export function Sidebar() {
   const sidebarContent = (
     <>
       {/* Brand */}
-      <div className="px-5 py-5 border-b border-[color:var(--sidebar-border)]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-            <Boxes className="w-4 h-4 text-white" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-[var(--sidebar-title)] truncate leading-tight"
-               style={{ fontFamily: "var(--font-manrope, sans-serif)" }}>
-              {APP_NAME}
-            </p>
-          </div>
+      <div className="px-5 py-5 border-b border-border/70 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-white shadow-sm shadow-primary/30 shrink-0">
+          <Boxes className="w-4 h-4" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-base font-extrabold text-foreground truncate leading-tight tracking-tight">
+            {APP_NAME}
+          </p>
         </div>
       </div>
 
-      {/* User */}
-      {user ? (
-        <div className="px-4 py-3 border-b border-[color:var(--sidebar-border)]">
-          <div className="rounded-2xl border border-primary/60 bg-[color:var(--sidebar-hover-bg)] p-3">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
-                <span className="text-sm font-bold text-primary"
-                      style={{ fontFamily: "var(--font-manrope, sans-serif)" }}>
-                  {initials}
-                </span>
+      {/* User Bento Card */}
+      {user && (
+        <div className="p-4 border-b border-border/70">
+          <div className="rounded-2xl border border-border/80 bg-muted/30 p-3.5 flex flex-col gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary-light border border-primary/30 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                {initials}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-lg font-bold text-[var(--sidebar-title)] truncate leading-tight">
+                <p className="text-sm font-bold text-foreground truncate leading-tight">
                   {user.name}
                 </p>
-                <p className="text-sm text-[var(--sidebar-fg)] truncate leading-tight">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-mono text-[10px] font-semibold mt-0.5">
                   {roleLabels[user.role] ?? user.role}
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 shrink-0">
-                <button
-                  onClick={logout}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 hover:text-red-200 transition-colors"
-                  aria-label="Cerrar sesion"
-                  title="Cerrar sesion"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={toggleTheme}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/20 text-[var(--sidebar-title)] hover:bg-primary/30 transition-colors"
-                  aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-                  title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-                >
-                  {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                </button>
+                </span>
               </div>
             </div>
 
-            <div className="mt-3 space-y-1.5 text-[12px] text-[var(--sidebar-fg)]">
-              <p className="flex items-center gap-2 leading-tight">
-                <CalendarDays className="w-3.5 h-3.5 text-[color:var(--sidebar-title)]" />
-                <span className="truncate">{formattedDate}</span>
-              </p>
-              <p className="flex items-center gap-2 leading-tight">
-                <Clock3 className="w-3.5 h-3.5 text-[color:var(--sidebar-title)]" />
-                <span className="truncate">{formattedTime}</span>
-              </p>
+            <div className="flex items-center justify-between border-t border-border/60 pt-2.5">
+              <div className="flex items-center bg-muted/80 rounded-lg p-0.5 border border-border/40">
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label="Cambiar a modo claro"
+                  className={cn(
+                    "p-1 rounded-md transition-colors",
+                    theme === "light"
+                      ? "bg-card text-primary shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Sun className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label="Cambiar a modo oscuro"
+                  className={cn(
+                    "p-1 rounded-md transition-colors",
+                    theme === "dark"
+                      ? "bg-card text-primary shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Moon className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={logout}
+                className="p-1.5 rounded-lg text-danger hover:bg-danger/10 transition-colors"
+                aria-label="Cerrar sesion"
+                title="Cerrar sesion"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="font-mono text-[11px] text-muted-foreground text-center bg-muted/60 py-1.5 rounded-lg border border-border/40">
+              {formattedDate}, {formattedTime}
             </div>
 
             {user.isSuperAdmin ? (
@@ -288,55 +301,58 @@ export function Sidebar() {
             )}
           </div>
         </div>
-      ) : null}
+      )}
 
       {/* Nav */}
-      <nav ref={navRef} className="flex-1 overflow-y-auto px-3 py-3 scrollbar-hide">
-        <ul className="space-y-0.5">
-          {filteredItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={closeMobileMenu}
-                  className={cn("sidebar-item", isActive && "active")}
-                >
-                  <span className={cn(
-                    "shrink-0 transition-colors duration-200",
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  )}>
-                    {item.icon}
-                  </span>
-                  <span>{item.label}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <nav ref={navRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+        {filteredItems.map((item) => {
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
 
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={closeMobileMenu}
+              className={cn(
+                "sidebar-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150",
+                isActive
+                  ? "active bg-primary-light text-primary relative after:absolute after:left-0 after:w-1 after:h-2/3 after:bg-primary after:rounded-r-full shadow-xs"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              )}
+            >
+              <span
+                className={cn(
+                  "shrink-0 transition-colors duration-150",
+                  isActive ? "text-primary" : "text-muted-foreground"
+                )}
+              >
+                {item.icon}
+              </span>
+              <span className="truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </>
   );
 
   return (
     <>
       {/* Mobile Header */}
-      <header
-        className="lg:hidden fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 bg-[var(--sidebar-bg)] border-b border-[color:var(--sidebar-border)]"
-      >
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 bg-card border-b border-border">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-            <Boxes className="w-3.5 h-3.5 text-white" />
+          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-white shadow-xs">
+            <Boxes className="w-3.5 h-3.5" />
           </div>
-          <span className="text-sm font-bold text-[var(--sidebar-title)]"
-                style={{ fontFamily: "var(--font-manrope, sans-serif)" }}>
+          <span className="text-sm font-bold text-foreground">
             {APP_NAME}
           </span>
         </div>
         <button
           onClick={toggleMobileMenu}
-          className="p-1.5 rounded-lg text-[var(--sidebar-fg)] hover:text-[var(--sidebar-title)] hover:bg-[var(--sidebar-hover-bg)] transition-colors"
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label={isMobileMenuOpen ? "Cerrar menu" : "Abrir menu"}
         >
           {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -344,18 +360,18 @@ export function Sidebar() {
       </header>
 
       {/* Mobile Overlay */}
-      {isMobileMenuOpen ? (
+      {isMobileMenuOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-40"
           onClick={closeMobileMenu}
         />
-      ) : null}
+      )}
 
-      {/* Sidebar */}
+      {/* Sidebar (Fixed 320px) */}
       <aside
         className={cn(
-          "fixed top-0 left-0 h-screen flex flex-col z-50 w-64",
-          "bg-[var(--sidebar-bg)] border-r border-[color:var(--sidebar-border)]",
+          "fixed top-0 left-0 h-screen flex flex-col z-50 w-[320px]",
+          "bg-card border-r border-border/80",
           "transition-transform duration-300 ease-in-out",
           "lg:translate-x-0",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full",
