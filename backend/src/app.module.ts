@@ -24,6 +24,7 @@ import { SequenceModule } from './common/sequences/sequence.module';
 import { AdminModule } from './admin/admin.module';
 import { PlanLimitsModule } from './plan-limits/plan-limits.module';
 import { OrganizationStatusGuard } from './common/guards/organization-status.guard';
+import { CookieCsrfGuard } from './common/guards/cookie-csrf.guard';
 import { CashRegistersModule } from './cash-registers/cash-registers.module';
 import { BillingModule } from './billing/billing.module';
 import { ExpenseCategoriesModule } from './expenses/expense-categories.module';
@@ -71,6 +72,17 @@ import { ExpensesModule } from './expenses/expenses.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    // Guard placement: there is no global JwtAuthGuard in this app —
+    // authentication resolves at route level via @UseGuards(JwtAuthGuard).
+    // CookieCsrfGuard only inspects transport attributes (method, headers,
+    // cookies, path) and never reads request.user, so it is safe to register
+    // globally ahead of route-level authentication while still rejecting
+    // cookie-authenticated mutations before any handler runs. Throttling
+    // stays first so abusive traffic is shed before CSRF validation.
+    {
+      provide: APP_GUARD,
+      useClass: CookieCsrfGuard,
     },
     {
       provide: APP_GUARD,
