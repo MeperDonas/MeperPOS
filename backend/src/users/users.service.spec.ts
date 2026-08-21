@@ -52,7 +52,7 @@ describe('UsersService', () => {
 
     const result = await service.create({
       email: 'user@example.com',
-      password: 'password123',
+      password: 'S3cure-Passphrase-42',
       name: 'User One',
     });
 
@@ -74,6 +74,31 @@ describe('UsersService', () => {
       }),
     );
     expect(result).not.toHaveProperty('password');
+  });
+
+  it('hashes new passwords with the configured bcrypt cost', async () => {
+    prismaMock.user.findFirst.mockResolvedValue(null);
+    prismaMock.user.create.mockResolvedValue({
+      id: 'user-cost',
+      email: 'cost@example.com',
+      name: 'Cost Check',
+      active: true,
+      createdAt: new Date('2026-03-24T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-24T00:00:00.000Z'),
+    });
+
+    await service.create({
+      email: 'cost@example.com',
+      password: 'S3cure-Passphrase-42',
+      name: 'Cost Check',
+    });
+
+    const invocation = prismaMock.user.create.mock.calls[0][0] as {
+      data: { password: string };
+    };
+
+    // bcrypt embeds the cost factor in the hash prefix ($2a$12$...).
+    expect(invocation.data.password).toMatch(/^\$2[aby]\$12\$/);
   });
 
   it('rejects duplicate emails on update', async () => {

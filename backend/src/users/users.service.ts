@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { BCRYPT_ROUNDS } from '../common/constants/security.constants';
 import { OrgRole } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -54,7 +55,7 @@ export class UsersService {
 
     await this.ensureEmailAvailable(email);
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     const createdUser = await this.prisma.user.create({
       data: {
@@ -210,7 +211,7 @@ export class UsersService {
     organizationId: string,
   ) {
     const targetUser = await this.findUserOrThrow(userId, organizationId);
-    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    const hashedPassword = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
 
     await this.prisma.user.update({
       where: { id: userId },
