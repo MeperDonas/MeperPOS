@@ -244,6 +244,8 @@ export class UsersService {
 
     const user = await this.findUserOrThrow(userId, organizationId);
 
+    let deletedGlobalUser = false;
+
     if (organizationId) {
       const orgUser = await this.prisma.organizationUser.findFirst({
         where: { userId, organizationId },
@@ -275,22 +277,46 @@ export class UsersService {
           );
         }
       }
+
+      // Organization-scoped removal: only the membership in the caller's
+      // organization is deleted so other organizations sharing this user
+      // keep their account intact.
+      await this.prisma.organizationUser.delete({
+        where: { id: orgUser.id },
+      });
+
+      const remainingMemberships = await this.prisma.organizationUser.count({
+        where: { userId },
+      });
+
+      deletedGlobalUser = remainingMemberships === 0;
     }
 
-    await this.prisma.user.delete({
-      where: { id: userId },
-    });
+    if (deletedGlobalUser || !organizationId) {
+      await this.prisma.user.delete({
+        where: { id: userId },
+      });
+    }
 
     return attachAuditContext(
-      { message: 'User deleted successfully' },
+      {
+        message: deletedGlobalUser || !organizationId
+          ? 'User deleted successfully'
+          : 'User removed from organization',
+      },
       {
         resource: 'User',
         resourceId: userId,
-        summary: `Deleted user ${user.name} (${user.email})`,
+        summary:
+          deletedGlobalUser || !organizationId
+            ? `Deleted user ${user.name} (${user.email})`
+            : `Removed user ${user.name} (${user.email}) from organization`,
         metadata: {
           targetUserEmail: user.email,
           targetUserName: user.name,
           active: user.active,
+          ...(organizationId ? { organizationId } : {}),
+          removedFromOrganization: Boolean(organizationId) && !deletedGlobalUser,
         },
       },
     );

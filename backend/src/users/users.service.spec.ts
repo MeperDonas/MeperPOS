@@ -20,6 +20,7 @@ describe('UsersService', () => {
     organizationUser: {
       findFirst: jest.fn(),
       count: jest.fn(),
+      delete: jest.fn(),
     },
     auditLog: {
       create: jest.fn(),
@@ -262,6 +263,7 @@ describe('UsersService', () => {
       service.remove('admin-1', 'user-2', 'org-1'),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(prismaMock.user.delete).not.toHaveBeenCalled();
+    expect(prismaMock.organizationUser.delete).not.toHaveBeenCalled();
   });
 
   it('prevents removing the last admin of an organization', async () => {
@@ -284,6 +286,63 @@ describe('UsersService', () => {
       service.remove('admin-1', 'user-2', 'org-1'),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(prismaMock.user.delete).not.toHaveBeenCalled();
+    expect(prismaMock.organizationUser.delete).not.toHaveBeenCalled();
+  });
+
+  it('removes only the membership when the user belongs to another organization', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'user-2',
+      email: 'shared@example.com',
+      name: 'Shared User',
+      active: true,
+    });
+    prismaMock.organizationUser.findFirst.mockResolvedValue({
+      id: 'ou-1',
+      userId: 'user-2',
+      organizationId: 'org-1',
+      role: 'MEMBER',
+      isPrimaryOwner: false,
+    });
+    prismaMock.organizationUser.delete.mockResolvedValue({ id: 'ou-1' });
+    // One membership remains in the other organization.
+    prismaMock.organizationUser.count.mockResolvedValue(1);
+
+    const result = await service.remove('admin-1', 'user-2', 'org-1');
+
+    expect(prismaMock.organizationUser.delete).toHaveBeenCalledWith({
+      where: { id: 'ou-1' },
+    });
+    expect(prismaMock.user.delete).not.toHaveBeenCalled();
+    expect(result).toEqual({ message: 'User removed from organization' });
+  });
+
+  it('hard-deletes the global account when removing the last membership', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'user-2',
+      email: 'solo@example.com',
+      name: 'Solo User',
+      active: true,
+    });
+    prismaMock.organizationUser.findFirst.mockResolvedValue({
+      id: 'ou-1',
+      userId: 'user-2',
+      organizationId: 'org-1',
+      role: 'CASHIER',
+      isPrimaryOwner: false,
+    });
+    prismaMock.organizationUser.delete.mockResolvedValue({ id: 'ou-1' });
+    prismaMock.organizationUser.count.mockResolvedValue(0);
+    prismaMock.user.delete.mockResolvedValue({ id: 'user-2' });
+
+    const result = await service.remove('admin-1', 'user-2', 'org-1');
+
+    expect(prismaMock.organizationUser.delete).toHaveBeenCalledWith({
+      where: { id: 'ou-1' },
+    });
+    expect(prismaMock.user.delete).toHaveBeenCalledWith({
+      where: { id: 'user-2' },
+    });
+    expect(result).toEqual({ message: 'User deleted successfully' });
   });
 
   it('allows removing an admin when there are other admins', async () => {
@@ -300,7 +359,12 @@ describe('UsersService', () => {
       role: 'ADMIN',
       isPrimaryOwner: false,
     });
-    prismaMock.organizationUser.count.mockResolvedValue(2);
+    // Admin-count query sees other admins; membership count shows this is
+    // the user's only membership, so the global account is removed too.
+    prismaMock.organizationUser.count.mockImplementation(async ({ where }) =>
+      'role' in where ? 2 : 0,
+    );
+    prismaMock.organizationUser.delete.mockResolvedValue({ id: 'ou-1' });
     prismaMock.user.delete.mockResolvedValue({ id: 'user-2' });
 
     const result = await service.remove('admin-1', 'user-2', 'org-1');
