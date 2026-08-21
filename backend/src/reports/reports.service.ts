@@ -622,9 +622,10 @@ export class ReportsService {
     startDate?: string,
     endDate?: string,
   ) {
+    const orgId = this.requireOrganizationId(organizationId);
     validateDateRange(startDate, endDate);
 
-    const cacheKey = `dashboard:${organizationId || 'all'}:${startDate || ''}:${endDate || ''}`;
+    const cacheKey = `dashboard:${orgId}:${startDate || ''}:${endDate || ''}`;
     const cached = this.cache.get(cacheKey);
 
     if (cached) {
@@ -634,17 +635,17 @@ export class ReportsService {
     const dateFilter = buildDateFilter(startDate, endDate);
     const comparisonPeriod = buildComparisonPeriod(startDate, endDate);
     const baseWhere: SaleWhereInput = {
-      ...(organizationId ? { organizationId } : ({} as any)),
+      organizationId: orgId,
       ...(dateFilter && { createdAt: dateFilter }),
     };
     const salesWhere = { ...baseWhere, status: 'COMPLETED' as const };
     const currentPeriodSalesWhere = {
-      ...(organizationId ? { organizationId } : ({} as any)),
+      organizationId: orgId,
       status: 'COMPLETED' as const,
       createdAt: comparisonPeriod.current,
     };
     const previousPeriodSalesWhere = {
-      ...(organizationId ? { organizationId } : ({} as any)),
+      organizationId: orgId,
       status: 'COMPLETED' as const,
       createdAt: comparisonPeriod.previous,
     };
@@ -669,19 +670,14 @@ export class ReportsService {
         _sum: { total: true },
       }),
       this.prisma.product.count({
-        where: { ...(organizationId ? { organizationId } : {}), active: true },
+        where: { organizationId: orgId, active: true },
       }),
       this.prisma.customer.count({
-        where: { ...(organizationId ? { organizationId } : {}), active: true },
+        where: { organizationId: orgId, active: true },
       }),
-      organizationId
-        ? this.prisma.$queryRaw<[{ count: bigint }]>`
+      this.prisma.$queryRaw<[{ count: bigint }]>`
             SELECT COUNT(*)::bigint as count FROM "Product"
-            WHERE "organizationId" = ${organizationId} AND active = true AND stock <= "minStock"
-          `.then((r) => Number(r[0].count))
-        : this.prisma.$queryRaw<[{ count: bigint }]>`
-            SELECT COUNT(*)::bigint as count FROM "Product"
-            WHERE active = true AND stock <= "minStock"
+            WHERE "organizationId" = ${orgId} AND active = true AND stock <= "minStock"
           `.then((r) => Number(r[0].count)),
       this.prisma.sale.findMany({
         where: salesWhere,
@@ -726,14 +722,14 @@ export class ReportsService {
       }),
       this.prisma.customer.count({
         where: {
-          ...(organizationId ? { organizationId } : {}),
+          organizationId: orgId,
           active: true,
           createdAt: comparisonPeriod.current,
         },
       }),
       this.prisma.customer.count({
         where: {
-          ...(organizationId ? { organizationId } : {}),
+          organizationId: orgId,
           active: true,
           createdAt: comparisonPeriod.previous,
         },
