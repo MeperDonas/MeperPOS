@@ -45,11 +45,8 @@ function SupplierAvatar({ name }: { name: string }) {
     .join("")
     .toUpperCase();
   return (
-    <div className="w-10 h-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
-      <span
-        className="text-sm font-bold text-accent"
-        style={{ fontFamily: "var(--font-manrope, sans-serif)" }}
-      >
+    <div className="w-11 h-11 rounded-2xl bg-primary-light border border-primary/30 flex items-center justify-center shrink-0">
+      <span className="text-xs font-bold text-primary">
         {initials}
       </span>
     </div>
