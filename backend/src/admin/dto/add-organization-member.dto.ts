@@ -5,9 +5,9 @@ import {
   IsOptional,
   IsString,
   MaxLength,
-  MinLength,
 } from 'class-validator';
 import { OrgRole } from '@prisma/client';
+import { IsValidPassword } from '../../common/validators/password.policy';
 
 export class AddOrganizationMemberDto {
   @IsEmail()
@@ -23,6 +23,6 @@ export class AddOrganizationMemberDto {
 
   @IsString()
   @IsOptional()
-  @MinLength(6)
+  @IsValidPassword()
   password?: string;
 }
