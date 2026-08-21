@@ -8,6 +8,7 @@ import {
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { BCRYPT_ROUNDS } from '../common/constants/security.constants';
 import { AuthService } from '../auth/auth.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationStatusDto } from './dto/update-organization-status.dto';
@@ -49,7 +50,7 @@ export class AdminService {
         } else {
           tempPassword =
             dto.admin.password || crypto.randomBytes(8).toString('hex');
-          const hashedPassword = await bcrypt.hash(tempPassword, 10);
+          const hashedPassword = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS);
 
           adminUser = await tx.user.create({
             data: {
@@ -420,7 +421,7 @@ export class AdminService {
 
     if (!user) {
       tempPassword = dto.password || crypto.randomBytes(8).toString('hex');
-      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+      const hashedPassword = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS);
 
       user = await this.prisma.user.create({
         data: {

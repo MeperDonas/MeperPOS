@@ -333,13 +333,9 @@ export class ProductsService {
 
   async getLowStockProducts(organizationId: string | undefined) {
     if (!organizationId) {
-      return this.prisma.$queryRaw`
-        SELECT p.*, c.name as "categoryName"
-        FROM "Product" p
-        LEFT JOIN "Category" c ON p."categoryId" = c.id
-        WHERE p.active = true AND p.stock <= p."minStock"
-        ORDER BY p.stock ASC
-      `;
+      throw new BadRequestException(
+        'Organization ID is required for this operation',
+      );
     }
     return this.prisma.$queryRaw`
       SELECT p.*, c.name as "categoryName"

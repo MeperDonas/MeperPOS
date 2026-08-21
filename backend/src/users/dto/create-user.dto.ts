@@ -1,21 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsEmail,
-  IsEnum,
-  IsOptional,
-  IsString,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString } from 'class-validator';
 import { OrgRole } from '@prisma/client';
+import { IsValidPassword } from '../../common/validators/password.policy';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
   email: string;
 
-  @ApiProperty({ example: 'password123', minLength: 6 })
+  @ApiProperty({
+    example: 'correct-horse-battery-staple',
+    description:
+      'New password (min 10 chars, must not be a commonly breached password)',
+    minLength: 10,
+    maxLength: 128,
+  })
   @IsString()
-  @MinLength(6)
+  @IsValidPassword()
   password: string;
 
   @ApiProperty({ example: 'John Doe' })

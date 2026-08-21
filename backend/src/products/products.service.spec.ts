@@ -26,6 +26,7 @@ describe('ProductsService — Opt-in tax resolution', () => {
     inventoryMovement: {
       create: jest.fn(),
     },
+    $queryRaw: jest.fn(),
   };
 
   const cloudinaryServiceMock = {};
@@ -486,6 +487,27 @@ describe('ProductsService — Opt-in tax resolution', () => {
           where: expect.objectContaining({ organizationId: ORG_ID }),
         }),
       );
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════
+  // Low stock lookup
+  // ════════════════════════════════════════════════════════════════════
+  describe('Low stock lookup', () => {
+    it('rejects low-stock lookups without an organization context', async () => {
+      await expect(
+        service.getLowStockProducts(undefined),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('filters low-stock products by organization', async () => {
+      prismaMock.$queryRaw.mockResolvedValue([
+        { id: 'prod-1', name: 'Panela' },
+      ]);
+
+      const result = await service.getLowStockProducts(ORG_ID);
+
+      expect(result).toEqual([{ id: 'prod-1', name: 'Panela' }]);
     });
   });
 });

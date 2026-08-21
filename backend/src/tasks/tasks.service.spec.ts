@@ -10,6 +10,9 @@ describe('TasksService', () => {
     user: {
       findUnique: jest.fn(),
     },
+    organizationUser: {
+      findFirst: jest.fn(),
+    },
     task: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -220,9 +223,11 @@ describe('TasksService', () => {
       assignedToId: null,
       deletedAt: null,
     });
-    prismaMock.user.findUnique.mockResolvedValue({
-      id: 'user-x',
-      active: false,
+    prismaMock.organizationUser.findFirst.mockResolvedValue({
+      id: 'ou-x',
+      userId: 'user-x',
+      organizationId: 'org-1',
+      user: { active: false },
     });
 
     await expect(
@@ -232,5 +237,50 @@ describe('TasksService', () => {
         { assignedToId: 'user-x' },
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('rejects assigning a task to a user without membership in the organization', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'user-ext',
+      active: true,
+    });
+    prismaMock.organizationUser.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.create(baseUser, {
+        title: 'Tarea cruzada',
+        assignedToId: 'user-ext',
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prismaMock.task.create).not.toHaveBeenCalled();
+  });
+
+  it('assigns tasks to active members of the same organization', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({ id: 'user-1' });
+    prismaMock.organizationUser.findFirst.mockResolvedValue({
+      id: 'ou-2',
+      userId: 'user-2',
+      organizationId: 'org-1',
+      user: { active: true },
+    });
+    prismaMock.task.create.mockResolvedValue({
+      id: 'task-9',
+      title: 'Tarea interna',
+      status: TaskStatus.PENDING,
+      createdById: 'user-1',
+    });
+    prismaMock.taskEvent.create.mockResolvedValue({ id: 'event-9' });
+
+    const result = await service.create(baseUser, {
+      title: 'Tarea interna',
+      assignedToId: 'user-2',
+    });
+
+    expect(prismaMock.organizationUser.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user-2', organizationId: 'org-1' },
+      }),
+    );
+    expect(result).toEqual(expect.objectContaining({ id: 'task-9' }));
   });
 });
