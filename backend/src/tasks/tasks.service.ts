@@ -65,7 +65,7 @@ export class TasksService {
 
   async create(user: RequestUser, dto: CreateTaskDto) {
     await this.ensureUserExists(user.userId);
-    await this.ensureAssignableUser(dto.assignedToId);
+    await this.ensureAssignableUser(user.organizationId!, dto.assignedToId);
 
     return this.prisma.$transaction(async (tx) => {
       const task = await tx.task.create({
@@ -152,7 +152,7 @@ export class TasksService {
     }
 
     if (dto.assignedToId !== undefined) {
-      await this.ensureAssignableUser(dto.assignedToId);
+      await this.ensureAssignableUser(user.organizationId!, dto.assignedToId);
     }
 
     const data = {
@@ -351,17 +351,22 @@ export class TasksService {
     }
   }
 
-  private async ensureAssignableUser(userId?: string | null) {
+  private async ensureAssignableUser(
+    organizationId: string,
+    userId?: string | null,
+  ) {
     if (!userId) {
       return;
     }
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, active: true },
+    // Assignment is scoped to the caller's organization: the assignee must
+    // hold an active membership there, not merely exist globally.
+    const membership = await this.prisma.organizationUser.findFirst({
+      where: { userId, organizationId },
+      select: { id: true, user: { select: { active: true } } },
     });
 
-    if (!user || !user.active) {
+    if (!membership || !membership.user.active) {
       throw new NotFoundException('Assigned user not found');
     }
   }

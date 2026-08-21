@@ -6,10 +6,19 @@ describe('ReportsService', () => {
   const prismaMock = {
     sale: {
       findMany: jest.fn(),
+      count: jest.fn(),
+      aggregate: jest.fn(),
     },
     user: {
       findMany: jest.fn(),
     },
+    product: {
+      count: jest.fn(),
+    },
+    customer: {
+      count: jest.fn(),
+    },
+    $queryRaw: jest.fn(),
   };
   const cacheMock = {
     get: jest.fn(),
@@ -25,6 +34,33 @@ describe('ReportsService', () => {
     await expect(
       service.getSalesByPaymentMethod('org-1', '2026-03-10', '2026-03-05'),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects dashboard KPIs without an organization context', async () => {
+    await expect(
+      service.getDashboardKPIs(undefined),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('scopes dashboard KPI queries to the requested organization', async () => {
+    prismaMock.sale.count.mockResolvedValue(0);
+    prismaMock.sale.aggregate.mockResolvedValue({ _sum: { total: null } });
+    prismaMock.product.count.mockResolvedValue(0);
+    prismaMock.customer.count.mockResolvedValue(0);
+    prismaMock.sale.findMany.mockResolvedValue([]);
+    prismaMock.$queryRaw.mockResolvedValue([{ count: 3n }]);
+
+    const result = (await service.getDashboardKPIs('org-1')) as {
+      lowStockProducts: number;
+    };
+
+    expect(result.lowStockProducts).toBe(3);
+    expect(prismaMock.product.count).toHaveBeenCalledWith({
+      where: { organizationId: 'org-1', active: true },
+    });
+    expect(prismaMock.customer.count).toHaveBeenCalledWith({
+      where: { organizationId: 'org-1', active: true },
+    });
   });
 
   it('returns appliedRange metadata with the queried date range', async () => {
