@@ -334,6 +334,27 @@ export class AuthService {
     return this.generateTokenPair(refreshToken.user, orgUser);
   }
 
+  /**
+   * Revokes a single refresh token by its raw value (used by POST /auth/logout).
+   * Idempotent: unknown or already-revoked tokens resolve without error so
+   * logout never fails for the client.
+   */
+  async logout(rawRefreshToken?: string | null): Promise<void> {
+    if (!rawRefreshToken) {
+      return;
+    }
+
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(rawRefreshToken)
+      .digest('hex');
+
+    await this.prisma.refreshToken.updateMany({
+      where: { token: tokenHash, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
   async revokeUserTokens(userId: string) {
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },

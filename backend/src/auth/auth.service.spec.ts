@@ -609,4 +609,35 @@ describe('AuthService', () => {
       );
     });
   });
+
+  describe('logout (issue #48 slice C1)', () => {
+    it('revokes the refresh token matching the sha256 of the raw value', async () => {
+      mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.logout('raw-logout-token');
+
+      const expectedHash = require('crypto')
+        .createHash('sha256')
+        .update('raw-logout-token')
+        .digest('hex');
+
+      expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { token: expectedHash, revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+
+    it('is a no-op without a token (cookie-less logout still succeeds)', async () => {
+      await service.logout(undefined);
+      await service.logout(null);
+
+      expect(mockPrisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('does not throw when the token is unknown or already revoked', async () => {
+      mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.logout('unknown-token')).resolves.toBeUndefined();
+    });
+  });
 });
