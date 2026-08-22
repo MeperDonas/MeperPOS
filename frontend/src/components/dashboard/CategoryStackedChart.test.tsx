@@ -63,4 +63,21 @@ describe("CategoryStackedChart (daily stacked by category)", () => {
     expect(screen.queryByText(/\$\s150\.000/)).toBeNull();
     expect(screen.queryByText("Bebidas")).toBeNull();
   });
+
+  it("clamps the tooltip horizontally near the chart edges", () => {
+    render(<CategoryStackedChart data={data} days={days} />);
+    const bars = screen.getAllByTestId("category-daily-bar");
+
+    // First day → align the tooltip's left edge to the bar start (no centering).
+    fireEvent.mouseEnter(bars[0]);
+    expect(screen.getByTestId("category-tooltip").className).toContain("translate-x-0");
+
+    // Middle day → keep the tooltip centered on the bar.
+    fireEvent.mouseEnter(bars[1]);
+    expect(screen.getByTestId("category-tooltip").className).toContain("-translate-x-1/2");
+
+    // Last day → align the tooltip's right edge to the bar end (shift fully left).
+    fireEvent.mouseEnter(bars[bars.length - 1]);
+    expect(screen.getByTestId("category-tooltip").className).toContain("-translate-x-full");
+  });
 });
