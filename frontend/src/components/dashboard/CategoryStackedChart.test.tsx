@@ -81,3 +81,62 @@ describe("CategoryStackedChart (daily stacked by category)", () => {
     expect(screen.getByTestId("category-tooltip").className).toContain("-translate-x-full");
   });
 });
+
+describe("CategoryStackedChart full-month behavior", () => {
+  const monthDays = Array.from(
+    { length: 30 },
+    (_, index) => `2026-08-${String(index + 1).padStart(2, "0")}`,
+  );
+
+  it("renders one bar per day across the full month", () => {
+    render(<CategoryStackedChart data={data} days={monthDays} />);
+
+    expect(screen.getAllByTestId("category-daily-bar")).toHaveLength(30);
+  });
+
+  it("spaces the day-number labels so a full month does not crowd", () => {
+    render(<CategoryStackedChart data={data} days={monthDays} />);
+
+    const labels = screen.getAllByTestId("category-day-label");
+    expect(labels).toHaveLength(30);
+
+    const visibleLabels = labels
+      .map((label) => label.textContent?.trim())
+      .filter((text) => text);
+    expect(visibleLabels).toEqual(["1", "5", "10", "15", "20", "25", "30"]);
+  });
+
+  it("leaves a clear thin-bar gap between adjacent bars", () => {
+    const { container } = render(
+      <CategoryStackedChart data={data} days={monthDays} />,
+    );
+
+    const slot = 400 / 30;
+    const bars = container.querySelectorAll(
+      '[data-testid="category-segment"], [data-testid="category-empty-bar"]',
+    );
+    const width = Number(bars[0].getAttribute("width"));
+
+    expect(width).toBeGreaterThan(0);
+    expect(width).toBeLessThan(slot * 0.8);
+  });
+
+  it("handles a 31-day month without dropping the last day or overflowing labels", () => {
+    const november = Array.from(
+      { length: 31 },
+      (_, index) => `2026-11-${String(index + 1).padStart(2, "0")}`,
+    );
+
+    render(<CategoryStackedChart data={data} days={november} />);
+
+    // Day 31 is still rendered as a bar.
+    expect(screen.getAllByTestId("category-daily-bar")).toHaveLength(31);
+
+    // Only the stepped days get a numeric label; day 31 stays unlabeled.
+    const labels = screen.getAllByTestId("category-day-label");
+    const visibleLabels = labels
+      .map((label) => label.textContent?.trim())
+      .filter((text) => text);
+    expect(visibleLabels).toEqual(["1", "5", "10", "15", "20", "25", "30"]);
+  });
+});
