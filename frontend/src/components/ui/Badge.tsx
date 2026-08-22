@@ -8,28 +8,22 @@ interface BadgeProps {
   className?: string;
 }
 
-const variants = {
-  default:
-    "bg-muted text-muted-foreground border border-border",
-  success:
-    "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800",
-  warning:
-    "bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
-  danger:
-    "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800",
-  primary:
-    "bg-primary-light text-primary border border-primary/30",
-  secondary:
-    "bg-muted/80 text-foreground border border-border",
+const variants: Record<NonNullable<BadgeProps["variant"]>, string> = {
+  default: chipStyles.neutral,
+  success: chipStyles.success,
+  warning: chipStyles.warning,
+  danger: chipStyles.danger,
+  primary: chipStyles.primary,
+  secondary: chipStyles.secondary,
 };
 
 const dotColors = {
-  default: "bg-muted-foreground",
+  default: "bg-slate-500",
   success: "bg-emerald-500",
   warning: "bg-amber-500",
   danger: "bg-rose-500",
   primary: "bg-primary",
-  secondary: "bg-foreground",
+  secondary: "bg-stone-500",
 };
 
 export function Badge({ children, variant = "default", dot = false, className = "" }: BadgeProps) {
