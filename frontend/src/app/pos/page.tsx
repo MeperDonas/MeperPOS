@@ -17,6 +17,7 @@ import { usePausedSales } from "@/hooks/usePausedSales";
 import { printReceipt, printThermalReceipt } from "@/hooks/useReceipt";
 import { useSettings } from "@/hooks/useSettings";
 import { Input } from "@/components/ui/Input";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Stepper } from "@/components/ui/Stepper";
@@ -1143,14 +1144,11 @@ export default function POSPage() {
         >
           <div className="space-y-4">
             <div className="space-y-2">
-              <Input
-                type="number"
-                step="0.01"
+              <CurrencyInput
                 label="Precio unitario"
                 value={customPrice}
-                onChange={(e) => setCustomPrice(e.target.value)}
+                onChange={(value) => setCustomPrice(value === 0 ? "" : String(value))}
                 placeholder="Precio"
-                min="0"
               />
               <Button
                 variant="secondary"
@@ -1167,12 +1165,10 @@ export default function POSPage() {
               </Button>
             </div>
 
-            <Input
-              type="number"
-              step="0.01"
+            <CurrencyInput
               label="Monto del descuento"
               value={customDiscount}
-              onChange={(e) => setCustomDiscount(e.target.value)}
+              onChange={(value) => setCustomDiscount(value === 0 ? "" : String(value))}
               placeholder="0.00"
             />
             <div className="flex gap-2">

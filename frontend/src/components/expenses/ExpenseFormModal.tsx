@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { BentoSelect } from "@/components/ui/BentoSelect";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import {
   useCreateExpense,
@@ -240,21 +241,12 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
           </div>
 
           <div>
-            <label
-              htmlFor={`${uid}-total`}
-              className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-            >
-              Total (COP)
-            </label>
-            <input
+            <CurrencyInput
               id={`${uid}-total`}
-              type="number"
-              min={0}
-              step="0.01"
+              label="Total (COP)"
               placeholder="Total del gasto"
               value={total}
-              onChange={(e) => setTotal(e.target.value)}
-              className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+              onChange={(value) => setTotal(value === 0 ? "" : String(value))}
             />
           </div>
 
@@ -295,23 +287,16 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
               {rows.map((row, index) => (
                 <div key={row.tempId} className="flex flex-wrap gap-2 items-end">
                   <div className="min-w-[120px] flex-1">
-                    <label
-                      htmlFor={`${uid}-amount-${row.tempId}`}
-                      className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
-                    >
-                      Valor
-                    </label>
-                    <input
+                    <CurrencyInput
                       id={`${uid}-amount-${row.tempId}`}
-                      type="number"
-                      min={0}
-                      step="0.01"
+                      label="Valor"
                       placeholder="Valor del pago"
                       value={row.amount}
-                      onChange={(e) =>
-                        updateRow(row.tempId, { amount: e.target.value })
+                      onChange={(value) =>
+                        updateRow(row.tempId, {
+                          amount: value === 0 ? "" : String(value),
+                        })
                       }
-                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
                     />
                   </div>
                   <div>

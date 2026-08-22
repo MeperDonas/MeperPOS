@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { BentoSelect } from "@/components/ui/BentoSelect";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { useAddExpensePayment } from "@/hooks/useExpenses";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage } from "@/lib/api";
@@ -76,17 +77,11 @@ export function AddPaymentModal({ expense, isOpen, onClose }: Props) {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Valor
-          </label>
-          <input
-            type="number"
-            min={0}
-            step="0.01"
+          <CurrencyInput
+            label="Valor"
             placeholder="Valor del pago"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
+            onChange={(value) => setAmount(value === 0 ? "" : String(value))}
           />
         </div>
 

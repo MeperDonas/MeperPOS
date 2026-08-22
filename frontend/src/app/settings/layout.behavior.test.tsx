@@ -34,7 +34,7 @@ vi.mock("@/components/layout/DashboardLayout", () => ({
 import SettingsLayout from "./layout";
 
 describe("settings sub-sidebar layout", () => {
-  it("renders all six approved settings sections as links", () => {
+  it("renders all three approved settings sections as links", () => {
     render(
       <SettingsLayout>
         <div>Contenido</div>
@@ -48,9 +48,9 @@ describe("settings sub-sidebar layout", () => {
     expect(
       screen.getByRole("link", { name: "Equipo y acceso" })
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Avanzado" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Facturación" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Localización" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Avanzado" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Facturación" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Localización" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Moneda y Región" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Suscripción" })).not.toBeInTheDocument();
   });
