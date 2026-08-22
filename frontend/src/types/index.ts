@@ -291,6 +291,13 @@ export interface SaleByCategory {
   quantity: number;
 }
 
+export interface SaleByCategoryDaily {
+  date: string;
+  category: string;
+  total: number;
+  quantity: number;
+}
+
 export interface TopSellingProduct {
   productId: string;
   productName: string;
