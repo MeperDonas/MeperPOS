@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeperPOS - Kinetic Bento Component Library & Color Palette Explorer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              primary: 'var(--brand-primary, #c25e36)',
+              primaryHover: 'var(--brand-primary-hover, #a84d28)',
+              primaryLight: 'var(--brand-primary-light, #faece5)',
+              primaryGlow: 'var(--brand-primary-glow, rgba(194, 94, 54, 0.25))',
+              coral: '#d0453f',
+            },
+            obsidian: {
+              bg: '#111114',
+              card: '#18181c',
+              cardHigh: '#222228',
+              cardHigher: '#2c2c34',
+              border: '#30303a',
+              borderLight: '#3d3d4a',
+              text: '#f2f2f5',
+              textMuted: '#9494a3',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Geist:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @import url('https://cdn.jsdelivr.net/npm/@fontsource/commit-mono@5.0.0/index.css');
+    
+    :root {
+      --font-system-sans: 'Hanken Grotesk', sans-serif;
+      --font-system-mono: 'Commit Mono', monospace;
+      
+      /* Default to Terracotta Copper */
+      --brand-primary: #c25e36;
+      --brand-primary-hover: #a84d28;
+      --brand-primary-light: #faece5;
+      --brand-primary-border: rgba(194, 94, 54, 0.35);
+      --brand-primary-glow: rgba(194, 94, 54, 0.25);
+    }
+
+    .dark {
+      --brand-primary-light: #2c1d18;
+      --brand-primary-border: rgba(224, 118, 76, 0.4);
+      --brand-primary-glow: rgba(224, 118, 76, 0.2);
+    }
+
+    body {
+      font-family: var(--font-system-sans);
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .font-mono-commit {
+      font-family: var(--font-system-mono);
+    }
+
+    .color-swatch.active {
+      outline: 2px solid var(--brand-primary);
+      outline-offset: 2px;
+      transform: scale(1.08);
+    }
+  </style>
+</head>
+<body class="bg-[#faf8ff] dark:bg-[#111114] text-[#131b2e] dark:text-[#f2f2f5] min-h-screen p-6 md:p-10 antialiased">
+
+  <div class="max-w-6xl mx-auto space-y-10">
+
+    <!-- TOP CONTROL BAR: THEME SWITCHER + PALETTE EXPLORER + TYPOGRAPHY -->
+    <div class="border-b border-[#c7c4d7]/60 dark:border-[#30303a] pb-6 space-y-5">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-3">
+            <div class="w-2 h-7 rounded-full" style="background-color: var(--brand-primary);"></div>
+            <h1 class="text-3xl font-extrabold tracking-tight">
+              Explorador de Paletas & Componentes
+            </h1>
+          </div>
+          <p class="text-sm text-[#464554] dark:text-[#9494a3] mt-1 ml-5">
+            Probá diferentes colores base para reemplazar el azul corporativo en tiempo real.
+          </p>
+        </div>
+
+        <!-- Theme Mode Switcher -->
+        <div class="flex items-center gap-1.5 bg-white dark:bg-[#18181c] border border-[#c7c4d7]/60 dark:border-[#30303a] p-1.5 rounded-2xl shadow-xs self-start lg:self-auto">
+          <button onclick="setTheme('light')" id="btn-theme-light" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white shadow-xs transition" style="background-color: var(--brand-primary);">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            Light
+          </button>
+          <button onclick="setTheme('dark')" id="btn-theme-dark" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#464554] dark:text-[#9494a3] hover:text-[#131b2e] dark:hover:text-white transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            Obsidian Dark
+          </button>
+        </div>
+      </div>
+
+      <!-- PALETTE PREVIEW SWATCHES BAR -->
+      <div class="rounded-2xl border border-[#c7c4d7]/60 dark:border-[#30303a] bg-white dark:bg-[#18181c] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider font-mono-commit">PALETA BASE:</span>
+          <span id="active-palette-name" class="font-bold text-xs font-mono-commit px-2 py-0.5 rounded-lg" style="background-color: var(--brand-primary-light); color: var(--brand-primary);">
+            Terracotta Copper (Cálido Automotriz)
+          </span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- 1. Terracotta Copper -->
+          <button onclick="setBrandPalette('terracotta', 'Terracotta Copper (Cálido Automotriz)', '#c25e36', '#a84d28', '#faece5', '#2c1d18', 'rgba(194, 94, 54, 0.35)')" class="color-swatch active px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 bg-[#c25e36] text-white shadow-xs transition">
+            <span class="w-2.5 h-2.5 rounded-full bg-white"></span>
+            Terracotta
+          </button>
+
+          <!-- 2. Emerald Mint -->
+          <button onclick="setBrandPalette('emerald', 'Emerald Mint (Fintech & Precisión)', '#059669', '#047857', '#e6f7f0', '#142c22', 'rgba(5, 150, 105, 0.35)')" class="color-swatch px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 bg-[#059669] text-white shadow-xs transition">
+            <span class="w-2.5 h-2.5 rounded-full bg-white"></span>
+            Esmeralda
+          </button>
+
+          <!-- 3. Amber Gold -->
+          <button onclick="setBrandPalette('amber', 'Amber Gold (Lujo & Motos Racing)', '#d97706', '#b45309', '#fef3c7', '#342410', 'rgba(217, 119, 6, 0.35)')" class="color-swatch px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 bg-[#d97706] text-white shadow-xs transition">
+            <span class="w-2.5 h-2.5 rounded-full bg-white"></span>
+            Ámbar Gold
+          </button>
+
+          <!-- 4. Amethyst Violet -->
+          <button onclick="setBrandPalette('amethyst', 'Amethyst Violet (Modern Vanguard)', '#7c3aed', '#6d28d9', '#f3e8ff', '#27193d', 'rgba(124, 58, 237, 0.35)')" class="color-swatch px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 bg-[#7c3aed] text-white shadow-xs transition">
+            <span class="w-2.5 h-2.5 rounded-full bg-white"></span>
+            Violeta
+          </button>
+
+          <!-- 5. Crimson Red -->
+          <button onclick="setBrandPalette('crimson', 'Crimson Speed (Pasión & Deporte)', '#e11d48', '#be123c', '#ffe4e6', '#35161c', 'rgba(225, 29, 72, 0.35)')" class="color-swatch px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 bg-[#e11d48] text-white shadow-xs transition">
+            <span class="w-2.5 h-2.5 rounded-full bg-white"></span>
+            Crimson
+          </button>
+
+          <!-- 6. Stealth Graphite / Mono -->
+          <button onclick="setBrandPalette('stealth', 'Stealth Titanium (Ultra Minimalista)', '#27272a', '#18181b', '#f4f4f5', '#27272a', 'rgba(39, 39, 42, 0.35)')" class="color-swatch px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 bg-[#27272a] text-white shadow-xs transition">
+            <span class="w-2.5 h-2.5 rounded-full bg-white"></span>
+            Titanio
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 1. BARRAS DE FILTROS & BÚSQUEDA GENÉRICAS CON NUEVA PALETA -->
+    <!-- ========================================================= -->
+    <section class="space-y-4">
+      <div class="flex items-center gap-2">
+        <div class="w-1.5 h-4 rounded-full" style="background-color: var(--brand-primary);"></div>
+        <h2 class="text-lg font-bold">1. Barras de Búsqueda & Filtros (Con Nueva Paleta)</h2>
+      </div>
+
+      <div class="rounded-3xl border border-[#c7c4d7]/60 dark:border-[#30303a] bg-white dark:bg-[#18181c] p-6 space-y-6 shadow-xs">
+        
+        <!-- Variante A: Inventario / Productos -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider">A. Filtro de Inventario (Búsqueda + Categorías + Stock + Importar + Nuevo)</span>
+            <span class="font-mono-commit text-[10px] px-2 py-0.5 rounded-full font-bold" style="background-color: var(--brand-primary-light); color: var(--brand-primary);">/inventory</span>
+          </div>
+
+          <div class="rounded-2xl border border-[#c7c4d7]/60 dark:border-[#30303a] bg-[#faf8ff] dark:bg-[#222228] p-3 flex flex-col lg:flex-row items-center gap-3">
+            <div class="relative flex-1 w-full">
+              <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#767586] dark:text-[#9494a3]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" placeholder="Buscar por SKU, código de barras o nombre..." class="w-full bg-white dark:bg-[#18181c] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl pl-10 pr-3.5 py-2 text-xs text-[#131b2e] dark:text-white focus:outline-none"/>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto shrink-0">
+              <select class="bg-white dark:bg-[#18181c] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl px-3 py-2 text-xs font-semibold text-[#131b2e] dark:text-white focus:outline-none cursor-pointer">
+                <option>Todas las categorías</option>
+                <option>✨ Lujos</option>
+                <option>⚡ Electricidad</option>
+                <option>🔧 Mecánica</option>
+                <option>🛡️ Accesorios</option>
+              </select>
+
+              <select class="bg-white dark:bg-[#18181c] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl px-3 py-2 font-mono-commit text-xs font-semibold text-[#131b2e] dark:text-white focus:outline-none cursor-pointer">
+                <option>• Todos los estados</option>
+                <option>• Stock activo</option>
+                <option>• Stock bajo</option>
+                <option>• Agotados</option>
+              </select>
+
+              <button class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-[#18181c] border border-[#c7c4d7]/60 dark:border-[#30303a] text-xs font-semibold text-[#131b2e] dark:text-white transition shadow-xs">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Importar
+              </button>
+
+              <button class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs font-semibold active:scale-95 transition shadow-xs" style="background-color: var(--brand-primary);">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                + Nuevo Producto
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Variante B: Órdenes de Compra -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider">B. Filtro de Órdenes de Compra (Píldoras Segmentadas + Nuevo Registro)</span>
+            <span class="font-mono-commit text-[10px] px-2 py-0.5 rounded-full font-bold" style="background-color: var(--brand-primary-light); color: var(--brand-primary);">/purchase-orders</span>
+          </div>
+
+          <div class="rounded-2xl border border-[#c7c4d7]/60 dark:border-[#30303a] bg-[#faf8ff] dark:bg-[#222228] p-3 flex flex-col md:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-1.5 bg-white dark:bg-[#18181c] p-1 rounded-xl border border-[#c7c4d7]/60 dark:border-[#30303a] overflow-x-auto w-full md:w-auto">
+              <button class="px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-xs" style="background-color: var(--brand-primary);">Todas</button>
+              <button class="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#464554] dark:text-[#9494a3] hover:text-[#131b2e] dark:hover:text-white">Borrador</button>
+              <button class="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#464554] dark:text-[#9494a3] hover:text-[#131b2e] dark:hover:text-white">Confirmada</button>
+              <button class="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#464554] dark:text-[#9494a3] hover:text-[#131b2e] dark:hover:text-white">Recibida</button>
+            </div>
+
+            <div class="flex items-center gap-2 w-full md:w-auto">
+              <div class="relative flex-1 md:w-56">
+                <svg class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#767586] dark:text-[#9494a3]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Filtrar por proveedor o #..." class="w-full bg-white dark:bg-[#18181c] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl pl-9 pr-3 py-1.5 text-xs text-[#131b2e] dark:text-white focus:outline-none"/>
+              </div>
+              <button class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs font-semibold active:scale-95 transition shadow-xs shrink-0" style="background-color: var(--brand-primary);">
+                + Nueva OC
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- 2. DROPDOWNS & SELECTS BENTO -->
+    <!-- ========================================================= -->
+    <section class="space-y-4">
+      <div class="flex items-center gap-2">
+        <div class="w-1.5 h-4 rounded-full" style="background-color: var(--brand-primary);"></div>
+        <h2 class="text-lg font-bold">2. Dropdowns & Selects Bento</h2>
+      </div>
+
+      <div class="rounded-3xl border border-[#c7c4d7]/60 dark:border-[#30303a] bg-white dark:bg-[#18181c] p-6 grid grid-cols-1 md:grid-cols-3 gap-6 shadow-xs">
+        <!-- Dropdown Categorías con Popover Abierto -->
+        <div class="space-y-2">
+          <span class="text-[11px] font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider block">Selector de Categoría</span>
+          
+          <div class="w-full bg-[#faf8ff] dark:bg-[#222228] border rounded-xl px-3.5 py-2.5 flex items-center justify-between shadow-xs" style="border-color: var(--brand-primary);">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#e1f2fb] border border-[#0b6fa8]"></span>
+              <span class="text-xs font-bold text-[#131b2e] dark:text-white">⚡ Electricidad & Luces</span>
+            </div>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" style="color: var(--brand-primary);"><polyline points="18 15 12 9 6 15"/></svg>
+          </div>
+
+          <div class="rounded-2xl border border-[#c7c4d7]/70 dark:border-[#30303a] bg-white dark:bg-[#1e1e24] p-1.5 shadow-xl space-y-1">
+            <div class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold cursor-pointer" style="background-color: var(--brand-primary-light); color: var(--brand-primary);">
+              <span>⚡ Electricidad & Luces</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="flex items-center justify-between px-3 py-2 rounded-xl text-[#464554] dark:text-[#9494a3] hover:bg-[#faf8ff] dark:hover:bg-[#26262e] text-xs font-semibold cursor-pointer transition">
+              <span>✨ Lujos & Accesorios</span>
+            </div>
+            <div class="flex items-center justify-between px-3 py-2 rounded-xl text-[#464554] dark:text-[#9494a3] hover:bg-[#faf8ff] dark:hover:bg-[#26262e] text-xs font-semibold cursor-pointer transition">
+              <span>🔧 Mecánica & Frenos</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dropdown Proveedor con Avatar -->
+        <div class="space-y-2">
+          <span class="text-[11px] font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider block">Selector de Proveedor con NIT</span>
+          
+          <div class="w-full bg-[#faf8ff] dark:bg-[#222228] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl px-3.5 py-2 flex items-center justify-between shadow-xs cursor-pointer transition">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[11px] shrink-0" style="background-color: var(--brand-primary-light); color: var(--brand-primary);">
+                ML
+              </div>
+              <div class="truncate">
+                <p class="text-xs font-bold text-[#131b2e] dark:text-white leading-tight">Motor Lights</p>
+                <p class="font-mono-commit text-[10px] text-[#767586] dark:text-[#9494a3]">NIT 1004231231</p>
+              </div>
+            </div>
+            <svg class="w-4 h-4 text-[#767586] dark:text-[#9494a3] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+
+        <!-- Dropdown Estados Compacto -->
+        <div class="space-y-2">
+          <span class="text-[11px] font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider block">Selector de Estado Segmentado</span>
+          
+          <div class="w-full bg-[#faf8ff] dark:bg-[#222228] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl px-3.5 py-2.5 flex items-center justify-between shadow-xs cursor-pointer">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span class="font-mono-commit text-xs font-bold text-emerald-700 dark:text-emerald-400">Pagado / Activo</span>
+            </div>
+            <svg class="w-4 h-4 text-[#767586] dark:text-[#9494a3]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- 3. STEPPERS (+ / -) & CONTROLES DE CANTIDAD -->
+    <!-- ========================================================= -->
+    <section class="space-y-4">
+      <div class="flex items-center gap-2">
+        <div class="w-1.5 h-4 rounded-full" style="background-color: var(--brand-primary);"></div>
+        <h2 class="text-lg font-bold">3. Steppers: Selector de Cantidades (+ / −)</h2>
+      </div>
+
+      <div class="rounded-3xl border border-[#c7c4d7]/60 dark:border-[#30303a] bg-white dark:bg-[#18181c] p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 shadow-xs items-center">
+        <!-- Compact Stepper -->
+        <div class="space-y-2">
+          <span class="text-[11px] font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider block">Stepper Táctil Compacto</span>
+          <div class="inline-flex items-center bg-[#faf8ff] dark:bg-[#222228] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl p-1 shadow-inner">
+            <button onclick="alterCount('counter-1', -1)" class="w-8 h-8 rounded-lg bg-white dark:bg-[#18181c] border border-[#c7c4d7]/40 dark:border-[#30303a] text-[#131b2e] dark:text-white hover:bg-slate-100 dark:hover:bg-[#2c2c36] active:scale-90 flex items-center justify-center font-bold text-sm transition shadow-xs">
+              −
+            </button>
+            <span id="counter-1" class="w-12 text-center font-mono-commit font-bold text-sm text-[#131b2e] dark:text-white">
+              3
+            </span>
+            <button onclick="alterCount('counter-1', 1)" class="w-8 h-8 rounded-lg bg-white dark:bg-[#18181c] border border-[#c7c4d7]/40 dark:border-[#30303a] text-[#131b2e] dark:text-white hover:bg-slate-100 dark:hover:bg-[#2c2c36] active:scale-90 flex items-center justify-center font-bold text-sm transition shadow-xs">
+              +
+            </button>
+          </div>
+        </div>
+
+        <!-- POS Hero Stepper -->
+        <div class="space-y-2">
+          <span class="text-[11px] font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider block">Stepper Protagonista POS</span>
+          <div class="inline-flex items-center bg-[#faf8ff] dark:bg-[#222228] border rounded-2xl p-1.5 shadow-xs" style="border-color: var(--brand-primary-border);">
+            <button onclick="alterCount('counter-2', -1)" class="w-10 h-10 rounded-xl bg-white dark:bg-[#18181c] border border-[#c7c4d7]/60 dark:border-[#30303a] text-[#131b2e] dark:text-white hover:border-[#d0453f] hover:text-[#d0453f] active:scale-90 flex items-center justify-center font-bold text-base transition shadow-xs">
+              −
+            </button>
+            <span id="counter-2" class="w-16 text-center font-mono-commit font-extrabold text-base" style="color: var(--brand-primary);">
+              12
+            </span>
+            <button onclick="alterCount('counter-2', 1)" class="w-10 h-10 rounded-xl text-white active:scale-90 flex items-center justify-center font-bold text-base transition shadow-sm" style="background-color: var(--brand-primary);">
+              +
+            </button>
+          </div>
+        </div>
+
+        <!-- Fila de Producto en Carrito con Stepper -->
+        <div class="space-y-2">
+          <span class="text-[11px] font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider block">Fila de Carrito POS Integrada</span>
+          <div class="rounded-2xl border border-[#c7c4d7]/60 dark:border-[#30303a] bg-[#faf8ff] dark:bg-[#222228] p-3 flex items-center justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <p class="font-bold text-xs text-[#131b2e] dark:text-white truncate">Exploradoras Dual LED</p>
+              <p class="font-mono-commit text-[11px] font-semibold" style="color: var(--brand-primary);">$ 185.000</p>
+            </div>
+            <div class="inline-flex items-center bg-white dark:bg-[#18181c] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl p-0.5 shadow-xs">
+              <button class="w-7 h-7 rounded-lg text-[#767586] dark:text-[#9494a3] hover:bg-slate-100 dark:hover:bg-[#2c2c36] flex items-center justify-center font-bold text-xs">−</button>
+              <span class="w-8 text-center font-mono-commit font-bold text-xs text-[#131b2e] dark:text-white">2</span>
+              <button class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs" style="color: var(--brand-primary);">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- 4. FORM INPUTS (PRECIOS COP & FORM CONTROLS) -->
+    <!-- ========================================================= -->
+    <section class="space-y-4">
+      <div class="flex items-center gap-2">
+        <div class="w-1.5 h-4 rounded-full" style="background-color: var(--brand-primary);"></div>
+        <h2 class="text-lg font-bold">4. Form Inputs & Cifras COP</h2>
+      </div>
+
+      <div class="rounded-3xl border border-[#c7c4d7]/60 dark:border-[#30303a] bg-white dark:bg-[#18181c] p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 shadow-xs">
+        <!-- Input Normal -->
+        <div class="space-y-1.5 text-xs">
+          <label class="block font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider">Nombre del producto *</label>
+          <input type="text" value="Casco Integral Fibra de Carbono" class="w-full bg-[#faf8ff] dark:bg-[#222228] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl px-3.5 py-2.5 text-xs text-[#131b2e] dark:text-white focus:outline-none transition"/>
+        </div>
+
+        <!-- Input Moneda COP (Commit Mono) -->
+        <div class="space-y-1.5 text-xs">
+          <label class="block font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider">Precio de Venta (COP)</label>
+          <div class="relative">
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono-commit font-bold" style="color: var(--brand-primary);">$</span>
+            <input type="text" value="850.000" class="w-full bg-[#faf8ff] dark:bg-[#222228] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl pl-8 pr-3.5 py-2.5 font-mono-commit font-bold text-xs text-[#131b2e] dark:text-white focus:outline-none transition"/>
+          </div>
+        </div>
+
+        <!-- Badges Técnicos -->
+        <div class="space-y-1.5 text-xs">
+          <label class="block font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider">Identificador Técnico</label>
+          <div class="flex items-center gap-2 pt-1">
+            <span class="font-mono-commit text-xs font-bold px-3 py-2 rounded-xl border" style="background-color: var(--brand-primary-light); color: var(--brand-primary); border-color: var(--brand-primary-border);">
+              SKU: MCF-L-001
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    function setTheme(mode) {
+      const html = document.documentElement;
+      const btnLight = document.getElementById('btn-theme-light');
+      const btnDark = document.getElementById('btn-theme-dark');
+      if (mode === 'dark') {
+        html.classList.add('dark');
+        html.classList.remove('light');
+        btnDark.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white shadow-xs transition';
+        btnDark.style.backgroundColor = 'var(--brand-primary)';
+        btnLight.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#9494a3] hover:text-white transition';
+        btnLight.style.backgroundColor = 'transparent';
+      } else {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        btnLight.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white shadow-xs transition';
+        btnLight.style.backgroundColor = 'var(--brand-primary)';
+        btnDark.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#464554] hover:text-[#131b2e] transition';
+        btnDark.style.backgroundColor = 'transparent';
+      }
+    }
+
+    function setBrandPalette(key, name, primary, hover, light, darkLight, border) {
+      document.getElementById('active-palette-name').innerText = name;
+      
+      const root = document.documentElement;
+      root.style.setProperty('--brand-primary', primary);
+      root.style.setProperty('--brand-primary-hover', hover);
+      root.style.setProperty('--brand-primary-light', light);
+      root.style.setProperty('--brand-primary-border', border);
+      
+      // Update active state in swatches
+      document.querySelectorAll('.color-swatch').forEach(btn => btn.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+
+      // Refresh theme buttons
+      const isDark = root.classList.contains('dark');
+      if (isDark) {
+        document.getElementById('btn-theme-dark').style.backgroundColor = primary;
+      } else {
+        document.getElementById('btn-theme-light').style.backgroundColor = primary;
+      }
+    }
+
+    function alterCount(elementId, delta) {
+      const el = document.getElementById(elementId);
+      let val = parseInt(el.innerText || el.value || '0', 10);
+      val = Math.max(0, val + delta);
+      if (el.tagName === 'INPUT') {
+        el.value = val;
+      } else {
+        el.innerText = val;
+      }
+    }
+  </script>
+
+</body>
+</html>
