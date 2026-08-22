@@ -179,7 +179,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
       isOpen={isOpen}
       onClose={onClose}
       title={expense ? "Editar gasto" : "Nuevo gasto"}
-      size="lg"
+      size="md"
     >
       <div className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -284,7 +284,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
               </Button>
             </div>
             <div className="space-y-3 p-4">
-              {rows.map((row, index) => (
+              {rows.map((row) => (
                 <div key={row.tempId} className="flex flex-wrap gap-2 items-end">
                   <div className="min-w-[120px] flex-1">
                     <CurrencyInput
@@ -299,31 +299,17 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
                       }
                     />
                   </div>
-                  <div>
-                    <label
-                      htmlFor={`${uid}-method-${row.tempId}`}
-                      className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
-                    >
-                      Método
-                    </label>
-                    <select
-                      id={`${uid}-method-${row.tempId}`}
-                      aria-label={`Método de pago ${index + 1}`}
-                      value={row.method}
-                      onChange={(e) =>
-                        updateRow(row.tempId, {
-                          method: e.target.value as ExpensePayment["method"],
-                        })
-                      }
-                      className="rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
-                    >
-                      {PAYMENT_METHOD_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <BentoSelect
+                    label="Método"
+                    value={row.method}
+                    onChange={(value) =>
+                      updateRow(row.tempId, {
+                        method: value as ExpensePayment["method"],
+                      })
+                    }
+                    className="w-32"
+                    options={PAYMENT_METHOD_OPTIONS}
+                  />
                   <div>
                     <label
                       htmlFor={`${uid}-paydate-${row.tempId}`}
@@ -371,27 +357,29 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Comprobante
           </p>
-          {expense ? (
-            <ImageUpload
-              value={expense.receiptUrl ?? undefined}
-              onChange={() => {}}
-              onUpload={async (file) => {
-                const updated = await uploadReceipt.mutateAsync({
-                  id: expense.id,
-                  file,
-                });
-                return updated.receiptUrl ?? "";
-              }}
-            />
-          ) : (
-            <ImageUpload
-              onChange={() => {}}
-              onUpload={(file) => {
-                setPendingReceiptFile(file);
-                return Promise.resolve(URL.createObjectURL(file));
-              }}
-            />
-          )}
+          <div className="max-w-[200px]">
+            {expense ? (
+              <ImageUpload
+                value={expense.receiptUrl ?? undefined}
+                onChange={() => {}}
+                onUpload={async (file) => {
+                  const updated = await uploadReceipt.mutateAsync({
+                    id: expense.id,
+                    file,
+                  });
+                  return updated.receiptUrl ?? "";
+                }}
+              />
+            ) : (
+              <ImageUpload
+                onChange={() => {}}
+                onUpload={(file) => {
+                  setPendingReceiptFile(file);
+                  return Promise.resolve(URL.createObjectURL(file));
+                }}
+              />
+            )}
+          </div>
         </div>
 
         {error && (

@@ -211,6 +211,7 @@ describe("Expenses page evidence", () => {
     render(<ExpensesPage />);
 
     await user.click(screen.getByRole("button", { name: /Exportar/i }));
+    await user.click(screen.getByRole("button", { name: /Exportar archivo/i }));
 
     expect(exportDataMock).toHaveBeenCalledWith(
       "/exports/expenses",
