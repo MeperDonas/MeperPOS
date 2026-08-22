@@ -9,6 +9,8 @@ import { computePendingAmount, filterOpenTasks } from "@/lib/dashboard";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Product, Expense } from "@/types";
 
+const VISIBLE_CAP = 4;
+
 function PanelHeader({
   icon,
   title,
@@ -44,17 +46,20 @@ export function AlertPanels() {
 
   const lowStockProducts = (lowStock ?? []) as Product[];
   const partialExpenses = (expensesResponse?.data ?? []) as ExpenseLike[];
-  const openTasks = filterOpenTasks(tasksResponse?.tasks ?? []);
+  const openTasks = filterOpenTasks(tasksResponse?.tasks ?? [], VISIBLE_CAP);
 
   const totalPending = partialExpenses.reduce(
     (sum, expense) => sum + computePendingAmount(expense),
     0,
   );
 
+  const visibleLowStock = lowStockProducts.slice(0, VISIBLE_CAP);
+  const visibleExpenses = partialExpenses.slice(0, VISIBLE_CAP);
+
   return (
     <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
       {/* Low stock panel */}
-      <div className="min-w-0 rounded-3xl border border-rose-500/30 bg-rose-500/10 px-6 py-5 text-foreground">
+      <div className="min-w-0 rounded-3xl border border-border/80 bg-card px-6 py-5 text-foreground">
         <PanelHeader
           icon={<AlertTriangle className="h-5 w-5 text-rose-500" />}
           title="Stock bajo"
@@ -68,10 +73,10 @@ export function AlertPanels() {
             </div>
           ) : (
             <ul className="space-y-2">
-              {lowStockProducts.map((product) => (
+              {visibleLowStock.map((product) => (
                 <li
                   key={product.id}
-                  className="flex items-center justify-between rounded-xl bg-rose-500/5 px-3 py-2"
+                  className="flex items-center justify-between rounded-xl bg-muted px-3 py-2"
                 >
                   <span className="truncate text-sm font-medium text-foreground">
                     {product.name}
@@ -84,20 +89,29 @@ export function AlertPanels() {
             </ul>
           )}
         </div>
+        {lowStockProducts.length > VISIBLE_CAP && (
+          <button
+            type="button"
+            onClick={() => router.push("/inventory?filter=lowStock")}
+            className="mt-3 text-[12px] font-bold text-foreground/70 hover:text-primary"
+          >
+            Ver {lowStockProducts.length - VISIBLE_CAP} más
+          </button>
+        )}
         {lowStockProducts.length > 0 && (
           <button
             type="button"
             onClick={() => router.push("/inventory?filter=lowStock")}
             className="mt-4 inline-flex items-center gap-1 text-[12px] font-bold text-rose-500 hover:text-rose-400"
           >
-            Reordenar
+            REORDENAR
             <ArrowRight className="h-3 w-3" aria-hidden="true" />
           </button>
         )}
       </div>
 
       {/* Partial expenses panel */}
-      <div className="min-w-0 rounded-3xl border border-primary/30 bg-primary/10 px-6 py-5 text-foreground">
+      <div className="min-w-0 rounded-3xl border border-border/80 bg-card px-6 py-5 text-foreground">
         <PanelHeader
           icon={<Receipt className="h-5 w-5 text-primary" />}
           title="Gastos por pagar"
@@ -109,10 +123,10 @@ export function AlertPanels() {
           ) : (
             <>
               <ul className="space-y-2">
-                {partialExpenses.map((expense) => (
+                {visibleExpenses.map((expense) => (
                   <li
                     key={expense.id}
-                    className="flex items-center justify-between rounded-xl bg-primary/5 px-3 py-2"
+                    className="flex items-center justify-between rounded-xl bg-muted px-3 py-2"
                   >
                     <span className="truncate text-sm font-medium text-foreground">
                       {expense.description || "Gasto"}
@@ -123,7 +137,7 @@ export function AlertPanels() {
                   </li>
                 ))}
               </ul>
-              <div className="mt-4 flex items-center justify-between rounded-xl bg-primary/5 px-3 py-2">
+              <div className="mt-4 flex items-center justify-between rounded-xl bg-muted px-3 py-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Total pendiente
                 </span>
@@ -134,6 +148,15 @@ export function AlertPanels() {
             </>
           )}
         </div>
+        {partialExpenses.length > VISIBLE_CAP && (
+          <button
+            type="button"
+            onClick={() => router.push("/expenses")}
+            className="mt-3 text-[12px] font-bold text-foreground/70 hover:text-primary"
+          >
+            Ver {partialExpenses.length - VISIBLE_CAP} más
+          </button>
+        )}
         {partialExpenses.length > 0 && (
           <button
             type="button"
@@ -147,7 +170,7 @@ export function AlertPanels() {
       </div>
 
       {/* Open tasks panel */}
-      <div className="min-w-0 rounded-3xl border border-accent/30 bg-accent/10 px-6 py-5 text-foreground">
+      <div className="min-w-0 rounded-3xl border border-border/80 bg-card px-6 py-5 text-foreground">
         <PanelHeader
           icon={<ListTodo className="h-5 w-5 text-accent" />}
           title="Tareas abiertas"
@@ -163,7 +186,7 @@ export function AlertPanels() {
                 return (
                   <li
                     key={task.id}
-                    className="flex items-center justify-between gap-2 rounded-xl bg-accent/5 px-3 py-2"
+                    className="flex items-center justify-between gap-2 rounded-xl bg-muted px-3 py-2"
                   >
                     <div className="flex min-w-0 items-center gap-2">
                       <Icon className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />

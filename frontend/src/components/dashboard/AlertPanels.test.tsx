@@ -139,7 +139,7 @@ describe("AlertPanels (DIA-6..8)", () => {
     expect(screen.getAllByText(/2026/).length).toBeGreaterThanOrEqual(2);
   });
 
-  it("caps the open-task list to five entries", () => {
+  it("caps the open-task list to four entries", () => {
     useTasksMock.mockReturnValue({
       data: {
         tasks: Array.from({ length: 6 }, (_, index) => ({
@@ -155,7 +155,8 @@ describe("AlertPanels (DIA-6..8)", () => {
     render(<AlertPanels />);
 
     expect(screen.getByText("Tarea 1")).toBeTruthy();
-    expect(screen.getByText("Tarea 5")).toBeTruthy();
+    expect(screen.getByText("Tarea 4")).toBeTruthy();
+    expect(screen.queryByText("Tarea 5")).toBeNull();
     expect(screen.queryByText("Tarea 6")).toBeNull();
   });
 

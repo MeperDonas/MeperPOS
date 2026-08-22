@@ -7,6 +7,7 @@ import type {
   DashboardData,
   SaleByPaymentMethod,
   SaleByCategory,
+  SaleByCategoryDaily,
   TopSellingProduct,
   CustomerStatistics,
   DailySale,
@@ -101,6 +102,19 @@ export function useSalesByCategory(startDate?: string, endDate?: string) {
       api
         .get<ReportEnvelope<SaleByCategory[]>>(
           "/reports/sales/category",
+          buildDateRangeParams(startDate, endDate),
+        )
+        .then((res) => res.data),
+  });
+}
+
+export function useSalesByCategoryDaily(startDate?: string, endDate?: string) {
+  return useQuery({
+    queryKey: ["reports", "sales", "category-daily", startDate, endDate],
+    queryFn: () =>
+      api
+        .get<ReportEnvelope<SaleByCategoryDaily[]>>(
+          "/reports/sales/category-daily",
           buildDateRangeParams(startDate, endDate),
         )
         .then((res) => res.data),

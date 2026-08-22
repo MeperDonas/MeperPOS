@@ -151,6 +151,22 @@ export class ReportsController {
     );
   }
 
+  @Get('sales/category-daily')
+  @ApiOperation({ summary: 'Get daily sales grouped by category' })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  getSalesByCategoryDaily(
+    @CurrentUser() user: RequestUser,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getSalesByCategoryDaily(
+      user.organizationId,
+      startDate,
+      endDate,
+    );
+  }
+
   @Get('products/top-selling')
   @ApiOperation({ summary: 'Get top selling products' })
   @ApiQuery({ name: 'startDate', required: false })
