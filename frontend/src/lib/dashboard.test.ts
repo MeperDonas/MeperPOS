@@ -5,6 +5,7 @@ import {
   computeTodayMetrics,
   filterOpenTasks,
 } from "./dashboard";
+import type { TaskStatus } from "@/types";
 
 describe("computeTodayMetrics (DIA-1/DIA-2)", () => {
   it("returns sales, count and a non-zero average ticket when count > 0", () => {
@@ -54,10 +55,10 @@ describe("computePendingAmount (DIA-7)", () => {
 describe("filterOpenTasks (DIA-8)", () => {
   it("keeps only PENDING/IN_PROGRESS tasks and drops COMPLETED/CANCELLED", () => {
     const tasks = [
-      { status: "PENDING" },
-      { status: "COMPLETED" },
-      { status: "IN_PROGRESS" },
-      { status: "CANCELLED" },
+      { status: "PENDING" as const },
+      { status: "COMPLETED" as const },
+      { status: "IN_PROGRESS" as const },
+      { status: "CANCELLED" as const },
     ];
 
     expect(filterOpenTasks(tasks)).toEqual([
@@ -67,9 +68,12 @@ describe("filterOpenTasks (DIA-8)", () => {
   });
 
   it("caps the open-task list to five entries", () => {
-    const tasks = Array.from({ length: 8 }, (_, index) => ({
-      status: index % 2 === 0 ? "PENDING" : "IN_PROGRESS",
-    }));
+    const tasks: Array<{ status: TaskStatus }> = Array.from(
+      { length: 8 },
+      (_, index) => ({
+        status: index % 2 === 0 ? "PENDING" : "IN_PROGRESS",
+      }),
+    );
 
     expect(filterOpenTasks(tasks)).toHaveLength(5);
   });
