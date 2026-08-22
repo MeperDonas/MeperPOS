@@ -173,14 +173,19 @@ describe("Dashboard scope evidence (tasks moved, date filter removed)", () => {
       error: null,
     });
 
+    // The range summary lives in a <p> whose numbers are wrapped in nested <span>s,
+    // so assert on the combined textContent instead of a single text node.
+    const rangeText = (expected: string) => (_: string, element: Element | null) =>
+      (element?.textContent ?? "").replace(/\s+/g, " ").trim() === expected;
+
     render(<DashboardPage />);
 
-    expect(screen.getByText("Mostrando 1-10 de 11")).toBeTruthy();
+    expect(screen.getByText(rangeText("Mostrando 1 - 10 de 11"))).toBeTruthy();
     expect(screen.getByText("1 / 2")).toBeTruthy();
 
     await userEvent.click(screen.getByRole("button", { name: "Siguiente" }));
 
-    expect(screen.getByText("Mostrando 11-11 de 11")).toBeTruthy();
+    expect(screen.getByText(rangeText("Mostrando 11 - 11 de 11"))).toBeTruthy();
     expect(screen.getByText("2 / 2")).toBeTruthy();
   });
 });

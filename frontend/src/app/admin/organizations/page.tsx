@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
+import { BentoSelect } from "@/components/ui/BentoSelect";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { Table, TableHeader, TableRow, TableCell } from "@/components/ui/Table";
 import {
@@ -147,10 +147,10 @@ export default function OrganizationsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="px-4 py-3">
-                      <Select
+                      <BentoSelect
                         value={org.plan}
                         options={planOptions}
-                        onChange={(e) => updatePlan.mutate({ id: org.id, plan: e.target.value })}
+                        onChange={(value) => updatePlan.mutate({ id: org.id, plan: value })}
                         className="w-32 py-1.5 text-xs"
                       />
                     </TableCell>
@@ -165,10 +165,10 @@ export default function OrganizationsPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Select
+                        <BentoSelect
                           value={org.status}
                           options={statusOptions}
-                          onChange={(e) => updateStatus.mutate({ id: org.id, status: e.target.value })}
+                          onChange={(value) => updateStatus.mutate({ id: org.id, status: value })}
                           className="w-32 py-1.5 text-xs"
                         />
                       </div>
@@ -202,11 +202,11 @@ export default function OrganizationsPage() {
             error={formErrors.slug}
             required
           />
-          <Select
+          <BentoSelect
             label="Plan"
             value={formData.plan}
             options={planOptions}
-            onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
+            onChange={(value) => setFormData({ ...formData, plan: value })}
           />
 
           <div className="flex items-center gap-2 pt-2">

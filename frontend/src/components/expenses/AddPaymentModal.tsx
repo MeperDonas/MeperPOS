@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Select } from "@/components/ui/Select";
+import { BentoSelect } from "@/components/ui/BentoSelect";
 import { useAddExpensePayment } from "@/hooks/useExpenses";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage } from "@/lib/api";
@@ -90,11 +90,11 @@ export function AddPaymentModal({ expense, isOpen, onClose }: Props) {
           />
         </div>
 
-        <Select
+        <BentoSelect
           label="Método de pago"
           value={method}
-          onChange={(e) =>
-            setMethod(e.target.value as ExpensePayment["method"])
+          onChange={(value) =>
+            setMethod(value as ExpensePayment["method"])
           }
           options={PAYMENT_METHOD_OPTIONS}
         />
