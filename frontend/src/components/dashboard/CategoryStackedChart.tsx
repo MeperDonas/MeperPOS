@@ -36,8 +36,20 @@ export function CategoryStackedChart({
   );
   const hoveredDay = hoveredIndex >= 0 ? series[hoveredIndex] : null;
 
+  /**
+   * Clamps the tooltip horizontally so it never overflows the chart edges:
+   * first day → left edge pinned to the bar start, last day → right edge
+   * pinned to the bar end, middle days → centered on the bar.
+   */
+  const tooltipTranslate =
+    series.length > 1 && hoveredIndex === 0
+      ? "translate-x-0"
+      : series.length > 1 && hoveredIndex === series.length - 1
+        ? "-translate-x-full"
+        : "-translate-x-1/2";
+
   const slot = series.length > 0 ? 400 / series.length : 0;
-  const barWidth = Math.max(4, slot * 0.55);
+  const barWidth = Math.max(6, slot * 0.96);
 
   const dayLabel = (date: string) => {
     const [year, month, day] = date.split("-").map(Number);
@@ -82,7 +94,7 @@ export function CategoryStackedChart({
                   y={bar.y}
                   width={barWidth}
                   height={bar.height}
-                  rx={2}
+                  rx={1}
                   fill={bar.color}
                   className="transition-opacity"
                   style={hoveredDate && hoveredDate !== day.date ? { opacity: 0.35 } : undefined}
@@ -110,33 +122,33 @@ export function CategoryStackedChart({
       {hoveredDay && (
         <div
           data-testid="category-tooltip"
-          className="pointer-events-none absolute z-30 min-w-[170px] -translate-x-1/2 rounded-lg border border-border bg-card px-3 py-2 shadow-lg"
+          className={`pointer-events-none absolute z-30 min-w-[180px] ${tooltipTranslate} rounded-lg border border-white/10 bg-black/90 px-3 py-2 shadow-xl backdrop-blur-sm`}
           style={{
             left: `${hoveredIndex >= 0 ? (hoveredIndex / Math.max(series.length - 1, 1)) * 100 : 50}%`,
             top: "6px",
           }}
         >
-          <p className="text-center text-[10px] font-semibold text-muted-foreground">
+          <p className="text-center text-[10px] font-semibold uppercase tracking-wider text-white/60">
             {dayLabel(hoveredDay.date)}
           </p>
-          <p className="mt-1 text-center text-sm font-bold text-foreground">
+          <p className="mt-1 text-center text-lg font-bold text-white tabular-nums">
             {formatCurrency(hoveredDay.total)}
           </p>
           {hoveredDay.segments.length > 0 && (
-            <ul className="mt-2 space-y-1">
+            <ul className="mt-2 divide-y divide-white/10">
               {hoveredDay.segments.map((segment) => (
                 <li
                   key={segment.category}
-                  className="flex items-center justify-between gap-3 text-[10px]"
+                  className="flex items-center justify-between gap-3 py-1 text-[11px]"
                 >
-                  <span className="flex items-center gap-1.5 font-medium text-muted-foreground">
+                  <span className="flex items-center gap-1.5 font-medium text-white/70">
                     <span
-                      className="inline-block h-2 w-2 rounded-full"
+                      className="inline-block h-2 w-2 rounded-[2px]"
                       style={{ backgroundColor: colorMap.get(segment.category) }}
                     />
                     {segment.category}
                   </span>
-                  <span className="font-mono font-bold text-foreground">
+                  <span className="font-mono font-bold text-white tabular-nums">
                     {formatCurrency(segment.total)}
                   </span>
                 </li>
