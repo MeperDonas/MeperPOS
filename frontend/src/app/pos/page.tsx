@@ -19,6 +19,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Stepper } from "@/components/ui/Stepper";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
@@ -30,8 +31,6 @@ import { ProductCard } from "@/components/products/ProductCard";
 import {
   Search,
   Star,
-  Plus,
-  Minus,
   Trash2,
   ShoppingCart,
   Printer,
@@ -816,33 +815,15 @@ export default function POSPage() {
                         )}
                       </p>
                       <div className="flex items-center gap-1.5">
-                        <div className="flex items-center rounded-lg border border-accent/30 bg-background/60">
-                          <button
-                            onClick={() =>
-                              updateQuantity(item.productId, item.quantity - 1)
-                            }
-                            className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="w-8 text-center text-xs font-bold text-foreground">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() =>
-                              updateQuantity(item.productId, item.quantity + 1)
-                            }
-                            disabled={item.quantity >= item.availableStock}
-                            className={cn(
-                              "w-7 h-7 flex items-center justify-center transition-colors",
-                              item.quantity >= item.availableStock
-                                ? "opacity-50 cursor-not-allowed text-muted-foreground/40"
-                                : "text-muted-foreground hover:text-foreground",
-                            )}
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
+                        <Stepper
+                          value={item.quantity}
+                          min={0}
+                          max={item.availableStock}
+                          size="sm"
+                          onChange={(value) =>
+                            updateQuantity(item.productId, value)
+                          }
+                        />
                         {item.quantity >= item.availableStock && (
                           <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
                             máx.
