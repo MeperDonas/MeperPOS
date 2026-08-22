@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useProducts } from "@/hooks/useProducts";
 import { useUpdatePurchaseOrder } from "@/hooks/usePurchaseOrders";
@@ -265,21 +266,18 @@ export function EditDraftModal({ order, isOpen, onClose }: Props) {
                         />
                       </td>
                       <td className="py-2 px-2">
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
+                        <CurrencyInput
                           value={r.unitCost}
-                          onChange={(e) =>
+                          onChange={(value) =>
                             setRows((prev) =>
                               prev.map((x) =>
                                 x.tempId === r.tempId
-                                  ? { ...x, unitCost: Number(e.target.value) || 0 }
+                                  ? { ...x, unitCost: value }
                                   : x,
                               ),
                             )
                           }
-                          className="w-full rounded-md border border-border bg-card px-2 py-1 text-right text-sm focus:outline-none focus:border-primary/50"
+                          className="text-right"
                         />
                       </td>
                       <td className="py-2 px-2">
