@@ -15,17 +15,17 @@ const baseProduct = {
   active: true,
 };
 
-describe("ProductCard inventory mode — stock chip variants", () => {
-  it("shows neutral '{n} uds.' chip when stock is healthy", () => {
+describe("ProductCard inventory mode — status chip", () => {
+  it("shows 'Activo' chip with a luminous dot when stock is healthy", () => {
     render(<ProductCard product={baseProduct} mode="inventory" />);
 
-    const chip = screen.getByText("20 uds.");
-    expect(chip.className).toContain("bg-muted/60");
-    expect(chip.className).toContain("text-foreground");
-    expect(screen.queryByTestId("stock-alert-icon")).toBeNull();
+    const chip = screen.getByText("Activo");
+    expect(chip).toBeInTheDocument();
+    // single dot, no duplicate bullet char
+    expect(screen.queryByText("•")).toBeNull();
   });
 
-  it("shows outlined primary chip with alert icon when stock <= minStock", () => {
+  it("shows 'Stock bajo' chip with alert dot when stock <= minStock", () => {
     render(
       <ProductCard
         product={{ ...baseProduct, stock: 3, minStock: 5 }}
@@ -33,9 +33,7 @@ describe("ProductCard inventory mode — stock chip variants", () => {
       />,
     );
 
-    const chip = screen.getByText("3 uds.");
-    expect(chip.className).toContain("text-rose-500");
-    expect(chip.className).toContain("border-rose-500/30");
+    expect(screen.getByText("Stock bajo")).toBeInTheDocument();
     expect(screen.getByTestId("stock-alert-icon")).toBeInTheDocument();
   });
 
@@ -47,10 +45,20 @@ describe("ProductCard inventory mode — stock chip variants", () => {
       />,
     );
 
-    const chip = screen.getByText("Agotado");
-    expect(chip.className).toContain("bg-rose-500");
-    expect(chip.className).toContain("text-white");
+    expect(screen.getByText("Agotado")).toBeInTheDocument();
     expect(screen.getByTestId("stock-alert-icon")).toBeInTheDocument();
+  });
+});
+
+describe("ProductCard inventory mode — stock block (dual metrics)", () => {
+  it("renders stock count in the dual metrics block", () => {
+    render(<ProductCard product={baseProduct} mode="inventory" />);
+    expect(screen.getByText("20 uds.")).toBeInTheDocument();
+  });
+
+  it("renders the formatted COP price", () => {
+    render(<ProductCard product={baseProduct} mode="inventory" />);
+    expect(screen.getByText("$ 45.000")).toBeInTheDocument();
   });
 });
 
@@ -70,6 +78,13 @@ describe("ProductCard inventory mode — inactive state", () => {
   it("does NOT render 'Inactivo' badge when product is active", () => {
     render(<ProductCard product={baseProduct} mode="inventory" />);
     expect(screen.queryByText("Inactivo")).toBeNull();
+  });
+});
+
+describe("ProductCard inventory mode — sku below the name", () => {
+  it("renders the SKU under the product name", () => {
+    render(<ProductCard product={baseProduct} mode="inventory" />);
+    expect(screen.getByText("SKU-0001")).toBeInTheDocument();
   });
 });
 

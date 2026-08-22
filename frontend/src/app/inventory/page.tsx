@@ -19,6 +19,7 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { BentoSelect } from "@/components/ui/BentoSelect";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { Pagination } from "@/components/ui/Pagination";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -331,51 +332,32 @@ export default function InventoryPage() {
           searchPlaceholder="Buscar por nombre, SKU..."
           filterControls={
             <>
-              <select
+              <BentoSelect
                 value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(
-                    e.target.value as "active" | "inactive" | "all",
-                  )
+                onChange={(value) =>
+                  setStatusFilter(value as "active" | "inactive" | "all")
                 }
-                className={cn(
-                  "h-8 pl-3 pr-7 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus:ring-1 focus:ring-primary/40 cursor-pointer appearance-none",
-                  statusFilter !== "active"
-                    ? "border-primary/40 bg-primary/5 text-primary"
-                    : "border-border/60 bg-muted/40 text-foreground",
-                )}
-                style={{
-                  backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "right 8px center",
-                }}
-              >
-                <option value="active">Activos</option>
-                <option value="inactive">Inactivos</option>
-                <option value="all">Todos</option>
-              </select>
-              <select
+                className="w-36"
+                placeholder="Estado"
+                options={[
+                  { value: "active", label: "Activos" },
+                  { value: "inactive", label: "Inactivos" },
+                  { value: "all", label: "Todos" },
+                ]}
+              />
+              <BentoSelect
                 value={selectedCategory || ""}
-                onChange={(e) => setSelectedCategory(e.target.value || null)}
-                className={cn(
-                  "h-8 pl-3 pr-7 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus:ring-1 focus:ring-primary/40 cursor-pointer appearance-none",
-                  selectedCategory
-                    ? "border-primary/40 bg-primary/5 text-primary"
-                    : "border-border/60 bg-muted/40 text-foreground",
-                )}
-                style={{
-                  backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "right 8px center",
-                }}
-              >
-                <option value="">Todas las categorías</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => setSelectedCategory(value || null)}
+                className={cn("w-52", selectedCategory && "border-primary/40")}
+                placeholder="Todas las categorías"
+                options={[
+                  { value: "", label: "Todas las categorías" },
+                  ...categories.map((cat) => ({
+                    value: cat.id,
+                    label: cat.name,
+                  })),
+                ]}
+              />
               <button
                 onClick={() => setShowLowStockOnly(!showLowStockOnly)}
                 className={cn(
@@ -590,28 +572,24 @@ export default function InventoryPage() {
                 ]}
               />
               <div className="grid grid-cols-2 gap-3">
-                <Input
+                <CurrencyInput
                   label="Precio de Costo"
-                  type="number"
-                  step="0.01"
                   value={formData.costPrice || ""}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     setFormData({
                       ...formData,
-                      costPrice: Number(e.target.value),
+                      costPrice: value,
                     })
                   }
                   required
                 />
-                <Input
+                <CurrencyInput
                   label="Precio de Venta"
-                  type="number"
-                  step="0.01"
                   value={formData.salePrice || ""}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     setFormData({
                       ...formData,
-                      salePrice: Number(e.target.value),
+                      salePrice: value,
                     })
                   }
                   required

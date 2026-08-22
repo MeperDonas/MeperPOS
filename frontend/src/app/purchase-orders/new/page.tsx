@@ -11,6 +11,7 @@ import {
   type CreatePurchaseOrderItemPayload,
 } from "@/hooks/usePurchaseOrders";
 import { Button } from "@/components/ui/Button";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { ArrowLeft, Plus, Trash2, ClipboardList } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useToast } from "@/contexts/ToastContext";
@@ -296,17 +297,12 @@ export default function NewPurchaseOrderPage() {
                               />
                             </td>
                             <td className="py-2 px-3">
-                              <input
-                                type="number"
-                                min={0}
-                                step="0.01"
+                              <CurrencyInput
                                 value={it.unitCost}
-                                onChange={(e) =>
-                                  updateItem(it.tempId, {
-                                    unitCost: Number(e.target.value) || 0,
-                                  })
+                                onChange={(value) =>
+                                  updateItem(it.tempId, { unitCost: value })
                                 }
-                                className="w-full rounded-md border border-border bg-card px-2 py-1 text-right text-sm focus:outline-none focus:border-primary/50"
+                                className="text-right"
                               />
                             </td>
                             <td className="py-2 px-3">
