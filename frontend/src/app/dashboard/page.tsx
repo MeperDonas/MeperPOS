@@ -3,28 +3,16 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useDashboard, useDailySales } from "@/hooks/useReports";
+import { useDailySales, useDashboard } from "@/hooks/useReports";
 import { useCategories } from "@/hooks/useCategories";
-import {
-  Package,
-  ShoppingCart,
-  LayoutDashboard,
-  CheckCircle2,
-  AlertTriangle,
-  Users,
-} from "lucide-react";
-import {
-  formatCurrency,
-  getBogotaDateInputValue,
-  shiftDateInputValue,
-} from "@/lib/utils";
+import { Package, LayoutDashboard, CheckCircle2, AlertTriangle, Users } from "lucide-react";
+import { getBogotaDateInputValue, shiftDateInputValue } from "@/lib/utils";
 import { chartHeight } from "@/lib/dashboard";
 import { useAuth } from "@/contexts/AuthContext";
-import { Pagination } from "@/components/ui/Pagination";
 import { LoadingState } from "@/components/ui/LoadingState";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { Table, TableHeader, TableRow, TableCell } from "@/components/ui/Table";
 import { TodayStats } from "@/components/dashboard/TodayStats";
+import { AlertPanels } from "@/components/dashboard/AlertPanels";
+import { QuickActions } from "@/components/dashboard/QuickActions";
 import {
   RevenueChart,
   type RevenueBarPoint,
@@ -40,7 +28,6 @@ export default function DashboardPage() {
   const { data: categoriesResponse } = useCategories({ page: 1, limit: 1 });
   const { user } = useAuth();
   const [now] = useState(() => new Date());
-  const [soldProductsPage, setSoldProductsPage] = useState(1);
 
   const chartEndDate = useMemo(() => getBogotaDateInputValue(now), [now]);
   const chartStartDate = useMemo(
@@ -121,38 +108,6 @@ export default function DashboardPage() {
   }, [chartEndDate, chartStartDate, dailySales?.data]);
 
   const totalCategories = categoriesResponse?.meta.total ?? 0;
-
-  // Convertir ventas recientes en filas de productos vendidos (1 fila por cada item)
-  const soldProductsList = useMemo(() => {
-    const sales = dashboard?.recentSales ?? [];
-    const items: Array<{
-      id: string;
-      productName: string;
-      quantity: number;
-      total: number;
-      customerName: string;
-      createdAt: string;
-    }> = [];
-
-    for (const sale of sales) {
-      for (const item of sale.items) {
-        items.push({
-          id: item.id,
-          productName: item.product.name,
-          quantity: item.quantity,
-          total: item.total,
-          customerName: sale.customer?.name || "General",
-          createdAt: sale.createdAt,
-        });
-      }
-    }
-
-    // Ordenar por fecha más reciente
-    return items.sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
-  }, [dashboard?.recentSales]);
 
   if (isLoading) {
     return (
@@ -304,99 +259,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Productos Vendidos - Tabla con paginación */}
-        <div className="animate-fade-in rounded-3xl border border-primary/30 bg-primary/10 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-primary/20">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/20 rounded-xl">
-                <ShoppingCart className="h-5 w-5 text-primary" />
-              </div>
-              <h3 className="text-base font-semibold text-foreground">
-                Productos Vendidos
-              </h3>
-            </div>
-            {soldProductsList.length > 0 && (
-              <span className="text-[10px] font-bold bg-primary/20 text-primary px-2 py-1 rounded-md uppercase tracking-wider">
-                {soldProductsList.length} items
-              </span>
-            )}
-          </div>
-          {soldProductsList.length === 0 ? (
-            <EmptyState icon={<Package className="w-6 h-6 text-muted-foreground/30" />} title="No hay productos vendidos en este período" />
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <Table variant="primary" className="min-w-[520px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Producto
-                      </TableCell>
-                      <TableCell as="th" className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Cantidad
-                      </TableCell>
-                      <TableCell as="th" className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Cliente
-                      </TableCell>
-                      <TableCell as="th" className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Total
-                      </TableCell>
-                      <TableCell as="th" className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Fecha
-                      </TableCell>
-                    </TableRow>
-                  </TableHeader>
-                  <tbody className="bg-background/50">
-                    {soldProductsList
-                      .slice((soldProductsPage - 1) * 10, soldProductsPage * 10)
-                      .map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>
-                            <span className="text-sm font-medium text-foreground">
-                              {item.productName}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="text-sm font-bold text-primary">
-                              {item.quantity}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-muted-foreground">
-                              {item.customerName}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="text-sm font-bold text-accent">
-                              {formatCurrency(item.total)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right text-muted-foreground whitespace-nowrap font-mono">
-                            {new Date(item.createdAt).toLocaleDateString(
-                              "es-CO",
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </tbody>
-                </Table>
-              </div>
-              {/* Paginación */}
-              {soldProductsList.length > 10 && (
-                <div className="px-4 py-3 border-t border-primary/20">
-                  <Pagination
-                    currentPage={soldProductsPage}
-                    totalPages={Math.ceil(soldProductsList.length / 10)}
-                    onPageChange={setSoldProductsPage}
-                    totalItems={soldProductsList.length}
-                    pageSize={10}
-                    itemLabel="producto"
-                  />
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        {/* Quick actions by role (DIA-9) */}
+        <QuickActions />
+
+        {/* Operational alert panels (DIA-6..8) — replaces the reports-duplicating table */}
+        <AlertPanels />
       </div>
     </DashboardLayout>
   );
