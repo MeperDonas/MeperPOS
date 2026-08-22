@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ImageUpload } from "@/components/ui/ImageUpload";
-import { Select } from "@/components/ui/Select";
+import { BentoSelect } from "@/components/ui/BentoSelect";
 import { Pagination } from "@/components/ui/Pagination";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -575,11 +575,11 @@ export default function InventoryPage() {
                   setFormData({ ...formData, barcode: e.target.value })
                 }
               />
-              <Select
+              <BentoSelect
                 label="Categoría"
                 value={formData.categoryId || ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, categoryId: e.target.value })
+                onChange={(value) =>
+                  setFormData({ ...formData, categoryId: value })
                 }
                 options={[
                   { value: "", label: "Seleccionar categoría" },
@@ -588,7 +588,6 @@ export default function InventoryPage() {
                     label: cat.name,
                   })),
                 ]}
-                required
               />
               <div className="grid grid-cols-2 gap-3">
                 <Input

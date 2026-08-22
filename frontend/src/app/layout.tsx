@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Manrope, JetBrains_Mono } from "next/font/google";
+import { Geist, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -7,8 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
 
-const manrope = Manrope({
-  variable: "--font-manrope",
+const geist = Geist({
+  variable: "--font-geist",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
 });
@@ -32,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body
-        className={`${manrope.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${geist.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <QueryProvider>
           <ThemeProvider>

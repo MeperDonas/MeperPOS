@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { cn, formatCurrency } from "@/lib/utils";
-import { Package, Power, RotateCcw, Star, Edit3 } from "lucide-react";
+import { AlertTriangle, Package, Power, RotateCcw, Star, Edit3 } from "lucide-react";
 
 type ProductCardData = {
   id: string;
@@ -83,20 +83,33 @@ export function ProductCard({
             </div>
           )}
 
-          {/* Floating Stock Tag */}
+          {/* Status / Stock Chip (top-left) */}
           <div className="absolute top-2.5 left-2.5">
-            <span
-              className={cn(
-                "inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-bold shadow-xs",
-                isOutOfStock
-                  ? "bg-rose-500 text-white"
-                  : isLowStock
-                  ? "bg-amber-500 text-white"
-                  : "bg-emerald-500 text-white"
-              )}
-            >
-              {isOutOfStock ? "Agotado" : `${product.stock} en stock`}
-            </span>
+            {isInactive ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-bold shadow-xs bg-muted/60 text-foreground">
+                Inactivo
+              </span>
+            ) : (
+              <span
+                className={cn(
+                  "inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-bold shadow-xs",
+                  isOutOfStock
+                    ? "bg-rose-500 text-white"
+                    : isLowStock
+                    ? "border border-rose-500/30 text-rose-500"
+                    : "bg-muted/60 text-foreground"
+                )}
+              >
+                {isOutOfStock ? "Agotado" : `${product.stock} uds.`}
+                {(isLowStock || isOutOfStock) && (
+                  <AlertTriangle
+                    data-testid="stock-alert-icon"
+                    className="w-3 h-3 ml-1"
+                    aria-hidden="true"
+                  />
+                )}
+              </span>
+            )}
           </div>
 
           {/* Floating SKU Tag */}
@@ -111,7 +124,7 @@ export function ProductCard({
         <div className="mt-3 flex-1 flex flex-col justify-between">
           <div>
             <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">
-              {hasCategory ? categoryLabel : "General"}
+              {hasCategory ? categoryLabel : "Sin categoría"}
             </span>
             <h3 className="mt-0.5 text-xs font-bold text-foreground line-clamp-2 min-h-[34px] leading-snug">
               {product.name}
@@ -123,9 +136,6 @@ export function ProductCard({
             <div className="flex items-baseline justify-between font-mono">
               <span className="text-sm font-extrabold text-foreground tracking-tight">
                 {formatCurrency(product.salePrice)}
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                {product.stock} uds.
               </span>
             </div>
 
@@ -147,14 +157,17 @@ export function ProductCard({
 
         {/* Action Buttons */}
         <div className="mt-3 pt-2 flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onClick}
-            className="flex-1 h-8 rounded-xl bg-primary text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-primary-dark active:scale-95 transition-all shadow-xs"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-            <span>Editar</span>
-          </button>
+          {onClick && (
+            <button
+              type="button"
+              onClick={onClick}
+              aria-label={`Editar producto: ${product.name}`}
+              className="flex-1 h-8 rounded-xl bg-primary text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-primary-dark active:scale-95 transition-all shadow-xs"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Editar</span>
+            </button>
+          )}
 
           {footerHandler && (
             <button

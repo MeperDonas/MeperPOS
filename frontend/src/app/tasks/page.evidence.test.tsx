@@ -94,7 +94,8 @@ describe("Tasks module evidence", () => {
 
     render(<TasksPage />);
 
-    expect(screen.getByText("API real")).toBeTruthy();
+    // Spec (mod 13) dropped the "API real" tag; the timeline is backend-driven and append-only.
+    expect(screen.queryByText("API real")).toBeNull();
     expect(screen.getByText("Historial")).toBeTruthy();
     expect(screen.getByText("Cambio de estado")).toBeTruthy();
     expect(screen.getByText(/Pendiente\s*(->|→)\s*En curso/i)).toBeTruthy();
