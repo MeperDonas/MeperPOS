@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import Image from "next/image";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { Badge } from "@/components/ui/Badge";
 import {
   CreditCard,
@@ -244,14 +244,9 @@ export function PaymentConfirmationModal({
                     )}
                   </div>
 
-                  <Input
-                    type="number"
-                    step="100"
-                    min={0}
+                  <CurrencyInput
                     value={method.amount}
-                    onChange={(event) =>
-                      updateMethodAmount(index, Number(event.target.value || 0))
-                    }
+                    onChange={(value) => updateMethodAmount(index, value)}
                   />
                 </div>
               ))}
