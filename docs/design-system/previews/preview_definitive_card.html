@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Catálogo de Productos — Bento Definitivo (Motos)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/commit-mono@5.0.0/index.css">
+<style>
+  :root{
+    --ink-900:#12121c;
+    --ink-600:#4a4a5c;
+    --ink-400:#8a8a9c;
+    --page:#f2f1f8;
+    --surface:#ffffff;
+    --line:#e6e4f0;
+
+    --accent:#4a3aff;
+    --accent-ink:#3226c9;
+    --accent-soft:#edeaff;
+
+    --success:#0f9d68;
+    --success-soft:#e2f7ee;
+    --warning:#c07600;
+    --warning-soft:#fdf1dc;
+    --danger:#d0453f;
+    --danger-soft:#fbe9e8;
+    --neutral-soft:#f0eff7;
+
+    --lux-ink:#8a6a1f;
+    --lux-soft:#f7f0da;
+    --mech-ink:#434f5c;
+    --mech-soft:#e9edf1;
+    --elec-ink:#0b6fa8;
+    --elec-soft:#e1f2fb;
+
+    --font-display:'Space Grotesk', sans-serif;
+    --font-body:'Inter', sans-serif;
+    --font-mono:'Commit Mono', monospace;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 12% 8%, #eae7fb 0%, transparent 45%),
+      var(--page);
+    font-family:var(--font-body);
+    padding:48px 24px 72px;
+    min-height:100vh;
+  }
+
+  .page-head{
+    max-width:1280px;
+    margin:0 auto 32px;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+  .page-head .eyebrow{
+    font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--accent-ink); margin:0 0 6px;
+  }
+  .page-head h1{
+    font-family:var(--font-display);
+    font-size:26px; font-weight:600; letter-spacing:-0.01em;
+    color:var(--ink-900); margin:0;
+  }
+  .count-chip{
+    font-family:var(--font-mono);
+    font-size:12px; font-weight:600;
+    color:var(--accent-ink);
+    background:var(--accent-soft);
+    padding:7px 14px;
+    border-radius:999px;
+    white-space:nowrap;
+  }
+
+  .grid{
+    max-width:1280px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(270px,1fr));
+    gap:22px;
+    align-items:start;
+  }
+
+  /* ---------------- CARD (bento tray) ---------------- */
+  .card{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    grid-template-areas:
+      "media media"
+      "cat   sku"
+      "price stock"
+      "actions actions";
+    gap:8px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:28px;
+    padding:8px;
+    transition:transform .28s cubic-bezier(.2,.8,.2,1), box-shadow .28s cubic-bezier(.2,.8,.2,1), border-color .28s;
+  }
+  .card:hover{
+    transform:translateY(-4px);
+    border-color:#d6d2ee;
+    box-shadow:0 20px 40px -20px rgba(35,25,110,.28), 0 4px 10px rgba(18,18,28,.05);
+  }
+
+  .tile-media{
+    grid-area:media;
+    position:relative;
+    aspect-ratio:16/10;
+    overflow:hidden;
+    border-radius:18px;
+    background:var(--neutral-soft);
+  }
+  .tile-media img{
+    width:100%; height:100%;
+    object-fit:cover;
+    display:block;
+    transition:transform .6s cubic-bezier(.2,.8,.2,1);
+  }
+  .card:hover .tile-media img{ transform:scale(1.06); }
+  .tile-media::after{
+    content:"";
+    position:absolute; inset:auto 0 0 0; height:62%;
+    background:linear-gradient(to top, rgba(8,6,26,.72), transparent);
+    pointer-events:none;
+  }
+
+  .media-top{
+    position:absolute; top:10px; left:10px; right:10px;
+    display:flex; align-items:flex-start; justify-content:space-between;
+    z-index:2;
+  }
+  .pill{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:10px; font-weight:600; letter-spacing:.03em;
+    padding:5px 10px 5px 8px;
+    border-radius:999px;
+    background:rgba(255,255,255,.92);
+    backdrop-filter:blur(6px);
+  }
+  .pill .dot{ width:6px; height:6px; border-radius:50%; }
+  .status-active{ color:var(--success); } .status-active .dot{ background:var(--success); }
+  .status-low{ color:var(--warning); } .status-low .dot{ background:var(--warning); }
+  .status-off{ color:var(--ink-400); } .status-off .dot{ background:var(--ink-400); }
+
+  .menu-btn{
+    width:26px; height:26px;
+    border:none; border-radius:999px;
+    background:rgba(255,255,255,.92);
+    color:var(--ink-600);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    opacity:0;
+    transform:translateY(-4px);
+    transition:opacity .2s, transform .2s, color .2s, background .2s;
+  }
+  .card:hover .menu-btn, .menu-btn:focus-visible{ opacity:1; transform:translateY(0); }
+  .menu-btn:hover{ background:#fff; color:var(--accent-ink); }
+
+  .media-title{
+    position:absolute; left:12px; right:12px; bottom:11px; z-index:2;
+    font-family:var(--font-display);
+    font-size:15px; font-weight:600;
+    color:#fff;
+    line-height:1.25;
+  }
+
+  .tile{
+    border-radius:16px;
+    padding:11px 13px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+  }
+  .tile .label{
+    font-size:9.5px; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+    margin-bottom:4px;
+    opacity:.65;
+  }
+  .tile .value{
+    font-family:var(--font-mono);
+    font-size:14.5px; font-weight:600;
+  }
+
+  .tile-cat{ grid-area:cat; background:var(--accent-soft); }
+  .tile-cat .label{ color:var(--accent-ink); }
+  .tile-cat .value{
+    color:var(--accent-ink); font-family:var(--font-display); font-size:13.5px;
+    display:flex; align-items:center; gap:5px;
+  }
+  .cat-icon{ width:13px; height:13px; flex-shrink:0; }
+
+  .tile-cat.cat-lujos{ background:var(--lux-soft); }
+  .tile-cat.cat-lujos .label, .tile-cat.cat-lujos .value{ color:var(--lux-ink); }
+
+  .tile-cat.cat-mecanica{ background:var(--mech-soft); }
+  .tile-cat.cat-mecanica .label, .tile-cat.cat-mecanica .value{ color:var(--mech-ink); }
+
+  .tile-cat.cat-electricidad{ background:var(--elec-soft); }
+  .tile-cat.cat-electricidad .label, .tile-cat.cat-electricidad .value{ color:var(--elec-ink); }
+
+  .tile-cat.cat-accesorios{ background:var(--accent-soft); }
+  .tile-cat.cat-accesorios .label, .tile-cat.cat-accesorios .value{ color:var(--accent-ink); }
+
+  .tile-sku{ grid-area:sku; background:var(--neutral-soft); }
+  .tile-sku .label{ color:var(--ink-400); }
+  .tile-sku .value{ color:var(--ink-600); font-size:12.5px; }
+
+  .tile-price{
+    grid-area:price;
+    background:var(--accent);
+    color:#fff;
+  }
+  .tile-price .label{ color:rgba(255,255,255,.75); }
+  .tile-price .value{ font-size:19px; letter-spacing:-0.01em; }
+
+  .tile-stock{ grid-area:stock; }
+  .tile-stock.ok{ background:var(--success-soft); }
+  .tile-stock.low{ background:var(--warning-soft); }
+  .tile-stock.off{ background:var(--danger-soft); }
+  .tile-stock.ok .label{ color:var(--success); }
+  .tile-stock.low .label{ color:var(--warning); }
+  .tile-stock.off .label{ color:var(--danger); }
+  .tile-stock.ok .value{ color:var(--success); }
+  .tile-stock.low .value{ color:var(--warning); }
+  .tile-stock.off .value{ color:var(--danger); }
+
+  .meter-track{
+    margin-top:7px;
+    height:5px;
+    border-radius:999px;
+    background:rgba(0,0,0,.08);
+    overflow:hidden;
+  }
+  .meter-fill{ height:100%; border-radius:999px; }
+  .tile-stock.ok .meter-fill{ background:var(--success); }
+  .tile-stock.low .meter-fill{ background:var(--warning); }
+  .tile-stock.off .meter-fill{ background:var(--danger); }
+
+  .tile-actions{
+    grid-area:actions;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .action-btn{
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    padding:10px 6px;
+    background:var(--neutral-soft);
+    border:none;
+    border-radius:14px;
+    font-family:var(--font-body);
+    font-size:11.5px; font-weight:600;
+    color:var(--ink-600);
+    cursor:pointer;
+    transition:background .18s, color .18s;
+  }
+  .action-btn svg{ width:13px; height:13px; }
+  .action-btn:hover{ background:var(--accent-soft); color:var(--accent-ink); }
+  .action-btn.danger:hover{ background:var(--danger-soft); color:var(--danger); }
+  .action-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+
+  .card--off .tile-media img{ filter:grayscale(.6); }
+  .card--off .tile-price{ background:var(--ink-400); }
+
+  @media (prefers-reduced-motion: reduce){
+    .card, .tile-media img, .menu-btn{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Catálogo de productos</p>
+      <h1>Lujos · Accesorios · Electricidad · Mecánica</h1>
+    </div>
+    <span class="count-chip">10 productos</span>
+  </header>
+
+  <div class="grid">
+
+    <!-- 1. Lujos — Activo -->
+    <article class="card">
+      <div class="tile-media">
+        <img src="https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600&auto=format&fit=crop&q=85" alt="Casco integral de fibra de carbono" loading="lazy" />
+        <div class="media-top">
+          <span class="pill status-active"><span class="dot"></span>Activo</span>
+          <button class="menu-btn" aria-label="Más opciones">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </button>
+        </div>
+        <h3 class="media-title">Casco Integral Fibra de Carbono</h3>
+      </div>
+
+      <div class="tile tile-cat cat-lujos">
+        <p class="label">Categoría</p>
+        <p class="value">
+          <svg class="cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Lujos
+        </p>
+      </div>
+      <div class="tile tile-sku">
+        <p class="label">SKU</p>
+        <p class="value">MCF-L-001</p>
+      </div>
+
+      <div class="tile tile-price">
+        <p class="label">Precio</p>
+        <p class="value">$850.000</p>
+      </div>
+      <div class="tile tile-stock ok">
+        <p class="label">Inventario</p>
+        <p class="value">12 uds.</p>
+        <div class="meter-track"><div class="meter-fill" style="width:27%"></div></div>
+      </div>
+
+      <div class="tile-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Editar
+        </button>
+        <button class="action-btn danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Desactivar
+        </button>
+      </div>
+    </article>
+
+    <!-- 2. Mecánica — Stock bajo -->
+    <article class="card">
+      <div class="tile-media">
+        <img src="https://images.unsplash.com/photo-1599819811279-d5064ce6f35b?w=600&auto=format&fit=crop&q=85" alt="Escape deportivo full system" loading="lazy" />
+        <div class="media-top">
+          <span class="pill status-low"><span class="dot"></span>Stock bajo</span>
+          <button class="menu-btn" aria-label="Más opciones">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </button>
+        </div>
+        <h3 class="media-title">Escape Deportivo Full System</h3>
+      </div>
+
+      <div class="tile tile-cat cat-mecanica">
+        <p class="label">Categoría</p>
+        <p class="value">
+          <svg class="cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Mecánica
+        </p>
+      </div>
+      <div class="tile tile-sku">
+        <p class="label">SKU</p>
+        <p class="value">MCF-M-042</p>
+      </div>
+
+      <div class="tile tile-price">
+        <p class="label">Precio</p>
+        <p class="value">$1.200.000</p>
+      </div>
+      <div class="tile tile-stock low">
+        <p class="label">Inventario</p>
+        <p class="value">2 uds.</p>
+        <div class="meter-track"><div class="meter-fill" style="width:6%"></div></div>
+      </div>
+
+      <div class="tile-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Editar
+        </button>
+        <button class="action-btn danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Desactivar
+        </button>
+      </div>
+    </article>
+
+    <!-- 3. Mecánica — Activo -->
+    <article class="card">
+      <div class="tile-media">
+        <img src="https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=600&auto=format&fit=crop&q=85" alt="Kit de arrastre reforzado con retenes O-Ring" loading="lazy" />
+        <div class="media-top">
+          <span class="pill status-active"><span class="dot"></span>Activo</span>
+          <button class="menu-btn" aria-label="Más opciones">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </button>
+        </div>
+        <h3 class="media-title">Kit de Arrastre Reforzado O-Ring</h3>
+      </div>
+
+      <div class="tile tile-cat cat-mecanica">
+        <p class="label">Categoría</p>
+        <p class="value">
+          <svg class="cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Mecánica
+        </p>
+      </div>
+      <div class="tile tile-sku">
+        <p class="label">SKU</p>
+        <p class="value">MCF-M-105</p>
+      </div>
+
+      <div class="tile tile-price">
+        <p class="label">Precio</p>
+        <p class="value">$180.000</p>
+      </div>
+      <div class="tile tile-stock ok">
+        <p class="label">Inventario</p>
+        <p class="value">35 uds.</p>
+        <div class="meter-track"><div class="meter-fill" style="width:78%"></div></div>
+      </div>
+
+      <div class="tile-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Editar
+        </button>
+        <button class="action-btn danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Desactivar
+        </button>
+      </div>
+    </article>
+
+    <!-- 4. Electricidad — Agotado -->
+    <article class="card card--off">
+      <div class="tile-media">
+        <img src="https://images.unsplash.com/photo-1590212002161-54256eb28f09?w=600&auto=format&fit=crop&q=85" alt="Faro principal LED ojo de ángel" loading="lazy" />
+        <div class="media-top">
+          <span class="pill status-off"><span class="dot"></span>Agotado</span>
+          <button class="menu-btn" aria-label="Más opciones">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </button>
+        </div>
+        <h3 class="media-title">Faro Principal LED Ojo de Ángel</h3>
+      </div>
+
+      <div class="tile tile-cat cat-electricidad">
+        <p class="label">Categoría</p>
+        <p class="value">
+          <svg class="cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Electricidad
+        </p>
+      </div>
+      <div class="tile tile-sku">
+        <p class="label">SKU</p>
+        <p class="value">MCF-E-008</p>
+      </div>
+
+      <div class="tile tile-price">
+        <p class="label">Precio</p>
+        <p class="value">$95.000</p>
+      </div>
+      <div class="tile tile-stock off">
+        <p class="label">Inventario</p>
+        <p class="value">0 uds.</p>
+        <div class="meter-track"><div class="meter-fill" style="width:3%"></div></div>
+      </div>
+
+      <div class="tile-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Editar
+        </button>
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Reactivar
+        </button>
+      </div>
+    </article>
+
+    <!-- 5. Electricidad — Activo -->
+    <article class="card">
+      <div class="tile-media">
+        <img src="https://images.unsplash.com/photo-1620021217036-7cb80373e91f?w=600&auto=format&fit=crop&q=85" alt="Batería de gel 12V libre de mantenimiento" loading="lazy" />
+        <div class="media-top">
+          <span class="pill status-active"><span class="dot"></span>Activo</span>
+          <button class="menu-btn" aria-label="Más opciones">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </button>
+        </div>
+        <h3 class="media-title">Batería de Gel 12V 7A Libre Mantenimiento</h3>
+      </div>
+
+      <div class="tile tile-cat cat-electricidad">
+        <p class="label">Categoría</p>
+        <p class="value">
+          <svg class="cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Electricidad
+        </p>
+      </div>
+      <div class="tile tile-sku">
+        <p class="label">SKU</p>
+        <p class="value">MCF-E-022</p>
+      </div>
+
+      <div class="tile tile-price">
+        <p class="label">Precio</p>
+        <p class="value">$120.000</p>
+      </div>
+      <div class="tile tile-stock ok">
+        <p class="label">Inventario</p>
+        <p class="value">40 uds.</p>
+        <div class="meter-track"><div class="meter-fill" style="width:89%"></div></div>
+      </div>
+
+      <div class="tile-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Editar
+        </button>
+        <button class="action-btn danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Desactivar
+        </button>
+      </div>
+    </article>
+
+    <!-- 6. Lujos — Activo -->
+    <article class="card">
+      <div class="tile-media">
+        <img src="https://images.unsplash.com/photo-1616892543599-28c0b5e40e6c?w=600&auto=format&fit=crop&q=85" alt="Espejos retrovisores CNC de aluminio" loading="lazy" />
+        <div class="media-top">
+          <span class="pill status-active"><span class="dot"></span>Activo</span>
+          <button class="menu-btn" aria-label="Más opciones">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </button>
+        </div>
+        <h3 class="media-title">Espejos Retrovisores CNC Aluminio</h3>
+      </div>
+
+      <div class="tile tile-cat cat-lujos">
+        <p class="label">Categoría</p>
+        <p class="value">
+          <svg class="cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Lujos
+        </p>
+      </div>
+      <div class="tile tile-sku">
+        <p class="label">SKU</p>
+        <p class="value">MCF-L-014</p>
+      </div>
+
+      <div class="tile tile-price">
+        <p class="label">Precio</p>
+        <p class="value">$145.000</p>
+      </div>
+      <div class="tile tile-stock ok">
+        <p class="label">Inventario</p>
+        <p class="value">18 uds.</p>
+        <div class="meter-track"><div class="meter-fill" style="width:40%"></div></div>
+      </div>
+
+      <div class="tile-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Editar
+        </button>
+        <button class="action-btn danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Desactivar
+        </button>
+      </div>
+    </article>
+
+    <!-- 7. Mecánica — Stock bajo -->
+    <article class="card">
+      <div class="tile-media">
+        <img src="https://images.unsplash.com/photo-1635363536894-399bf0e29ba7?w=600&auto=format&fit=crop&q=85" alt="Aceite sintético 10W-40 4 tiempos" loading="lazy" />
+        <div class="media-top">
+          <span class="pill status-low"><span class="dot"></span>Stock bajo</span>
+          <button class="menu-btn" aria-label="Más opciones">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </button>
+        </div>
+        <h3 class="media-title">Aceite Sintético 10W-40 4T</h3>
+      </div>
+
+      <div class="tile tile-cat cat-mecanica">
+        <p class="label">Categoría</p>
+        <p class="value">
+          <svg class="cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Mecánica
+        </p>
+      </div>
+      <div class="tile tile-sku">
+        <p class="label">SKU</p>
+        <p class="value">MCF-M-201</p>
+      </div>
+
+      <div class="tile tile-price">
+        <p class="label">Precio</p>
+        <p class="value">$45.000</p>
+      </div>
+      <div class="tile tile-stock low">
+        <p class="label">Inventario</p>
+        <p class="value">4 uds.</p>
+        <div class="meter-track"><div class="meter-fill" style="width:9%"></div></div>
+      </div>
+
+      <div class="tile-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Editar
+        </button>
+        <button class="action-btn danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Desactivar
+        </button>
+      </div>
+    </article>
+
+    <!-- 8. Accesorios — Activo -->
+    <article class="card">
+      <div class="tile-media">
+        <img src="https://images.unsplash.com/photo-1515569067071-ec3b51335dd0?w=600&auto=format&fit=crop&q=85" alt="Guantes de cuero estilo racing" loading="lazy" />
+        <div class="media-top">
+          <span class="pill status-active"><span class="dot"></span>Activo</span>
+          <button class="menu-btn" aria-label="Más opciones">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </button>
+        </div>
+        <h3 class="media-title">Guantes de Cuero Estilo Racing</h3>
+      </div>
+
+      <div class="tile tile-cat cat-accesorios">
+        <p class="label">Categoría</p>
+        <p class="value">
+          <svg class="cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/></svg>
+          Accesorios
+        </p>
+      </div>
+      <div class="tile tile-sku">
+        <p class="label">SKU</p>
+        <p class="value">MCF-A-033</p>
+      </div>
+
+      <div class="tile tile-price">
+        <p class="label">Precio</p>
+        <p class="value">$110.000</p>
+      </div>
+      <div class="tile tile-stock ok">
+        <p class="label">Inventario</p>
+        <p class="value">22 uds.</p>
+        <div class="meter-track"><div class="meter-fill" style="width:49%"></div></div>
+      </div>
+
+      <div class="tile-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Editar
+        </button>
+        <button class="action-btn danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Desactivar
+        </button>
+      </div>
+    </article>
+
+    <!-- 9. Mecánica — Agotado -->
+    <article class="card card--off">
+      <div class="tile-media">
+        <img src="https://images.unsplash.com/photo-1558980394-4c7c9299fe96?w=600&auto=format&fit=crop&q=85" alt="Amortiguador trasero de gas de competición" loading="lazy" />
+        <div class="media-top">
+          <span class="pill status-off"><span class="dot"></span>Agotado</span>
+          <button class="menu-btn" aria-label="Más opciones">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </button>
+        </div>
+        <h3 class="media-title">Amortiguador Trasero de Gas Competición</h3>
+      </div>
+
+      <div class="tile tile-cat cat-mecanica">
+        <p class="label">Categoría</p>
+        <p class="value">
+          <svg class="cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Mecánica
+        </p>
+      </div>
+      <div class="tile tile-sku">
+        <p class="label">SKU</p>
+        <p class="value">MCF-M-088</p>
+      </div>
+
+      <div class="tile tile-price">
+        <p class="label">Precio</p>
+        <p class="value">$450.000</p>
+      </div>
+      <div class="tile tile-stock off">
+        <p class="label">Inventario</p>
+        <p class="value">0 uds.</p>
+        <div class="meter-track"><div class="meter-fill" style="width:3%"></div></div>
+      </div>
+
+      <div class="tile-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Editar
+        </button>
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Reactivar
+        </button>
+      </div>
+    </article>
+
+    <!-- 10. Electricidad — Activo -->
+    <article class="card">
+      <div class="tile-media">
+        <img src="https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600&auto=format&fit=crop&q=85" alt="Kit de intermitentes LED secuenciales" loading="lazy" />
+        <div class="media-top">
+          <span class="pill status-active"><span class="dot"></span>Activo</span>
+          <button class="menu-btn" aria-label="Más opciones">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          </button>
+        </div>
+        <h3 class="media-title">Kit Intermitentes LED Secuenciales</h3>
+      </div>
+
+      <div class="tile tile-cat cat-electricidad">
+        <p class="label">Categoría</p>
+        <p class="value">
+          <svg class="cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Electricidad
+        </p>
+      </div>
+      <div class="tile tile-sku">
+        <p class="label">SKU</p>
+        <p class="value">MCF-E-055</p>
+      </div>
+
+      <div class="tile tile-price">
+        <p class="label">Precio</p>
+        <p class="value">$85.000</p>
+      </div>
+      <div class="tile tile-stock ok">
+        <p class="label">Inventario</p>
+        <p class="value">14 uds.</p>
+        <div class="meter-track"><div class="meter-fill" style="width:31%"></div></div>
+      </div>
+
+      <div class="tile-actions">
+        <button class="action-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Editar
+        </button>
+        <button class="action-btn danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Desactivar
+        </button>
+      </div>
+    </article>
+
+  </div>
+
+</body>
+</html>

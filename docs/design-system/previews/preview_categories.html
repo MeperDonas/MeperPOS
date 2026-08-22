@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeperPOS - Categorías (Kinetic Bento Preview)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @import url('https://cdn.jsdelivr.net/npm/@fontsource/commit-mono@5.0.0/index.css');
+    
+    body {
+      font-family: 'Hanken Grotesk', sans-serif;
+      background-color: #faf8ff;
+      color: #131b2e;
+    }
+    .font-mono-commit {
+      font-family: 'Commit Mono', monospace;
+    }
+  </style>
+</head>
+<body class="flex h-screen overflow-hidden antialiased bg-[#faf8ff] text-[#131b2e]">
+
+  <!-- SIDEBAR (Fixed 320px) -->
+  <aside class="w-[320px] h-full flex flex-col border-r border-[#c7c4d7]/60 bg-white p-5 overflow-y-auto shrink-0">
+    <!-- Brand Header -->
+    <div class="flex items-center gap-3 mb-4 px-1">
+      <div class="w-8 h-8 rounded-xl bg-[#4648d4] flex items-center justify-center text-white shadow-sm shadow-[#4648d4]/30">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      </div>
+      <h1 class="text-xl font-bold tracking-tight text-[#131b2e]">MeperPOS</h1>
+    </div>
+
+    <!-- User Card (Bento Module) -->
+    <div class="rounded-2xl border border-[#c7c4d7]/60 bg-[#faf8ff] p-4 flex flex-col gap-3 mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-[#6063ee]/15 text-[#4648d4] flex items-center justify-center font-bold text-sm">
+          KA
+        </div>
+        <div class="flex flex-col min-w-0">
+          <span class="font-semibold text-[#131b2e] text-sm truncate">Karen Aparicio</span>
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-[#dae2fd] text-[#464554] font-mono-commit text-[10px] w-max mt-0.5">
+            Administrador
+          </span>
+        </div>
+      </div>
+      <div class="flex items-center justify-between border-t border-[#c7c4d7]/40 pt-2.5">
+        <!-- Theme Switch -->
+        <div class="flex items-center bg-[#dae2fd]/60 rounded-lg p-0.5">
+          <button class="p-1 rounded-md bg-white shadow-xs text-[#4648d4] flex items-center justify-center">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <circle cx="12" cy="12" r="5" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+            </svg>
+          </button>
+          <button class="p-1 rounded-md text-[#464554] hover:text-[#131b2e] transition flex items-center justify-center">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </button>
+        </div>
+        <!-- Logout -->
+        <button class="p-1.5 rounded-lg text-[#a43a3d] hover:bg-[#a43a3d]/10 transition flex items-center justify-center" title="Cerrar sesión">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        </button>
+      </div>
+      <!-- Date Chip -->
+      <div class="font-mono-commit text-[11px] text-[#464554] text-center bg-[#eaedff] py-1.5 rounded-lg">
+        21 Aug 2026, 12:15 PM
+      </div>
+    </div>
+
+    <!-- Navigation List -->
+    <nav class="flex flex-col gap-1">
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 transition text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 transition text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span>POS</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 transition text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+        <span>Ventas</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 transition text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Clientes</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 transition text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <span>Inventario</span>
+      </a>
+      <!-- Active Item: Categorías -->
+      <a class="flex items-center gap-3 bg-[#6063ee]/15 text-[#4648d4] font-semibold rounded-xl px-3.5 py-2 relative after:absolute after:left-0 after:w-1 after:h-2/3 after:bg-[#4648d4] after:rounded-r-full text-sm" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Categorías</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 transition text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <span>Proveedores</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="flex-1 h-full p-8 overflow-y-auto bg-[#faf8ff]">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <div class="w-1 h-6 bg-[#4648d4] rounded-full"></div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-2xl font-bold text-[#131b2e] tracking-tight">Categorías</h2>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-[#eaedff] text-[#4648d4] font-mono-commit text-xs font-semibold">
+              2 categorías
+            </span>
+          </div>
+          <p class="text-xs text-[#464554] mt-0.5">Organiza tu catálogo de productos</p>
+        </div>
+      </div>
+
+      <button class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#4648d4] text-white text-xs font-semibold hover:bg-[#6063ee] transition shadow-sm shadow-[#4648d4]/20">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nueva Categoría
+      </button>
+    </div>
+
+    <!-- Search Bar Bento Card -->
+    <div class="rounded-2xl border border-[#c7c4d7]/60 bg-white p-3 mb-6 flex items-center justify-between gap-4 shadow-xs">
+      <div class="relative w-full md:w-96">
+        <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#767586]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input 
+          type="text" 
+          placeholder="Buscar categorías..." 
+          class="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-[#faf8ff] border border-[#c7c4d7]/40 focus:outline-none focus:border-[#4648d4] text-[#131b2e]"
+        />
+      </div>
+    </div>
+
+    <!-- Category Cards Grid (4 columns on lg) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+      <!-- Card 1: Exploradoras (Electricidad / Luces) -->
+      <div class="rounded-2xl border border-[#c7c4d7]/60 bg-white p-4 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition group cursor-pointer">
+        <div>
+          <!-- Top Row: Icon + Quick Actions -->
+          <div class="flex items-start justify-between mb-3">
+            <div class="w-11 h-11 rounded-xl bg-[#e1f2fb] text-[#0b6fa8] flex items-center justify-center font-bold text-sm">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+            </div>
+
+            <!-- Visible Tactile Actions -->
+            <div class="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition">
+              <button class="p-1.5 rounded-lg border border-[#c7c4d7]/60 text-[#464554] hover:text-[#4648d4] hover:border-[#4648d4] transition" title="Editar">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+              </button>
+              <button class="p-1.5 rounded-lg border border-[#c7c4d7]/60 text-[#464554] hover:text-[#a43a3d] hover:bg-[#ffdad6]/40 transition" title="Eliminar">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Content -->
+          <h3 class="font-bold text-[#131b2e] text-[15px] leading-tight group-hover:text-[#4648d4] transition">
+            Exploradoras
+          </h3>
+          <p class="text-xs text-[#464554] mt-1 line-clamp-2">
+            Todas las exploradoras incluyendo MotorLights, Dimo, TurboLed
+          </p>
+        </div>
+
+        <!-- Footer Bento -->
+        <div class="border-t border-[#c7c4d7]/30 pt-2.5 flex items-center justify-between text-xs">
+          <div class="flex items-center gap-1.5 text-[#464554]">
+            <svg class="w-3.5 h-3.5 text-[#767586]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+            <span class="font-mono-commit font-semibold text-[#131b2e]">0 productos</span>
+          </div>
+          <span class="font-mono-commit text-[11px] text-[#767586] bg-[#faf8ff] px-2 py-0.5 rounded-full border border-[#c7c4d7]/40">
+            Sin impuesto
+          </span>
+        </div>
+      </div>
+
+      <!-- Card 2: Test productos 1 -->
+      <div class="rounded-2xl border border-[#c7c4d7]/60 bg-white p-4 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition group cursor-pointer">
+        <div>
+          <div class="flex items-start justify-between mb-3">
+            <div class="w-11 h-11 rounded-xl bg-[#eaedff] text-[#4648d4] flex items-center justify-center font-bold text-sm">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+              </svg>
+            </div>
+
+            <div class="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition">
+              <button class="p-1.5 rounded-lg border border-[#c7c4d7]/60 text-[#464554] hover:text-[#4648d4] hover:border-[#4648d4] transition" title="Editar">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+              </button>
+              <button class="p-1.5 rounded-lg border border-[#c7c4d7]/60 text-[#464554] hover:text-[#a43a3d] hover:bg-[#ffdad6]/40 transition" title="Eliminar">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <h3 class="font-bold text-[#131b2e] text-[15px] leading-tight group-hover:text-[#4648d4] transition">
+            Test productos 1
+          </h3>
+          <p class="text-xs text-[#464554] mt-1 line-clamp-2">
+            test1
+          </p>
+        </div>
+
+        <div class="border-t border-[#c7c4d7]/30 pt-2.5 flex items-center justify-between text-xs">
+          <div class="flex items-center gap-1.5 text-[#464554]">
+            <svg class="w-3.5 h-3.5 text-[#767586]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+            <span class="font-mono-commit font-semibold text-[#131b2e]">1 producto</span>
+          </div>
+          <span class="font-mono-commit text-[11px] text-[#767586] bg-[#faf8ff] px-2 py-0.5 rounded-full border border-[#c7c4d7]/40">
+            Sin impuesto
+          </span>
+        </div>
+      </div>
+
+      <!-- Card 3: Lujos & Protección (Showcase) -->
+      <div class="rounded-2xl border border-[#c7c4d7]/60 bg-white p-4 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition group cursor-pointer">
+        <div>
+          <div class="flex items-start justify-between mb-3">
+            <div class="w-11 h-11 rounded-xl bg-[#f7f0da] text-[#8a6a1f] flex items-center justify-center font-bold text-sm">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </div>
+
+            <div class="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition">
+              <button class="p-1.5 rounded-lg border border-[#c7c4d7]/60 text-[#464554] hover:text-[#4648d4] hover:border-[#4648d4] transition" title="Editar">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+              </button>
+              <button class="p-1.5 rounded-lg border border-[#c7c4d7]/60 text-[#464554] hover:text-[#a43a3d] hover:bg-[#ffdad6]/40 transition" title="Eliminar">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <h3 class="font-bold text-[#131b2e] text-[15px] leading-tight group-hover:text-[#4648d4] transition">
+            Lujos & Protección
+          </h3>
+          <p class="text-xs text-[#464554] mt-1 line-clamp-2">
+            Cascos certificados, sliders, protectores de motor y maniguetas CNC
+          </p>
+        </div>
+
+        <div class="border-t border-[#c7c4d7]/30 pt-2.5 flex items-center justify-between text-xs">
+          <div class="flex items-center gap-1.5 text-[#464554]">
+            <svg class="w-3.5 h-3.5 text-[#767586]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+            <span class="font-mono-commit font-semibold text-[#131b2e]">14 productos</span>
+          </div>
+          <span class="font-mono-commit text-[11px] text-[#0f9d68] bg-[#e2f7ee] px-2 py-0.5 rounded-full border border-emerald-200">
+            IVA 19%
+          </span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+</body>
+</html>

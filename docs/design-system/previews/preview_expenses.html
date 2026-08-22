@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeperPOS - Salidas / Gastos (Kinetic Bento Preview)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @import url('https://cdn.jsdelivr.net/npm/@fontsource/commit-mono@5.0.0/index.css');
+    
+    body {
+      font-family: 'Hanken Grotesk', sans-serif;
+      background-color: #faf8ff;
+      color: #131b2e;
+    }
+    .font-mono-commit {
+      font-family: 'Commit Mono', monospace;
+    }
+    .tab-btn.active {
+      background-color: #4648d4;
+      color: #ffffff;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body class="flex h-screen overflow-hidden antialiased bg-[#faf8ff] text-[#131b2e]">
+
+  <!-- SIDEBAR (Fixed 320px) -->
+  <aside class="w-[320px] h-full flex flex-col border-r border-[#c7c4d7]/60 bg-white p-5 overflow-y-auto shrink-0">
+    <div class="flex items-center gap-3 mb-4 px-1">
+      <div class="w-8 h-8 rounded-xl bg-[#4648d4] flex items-center justify-center text-white shadow-sm shadow-[#4648d4]/30">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      </div>
+      <h1 class="text-xl font-bold tracking-tight text-[#131b2e]">MeperPOS</h1>
+    </div>
+
+    <!-- User Card -->
+    <div class="rounded-2xl border border-[#c7c4d7]/60 bg-[#faf8ff] p-4 flex flex-col gap-3 mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-[#6063ee]/15 text-[#4648d4] flex items-center justify-center font-bold text-sm">KA</div>
+        <div class="flex flex-col min-w-0">
+          <span class="font-semibold text-[#131b2e] text-sm truncate">Karen Aparicio</span>
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-[#dae2fd] text-[#464554] font-mono-commit text-[10px] w-max mt-0.5">Administrador</span>
+        </div>
+      </div>
+      <div class="flex items-center justify-between border-t border-[#c7c4d7]/40 pt-2.5">
+        <div class="flex items-center bg-[#dae2fd]/60 rounded-lg p-0.5">
+          <button class="p-1 rounded-md bg-white shadow-xs text-[#4648d4] flex items-center justify-center">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="5" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></svg>
+          </button>
+          <button class="p-1 rounded-md text-[#464554] flex items-center justify-center">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+          </button>
+        </div>
+        <button class="p-1.5 rounded-lg text-[#a43a3d] hover:bg-[#a43a3d]/10 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+        </button>
+      </div>
+      <div class="font-mono-commit text-[11px] text-[#464554] text-center bg-[#eaedff] py-1.5 rounded-lg">21 Aug 2026, 12:50 PM</div>
+    </div>
+
+    <!-- Navigation List -->
+    <nav class="flex flex-col gap-1">
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span>POS</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+        <span>Ventas</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Clientes</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <span>Inventario</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Categorías</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <span>Proveedores</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span>Compras</span>
+      </a>
+      <!-- Active Item: Salidas / Gastos -->
+      <a class="flex items-center gap-3 bg-[#6063ee]/15 text-[#4648d4] font-semibold rounded-xl px-3.5 py-2 relative after:absolute after:left-0 after:w-1 after:h-2/3 after:bg-[#4648d4] after:rounded-r-full text-sm" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Salidas</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- MAIN CONTAINER WITH MULTI-VIEW TABS -->
+  <main class="flex-1 h-full flex flex-col overflow-hidden bg-[#faf8ff]">
+    
+    <!-- Top Multi-View Switcher -->
+    <div class="px-8 pt-5 pb-3.5 border-b border-[#c7c4d7]/40 bg-white flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="font-mono-commit text-xs font-bold text-[#4648d4] bg-[#eaedff] px-2.5 py-1 rounded-lg">MÓDULO SALIDAS</span>
+        <span class="text-xs text-[#767586]">Explorador de vistas sin scroll:</span>
+      </div>
+
+      <div class="flex items-center gap-1.5 bg-[#faf8ff] border border-[#c7c4d7]/60 p-1 rounded-xl">
+        <button onclick="switchView('list')" id="tab-list" class="tab-btn active px-3 py-1.5 rounded-lg text-xs font-semibold transition">1. Vista Principal</button>
+        <button onclick="switchView('new-modal')" id="tab-new-modal" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-[#464554] hover:bg-[#eaedff] transition">2. Modal Nuevo Gasto</button>
+        <button onclick="switchView('detail-no-receipt')" id="tab-detail-no-receipt" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-[#464554] hover:bg-[#eaedff] transition">3. Detalle (Sin Factura)</button>
+        <button onclick="switchView('detail-with-receipt')" id="tab-detail-with-receipt" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-[#464554] hover:bg-[#eaedff] transition">4. Detalle (Con Factura - Sin Scroll)</button>
+      </div>
+    </div>
+
+    <!-- CONTENT BODY -->
+    <div class="flex-1 p-8 overflow-y-auto">
+
+      <!-- ========================================================= -->
+      <!-- VIEW 1: LISTA PRINCIPAL DE SALIDAS (SIN ACUMULACIÓN DE CARDS) -->
+      <!-- ========================================================= -->
+      <div id="view-list" class="space-y-5">
+        <!-- Header -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-1 h-6 bg-[#4648d4] rounded-full"></div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-2xl font-bold text-[#131b2e] tracking-tight">Salidas</h2>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-[#eaedff] text-[#4648d4] font-mono-commit text-xs font-semibold">4 registros</span>
+              </div>
+              <p class="text-xs text-[#464554] mt-0.5">Registra los gastos y pagos de tu negocio</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <div class="flex items-center bg-white border border-[#c7c4d7]/60 rounded-xl overflow-hidden shadow-xs">
+              <select class="text-xs font-semibold text-[#464554] bg-transparent py-2 pl-3 pr-2 border-r border-[#c7c4d7]/40 focus:outline-none"><option>Excel</option><option>CSV</option></select>
+              <button class="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-[#4648d4] hover:bg-[#eaedff] transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exportar</button>
+            </div>
+            <button onclick="switchView('new-modal')" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#4648d4] text-white text-xs font-semibold hover:bg-[#6063ee] transition shadow-sm shadow-[#4648d4]/20">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nuevo gasto
+            </button>
+          </div>
+        </div>
+
+        <!-- 3 FIXED KPI BENTO CARDS (SIN PROLIFERACIÓN DE 20 TARJETAS POR CATEGORÍA) -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="rounded-2xl border border-[#4648d4]/30 bg-[#eaedff]/30 p-4.5 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[11px] font-bold uppercase text-[#4648d4] tracking-wider">TOTAL DEL MES</span>
+              <span class="font-mono-commit text-[10px] text-[#4648d4] bg-white border border-[#4648d4]/20 px-2 py-0.5 rounded-md font-semibold">2026-08</span>
+            </div>
+            <p class="font-mono-commit text-2xl font-bold text-[#131b2e] mt-2">$ 3.315.000</p>
+          </div>
+
+          <div class="rounded-2xl border border-[#c7c4d7]/60 bg-white p-4.5 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[11px] font-bold uppercase text-emerald-700 tracking-wider">TOTAL PAGADO</span>
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-mono-commit font-bold">100%</span>
+            </div>
+            <p class="font-mono-commit text-2xl font-bold text-emerald-700 mt-2">$ 3.315.000</p>
+          </div>
+
+          <div class="rounded-2xl border border-[#c7c4d7]/60 bg-white p-4.5 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[11px] font-bold uppercase text-[#767586] tracking-wider">SALDO PENDIENTE</span>
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded-full bg-[#faf8ff] text-[#767586] text-[10px] font-mono-commit font-semibold">0 facturas</span>
+            </div>
+            <p class="font-mono-commit text-2xl font-bold text-[#131b2e] mt-2">$ 0</p>
+          </div>
+        </div>
+
+        <!-- Filter Bar Bento -->
+        <div class="rounded-2xl border border-[#c7c4d7]/60 bg-white p-3 flex flex-col lg:flex-row items-center justify-between gap-3 shadow-xs">
+          <div class="relative w-full lg:w-72">
+            <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#767586]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="Buscar por descripción..." class="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-[#faf8ff] border border-[#c7c4d7]/40 focus:outline-none focus:border-[#4648d4] text-[#131b2e]"/>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            <input type="month" value="2026-08" class="bg-[#faf8ff] border border-[#c7c4d7]/60 text-xs rounded-xl px-3 py-2 font-mono-commit text-[#131b2e]"/>
+            <select class="bg-[#faf8ff] border border-[#c7c4d7]/60 text-xs rounded-xl px-3 py-2 text-[#131b2e]"><option>Todas las categorías</option><option>Salida de empleados</option><option>Caja menor</option><option>Pago mensual</option><option>Arriendo</option></select>
+            <select class="bg-[#faf8ff] border border-[#c7c4d7]/60 text-xs rounded-xl px-3 py-2 text-[#131b2e]"><option>Todos los proveedores</option></select>
+            <select class="bg-[#faf8ff] border border-[#c7c4d7]/60 text-xs rounded-xl px-3 py-2 text-[#131b2e]"><option>Todos los estados</option><option>Pagado</option><option>Parcial</option></select>
+          </div>
+        </div>
+
+        <!-- Table Bento Card -->
+        <div class="rounded-2xl border border-[#c7c4d7]/60 bg-white overflow-hidden shadow-xs">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-[#c7c4d7]/40 bg-[#faf8ff] text-[11px] font-bold text-[#767586] uppercase tracking-wider">
+                <th class="py-3.5 px-5">FECHA</th>
+                <th class="py-3.5 px-4">CATEGORÍA</th>
+                <th class="py-3.5 px-4">DESCRIPCIÓN</th>
+                <th class="py-3.5 px-4">PROVEEDOR</th>
+                <th class="py-3.5 px-4">ESTADO</th>
+                <th class="py-3.5 px-4 text-right">TOTAL</th>
+                <th class="py-3.5 px-5 text-center">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[#c7c4d7]/30 text-xs">
+              <tr class="hover:bg-[#faf8ff] transition group cursor-pointer" onclick="switchView('detail-no-receipt')">
+                <td class="py-3 px-5 font-mono-commit text-[#464554]">20 de agosto de 2026</td>
+                <td class="py-3 px-4 font-semibold text-[#131b2e]">Salida de empleados</td>
+                <td class="py-3 px-4 text-[#464554]">Adelanto quincena harvien</td>
+                <td class="py-3 px-4 text-[#767586]">—</td>
+                <td class="py-3 px-4"><span class="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-mono-commit text-[11px] font-semibold border border-emerald-200">Pagado</span></td>
+                <td class="py-3 px-4 text-right font-mono-commit font-bold text-[#131b2e]">$ 350.000</td>
+                <td class="py-3 px-5 text-center">
+                  <button class="p-1.5 rounded-lg border border-[#c7c4d7]/60 text-[#464554] hover:text-[#4648d4] transition" title="Ver detalle"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                </td>
+              </tr>
+              <tr class="hover:bg-[#faf8ff] transition group cursor-pointer" onclick="switchView('detail-with-receipt')">
+                <td class="py-3 px-5 font-mono-commit text-[#464554]">20 de agosto de 2026</td>
+                <td class="py-3 px-4 font-semibold text-[#131b2e]">Pago mensual</td>
+                <td class="py-3 px-4 text-[#464554]">Sueldo Kevin</td>
+                <td class="py-3 px-4 text-[#767586]">—</td>
+                <td class="py-3 px-4"><span class="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-mono-commit text-[11px] font-semibold border border-emerald-200">Pagado</span></td>
+                <td class="py-3 px-4 text-right font-mono-commit font-bold text-[#131b2e]">$ 1.750.000</td>
+                <td class="py-3 px-5 text-center">
+                  <button class="p-1.5 rounded-lg border border-[#c7c4d7]/60 text-[#464554] hover:text-[#4648d4] transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                </td>
+              </tr>
+              <tr class="hover:bg-[#faf8ff] transition group cursor-pointer" onclick="switchView('detail-no-receipt')">
+                <td class="py-3 px-5 font-mono-commit text-[#464554]">20 de agosto de 2026</td>
+                <td class="py-3 px-4 font-semibold text-[#131b2e]">Arriendo</td>
+                <td class="py-3 px-4 text-[#464554]">Arriendo del mes de agosto</td>
+                <td class="py-3 px-4 text-[#767586]">—</td>
+                <td class="py-3 px-4"><span class="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-mono-commit text-[11px] font-semibold border border-emerald-200">Pagado</span></td>
+                <td class="py-3 px-4 text-right font-mono-commit font-bold text-[#131b2e]">$ 1.115.000</td>
+                <td class="py-3 px-5 text-center">
+                  <button class="p-1.5 rounded-lg border border-[#c7c4d7]/60 text-[#464554] hover:text-[#4648d4] transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                </td>
+              </tr>
+              <tr class="hover:bg-[#faf8ff] transition group cursor-pointer" onclick="switchView('detail-no-receipt')">
+                <td class="py-3 px-5 font-mono-commit text-[#464554]">20 de agosto de 2026</td>
+                <td class="py-3 px-4 font-semibold text-[#131b2e]">Caja menor</td>
+                <td class="py-3 px-4 text-[#464554]">Compras para la casa</td>
+                <td class="py-3 px-4 text-[#767586]">—</td>
+                <td class="py-3 px-4"><span class="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-mono-commit text-[11px] font-semibold border border-emerald-200">Pagado</span></td>
+                <td class="py-3 px-4 text-right font-mono-commit font-bold text-[#131b2e]">$ 100.000</td>
+                <td class="py-3 px-5 text-center">
+                  <button class="p-1.5 rounded-lg border border-[#c7c4d7]/60 text-[#464554] hover:text-[#4648d4] transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- VIEW 2: MODAL NUEVO GASTO -->
+      <!-- ========================================================= -->
+      <div id="view-new-modal" class="hidden flex items-center justify-center p-2 min-h-[550px]">
+        <div class="w-full max-w-2xl rounded-3xl border border-[#c7c4d7]/60 bg-white p-6 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-[#c7c4d7]/40 pb-3">
+            <h3 class="text-lg font-bold text-[#131b2e]">Nuevo gasto</h3>
+            <button onclick="switchView('list')" class="p-1 rounded-lg text-[#767586] hover:bg-[#faf8ff]"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="block font-bold text-[#767586] uppercase tracking-wider mb-1">CATEGORÍA</label>
+              <select class="w-full bg-[#faf8ff] border border-[#c7c4d7]/60 rounded-xl p-2.5 text-[#131b2e]"><option>Selecciona una categoría</option><option>Salida de empleados</option><option>Arriendo</option></select>
+            </div>
+            <div>
+              <label class="block font-bold text-[#767586] uppercase tracking-wider mb-1">PROVEEDOR</label>
+              <select class="w-full bg-[#faf8ff] border border-[#c7c4d7]/60 rounded-xl p-2.5 text-[#131b2e]"><option>Sin proveedor</option><option>Motor Lights</option></select>
+            </div>
+            <div>
+              <label class="block font-bold text-[#767586] uppercase tracking-wider mb-1">ORDEN DE COMPRA</label>
+              <select class="w-full bg-[#faf8ff] border border-[#c7c4d7]/60 rounded-xl p-2.5 text-[#131b2e]"><option>Sin orden de compra</option><option>OC-1</option></select>
+            </div>
+            <div>
+              <label class="block font-bold text-[#767586] uppercase tracking-wider mb-1">FECHA</label>
+              <input type="date" value="2026-08-21" class="w-full bg-[#faf8ff] border border-[#c7c4d7]/60 rounded-xl p-2.5 font-mono-commit text-[#131b2e]"/>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block font-bold text-[#767586] uppercase tracking-wider mb-1">TOTAL (COP)</label>
+              <input type="text" placeholder="$ 0" class="w-full bg-[#faf8ff] border border-[#c7c4d7]/60 rounded-xl p-2.5 font-mono-commit font-bold text-[#131b2e]"/>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block font-bold text-[#767586] uppercase tracking-wider mb-1">DESCRIPCIÓN (OPCIONAL)</label>
+              <textarea rows="2" placeholder="Detalle del gasto..." class="w-full bg-[#faf8ff] border border-[#c7c4d7]/60 rounded-xl p-2.5 text-[#131b2e]"></textarea>
+            </div>
+          </div>
+
+          <!-- Pagos Section -->
+          <div class="rounded-2xl border border-[#c7c4d7]/50 bg-[#faf8ff] p-3.5 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-[#131b2e]">Pagos</span>
+              <button class="text-xs font-semibold text-[#4648d4] hover:underline">+ Agregar pago</button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <input type="text" placeholder="Valor" class="bg-white border border-[#c7c4d7]/60 rounded-xl p-2 font-mono-commit"/>
+              <select class="bg-white border border-[#c7c4d7]/60 rounded-xl p-2"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select>
+              <input type="date" value="2026-08-21" class="bg-white border border-[#c7c4d7]/60 rounded-xl p-2 font-mono-commit"/>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-[#c7c4d7]/40">
+            <button onclick="switchView('list')" class="px-4 py-2 rounded-xl border border-[#c7c4d7]/60 text-xs font-semibold text-[#464554] hover:bg-[#faf8ff]">Cancelar</button>
+            <button onclick="switchView('list')" class="px-5 py-2 rounded-xl bg-[#4648d4] text-white text-xs font-semibold hover:bg-[#6063ee] shadow-sm shadow-[#4648d4]/20">Guardar gasto</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- VIEW 3: DETALLE SIN COMPROBANTE (100% VISIBLE SIN SCROLL) -->
+      <!-- ========================================================= -->
+      <div id="view-detail-no-receipt" class="hidden flex items-center justify-center p-2 min-h-[550px]">
+        <div class="w-full max-w-3xl rounded-3xl border border-[#c7c4d7]/60 bg-white p-6 shadow-xl space-y-5">
+          <div class="flex items-center justify-between border-b border-[#c7c4d7]/40 pb-3">
+            <div class="flex items-center gap-3">
+              <h3 class="text-lg font-bold text-[#131b2e]">Detalle del gasto</h3>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-mono-commit text-xs font-semibold border border-emerald-200">Pagado</span>
+            </div>
+            <button onclick="switchView('list')" class="p-1 rounded-lg text-[#767586] hover:bg-[#faf8ff]"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+
+          <!-- Total Header Card -->
+          <div class="rounded-2xl border border-[#c7c4d7]/40 bg-[#faf8ff] p-4 flex items-center justify-between">
+            <div>
+              <span class="font-mono-commit text-[10px] font-bold uppercase text-[#767586] tracking-wider">TOTAL REGISTRADO</span>
+              <p class="font-mono-commit text-2xl font-bold text-[#131b2e] mt-0.5">$ 350.000</p>
+            </div>
+            <span class="font-mono-commit text-xs text-[#767586]">20 de agosto de 2026</span>
+          </div>
+
+          <!-- 4 Meta Info Tiles -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div class="rounded-xl border border-[#c7c4d7]/40 bg-white p-3">
+              <span class="text-[10px] font-bold text-[#767586] uppercase tracking-wider">CATEGORÍA</span>
+              <p class="font-semibold text-[#131b2e] mt-1 truncate">Salida de empleados</p>
+            </div>
+            <div class="rounded-xl border border-[#c7c4d7]/40 bg-white p-3">
+              <span class="text-[10px] font-bold text-[#767586] uppercase tracking-wider">PROVEEDOR</span>
+              <p class="text-[#767586] mt-1">—</p>
+            </div>
+            <div class="rounded-xl border border-[#c7c4d7]/40 bg-white p-3">
+              <span class="text-[10px] font-bold text-[#767586] uppercase tracking-wider">ORDEN COMPRA</span>
+              <p class="text-[#767586] mt-1">—</p>
+            </div>
+            <div class="rounded-xl border border-[#c7c4d7]/40 bg-white p-3">
+              <span class="text-[10px] font-bold text-[#767586] uppercase tracking-wider">DESCRIPCIÓN</span>
+              <p class="font-medium text-[#131b2e] mt-1 truncate">Adelanto quincena</p>
+            </div>
+          </div>
+
+          <!-- Pagos & Historial Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div class="rounded-2xl border border-[#c7c4d7]/40 bg-white p-4 space-y-2">
+              <div class="flex items-center justify-between text-[#131b2e] font-bold">
+                <span>Pagos Realizados</span>
+                <span class="font-mono-commit text-emerald-700">$ 350.000</span>
+              </div>
+              <p class="text-[11px] text-[#767586] font-mono-commit">Transferencia · 20 de agosto de 2026</p>
+              <div class="border-t border-[#c7c4d7]/30 pt-2 flex justify-between font-mono-commit text-[#767586]">
+                <span>Saldo pendiente:</span>
+                <span class="font-bold text-[#131b2e]">$ 0</span>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-[#c7c4d7]/40 bg-white p-4 space-y-2">
+              <span class="font-bold text-[#131b2e] block">Historial</span>
+              <div class="text-[11px] text-[#464554] space-y-1">
+                <div class="flex justify-between">
+                  <span class="font-semibold">Gasto creado por Karen Aponte</span>
+                  <span class="font-mono-commit text-[#767586]">12:44 p. m.</span>
+                </div>
+                <p class="text-[10px] text-[#767586]">Sin comprobante adjunto</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- VIEW 4: DETALLE CON FACTURA (DISEÑO 2-COLUMNAS SIN SCROLL) -->
+      <!-- ========================================================= -->
+      <div id="view-detail-with-receipt" class="hidden flex items-center justify-center p-2 min-h-[550px]">
+        <div class="w-full max-w-4xl rounded-3xl border border-[#c7c4d7]/60 bg-white p-6 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-[#c7c4d7]/40 pb-3">
+            <div class="flex items-center gap-3">
+              <h3 class="text-lg font-bold text-[#131b2e]">Detalle del gasto</h3>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-mono-commit text-xs font-semibold border border-emerald-200">Pagado</span>
+            </div>
+            <button onclick="switchView('list')" class="p-1 rounded-lg text-[#767586] hover:bg-[#faf8ff]"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+
+          <!-- 2-COLUMN SIDE-BY-SIDE BENTO LAYOUT (Elimina el scroll vertical al poner la factura al lado) -->
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+            <!-- Left 7 cols: Meta, Pagos, Historial -->
+            <div class="md:col-span-7 space-y-3.5">
+              <div class="rounded-2xl border border-[#c7c4d7]/40 bg-[#faf8ff] p-3.5 flex items-center justify-between">
+                <div>
+                  <span class="font-mono-commit text-[10px] font-bold uppercase text-[#767586] tracking-wider">TOTAL REGISTRADO</span>
+                  <p class="font-mono-commit text-2xl font-bold text-[#131b2e]">$ 1.750.000</p>
+                </div>
+                <span class="font-mono-commit text-xs text-[#767586]">20 de agosto de 2026</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div class="rounded-xl border border-[#c7c4d7]/40 bg-white p-2.5">
+                  <span class="text-[10px] font-bold text-[#767586] uppercase tracking-wider">CATEGORÍA</span>
+                  <p class="font-semibold text-[#131b2e] mt-0.5">Pago mensual</p>
+                </div>
+                <div class="rounded-xl border border-[#c7c4d7]/40 bg-white p-2.5">
+                  <span class="text-[10px] font-bold text-[#767586] uppercase tracking-wider">PROVEEDOR</span>
+                  <p class="text-[#767586] mt-0.5">—</p>
+                </div>
+                <div class="rounded-xl border border-[#c7c4d7]/40 bg-white p-2.5">
+                  <span class="text-[10px] font-bold text-[#767586] uppercase tracking-wider">ORDEN COMPRA</span>
+                  <p class="text-[#767586] mt-0.5">—</p>
+                </div>
+                <div class="rounded-xl border border-[#c7c4d7]/40 bg-white p-2.5">
+                  <span class="text-[10px] font-bold text-[#767586] uppercase tracking-wider">DESCRIPCIÓN</span>
+                  <p class="font-medium text-[#131b2e] mt-0.5">Sueldo Kevin</p>
+                </div>
+              </div>
+
+              <!-- Pagos Card -->
+              <div class="rounded-2xl border border-[#c7c4d7]/40 bg-white p-3 text-xs space-y-1.5">
+                <div class="flex items-center justify-between text-[#131b2e] font-bold">
+                  <span>Pagos Registrados</span>
+                  <span class="font-mono-commit text-emerald-700">$ 1.750.000</span>
+                </div>
+                <p class="text-[11px] text-[#767586] font-mono-commit">Transferencia · 20 de agosto de 2026</p>
+                <div class="border-t border-[#c7c4d7]/30 pt-1.5 flex justify-between font-mono-commit text-[#767586]">
+                  <span>Saldo pendiente:</span>
+                  <span class="font-bold text-[#131b2e]">$ 0</span>
+                </div>
+              </div>
+
+              <!-- Historial -->
+              <div class="rounded-2xl border border-[#c7c4d7]/40 bg-white p-3 text-xs space-y-1">
+                <span class="font-bold text-[#131b2e] block">Historial</span>
+                <div class="flex justify-between text-[11px] text-[#464554]">
+                  <span>Gasto creado & comprobante subido</span>
+                  <span class="font-mono-commit text-[#767586]">12:43 p. m.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right 5 cols: Receipt / Factura Preview (Ajustado a la altura sin generar scroll vertical) -->
+            <div class="md:col-span-5 rounded-2xl border border-[#c7c4d7]/60 bg-[#faf8ff] p-3 flex flex-col justify-between">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-mono-commit text-[11px] font-bold text-[#131b2e] uppercase tracking-wider flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 text-[#4648d4]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  COMPROBANTE ADJUNTO
+                </span>
+                <button class="text-[11px] font-semibold text-[#4648d4] hover:underline flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  Ampliar
+                </button>
+              </div>
+
+              <!-- Compact Preview Container -->
+              <div class="relative w-full h-[260px] rounded-xl overflow-hidden bg-white border border-[#c7c4d7]/40 flex items-center justify-center p-2">
+                <img 
+                  src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=500&auto=format&fit=crop&q=80" 
+                  alt="Comprobante Bancario Transferencia" 
+                  class="w-full h-full object-contain rounded-lg"
+                />
+              </div>
+
+              <div class="mt-2 flex items-center justify-between text-[11px] text-[#767586] font-mono-commit">
+                <span>transferencia_exitosa.png</span>
+                <span class="text-emerald-700 font-bold">Verificado ✓</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    function switchView(viewId) {
+      const views = ['list', 'new-modal', 'detail-no-receipt', 'detail-with-receipt'];
+      views.forEach(v => {
+        const el = document.getElementById('view-' + v);
+        const btn = document.getElementById('tab-' + v);
+        if (v === viewId) {
+          el.classList.remove('hidden');
+          btn.classList.add('active');
+          btn.classList.remove('text-[#464554]');
+        } else {
+          el.classList.add('hidden');
+          btn.classList.remove('active');
+          btn.classList.add('text-[#464554]');
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>
