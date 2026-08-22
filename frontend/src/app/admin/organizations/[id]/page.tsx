@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
+import { BentoSelect } from "@/components/ui/BentoSelect";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -232,20 +232,20 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Cambiar Estado
               </label>
-              <Select
+              <BentoSelect
                 value={org.status}
                 options={statusOptions}
-                onChange={(e) => updateStatus.mutate({ id: org.id, status: e.target.value })}
+                onChange={(value) => updateStatus.mutate({ id: org.id, status: value })}
               />
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Cambiar Plan
               </label>
-              <Select
+              <BentoSelect
                 value={org.plan}
                 options={planOptions}
-                onChange={(e) => updatePlan.mutate({ id: org.id, plan: e.target.value })}
+                onChange={(value) => updatePlan.mutate({ id: org.id, plan: value })}
               />
             </div>
             <div className="border-t border-border pt-4">
@@ -324,14 +324,14 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{ou.user.email}</td>
                         <td className="px-4 py-3">
-                          <Select
+                          <BentoSelect
                             value={ou.role}
                             options={roleOptions}
-                            onChange={(e) =>
+                            onChange={(value) =>
                               updateMemberRole.mutate({
                                 orgId: org.id,
                                 userId: ou.user.id,
-                                role: e.target.value,
+                                role: value,
                               })
                             }
                           />
@@ -399,12 +399,12 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
               setNewMember((prev) => ({ ...prev, name: e.target.value }))
             }
           />
-          <Select
+          <BentoSelect
             label="Rol"
             value={newMember.role}
             options={roleOptions}
-            onChange={(e) =>
-              setNewMember((prev) => ({ ...prev, role: e.target.value }))
+            onChange={(value) =>
+              setNewMember((prev) => ({ ...prev, role: value }))
             }
           />
           {addMemberError && (

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { Select } from "@/components/ui/Select";
+import { BentoSelect } from "@/components/ui/BentoSelect";
 import { Pagination } from "@/components/ui/Pagination";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -294,12 +294,12 @@ export default function CustomersPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Nombre" value={formData.name || ""} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required className="sm:col-span-2" />
-            <Select label="Tipo de Documento" value={formData.documentType || "CC"} onChange={(e) => setFormData({ ...formData, documentType: e.target.value })} options={[{ value: "CC", label: "Cédula de Ciudadanía" }, { value: "NIT", label: "NIT" }, { value: "CE", label: "Cédula de Extranjería" }, { value: "TI", label: "Tarjeta de Identidad" }]} required />
+            <BentoSelect label="Tipo de Documento" value={formData.documentType || "CC"} onChange={(value) => setFormData({ ...formData, documentType: value })} options={[{ value: "CC", label: "Cédula de Ciudadanía" }, { value: "NIT", label: "NIT" }, { value: "CE", label: "Cédula de Extranjería" }, { value: "TI", label: "Tarjeta de Identidad" }]} />
             <Input label="Número de Documento" value={formData.documentNumber || ""} onChange={(e) => setFormData({ ...formData, documentNumber: e.target.value })} required />
             <Input label="Email" type="email" value={formData.email || ""} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="sm:col-span-2" />
             <Input label="Teléfono" value={formData.phone || ""} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
             <Input label="Dirección" value={formData.address || ""} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
-            <Select label="Segmento" value={formData.segment || "OCCASIONAL"} onChange={(e) => setFormData({ ...formData, segment: e.target.value as Customer["segment"] })} options={[{ value: "OCCASIONAL", label: "Ocasional" }, { value: "FREQUENT", label: "Frecuente" }, { value: "VIP", label: "VIP" }, { value: "INACTIVE", label: "Inactivo" }]} required />
+            <BentoSelect label="Segmento" value={formData.segment || "OCCASIONAL"} onChange={(value) => setFormData({ ...formData, segment: value as Customer["segment"] })} options={[{ value: "OCCASIONAL", label: "Ocasional" }, { value: "FREQUENT", label: "Frecuente" }, { value: "VIP", label: "VIP" }, { value: "INACTIVE", label: "Inactivo" }]} />
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4 border-t border-border/60">
             <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="w-full sm:w-auto">Cancelar</Button>

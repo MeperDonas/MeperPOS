@@ -364,12 +364,13 @@ describe("OrganizationDetailPage", () => {
     });
 
     it("renders role dropdown for each member", () => {
-      const selects = screen.getAllByRole("combobox");
-      // At least one select for member role + existing status/plan selects
-      const memberRoleSelects = selects.filter(
-        (s) => s.getAttribute("value") !== "ACTIVE" && s.getAttribute("value") !== "PRO"
-      );
-      expect(memberRoleSelects.length).toBeGreaterThanOrEqual(1);
+      // BentoSelect renders each role as a trigger <button> showing the
+      // selected role label (no native combobox). Assert those are present.
+      const roleButtons = screen
+        .getAllByRole("button")
+        .map((button) => button.textContent?.trim())
+        .filter((text) => text === "Admin" || text === "Cashier");
+      expect(roleButtons.length).toBeGreaterThanOrEqual(1);
     });
 
     it("renders remove button for non-owner members", () => {

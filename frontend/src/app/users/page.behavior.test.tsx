@@ -119,7 +119,9 @@ describe("Users page centralized admin behavior (#27)", () => {
     await user.type(nameInput, "Caja Central");
     await user.clear(emailInput);
     await user.type(emailInput, "central@example.com");
-    await user.selectOptions(screen.getAllByRole("combobox")[0], "INVENTORY_USER");
+    // BentoSelect renders the role as a trigger <button>; open it and pick the option label.
+    await user.click(screen.getByRole("button", { name: /Cajero/i }));
+    await user.click(screen.getByText("Inventario"));
     await user.click(screen.getByRole("button", { name: /Guardar cambios/i }));
 
     expect(updateUserMutateAsyncMock).toHaveBeenCalledWith({

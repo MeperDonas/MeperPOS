@@ -107,6 +107,20 @@ vi.mock("@/lib/api", () => ({
 
 import { ExpenseFormModal } from "./ExpenseFormModal";
 
+/**
+ * BentoSelect renders as a trigger <button> (not a native <select>), so the
+ * option is picked by opening the popover and clicking the option label.
+ */
+async function pickCategory(
+  user: ReturnType<typeof userEvent.setup>,
+  categoryLabel: string,
+) {
+  await user.click(
+    screen.getByRole("button", { name: /selecciona una categor\u00eda/i }),
+  );
+  await user.click(screen.getByText(categoryLabel));
+}
+
 function makeExpense(): Expense {
   return {
     id: "exp-1",
@@ -163,7 +177,7 @@ describe("ExpenseFormModal", () => {
 
     render(<ExpenseFormModal isOpen onClose={vi.fn()} />);
 
-    await user.selectOptions(screen.getByLabelText("Categoría"), "cat-1");
+    await pickCategory(user, "Arriendo");
     fireEvent.change(screen.getByLabelText("Fecha"), {
       target: { value: "2026-08-10" },
     });
@@ -195,7 +209,7 @@ describe("ExpenseFormModal", () => {
 
     render(<ExpenseFormModal isOpen onClose={vi.fn()} />);
 
-    await user.selectOptions(screen.getByLabelText("Categoría"), "cat-1");
+    await pickCategory(user, "Arriendo");
     fireEvent.change(screen.getByLabelText("Fecha"), {
       target: { value: "2026-08-10" },
     });
@@ -215,7 +229,7 @@ describe("ExpenseFormModal", () => {
 
     render(<ExpenseFormModal isOpen onClose={vi.fn()} />);
 
-    await user.selectOptions(screen.getByLabelText("Categoría"), "cat-1");
+    await pickCategory(user, "Arriendo");
     fireEvent.change(screen.getByLabelText("Fecha"), {
       target: { value: "2026-08-10" },
     });
