@@ -135,7 +135,7 @@ describe("ExpenseDetailModal", () => {
   it("renders total, status, category, supplier, purchase order and description", () => {
     render(<ExpenseDetailModal expense={expense} isOpen onClose={vi.fn()} />);
 
-    expect(screen.getByText("Detalle del gasto")).toBeInTheDocument();
+    expect(screen.getByText("Detalle del Gasto")).toBeInTheDocument();
     expect(screen.getByText(/500\.000/)).toBeInTheDocument();
     expect(screen.getByText("Parcial")).toBeInTheDocument();
     expect(screen.getByText("Arriendo")).toBeInTheDocument();
@@ -160,7 +160,7 @@ describe("ExpenseDetailModal", () => {
       />,
     );
 
-    expect(screen.getByText("Sin comprobante")).toBeInTheDocument();
+    expect(screen.getByText("Sin factura o comprobante adjunto")).toBeInTheDocument();
   });
 
   it("renders payments with method labels and the remaining amount", () => {
@@ -170,24 +170,27 @@ describe("ExpenseDetailModal", () => {
     expect(screen.getByText(/^\$\s50\.000$/)).toBeInTheDocument();
     expect(screen.getByText(/Efectivo/)).toBeInTheDocument();
     expect(screen.getByText(/Tarjeta/)).toBeInTheDocument();
-    expect(screen.getByText("Saldo pendiente")).toBeInTheDocument();
+    expect(screen.getByText("Pendiente:")).toBeInTheDocument();
     expect(screen.getByText(/^\$\s150\.000$/)).toBeInTheDocument();
   });
 
-  it("renders audit history entries inside the same modal", () => {
+  it("renders the two-column receipt panel and keeps audit history in its own modal", () => {
     render(<ExpenseDetailModal expense={expense} isOpen onClose={vi.fn()} />);
 
-    expect(useExpenseHistoryMock).toHaveBeenCalledWith("exp-1");
-    expect(screen.getByText("Gasto creado")).toBeInTheDocument();
-    expect(screen.getByText("Pago agregado")).toBeInTheDocument();
-    expect(screen.getAllByText("Ana Admin").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Comprobante / Factura Adjunta")).toBeInTheDocument();
+    expect(screen.getByText(/Abonos y Pagos/)).toBeInTheDocument();
+    expect(screen.getByText(/Pagado:/)).toBeInTheDocument();
+    // Audit history now lives in HistoryModal (see history-modal.test.tsx), not inside the detail modal.
+    expect(screen.queryByText("Gasto creado")).not.toBeInTheDocument();
   });
 
-  it("shows a loading message while history is pending", () => {
+  it("still loads the audit history hook but keeps the modal focused on the receipt", () => {
     useExpenseHistoryMock.mockReturnValue({ data: undefined, isLoading: true });
 
     render(<ExpenseDetailModal expense={expense} isOpen onClose={vi.fn()} />);
 
-    expect(screen.getByText(/Cargando historial/)).toBeInTheDocument();
+    expect(useExpenseHistoryMock).toHaveBeenCalledWith("exp-1");
+    expect(screen.getByText("Total Registrado")).toBeInTheDocument();
+    expect(screen.queryByText(/Cargando historial/)).not.toBeInTheDocument();
   });
 });
