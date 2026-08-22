@@ -153,12 +153,14 @@ describe("Dashboard scope evidence (DIA-4/13/10 — reports no longer duplicated
     expect(screen.getByText("Tareas abiertas")).toBeTruthy();
   });
 
-  it("renders the stacked category chart title in place of the simple revenue bars", () => {
+  it("renders the stacked category chart for the full current month", () => {
     render(<DashboardPage />);
 
-    expect(screen.getByText("Ingresos últimos 7 días")).toBeTruthy();
-    // One bar per day across the 7-day window.
-    expect(screen.getAllByTestId("category-daily-bar")).toHaveLength(7);
+    expect(screen.getByText(/^Ingresos de /)).toBeTruthy();
+    // One bar per day across every day of the current month (>= 28 days).
+    const barsCount = screen.getAllByTestId("category-daily-bar").length;
+    expect(barsCount).toBeGreaterThanOrEqual(28);
+    expect(barsCount).toBeLessThanOrEqual(31);
   });
 
   it("does not render a hardcoded sales goal, a fake curve or mislabeled 'Ayer vs Hoy' (DIA-4/DIA-13)", () => {
