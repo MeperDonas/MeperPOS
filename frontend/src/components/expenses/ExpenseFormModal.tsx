@@ -179,10 +179,11 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
       isOpen={isOpen}
       onClose={onClose}
       title={expense ? "Editar gasto" : "Nuevo gasto"}
-      size="md"
+      size="lg"
     >
-      <div className="space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Left column: expense data */}
+        <div className="space-y-3">
           <BentoSelect
             label="Categoría"
             value={categoryId}
@@ -240,17 +241,15 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
             />
           </div>
 
-          <div>
-            <CurrencyInput
-              id={`${uid}-total`}
-              label="Total (COP)"
-              placeholder="Total del gasto"
-              value={total}
-              onChange={(value) => setTotal(value === 0 ? "" : String(value))}
-            />
-          </div>
+          <CurrencyInput
+            id={`${uid}-total`}
+            label="Total (COP)"
+            placeholder="Total del gasto"
+            value={total}
+            onChange={(value) => setTotal(value === 0 ? "" : String(value))}
+          />
 
-          <div className="sm:col-span-2">
+          <div>
             <label
               htmlFor={`${uid}-description`}
               className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
@@ -259,7 +258,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
             </label>
             <textarea
               id={`${uid}-description`}
-              rows={2}
+              rows={3}
               placeholder="Descripción (opcional)"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -268,25 +267,26 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
           </div>
         </div>
 
-        {!expense && (
-          <div className="rounded-xl border border-border/60 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60 bg-muted/30">
-              <span className="text-xs font-semibold text-foreground">
-                Pagos
-              </span>
-              <Button
-                size="sm"
-                type="button"
-                variant="secondary"
-                onClick={() => setRows((prev) => [...prev, newRow()])}
-              >
-                <Plus className="w-3.5 h-3.5" /> Agregar pago
-              </Button>
-            </div>
-            <div className="space-y-3 p-4">
-              {rows.map((row) => (
-                <div key={row.tempId} className="flex flex-wrap gap-2 items-end">
-                  <div className="min-w-[120px] flex-1">
+        {/* Right column: payments + receipt */}
+        <div className="space-y-3">
+          {!expense && (
+            <div className="rounded-xl border border-border/60">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60 bg-muted/30">
+                <span className="text-xs font-semibold text-foreground">
+                  Pagos
+                </span>
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setRows((prev) => [...prev, newRow()])}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Agregar pago
+                </Button>
+              </div>
+              <div className="space-y-3 p-4">
+                {rows.map((row) => (
+                  <div key={row.tempId} className="space-y-2">
                     <CurrencyInput
                       id={`${uid}-amount-${row.tempId}`}
                       label="Valor"
@@ -298,107 +298,109 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
                         })
                       }
                     />
+                    <div className="flex items-end gap-2">
+                      <BentoSelect
+                        label="Método"
+                        value={row.method}
+                        onChange={(value) =>
+                          updateRow(row.tempId, {
+                            method: value as ExpensePayment["method"],
+                          })
+                        }
+                        className="flex-1"
+                        options={PAYMENT_METHOD_OPTIONS}
+                      />
+                      <div className="flex-1">
+                        <label
+                          htmlFor={`${uid}-paydate-${row.tempId}`}
+                          className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                        >
+                          Fecha pago
+                        </label>
+                        <input
+                          id={`${uid}-paydate-${row.tempId}`}
+                          type="date"
+                          aria-label="Fecha del pago"
+                          value={row.date}
+                          onChange={(e) =>
+                            updateRow(row.tempId, { date: e.target.value })
+                          }
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Eliminar pago"
+                        onClick={() =>
+                          setRows((prev) =>
+                            prev.filter((r) => r.tempId !== row.tempId),
+                          )
+                        }
+                        disabled={rows.length === 1}
+                        className="p-2 mb-0.5 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <BentoSelect
-                    label="Método"
-                    value={row.method}
-                    onChange={(value) =>
-                      updateRow(row.tempId, {
-                        method: value as ExpensePayment["method"],
-                      })
-                    }
-                    className="w-32"
-                    options={PAYMENT_METHOD_OPTIONS}
-                  />
-                  <div>
-                    <label
-                      htmlFor={`${uid}-paydate-${row.tempId}`}
-                      className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
-                    >
-                      Fecha pago
-                    </label>
-                    <input
-                      id={`${uid}-paydate-${row.tempId}`}
-                      type="date"
-                      aria-label="Fecha del pago"
-                      value={row.date}
-                      onChange={(e) =>
-                        updateRow(row.tempId, { date: e.target.value })
-                      }
-                      className="rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Eliminar pago"
-                    onClick={() =>
-                      setRows((prev) =>
-                        prev.filter((r) => r.tempId !== row.tempId),
-                      )
-                    }
-                    disabled={rows.length === 1}
-                    className="p-2 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              <p className="text-xs text-muted-foreground">
-                Total de pagos:{" "}
-                <span className="font-bold text-foreground stat-number">
-                  {formatCurrency(paymentsSum)}
-                </span>
-              </p>
+                ))}
+                <p className="text-xs text-muted-foreground">
+                  Total de pagos:{" "}
+                  <span className="font-bold text-foreground stat-number">
+                    {formatCurrency(paymentsSum)}
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Comprobante
+            </p>
+            <div className="max-w-[200px]">
+              {expense ? (
+                <ImageUpload
+                  value={expense.receiptUrl ?? undefined}
+                  onChange={() => {}}
+                  onUpload={async (file) => {
+                    const updated = await uploadReceipt.mutateAsync({
+                      id: expense.id,
+                      file,
+                    });
+                    return updated.receiptUrl ?? "";
+                  }}
+                />
+              ) : (
+                <ImageUpload
+                  onChange={() => {}}
+                  onUpload={(file) => {
+                    setPendingReceiptFile(file);
+                    return Promise.resolve(URL.createObjectURL(file));
+                  }}
+                />
+              )}
             </div>
           </div>
-        )}
-
-        <div>
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Comprobante
-          </p>
-          <div className="max-w-[200px]">
-            {expense ? (
-              <ImageUpload
-                value={expense.receiptUrl ?? undefined}
-                onChange={() => {}}
-                onUpload={async (file) => {
-                  const updated = await uploadReceipt.mutateAsync({
-                    id: expense.id,
-                    file,
-                  });
-                  return updated.receiptUrl ?? "";
-                }}
-              />
-            ) : (
-              <ImageUpload
-                onChange={() => {}}
-                onUpload={(file) => {
-                  setPendingReceiptFile(file);
-                  return Promise.resolve(URL.createObjectURL(file));
-                }}
-              />
-            )}
-          </div>
         </div>
+      </div>
 
-        {error && (
-          <p className="text-xs font-medium text-red-500">{error}</p>
-        )}
+      {error && (
+        <p className="mt-4 text-xs font-medium text-red-500">{error}</p>
+      )}
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!!error}
-            loading={createExpense.isPending || updateExpense.isPending}
-          >
-            {expense ? "Guardar cambios" : "Registrar gasto"}
-          </Button>
-        </div>
+      <div className="flex justify-end gap-2 pt-4 border-t border-border/60 mt-4">
+        <Button type="button" variant="secondary" onClick={onClose}>
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          onClick={handleSubmit}
+          disabled={!!error}
+          loading={createExpense.isPending || updateExpense.isPending}
+        >
+          {expense ? "Guardar cambios" : "Registrar gasto"}
+        </Button>
       </div>
     </Modal>
   );
