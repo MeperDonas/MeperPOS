@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCategoryColorMap,
+  buildStackedDailySeries,
   chartHeight,
   computePendingAmount,
   computeTodayMetrics,
   filterOpenTasks,
+  sumExpensesOnDate,
 } from "./dashboard";
 import type { TaskStatus } from "@/types";
 
@@ -95,5 +98,89 @@ describe("chartHeight (DIA-11)", () => {
 
   it("returns the minimum height without a measurable max", () => {
     expect(chartHeight(50, 0)).toBe(18);
+  });
+});
+
+describe("buildCategoryColorMap (stacked chart)", () => {
+  it("assigns a stable color per category ordered by name", () => {
+    const map = buildCategoryColorMap(["Bebidas", "Snacks", "Bebidas"]);
+    expect(map.get("Bebidas")).toBe(map.get("Bebidas"));
+    expect(map.get("Bebidas")).not.toBe(map.get("Snacks"));
+  });
+
+  it("de-duplicates category names", () => {
+    const map = buildCategoryColorMap(["A", "A", "B"]);
+    expect(map.size).toBe(2);
+  });
+});
+
+describe("buildStackedDailySeries (stacked chart)", () => {
+  const days = ["2026-08-20", "2026-08-21", "2026-08-22"];
+
+  it("groups rows into one day slot per requested day", () => {
+    const series = buildStackedDailySeries(
+      [
+        { date: "2026-08-21", category: "Bebidas", total: 100, quantity: 2 },
+        { date: "2026-08-21", category: "Snacks", total: 50, quantity: 1 },
+      ],
+      days,
+    );
+
+    expect(series).toHaveLength(3);
+    expect(series[0]).toEqual({ date: "2026-08-20", segments: [], total: 0 });
+    expect(series[1].date).toBe("2026-08-21");
+    expect(series[1].total).toBe(150);
+    expect(series[1].segments).toEqual([
+      { category: "Bebidas", total: 100, quantity: 2 },
+      { category: "Snacks", total: 50, quantity: 1 },
+    ]);
+    expect(series[2]).toEqual({ date: "2026-08-22", segments: [], total: 0 });
+  });
+
+  it("aggregates repeated rows into a single segment per category", () => {
+    const series = buildStackedDailySeries(
+      [
+        { date: "2026-08-21", category: "Bebidas", total: 100, quantity: 2 },
+        { date: "2026-08-21", category: "Bebidas", total: 25, quantity: 1 },
+      ],
+      days,
+    );
+
+    expect(series[1].segments).toHaveLength(1);
+    expect(series[1].segments[0]).toEqual({
+      category: "Bebidas",
+      total: 125,
+      quantity: 3,
+    });
+  });
+});
+
+describe("sumExpensesOnDate (Salidas hoy)", () => {
+  const today = "2026-08-22";
+
+  it("sums only the expenses on the given date", () => {
+    expect(
+      sumExpensesOnDate(
+        [
+          { date: "2026-08-22", total: 120000 },
+          { date: "2026-08-21", total: 50000 },
+        ],
+        today,
+      ),
+    ).toBe(120000);
+  });
+
+  it("accepts ISO timestamps by matching the first 10 characters", () => {
+    expect(
+      sumExpensesOnDate(
+        [{ date: "2026-08-22T05:00:00.000Z", total: 30000 }],
+        today,
+      ),
+    ).toBe(30000);
+  });
+
+  it("returns 0 when the list is empty or undefined", () => {
+    expect(sumExpensesOnDate([], today)).toBe(0);
+    expect(sumExpensesOnDate(undefined, today)).toBe(0);
   });
 });

@@ -7,6 +7,7 @@ import type { DashboardData } from "@/types";
 const pushMock = vi.fn();
 const useDashboardMock = vi.fn();
 const useDailySalesMock = vi.fn();
+const useSalesByCategoryDailyMock = vi.fn();
 const useLowStockMock = vi.fn();
 const useExpensesMock = vi.fn();
 const useTasksMock = vi.fn();
@@ -23,12 +24,8 @@ vi.mock("@/hooks/useReports", () => ({
   useDashboard: () => useDashboardMock(),
   useDailySales: (startDate: string, endDate: string) =>
     useDailySalesMock(startDate, endDate),
-}));
-
-vi.mock("@/hooks/useCategories", () => ({
-  useCategories: () => ({
-    data: { meta: { total: 4 } },
-  }),
+  useSalesByCategoryDaily: (startDate: string, endDate: string) =>
+    useSalesByCategoryDailyMock(startDate, endDate),
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -106,6 +103,19 @@ describe("Dashboard scope evidence (DIA-4/13/10 — reports no longer duplicated
       },
     });
 
+    useSalesByCategoryDailyMock.mockReturnValue({
+      data: {
+        data: [
+          { date: "2026-01-01", category: "Bebidas", total: 50000, quantity: 1 },
+        ],
+        appliedRange: {
+          startDate: "2026-01-01",
+          endDate: "2026-01-07",
+          timezone: "America/Bogota",
+        },
+      },
+    });
+
     useDashboardMock.mockReturnValue({
       data: makeDashboardData({}),
       isLoading: false,
@@ -121,20 +131,34 @@ describe("Dashboard scope evidence (DIA-4/13/10 — reports no longer duplicated
     cleanup();
   });
 
-  it("renders KPI cards and operational panels without legacy date/task widgets", () => {
+  it("renders the top quick actions, the 7-metric grid and operational panels", () => {
     render(<DashboardPage />);
 
-    expect(screen.getByText("Bienvenido, Ana")).toBeTruthy();
+    // Quick actions bento above the metrics
+    expect(screen.getByText("Nuevo producto")).toBeTruthy();
+    expect(screen.getByText("Nueva venta")).toBeTruthy();
+
+    // 7 compact metrics
     expect(screen.getByText("Ventas hoy")).toBeTruthy();
-    expect(screen.getByText("Ventas Completadas")).toBeTruthy();
+    expect(screen.getByText("Salidas hoy")).toBeTruthy();
+    expect(screen.getByText("Transacciones")).toBeTruthy();
+    expect(screen.getByText("Ventas completadas")).toBeTruthy();
+    expect(screen.getByText("Productos totales")).toBeTruthy();
+    expect(screen.getByText("Clientes totales")).toBeTruthy();
+    expect(screen.getByText("Stock crítico")).toBeTruthy();
+
+    // Operational panels
     expect(screen.getByText("Stock bajo")).toBeTruthy();
     expect(screen.getByText("Gastos por pagar")).toBeTruthy();
     expect(screen.getByText("Tareas abiertas")).toBeTruthy();
+  });
 
-    expect(document.querySelectorAll('input[type="date"]').length).toBe(0);
-    expect(screen.queryByText("Filtro de fechas")).toBeNull();
-    expect(screen.queryByText("API real")).toBeNull();
-    expect(screen.queryByText("Historial")).toBeNull();
+  it("renders the stacked category chart title in place of the simple revenue bars", () => {
+    render(<DashboardPage />);
+
+    expect(screen.getByText("Ingresos últimos 7 días")).toBeTruthy();
+    // One bar per day across the 7-day window.
+    expect(screen.getAllByTestId("category-daily-bar")).toHaveLength(7);
   });
 
   it("does not render a hardcoded sales goal, a fake curve or mislabeled 'Ayer vs Hoy' (DIA-4/DIA-13)", () => {
@@ -159,7 +183,11 @@ describe("Dashboard scope evidence (DIA-4/13/10 — reports no longer duplicated
     expect(screen.queryByText("Inventario actual")).toBeNull();
   });
 
-  it("routes to low-stock inventory filter from the summary reorder CTA", async () => {
+  it("routes to low-stock inventory filter from the alert reorder CTA", async () => {
+    useLowStockMock.mockReturnValue({
+      data: [{ id: "p1", name: "Café", stock: 3, minStock: 5 }],
+    });
+
     render(<DashboardPage />);
 
     await userEvent.click(screen.getByRole("button", { name: "REORDENAR" }));
