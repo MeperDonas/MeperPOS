@@ -49,7 +49,7 @@ export function CategoryStackedChart({
         : "-translate-x-1/2";
 
   const slot = series.length > 0 ? 400 / series.length : 0;
-  const barWidth = Math.max(6, slot * 0.96);
+  const barWidth = Math.max(3, slot * 0.72);
 
   const dayLabel = (date: string) => {
     const [year, month, day] = date.split("-").map(Number);
@@ -76,7 +76,7 @@ export function CategoryStackedChart({
         preserveAspectRatio="none"
         viewBox="0 0 400 100"
         role="img"
-        aria-label="Ventas por categoría de los últimos días"
+        aria-label="Ventas por categoría del mes"
       >
         {series.map((day, index) => {
           const dayHeight = dayHeightFor(day.total, maxDayTotal);
@@ -158,28 +158,22 @@ export function CategoryStackedChart({
         </div>
       )}
 
-      {/* Date labels */}
-      <div className="flex justify-between mt-2 text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1">
-        {series.map((day) => (
-          <span key={day.date}>
-            {new Intl.DateTimeFormat("es-CO", {
-              weekday: "short",
-              timeZone: "America/Bogota",
-            })
-              .format(
-                new Date(
-                  Date.UTC(
-                    Number(day.date.split("-")[0]),
-                    Number(day.date.split("-")[1]) - 1,
-                    Number(day.date.split("-")[2]),
-                    12,
-                  ),
-                ),
-              )
-              .replace(".", "")
-              .slice(0, 3)}
-          </span>
-        ))}
+      {/* Date labels — spaced across the month so ~30 days don't crowd */}
+      <div className="mt-2 flex px-1 text-[8px] uppercase tracking-wider text-muted-foreground/60">
+        {series.map((day) => {
+          const dayNumber = Number(day.date.split("-")[2]);
+          const showLabel = dayNumber === 1 || dayNumber % 5 === 0;
+
+          return (
+            <span
+              key={day.date}
+              data-testid="category-day-label"
+              className="flex-1 text-center leading-none"
+            >
+              {showLabel ? dayNumber : ""}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
