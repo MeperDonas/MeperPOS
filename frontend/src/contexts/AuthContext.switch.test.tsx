@@ -94,7 +94,7 @@ describe("AuthContext - switchOrganization", () => {
       predicate: expect.any(Function),
     });
 
-    const predicate = invalidateSpy.mock.calls[0][0].predicate as (query: {
+    const predicate = invalidateSpy.mock.calls[0]?.[0]?.predicate as unknown as (query: {
       queryKey: unknown[];
     }) => boolean;
 

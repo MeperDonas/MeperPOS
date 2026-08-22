@@ -6,22 +6,28 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement | HTMLTextArea
   error?: string;
   textarea?: boolean;
   rows?: number;
+  icon?: React.ReactNode;
+  prefixText?: string;
+  suffixIcon?: React.ReactNode;
 }
 
 export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputProps>(
-  ({ label, error, textarea = false, rows = 3, className = "", required, id, ...props }, ref) => {
+  ({ label, error, textarea = false, rows = 3, className = "", icon, prefixText, suffixIcon, required, id, ...props }, ref) => {
     const reactId = useId();
     const inputId = id || reactId;
 
     const commonClasses = cn(
-      "w-full rounded-lg border bg-card px-4 py-2.5 text-sm text-foreground",
+      "w-full rounded-xl border bg-card px-3.5 py-2.5 text-xs text-foreground",
       "placeholder:text-muted-foreground/60",
-      "transition-all duration-200",
-      "focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20",
-      "disabled:cursor-not-allowed disabled:opacity-50",
+      "transition-all duration-200 shadow-xs",
+      "focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",
+      "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-muted/40",
+      icon && "pl-10",
+      prefixText && "pl-8 font-mono",
+      suffixIcon && "pr-10",
       error
-        ? "border-red-500/70 focus:border-red-500 focus:ring-red-500/15"
-        : "border-border",
+        ? "border-danger focus:border-danger focus:ring-danger/20"
+        : "border-border hover:border-primary/40",
       className,
     );
 
@@ -33,31 +39,48 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
             className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
           >
             {label}
-            {required && <span className="text-red-500 ml-0.5">*</span>}
+            {required && <span className="text-danger ml-0.5">*</span>}
           </label>
         )}
-        {textarea ? (
-          <textarea
-            ref={ref as React.RefObject<HTMLTextAreaElement>}
-            id={inputId}
-            rows={rows}
-            required={required}
-            aria-required={required}
-            className={cn(commonClasses, "resize-none")}
-            {...(props as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
-          />
-        ) : (
-          <input
-            ref={ref as React.RefObject<HTMLInputElement>}
-            id={inputId}
-            required={required}
-            aria-required={required}
-            className={commonClasses}
-            {...props}
-          />
-        )}
+        <div className="relative">
+          {icon && (
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+              {icon}
+            </span>
+          )}
+          {prefixText && (
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono font-bold text-primary pointer-events-none">
+              {prefixText}
+            </span>
+          )}
+          {textarea ? (
+            <textarea
+              ref={ref as React.RefObject<HTMLTextAreaElement>}
+              id={inputId}
+              rows={rows}
+              required={required}
+              aria-required={required}
+              className={cn(commonClasses, "resize-none")}
+              {...(props as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
+            />
+          ) : (
+            <input
+              ref={ref as React.RefObject<HTMLInputElement>}
+              id={inputId}
+              required={required}
+              aria-required={required}
+              className={commonClasses}
+              {...props}
+            />
+          )}
+          {suffixIcon && (
+            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+              {suffixIcon}
+            </span>
+          )}
+        </div>
         {error && (
-          <span className="mt-1.5 block text-xs font-medium text-red-500">
+          <span className="mt-1.5 block text-xs font-medium text-danger">
             {error}
           </span>
         )}
