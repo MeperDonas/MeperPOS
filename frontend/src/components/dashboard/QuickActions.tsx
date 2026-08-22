@@ -58,7 +58,7 @@ export function QuickActions() {
   );
 
   return (
-    <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2.5">
       {visible.map((action) => {
         const Icon = action.icon;
         return (
@@ -66,9 +66,9 @@ export function QuickActions() {
             key={action.id}
             type="button"
             onClick={() => router.push(action.href)}
-            className="group flex min-w-0 flex-col items-start gap-3 rounded-3xl border border-primary/30 bg-primary/10 px-5 py-4 text-left text-foreground transition-colors hover:border-primary/50"
+            className="group flex min-w-0 flex-col items-start gap-3 rounded-3xl border border-border/80 bg-card px-5 py-4 text-left text-foreground transition-colors hover:border-primary/40 hover:bg-muted"
           >
-            <div className="p-2.5 rounded-xl bg-primary/20">
+            <div className="p-2.5 rounded-xl bg-primary/15">
               <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
             </div>
             <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-primary">
