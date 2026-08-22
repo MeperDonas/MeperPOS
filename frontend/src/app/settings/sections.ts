@@ -2,6 +2,9 @@ import {
   Building2,
   Receipt,
   UsersRound,
+  SlidersHorizontal,
+  CreditCard,
+  Globe,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,5 +33,23 @@ export const settingsSections: SettingsSection[] = [
     label: "Equipo y acceso",
     href: "/settings/team",
     icon: UsersRound,
+  },
+  {
+    key: "advanced",
+    label: "Avanzado",
+    href: "/settings/advanced",
+    icon: SlidersHorizontal,
+  },
+  {
+    key: "billing",
+    label: "Facturación",
+    href: "/settings/billing",
+    icon: CreditCard,
+  },
+  {
+    key: "locale",
+    label: "Localización",
+    href: "/settings/locale",
+    icon: Globe,
   },
 ];
