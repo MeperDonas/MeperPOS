@@ -7,54 +7,64 @@
 /* ─── Color Tokens ─────────────────────────────────────── */
 :root {
     color-scheme: light;
-    --background: #FAF8F5;
-    --foreground: #2D2A26;
-    --primary: #C17B5A;
-    --primary-dark: #A8684A;
-    --accent: #7BA08B;
-    --accent-light: #E8F0EC;
+    --background: #FAF8FF;
+    --foreground: #131B2E;
+    --primary: #C25E36;
+    --primary-dark: #A84D28;
+    --primary-light: #FAECE5;
+    --accent: #C25E36;
+    --accent-light: #FAECE5;
+    /* --accent: #7BA08B; es una segunda opción de reemplazo al terracota */
     --card: #FFFFFF;
-    --border: #E8E2DB;
-    --muted: #F2EFEB;
-    --muted-foreground: #8A8380;
-    --success: #16a34a;
-    --warning: #d97706;
-    --danger: #dc2626;
+    --card-foreground: #131B2E;
+    --border: #C7C4D7;
+    --border-subtle: #E2E8F0;
+    --muted: #F2F3FF;
+    --muted-foreground: #767586;
+    --success: #16A34A;
+    --warning: #D97706;
+    --danger: #D0453F;
+    --coral: #D0453F;
 
-    --sidebar-bg: #23201E;
-    --sidebar-border: #3A3633;
-    --sidebar-title: #F4F1EE;
-    --sidebar-fg: #C0BAB5;
-    --sidebar-hover-bg: #35312D;
-    --sidebar-hover-fg: #F8F5F2;
-    --sidebar-active-bg: #3D2F27;
-    --sidebar-active-fg: #D89B77;
+    --sidebar-bg: #FFFFFF;
+    --sidebar-border: #C7C4D7;
+    --sidebar-title: #131B2E;
+    --sidebar-fg: #464554;
+    --sidebar-hover-bg: #FAECE5;
+    --sidebar-hover-fg: #C25E36;
+    --sidebar-active-bg: #FAECE5;
+    --sidebar-active-fg: #C25E36;
 }
 
 .dark {
     color-scheme: dark;
-    --background: #1A1917;
-    --foreground: #F0EDEA;
-    --primary: #D49470;
-    --primary-dark: #C17B5A;
-    --accent: #8BB59D;
-    --accent-light: #1E2D24;
-    --card: #242220;
-    --border: #3A3735;
-    --muted: #2D2B28;
-    --muted-foreground: #9A9795;
-    --success: #22c55e;
-    --warning: #f59e0b;
-    --danger: #ef4444;
+    --background: #111114;
+    --foreground: #F2F2F5;
+    --primary: #C25E36;
+    --primary-dark: #A84D28;
+    --primary-light: #2C1D18;
+    --accent: #C25E36;
+    --accent-light: #2C1D18;
+    /* --accent: #8BB59D; es una segunda opción de reemplazo al terracota */
+    --card: #18181C;
+    --card-foreground: #F2F2F5;
+    --border: #30303A;
+    --border-subtle: #3D3D4A;
+    --muted: #222228;
+    --muted-foreground: #9494A3;
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --coral: #E0524C;
 
-    --sidebar-bg: #23201E;
-    --sidebar-border: #3A3633;
-    --sidebar-title: #F4F1EE;
-    --sidebar-fg: #C0BAB5;
-    --sidebar-hover-bg: #35312D;
-    --sidebar-hover-fg: #F8F5F2;
-    --sidebar-active-bg: #3D2F27;
-    --sidebar-active-fg: #D89B77;
+    --sidebar-bg: #18181C;
+    --sidebar-border: #30303A;
+    --sidebar-title: #F2F2F5;
+    --sidebar-fg: #9494A3;
+    --sidebar-hover-bg: #2C1D18;
+    --sidebar-hover-fg: #E0764C;
+    --sidebar-active-bg: #2C1D18;
+    --sidebar-active-fg: #E0764C;
 }
 
 /* ─── Tailwind Theme ───────────────────────────────────── */
@@ -63,16 +73,20 @@
     --color-foreground: var(--foreground);
     --color-primary: var(--primary);
     --color-primary-dark: var(--primary-dark);
+    --color-primary-light: var(--primary-light);
     --color-accent: var(--accent);
     --color-accent-light: var(--accent-light);
     --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
     --color-border: var(--border);
+    --color-border-subtle: var(--border-subtle);
     --color-muted: var(--muted);
     --color-muted-foreground: var(--muted-foreground);
     --color-success: var(--success);
     --color-warning: var(--warning);
     --color-danger: var(--danger);
-    --font-sans: var(--font-manrope);
+    --color-coral: var(--coral);
+    --font-sans: var(--font-geist);
     --font-mono: var(--font-jetbrains-mono);
 }
 
@@ -84,10 +98,10 @@
 body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family: var(--font-manrope), "Segoe UI", system-ui, sans-serif;
+    font-family: var(--font-geist), system-ui, sans-serif;
     transition:
-        background-color 0.3s ease,
-        color 0.3s ease;
+        background-color 0.25s ease,
+        color 0.25s ease;
 }
 
 /* ─── Typography ───────────────────────────────────────── */
@@ -257,7 +271,7 @@ h4 {
     background: transparent;
     width: 100%;
     text-align: left;
-    font-family: var(--font-manrope), system-ui, sans-serif;
+    font-family: var(--font-geist), system-ui, sans-serif;
 }
 
 .sidebar-item:hover {
