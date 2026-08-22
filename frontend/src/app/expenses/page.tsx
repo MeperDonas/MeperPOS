@@ -16,6 +16,7 @@ import { api, getApiErrorMessage } from "@/lib/api";
 import { formatCurrency, formatDate, getBogotaDateInputValue } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Pagination } from "@/components/ui/Pagination";
+import { BentoSelect } from "@/components/ui/BentoSelect";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { Table, TableHeader, TableRow, TableCell } from "@/components/ui/Table";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -58,6 +59,7 @@ export default function ExpensesPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [exportFormat, setExportFormat] = useState<"excel" | "csv">("excel");
+  const [showExportSection, setShowExportSection] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -186,17 +188,36 @@ export default function ExpensesPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <select
-              aria-label="Formato de exportación"
-              value={exportFormat}
-              onChange={(e) =>
-                setExportFormat(e.target.value as "excel" | "csv")
-              }
-              className="h-8 px-2.5 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50"
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setShowExportSection((current) => !current)}
+              className="shrink-0"
             >
-              <option value="excel">Excel</option>
-              <option value="csv">CSV</option>
-            </select>
+              <Download className="w-3.5 h-3.5" />
+              {showExportSection ? "Ocultar exportación" : "Exportar"}
+            </Button>
+            <Button type="button" onClick={openCreate} className="shrink-0">
+              <Plus className="w-4 h-4" /> Nuevo gasto
+            </Button>
+          </div>
+        </div>
+
+        {showExportSection && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-border/80 bg-card p-3 shadow-xs">
+            <span className="flex-1 text-sm text-muted-foreground">
+              Exporta las salidas del mes seleccionado.
+            </span>
+            <BentoSelect
+              value={exportFormat}
+              onChange={(value) => setExportFormat(value as "excel" | "csv")}
+              className="w-44"
+              placeholder="Formato de exportación"
+              options={[
+                { value: "excel", label: "Excel" },
+                { value: "csv", label: "CSV" },
+              ]}
+            />
             <Button
               variant="secondary"
               size="sm"
@@ -204,13 +225,10 @@ export default function ExpensesPage() {
               onClick={handleExport}
               className="shrink-0"
             >
-              <Download className="w-3.5 h-3.5" /> Exportar
-            </Button>
-            <Button type="button" onClick={openCreate} className="shrink-0">
-              <Plus className="w-4 h-4" /> Nuevo gasto
+              <Download className="w-3.5 h-3.5" /> Exportar archivo
             </Button>
           </div>
-        </div>
+        )}
 
         <ExpenseSummaryCards month={month} summary={summary} />
 
@@ -233,50 +251,51 @@ export default function ExpensesPage() {
                 }}
                 className="h-8 px-2 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50"
               />
-              <select
+              <BentoSelect
                 value={categoryId}
-                onChange={(e) => {
+                onChange={(value) => {
                   setPage(1);
-                  setCategoryId(e.target.value);
+                  setCategoryId(value);
                 }}
-                className="h-8 px-2.5 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50 max-w-[180px]"
-              >
-                <option value="">Todas las categorías</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              <select
+                className="w-52"
+                placeholder="Todas las categorías"
+                options={[
+                  { value: "", label: "Todas las categorías" },
+                  ...categories.map((category) => ({
+                    value: category.id,
+                    label: category.name,
+                  })),
+                ]}
+              />
+              <BentoSelect
                 value={supplierId}
-                onChange={(e) => {
+                onChange={(value) => {
                   setPage(1);
-                  setSupplierId(e.target.value);
+                  setSupplierId(value);
                 }}
-                className="h-8 px-2.5 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50 max-w-[180px]"
-              >
-                <option value="">Todos los proveedores</option>
-                {suppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-              <select
+                className="w-52"
+                placeholder="Todos los proveedores"
+                options={[
+                  { value: "", label: "Todos los proveedores" },
+                  ...suppliers.map((supplier) => ({
+                    value: supplier.id,
+                    label: supplier.name,
+                  })),
+                ]}
+              />
+              <BentoSelect
                 value={status}
-                onChange={(e) => {
+                onChange={(value) => {
                   setPage(1);
-                  setStatus(e.target.value as "" | ExpenseStatus);
+                  setStatus(value as "" | ExpenseStatus);
                 }}
-                className="h-8 px-2.5 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50"
-              >
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                className="w-44"
+                placeholder="Todos los estados"
+                options={STATUS_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                }))}
+              />
               {hasFilters && (
                 <button
                   onClick={clearFilters}

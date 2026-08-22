@@ -24,7 +24,7 @@ export function FilterBar({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border/80 bg-card p-1.5 shadow-xs overflow-hidden",
+        "rounded-2xl border border-border/80 bg-card p-1.5 shadow-xs overflow-visible",
         className,
       )}
     >
