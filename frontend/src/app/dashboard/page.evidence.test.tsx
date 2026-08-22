@@ -129,7 +129,7 @@ describe("Dashboard scope evidence (tasks moved, date filter removed)", () => {
     render(<DashboardPage />);
 
     expect(screen.getByText("Bienvenido, Ana")).toBeTruthy();
-    expect(screen.getByText("Ingresos Totales")).toBeTruthy();
+    expect(screen.getByText("Ventas hoy")).toBeTruthy();
     expect(screen.getByText("Ventas Completadas")).toBeTruthy();
     expect(screen.getByText("Productos Vendidos")).toBeTruthy();
 
@@ -137,6 +137,15 @@ describe("Dashboard scope evidence (tasks moved, date filter removed)", () => {
     expect(screen.queryByText("Filtro de fechas")).toBeNull();
     expect(screen.queryByText("API real")).toBeNull();
     expect(screen.queryByText("Historial")).toBeNull();
+  });
+
+  it("does not render a hardcoded sales goal, a fake curve or mislabeled 'Ayer vs Hoy' (DIA-4/DIA-13)", () => {
+    render(<DashboardPage />);
+
+    expect(screen.queryByText(/1,500/)).toBeNull();
+    expect(screen.queryByText(/Meta:/)).toBeNull();
+    expect(screen.queryByText("Ayer vs Hoy")).toBeNull();
+    expect(screen.queryByText(/Q50,70/)).toBeNull();
   });
 
   it("renders empty sold-products state safely", () => {
