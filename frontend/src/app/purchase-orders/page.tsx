@@ -12,6 +12,7 @@ import { PurchaseOrderStatusBadge } from "@/components/purchase-orders/PurchaseO
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterBar } from "@/components/ui/FilterBar";
+import { BentoSelect } from "@/components/ui/BentoSelect";
 import { Table, TableHeader, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Eye, ClipboardList, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -107,35 +108,35 @@ export default function PurchaseOrdersPage() {
           searchPlaceholder="Buscar por N° OC o proveedor..."
           filterControls={
             <>
-              <select
+              <BentoSelect
                 value={supplierId}
-                onChange={(e) => {
+                onChange={(value) => {
                   setPage(1);
-                  setSupplierId(e.target.value);
+                  setSupplierId(value);
                 }}
-                className="h-8 px-2.5 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50 max-w-[180px]"
-              >
-                <option value="">Todos los proveedores</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <select
+                className="w-52"
+                placeholder="Todos los proveedores"
+                options={[
+                  { value: "", label: "Todos los proveedores" },
+                  ...suppliers.map((s) => ({
+                    value: s.id,
+                    label: s.name,
+                  })),
+                ]}
+              />
+              <BentoSelect
                 value={status}
-                onChange={(e) => {
+                onChange={(value) => {
                   setPage(1);
-                  setStatus(e.target.value as "" | PurchaseOrderStatus);
+                  setStatus(value as "" | PurchaseOrderStatus);
                 }}
-                className="h-8 px-2.5 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50"
-              >
-                {statusOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                className="w-44"
+                placeholder="Todos los estados"
+                options={statusOptions.map((opt) => ({
+                  value: opt.value,
+                  label: opt.label,
+                }))}
+              />
               <input
                 type="date"
                 value={dateFrom}
