@@ -11,7 +11,7 @@ import {
 } from "@/hooks/useUsers";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
+import { BentoSelect } from "@/components/ui/BentoSelect";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -256,16 +256,15 @@ export default function UsersPage() {
           <form onSubmit={handleEdit} className="space-y-4">
             <Input label="Nombre" value={editFormData.name} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} required />
             <Input label="Correo" type="email" value={editFormData.email} onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })} required />
-            <Select
+            <BentoSelect
               label="Rol"
               value={editFormData.role}
-              onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as SelectableRole })}
+              onChange={(value) => setEditFormData({ ...editFormData, role: value as SelectableRole })}
               options={[
                 { value: "CASHIER", label: "Cajero" },
                 { value: "INVENTORY_USER", label: "Inventario" },
                 { value: "ADMIN", label: "Administrador" },
               ]}
-              required
             />
             <div className="flex justify-end gap-3 border-t border-border/60 pt-4">
               <Button type="button" variant="secondary" onClick={() => setShowEditModal(false)}>Cancelar</Button>
@@ -281,16 +280,15 @@ export default function UsersPage() {
           <Input label="Correo" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
           <Input label="Contraseña" type="password" minLength={10} value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required />
           <p className="text-xs text-muted-foreground">Mínimo 10 caracteres</p>
-          <Select
+          <BentoSelect
             label="Rol"
             value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value as SelectableRole })}
+            onChange={(value) => setFormData({ ...formData, role: value as SelectableRole })}
             options={[
               { value: "CASHIER", label: "Cajero" },
               { value: "INVENTORY_USER", label: "Inventario" },
               { value: "ADMIN", label: "Administrador" },
             ]}
-            required
           />
           <div className="flex justify-end gap-3 border-t border-border/60 pt-4">
             <Button type="button" variant="secondary" onClick={() => setShowCreateModal(false)}>Cancelar</Button>

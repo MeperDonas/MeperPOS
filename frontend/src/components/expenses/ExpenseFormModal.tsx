@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Select } from "@/components/ui/Select";
+import { BentoSelect } from "@/components/ui/BentoSelect";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import {
   useCreateExpense,
@@ -182,10 +182,10 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
     >
       <div className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Select
+          <BentoSelect
             label="Categoría"
             value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
+            onChange={(value) => setCategoryId(value)}
             options={[
               { value: "", label: "Selecciona una categoría" },
               ...categories
@@ -197,10 +197,10 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
             ]}
           />
 
-          <Select
+          <BentoSelect
             label="Proveedor"
             value={supplierId}
-            onChange={(e) => setSupplierId(e.target.value)}
+            onChange={(value) => setSupplierId(value)}
             options={[
               { value: "", label: "Sin proveedor" },
               ...suppliers.map((supplier) => ({
@@ -210,10 +210,10 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
             ]}
           />
 
-          <Select
+          <BentoSelect
             label="Orden de compra"
             value={purchaseOrderId}
-            onChange={(e) => setPurchaseOrderId(e.target.value)}
+            onChange={(value) => setPurchaseOrderId(value)}
             options={[
               { value: "", label: "Sin orden de compra" },
               ...orders.map((order) => ({
