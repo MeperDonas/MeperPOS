@@ -898,6 +898,82 @@ export class ReportsService {
     };
   }
 
+  /**
+   * Daily sales grouped by category (date × category). Powers the dashboard
+   * stacked category chart: each row is `{ date, category, total, quantity }`,
+   * with `date` being the Bogotá day of the sale and `category` the product
+   * category name. Follows the same validation / scoping pattern as
+   * `getSalesByCategory` (833) and `getDailySales` (1173).
+   */
+  async getSalesByCategoryDaily(
+    organizationId: string | undefined,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    validateDateRange(startDate, endDate);
+    const dateFilter = buildDateFilter(startDate, endDate);
+    const saleNested: SaleNestedWhere = {
+      status: 'COMPLETED',
+      ...(organizationId ? { organizationId } : ({} as any)),
+      ...(dateFilter && { createdAt: dateFilter }),
+    };
+    const where: SaleItemWhereInput = { sale: saleNested };
+
+    const saleItems = await this.prisma.saleItem.findMany({
+      where: where as never,
+      select: {
+        total: true,
+        quantity: true,
+        sale: { select: { createdAt: true } },
+        product: {
+          select: {
+            category: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    const byDate = new Map<
+      string,
+      Map<string, { total: number; quantity: number }>
+    >();
+
+    saleItems.forEach((item) => {
+      const date = formatDateInBogota(item.sale?.createdAt ?? new Date());
+      const categoryName = item.product?.category?.name ?? 'Sin categoría';
+      const dayMap = byDate.get(date) ?? new Map();
+      const existing = dayMap.get(categoryName) ?? { total: 0, quantity: 0 };
+      dayMap.set(categoryName, {
+        total: existing.total + Number(item.total),
+        quantity: existing.quantity + (item.quantity ?? 0),
+      });
+      byDate.set(date, dayMap);
+    });
+
+    const data: Array<{
+      date: string;
+      category: string;
+      total: number;
+      quantity: number;
+    }> = [];
+
+    for (const [date, dayMap] of byDate) {
+      for (const [category, summary] of dayMap) {
+        data.push({
+          date,
+          category,
+          total: summary.total,
+          quantity: summary.quantity,
+        });
+      }
+    }
+
+    return {
+      data,
+      appliedRange: buildAppliedRange(startDate, endDate),
+    };
+  }
+
   async getTopSellingProducts(
     organizationId: string | undefined,
     startDate?: string,

@@ -18,6 +18,9 @@ describe('ReportsService', () => {
     customer: {
       count: jest.fn(),
     },
+    saleItem: {
+      findMany: jest.fn(),
+    },
     $queryRaw: jest.fn(),
   };
   const cacheMock = {
@@ -222,5 +225,62 @@ describe('ReportsService', () => {
         },
       },
     ]);
+  });
+
+  it('groups sale items by Bogotá date and category for the stacked chart', async () => {
+    prismaMock.saleItem.findMany.mockResolvedValue([
+      {
+        total: 50000,
+        quantity: 2,
+        sale: { createdAt: new Date('2026-08-21T15:00:00.000Z') },
+        product: { category: { name: 'Bebidas' } },
+      },
+      {
+        total: 30000,
+        quantity: 1,
+        sale: { createdAt: new Date('2026-08-21T15:00:00.000Z') },
+        product: { category: { name: 'Snacks' } },
+      },
+      {
+        total: 20000,
+        quantity: 1,
+        sale: { createdAt: new Date('2026-08-22T15:00:00.000Z') },
+        product: { category: { name: 'Bebidas' } },
+      },
+    ]);
+
+    const result = await service.getSalesByCategoryDaily(
+      'org-1',
+      '2026-08-20',
+      '2026-08-26',
+    );
+
+    expect(prismaMock.saleItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          sale: expect.objectContaining({
+            status: 'COMPLETED',
+            organizationId: 'org-1',
+            createdAt: expect.objectContaining({
+              gte: expect.any(Date),
+              lte: expect.any(Date),
+            }),
+          }),
+        }),
+      }),
+    );
+
+    expect(result.appliedRange).toEqual({
+      startDate: '2026-08-20',
+      endDate: '2026-08-26',
+      timezone: 'America/Bogota',
+    });
+    expect(result.data).toEqual(
+      expect.arrayContaining([
+        { date: '2026-08-21', category: 'Bebidas', total: 50000, quantity: 2 },
+        { date: '2026-08-21', category: 'Snacks', total: 30000, quantity: 1 },
+        { date: '2026-08-22', category: 'Bebidas', total: 20000, quantity: 1 },
+      ]),
+    );
   });
 });
