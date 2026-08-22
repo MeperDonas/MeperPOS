@@ -47,12 +47,12 @@ export default function SettingsLayout({
                       scroll={false}
                       aria-current={isActive ? "page" : undefined}
                       className={cn(
-                        "inline-flex items-center gap-2.5 rounded-lg px-3.5 py-2 text-sm font-medium whitespace-nowrap",
-                        "transition-all duration-200",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                        "inline-flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-semibold whitespace-nowrap",
+                        "transition-all duration-150",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
                         isActive
-                          ? "bg-primary/15 text-primary border border-primary/30"
-                          : "text-muted-foreground border border-transparent hover:text-foreground hover:bg-muted"
+                          ? "bg-primary-light text-primary border border-primary/30 shadow-xs"
+                          : "text-muted-foreground border border-transparent hover:text-foreground hover:bg-muted/60"
                       )}
                     >
                       <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />

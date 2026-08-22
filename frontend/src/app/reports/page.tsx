@@ -56,10 +56,12 @@ function ErrorState({ message }: { message: string }) {
 
 function SectionShell({ title, icon: Icon, children, tone = "primary" }: { title: string; icon: typeof BarChart3; children: React.ReactNode; tone?: "primary" | "accent" }) {
   return (
-    <section className={`overflow-hidden rounded-3xl border ${tone === "primary" ? "border-primary/30 bg-primary/10" : "border-accent/30 bg-accent/10"}`}>
-      <div className={`flex items-center gap-2 border-b px-5 py-4 ${tone === "primary" ? "border-primary/20" : "border-accent/20"}`}>
-        <div className={`rounded-lg p-1.5 ${tone === "primary" ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent"}`}><Icon className="h-4 w-4" aria-hidden="true" /></div>
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+    <section className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-xs">
+      <div className="flex items-center gap-2.5 border-b border-border/60 px-5 py-4">
+        <div className="w-7 h-7 rounded-xl bg-primary-light text-primary flex items-center justify-center shrink-0">
+          <Icon className="h-4 w-4" aria-hidden="true" />
+        </div>
+        <h2 className="text-sm font-bold text-foreground">{title}</h2>
       </div>
       <div className="p-5">{children}</div>
     </section>
@@ -69,12 +71,17 @@ function SectionShell({ title, icon: Icon, children, tone = "primary" }: { title
 function MetricCard({ label, value, helper, delta }: { label: string; value: string; helper: string; delta?: FinancialDelta }) {
   const positive = (delta?.percentage ?? 0) >= 0;
   return (
-    <div className="rounded-3xl border border-primary/30 bg-primary/10 p-5">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
-      <p className="mt-3 text-2xl font-bold text-primary">{value}</p>
-      <div className="mt-4 flex items-center justify-between gap-2 text-xs">
-        {delta ? <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 font-semibold ${positive ? "bg-emerald-500/15 text-emerald-600" : "bg-rose-500/15 text-rose-600"}`}><span aria-hidden="true">{positive ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}</span>{delta.percentage === null ? "Sin base" : `${positive ? "+" : ""}${delta.percentage.toFixed(1)}%`}</span> : <span />}
-        <span className="text-right text-muted-foreground">{helper}</span>
+    <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-xs flex flex-col justify-between">
+      <p className="text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mt-2 text-2xl font-extrabold font-mono text-foreground tracking-tight">{value}</p>
+      <div className="mt-3 flex items-center justify-between gap-2 text-xs">
+        {delta ? (
+          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[11px] font-bold ${positive ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800" : "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-800"}`}>
+            <span aria-hidden="true">{positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}</span>
+            {delta.percentage === null ? "Sin base" : `${positive ? "+" : ""}${delta.percentage.toFixed(1)}%`}
+          </span>
+        ) : <span />}
+        <span className="text-right text-[11px] text-muted-foreground">{helper}</span>
       </div>
     </div>
   );

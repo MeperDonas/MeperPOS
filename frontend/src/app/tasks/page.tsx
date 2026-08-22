@@ -297,14 +297,8 @@ export default function TasksPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="border-border/60 bg-muted text-foreground">
+            <Badge variant="primary" dot>
               {completedTasks}/{visibleTaskList.length} completadas
-            </Badge>
-            <Badge
-              variant="secondary"
-              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-            >
-              API real
             </Badge>
           </div>
         </div>

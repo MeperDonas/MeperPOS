@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeperPOS - Mi Perfil (Kinetic Bento Preview)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    @import url('https://cdn.jsdelivr.net/npm/@fontsource/commit-mono@5.0.0/index.css');
+    
+    body {
+      font-family: 'Hanken Grotesk', sans-serif;
+      background-color: #faf8ff;
+      color: #131b2e;
+    }
+    .font-mono-commit {
+      font-family: 'Commit Mono', monospace;
+    }
+  </style>
+</head>
+<body class="flex h-screen overflow-hidden antialiased bg-[#faf8ff] text-[#131b2e]">
+
+  <!-- SIDEBAR (Fixed 320px) -->
+  <aside class="w-[320px] h-full flex flex-col border-r border-[#c7c4d7]/60 bg-white p-5 overflow-y-auto shrink-0">
+    <div class="flex items-center gap-3 mb-4 px-1">
+      <div class="w-8 h-8 rounded-xl bg-[#4648d4] flex items-center justify-center text-white shadow-sm shadow-[#4648d4]/30">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      </div>
+      <h1 class="text-xl font-bold tracking-tight text-[#131b2e]">MeperPOS</h1>
+    </div>
+
+    <!-- User Card -->
+    <div class="rounded-2xl border border-[#c7c4d7]/60 bg-[#faf8ff] p-4 flex flex-col gap-3 mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-[#6063ee]/15 text-[#4648d4] flex items-center justify-center font-bold text-sm">KA</div>
+        <div class="flex flex-col min-w-0">
+          <span class="font-semibold text-[#131b2e] text-sm truncate">Karen Aparicio</span>
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-[#dae2fd] text-[#464554] font-mono-commit text-[10px] w-max mt-0.5">Administrador</span>
+        </div>
+      </div>
+      <div class="flex items-center justify-between border-t border-[#c7c4d7]/40 pt-2.5">
+        <div class="flex items-center bg-[#dae2fd]/60 rounded-lg p-0.5">
+          <button class="p-1 rounded-md bg-white shadow-xs text-[#4648d4] flex items-center justify-center">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="5" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></svg>
+          </button>
+          <button class="p-1 rounded-md text-[#464554] flex items-center justify-center">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+          </button>
+        </div>
+        <button class="p-1.5 rounded-lg text-[#a43a3d] hover:bg-[#a43a3d]/10 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+        </button>
+      </div>
+      <div class="font-mono-commit text-[11px] text-[#464554] text-center bg-[#eaedff] py-1.5 rounded-lg">21 Aug 2026, 01:15 PM</div>
+    </div>
+
+    <!-- Navigation List -->
+    <nav class="flex flex-col gap-1">
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span>POS</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+        <span>Ventas</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Clientes</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <span>Inventario</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Categorías</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <span>Proveedores</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span>Compras</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Salidas</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Reportes</span>
+      </a>
+      <a class="flex items-center gap-3 text-[#464554] hover:bg-[#eaedff] rounded-xl px-3.5 py-2 text-sm font-medium" href="#">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+        <span>Tareas</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- MAIN VIEW CONTAINER (ZERO SCROLL FIT) -->
+  <main class="flex-1 h-full p-8 overflow-y-auto bg-[#faf8ff] flex flex-col justify-between">
+    <div class="max-w-6xl mx-auto w-full space-y-6">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-1 h-6 bg-[#4648d4] rounded-full"></div>
+          <div>
+            <h2 class="text-2xl font-bold text-[#131b2e] tracking-tight">Mi Perfil</h2>
+            <p class="text-xs text-[#464554] mt-0.5">Gestiona tu información personal y seguridad</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1. FULL-WIDTH USER HERO BENTO BANNER (HORIZONTAL) -->
+      <div class="rounded-3xl border border-[#c7c4d7]/60 bg-white p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-5 shadow-xs">
+        <div class="flex items-center gap-4">
+          <!-- Avatar Squircle -->
+          <div class="w-14 h-14 rounded-2xl bg-[#eaedff] border border-[#4648d4]/30 text-[#4648d4] flex items-center justify-center font-bold text-xl shadow-xs">
+            KA
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-[#131b2e] leading-tight">Karen Aponte</h3>
+            <p class="text-xs text-[#464554] mt-0.5 font-mono-commit">familymotorsclub@icloud.com</p>
+            <div class="flex items-center gap-2 mt-1.5">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#eaedff] text-[#4648d4] font-mono-commit text-[11px] font-semibold">
+                Administrador
+              </span>
+              <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-mono-commit text-[11px] font-semibold border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Activo
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metadata Chips Right -->
+        <div class="flex items-center gap-3 border-t sm:border-t-0 sm:border-l border-[#c7c4d7]/40 pt-3 sm:pt-0 sm:pl-6 text-xs">
+          <div class="flex flex-col">
+            <span class="text-[10px] font-bold text-[#767586] uppercase tracking-wider">ÚLTIMO ACCESO</span>
+            <span class="font-mono-commit font-semibold text-[#131b2e] mt-0.5">21 de agosto de 2026</span>
+          </div>
+          <div class="flex flex-col ml-4">
+            <span class="text-[10px] font-bold text-[#767586] uppercase tracking-wider">SESIÓN</span>
+            <span class="font-mono-commit font-semibold text-emerald-700 mt-0.5">Verificada ✓</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. PARALLEL 2-COLUMN HORIZONTAL BENTO CARDS (SIN SCROLL) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Card Left: Información Personal -->
+        <div class="rounded-3xl border border-[#c7c4d7]/60 bg-white p-6 flex flex-col justify-between shadow-xs space-y-5">
+          <div>
+            <div class="flex items-center gap-2.5 pb-3 border-b border-[#c7c4d7]/30">
+              <div class="w-7 h-7 rounded-lg bg-[#eaedff] text-[#4648d4] flex items-center justify-center">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <h3 class="text-sm font-bold text-[#131b2e] uppercase tracking-wider">Información Personal</h3>
+            </div>
+
+            <form class="mt-4 space-y-4 text-xs">
+              <div>
+                <label class="block font-bold text-[#767586] uppercase tracking-wider mb-1.5">NOMBRE *</label>
+                <input 
+                  type="text" 
+                  value="Karen Aponte" 
+                  class="w-full bg-[#faf8ff] border border-[#c7c4d7]/60 rounded-xl px-3.5 py-2.5 text-xs text-[#131b2e] focus:outline-none focus:border-[#4648d4]"
+                />
+              </div>
+
+              <div>
+                <label class="block font-bold text-[#767586] uppercase tracking-wider mb-1.5">CORREO ELECTRÓNICO</label>
+                <div class="relative">
+                  <input 
+                    type="email" 
+                    value="familymotorsclub@icloud.com" 
+                    disabled 
+                    class="w-full bg-slate-50 border border-[#c7c4d7]/40 rounded-xl px-3.5 py-2.5 text-xs text-[#767586] cursor-not-allowed font-mono-commit"
+                  />
+                  <svg class="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-[#767586]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
+                <p class="text-[11px] text-[#767586] mt-1 italic">El email no puede ser modificado por seguridad.</p>
+              </div>
+            </form>
+          </div>
+
+          <div class="pt-3 border-t border-[#c7c4d7]/30 flex justify-end">
+            <button class="px-5 py-2.5 rounded-xl bg-[#4648d4] text-white text-xs font-semibold hover:bg-[#6063ee] transition shadow-sm shadow-[#4648d4]/20">
+              Guardar Cambios
+            </button>
+          </div>
+        </div>
+
+        <!-- Card Right: Cambiar Contraseña -->
+        <div class="rounded-3xl border border-[#c7c4d7]/60 bg-white p-6 flex flex-col justify-between shadow-xs space-y-5">
+          <div>
+            <div class="flex items-center gap-2.5 pb-3 border-b border-[#c7c4d7]/30">
+              <div class="w-7 h-7 rounded-lg bg-[#eaedff] text-[#4648d4] flex items-center justify-center">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <h3 class="text-sm font-bold text-[#131b2e] uppercase tracking-wider">Cambiar Contraseña</h3>
+            </div>
+
+            <form class="mt-4 space-y-3.5 text-xs">
+              <div>
+                <label class="block font-bold text-[#767586] uppercase tracking-wider mb-1">CONTRASEÑA ACTUAL *</label>
+                <input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  class="w-full bg-[#faf8ff] border border-[#c7c4d7]/60 rounded-xl px-3.5 py-2 text-xs text-[#131b2e] focus:outline-none focus:border-[#4648d4]"
+                />
+              </div>
+
+              <div>
+                <label class="block font-bold text-[#767586] uppercase tracking-wider mb-1">NUEVA CONTRASEÑA *</label>
+                <input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  class="w-full bg-[#faf8ff] border border-[#c7c4d7]/60 rounded-xl px-3.5 py-2 text-xs text-[#131b2e] focus:outline-none focus:border-[#4648d4]"
+                />
+              </div>
+
+              <div>
+                <label class="block font-bold text-[#767586] uppercase tracking-wider mb-1">CONFIRMAR NUEVA CONTRASEÑA *</label>
+                <input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  class="w-full bg-[#faf8ff] border border-[#c7c4d7]/60 rounded-xl px-3.5 py-2 text-xs text-[#131b2e] focus:outline-none focus:border-[#4648d4]"
+                />
+                <p class="text-[11px] text-[#767586] mt-0.5">Mínimo 6 caracteres.</p>
+              </div>
+            </form>
+          </div>
+
+          <div class="pt-3 border-t border-[#c7c4d7]/30 flex justify-end">
+            <button class="px-5 py-2.5 rounded-xl bg-[#4648d4] text-white text-xs font-semibold hover:bg-[#6063ee] transition shadow-sm shadow-[#4648d4]/20">
+              Actualizar Contraseña
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+</body>
+</html>

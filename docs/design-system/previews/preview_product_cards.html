@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeperPOS - Componente Definitivo ProductCard Bento (Motos)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    @import url('https://cdn.jsdelivr.net/npm/@fontsource/commit-mono@5.0.0/index.css');
+    
+    body {
+      font-family: 'Hanken Grotesk', sans-serif;
+      background-color: #faf8ff;
+      color: #131b2e;
+    }
+    .font-mono-commit {
+      font-family: 'Commit Mono', monospace;
+    }
+  </style>
+</head>
+<body class="bg-[#faf8ff] text-[#131b2e] min-h-screen p-6 md:p-10 antialiased">
+
+  <!-- Header Showcase -->
+  <div class="max-w-7xl mx-auto mb-8">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#c7c4d7]/60 pb-6">
+      <div>
+        <div class="flex items-center gap-3">
+          <div class="w-2 h-7 bg-[#4648d4] rounded-full"></div>
+          <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-[#131b2e]">
+            Catálogo: Lujos, Accesorios, Electricidad & Mecánica para Motos
+          </h1>
+        </div>
+        <p class="text-sm text-[#464554] mt-1 ml-5">
+          Componente definitivo <span class="font-mono-commit font-semibold text-[#4648d4]">ProductCard Bento</span> con tipografía <span class="font-mono-commit font-bold">Commit Mono</span>, formato de moneda completo sin "k" y alta legibilidad sobre fondos blancos.
+        </p>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="flex items-center gap-3 bg-white border border-[#c7c4d7]/60 px-4 py-2.5 rounded-2xl shadow-xs">
+        <span class="font-mono-commit text-xs font-semibold text-[#464554]">Mostrando:</span>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#eaedff] text-[#4648d4] font-mono-commit text-xs font-bold">
+          10 Productos
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10 CARDS GRID -->
+  <main class="max-w-7xl mx-auto">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+
+      <!-- CARD 1: Casco Fibra de Carbono (Lujos & Protección) -->
+      <div class="rounded-3xl border border-[#c7c4d7]/70 bg-white p-3.5 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition-all duration-200 group">
+        <!-- 1. Imagen + Badges flotantes -->
+        <div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#f2f3ff] border border-[#c7c4d7]/30">
+          <img src="https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80" alt="Casco Fibra de Carbono" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+          <div class="absolute top-2 left-2">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-emerald-700 font-mono-commit text-[10px] font-bold border border-emerald-200 shadow-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ACTIVO
+            </span>
+          </div>
+          <div class="absolute top-2 right-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-[#464554] font-mono-commit text-[10px] font-semibold border border-[#c7c4d7]/60 shadow-xs">
+              MCF-L-001
+            </span>
+          </div>
+        </div>
+
+        <!-- 2. Categoría & Título (Texto oscuro sobre fondo claro, nunca sobre la foto) -->
+        <div class="flex flex-col gap-1 px-1">
+          <span class="font-mono-commit uppercase text-[10px] font-bold tracking-wider text-[#4648d4]">
+            Lujos & Protección
+          </span>
+          <h3 class="font-bold text-[#131b2e] text-[14px] leading-snug line-clamp-2 min-h-[40px] group-hover:text-[#4648d4] transition">
+            Casco Integral Fibra de Carbono HJC RPHA 11
+          </h3>
+        </div>
+
+        <!-- 3. Dual Bento Metrics (Precio + Stock) -->
+        <div class="grid grid-cols-2 gap-2">
+          <!-- Precio (Commit Mono, cifra completa sin 'k') -->
+          <div class="bg-[#faf8ff] border border-[#c7c4d7]/40 rounded-xl p-2 flex flex-col justify-center">
+            <span class="font-mono-commit text-[9px] uppercase font-bold text-[#767586] tracking-wider">PRECIO</span>
+            <span class="font-mono-commit text-[13px] font-bold text-[#131b2e] truncate">
+              $ 1.250.000
+            </span>
+          </div>
+          <!-- Stock con indicador -->
+          <div class="bg-emerald-50/50 border border-emerald-200/60 rounded-xl p-2 flex flex-col justify-center">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[9px] uppercase font-bold text-emerald-800 tracking-wider">STOCK</span>
+              <span class="font-mono-commit text-[11px] font-bold text-emerald-700">8 uds.</span>
+            </div>
+            <div class="w-full bg-emerald-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              <div class="bg-emerald-500 h-full w-[80%] rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Acciones Táctiles y Visibles -->
+        <div class="flex items-center gap-2 pt-1">
+          <button class="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#131b2e] text-white hover:bg-[#4648d4] transition text-xs font-semibold shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Editar
+          </button>
+          <button class="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#c7c4d7]/60 text-[#464554] hover:text-[#a43a3d] hover:bg-[#ffdad6]/40 hover:border-[#a43a3d] transition" title="Desactivar">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- CARD 2: Luces Exploradoras LED (Electricidad & Iluminación) -->
+      <div class="rounded-3xl border border-[#c7c4d7]/70 bg-white p-3.5 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition-all duration-200 group">
+        <div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#f2f3ff] border border-[#c7c4d7]/30">
+          <img src="https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=600&auto=format&fit=crop&q=80" alt="Exploradoras LED" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+          <div class="absolute top-2 left-2">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-emerald-700 font-mono-commit text-[10px] font-bold border border-emerald-200 shadow-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ACTIVO
+            </span>
+          </div>
+          <div class="absolute top-2 right-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-[#464554] font-mono-commit text-[10px] font-semibold border border-[#c7c4d7]/60 shadow-xs">
+              ELE-EXP-024
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1 px-1">
+          <span class="font-mono-commit uppercase text-[10px] font-bold tracking-wider text-[#4648d4]">
+            Electricidad
+          </span>
+          <h3 class="font-bold text-[#131b2e] text-[14px] leading-snug line-clamp-2 min-h-[40px] group-hover:text-[#4648d4] transition">
+            Exploradoras LED Dual Color 60W con Estrobo
+          </h3>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-[#faf8ff] border border-[#c7c4d7]/40 rounded-xl p-2 flex flex-col justify-center">
+            <span class="font-mono-commit text-[9px] uppercase font-bold text-[#767586] tracking-wider">PRECIO</span>
+            <span class="font-mono-commit text-[13px] font-bold text-[#131b2e] truncate">
+              $ 185.000
+            </span>
+          </div>
+          <div class="bg-emerald-50/50 border border-emerald-200/60 rounded-xl p-2 flex flex-col justify-center">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[9px] uppercase font-bold text-emerald-800 tracking-wider">STOCK</span>
+              <span class="font-mono-commit text-[11px] font-bold text-emerald-700">24 uds.</span>
+            </div>
+            <div class="w-full bg-emerald-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              <div class="bg-emerald-500 h-full w-[95%] rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button class="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#131b2e] text-white hover:bg-[#4648d4] transition text-xs font-semibold shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Editar
+          </button>
+          <button class="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#c7c4d7]/60 text-[#464554] hover:text-[#a43a3d] hover:bg-[#ffdad6]/40 hover:border-[#a43a3d] transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- CARD 3: Pastillas de Freno Brembo (Mecánica - Stock Bajo) -->
+      <div class="rounded-3xl border border-[#c7c4d7]/70 bg-white p-3.5 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition-all duration-200 group">
+        <div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#f2f3ff] border border-[#c7c4d7]/30">
+          <img src="https://images.unsplash.com/photo-1609630875171-b1321377ee65?w=600&auto=format&fit=crop&q=80" alt="Pastillas Brembo" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+          <div class="absolute top-2 left-2">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-amber-700 font-mono-commit text-[10px] font-bold border border-amber-200 shadow-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> STOCK BAJO
+            </span>
+          </div>
+          <div class="absolute top-2 right-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-[#464554] font-mono-commit text-[10px] font-semibold border border-[#c7c4d7]/60 shadow-xs">
+              MEC-FRN-003
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1 px-1">
+          <span class="font-mono-commit uppercase text-[10px] font-bold tracking-wider text-[#4648d4]">
+            Mecánica & Frenos
+          </span>
+          <h3 class="font-bold text-[#131b2e] text-[14px] leading-snug line-clamp-2 min-h-[40px] group-hover:text-[#4648d4] transition">
+            Pastillas de Freno Sinterizadas Brembo Serie Oro
+          </h3>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-[#faf8ff] border border-[#c7c4d7]/40 rounded-xl p-2 flex flex-col justify-center">
+            <span class="font-mono-commit text-[9px] uppercase font-bold text-[#767586] tracking-wider">PRECIO</span>
+            <span class="font-mono-commit text-[13px] font-bold text-[#131b2e] truncate">
+              $ 145.000
+            </span>
+          </div>
+          <div class="bg-amber-50/50 border border-amber-200/60 rounded-xl p-2 flex flex-col justify-center">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[9px] uppercase font-bold text-amber-800 tracking-wider">STOCK</span>
+              <span class="font-mono-commit text-[11px] font-bold text-amber-700">3 uds.</span>
+            </div>
+            <div class="w-full bg-amber-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              <div class="bg-amber-500 h-full w-[25%] rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button class="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#131b2e] text-white hover:bg-[#4648d4] transition text-xs font-semibold shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Editar
+          </button>
+          <button class="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#c7c4d7]/60 text-[#464554] hover:text-[#a43a3d] hover:bg-[#ffdad6]/40 hover:border-[#a43a3d] transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- CARD 4: Kit de Arrastre Racing Cadena Dorada -->
+      <div class="rounded-3xl border border-[#c7c4d7]/70 bg-white p-3.5 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition-all duration-200 group">
+        <div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#f2f3ff] border border-[#c7c4d7]/30">
+          <img src="https://images.unsplash.com/photo-1558980394-4c7c9299fe96?w=600&auto=format&fit=crop&q=80" alt="Kit de Arrastre" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+          <div class="absolute top-2 left-2">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-emerald-700 font-mono-commit text-[10px] font-bold border border-emerald-200 shadow-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ACTIVO
+            </span>
+          </div>
+          <div class="absolute top-2 right-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-[#464554] font-mono-commit text-[10px] font-semibold border border-[#c7c4d7]/60 shadow-xs">
+              MEC-ARR-520
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1 px-1">
+          <span class="font-mono-commit uppercase text-[10px] font-bold tracking-wider text-[#4648d4]">
+            Mecánica & Transmisión
+          </span>
+          <h3 class="font-bold text-[#131b2e] text-[14px] leading-snug line-clamp-2 min-h-[40px] group-hover:text-[#4648d4] transition">
+            Kit de Arrastre Racing Cadena Dorada DID 520
+          </h3>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-[#faf8ff] border border-[#c7c4d7]/40 rounded-xl p-2 flex flex-col justify-center">
+            <span class="font-mono-commit text-[9px] uppercase font-bold text-[#767586] tracking-wider">PRECIO</span>
+            <span class="font-mono-commit text-[13px] font-bold text-[#131b2e] truncate">
+              $ 320.000
+            </span>
+          </div>
+          <div class="bg-emerald-50/50 border border-emerald-200/60 rounded-xl p-2 flex flex-col justify-center">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[9px] uppercase font-bold text-emerald-800 tracking-wider">STOCK</span>
+              <span class="font-mono-commit text-[11px] font-bold text-emerald-700">15 uds.</span>
+            </div>
+            <div class="w-full bg-emerald-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              <div class="bg-emerald-500 h-full w-[65%] rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button class="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#131b2e] text-white hover:bg-[#4648d4] transition text-xs font-semibold shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Editar
+          </button>
+          <button class="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#c7c4d7]/60 text-[#464554] hover:text-[#a43a3d] hover:bg-[#ffdad6]/40 hover:border-[#a43a3d] transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- CARD 5: Maniguetas CNC (Lujos - Agotado) -->
+      <div class="rounded-3xl border border-[#c7c4d7]/70 bg-white p-3.5 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition-all duration-200 group">
+        <div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#f2f3ff] border border-[#c7c4d7]/30">
+          <img src="https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600&auto=format&fit=crop&q=80" alt="Maniguetas CNC" class="w-full h-full object-cover group-hover:scale-105 transition duration-300 opacity-75">
+          <div class="absolute top-2 left-2">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-rose-700 font-mono-commit text-[10px] font-bold border border-rose-200 shadow-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> AGOTADO
+            </span>
+          </div>
+          <div class="absolute top-2 right-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-[#464554] font-mono-commit text-[10px] font-semibold border border-[#c7c4d7]/60 shadow-xs">
+              LUJ-MAN-CNC
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1 px-1">
+          <span class="font-mono-commit uppercase text-[10px] font-bold tracking-wider text-[#4648d4]">
+            Lujos & Accesorios
+          </span>
+          <h3 class="font-bold text-[#131b2e] text-[14px] leading-snug line-clamp-2 min-h-[40px] group-hover:text-[#4648d4] transition">
+            Maniguetas Retráctiles CNC en Aluminio Anodizado
+          </h3>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-[#faf8ff] border border-[#c7c4d7]/40 rounded-xl p-2 flex flex-col justify-center">
+            <span class="font-mono-commit text-[9px] uppercase font-bold text-[#767586] tracking-wider">PRECIO</span>
+            <span class="font-mono-commit text-[13px] font-bold text-[#131b2e] truncate">
+              $ 95.000
+            </span>
+          </div>
+          <div class="bg-rose-50/50 border border-rose-200/60 rounded-xl p-2 flex flex-col justify-center">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[9px] uppercase font-bold text-rose-800 tracking-wider">STOCK</span>
+              <span class="font-mono-commit text-[11px] font-bold text-rose-700">0 uds.</span>
+            </div>
+            <div class="w-full bg-rose-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              <div class="bg-rose-500 h-full w-[0%] rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button class="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#131b2e] text-white hover:bg-[#4648d4] transition text-xs font-semibold shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Editar
+          </button>
+          <button class="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition" title="Reactivar">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- CARD 6: Intercomunicador Bluetooth (Conectividad) -->
+      <div class="rounded-3xl border border-[#c7c4d7]/70 bg-white p-3.5 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition-all duration-200 group">
+        <div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#f2f3ff] border border-[#c7c4d7]/30">
+          <img src="https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&auto=format&fit=crop&q=80" alt="Intercomunicador" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+          <div class="absolute top-2 left-2">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-emerald-700 font-mono-commit text-[10px] font-bold border border-emerald-200 shadow-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ACTIVO
+            </span>
+          </div>
+          <div class="absolute top-2 right-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-[#464554] font-mono-commit text-[10px] font-semibold border border-[#c7c4d7]/60 shadow-xs">
+              CON-INT-PRO
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1 px-1">
+          <span class="font-mono-commit uppercase text-[10px] font-bold tracking-wider text-[#4648d4]">
+            Lujos & Conectividad
+          </span>
+          <h3 class="font-bold text-[#131b2e] text-[14px] leading-snug line-clamp-2 min-h-[40px] group-hover:text-[#4648d4] transition">
+            Intercomunicador Bluetooth Casco FreedConn T-Max
+          </h3>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-[#faf8ff] border border-[#c7c4d7]/40 rounded-xl p-2 flex flex-col justify-center">
+            <span class="font-mono-commit text-[9px] uppercase font-bold text-[#767586] tracking-wider">PRECIO</span>
+            <span class="font-mono-commit text-[13px] font-bold text-[#131b2e] truncate">
+              $ 280.000
+            </span>
+          </div>
+          <div class="bg-emerald-50/50 border border-emerald-200/60 rounded-xl p-2 flex flex-col justify-center">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[9px] uppercase font-bold text-emerald-800 tracking-wider">STOCK</span>
+              <span class="font-mono-commit text-[11px] font-bold text-emerald-700">11 uds.</span>
+            </div>
+            <div class="w-full bg-emerald-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              <div class="bg-emerald-500 h-full w-[55%] rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button class="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#131b2e] text-white hover:bg-[#4648d4] transition text-xs font-semibold shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Editar
+          </button>
+          <button class="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#c7c4d7]/60 text-[#464554] hover:text-[#a43a3d] hover:bg-[#ffdad6]/40 hover:border-[#a43a3d] transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- CARD 7: Alarma GPS Corta Corriente -->
+      <div class="rounded-3xl border border-[#c7c4d7]/70 bg-white p-3.5 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition-all duration-200 group">
+        <div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#f2f3ff] border border-[#c7c4d7]/30">
+          <img src="https://images.unsplash.com/photo-1558981408-db0ecd8a1ee4?w=600&auto=format&fit=crop&q=80" alt="Alarma GPS" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+          <div class="absolute top-2 left-2">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-amber-700 font-mono-commit text-[10px] font-bold border border-amber-200 shadow-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> STOCK BAJO
+            </span>
+          </div>
+          <div class="absolute top-2 right-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-[#464554] font-mono-commit text-[10px] font-semibold border border-[#c7c4d7]/60 shadow-xs">
+              ELE-GPS-4G
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1 px-1">
+          <span class="font-mono-commit uppercase text-[10px] font-bold tracking-wider text-[#4648d4]">
+            Electricidad & Seguridad
+          </span>
+          <h3 class="font-bold text-[#131b2e] text-[14px] leading-snug line-clamp-2 min-h-[40px] group-hover:text-[#4648d4] transition">
+            Alarma Inteligente con GPS & Corta Corriente 4G
+          </h3>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-[#faf8ff] border border-[#c7c4d7]/40 rounded-xl p-2 flex flex-col justify-center">
+            <span class="font-mono-commit text-[9px] uppercase font-bold text-[#767586] tracking-wider">PRECIO</span>
+            <span class="font-mono-commit text-[13px] font-bold text-[#131b2e] truncate">
+              $ 220.000
+            </span>
+          </div>
+          <div class="bg-amber-50/50 border border-amber-200/60 rounded-xl p-2 flex flex-col justify-center">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[9px] uppercase font-bold text-amber-800 tracking-wider">STOCK</span>
+              <span class="font-mono-commit text-[11px] font-bold text-amber-700">6 uds.</span>
+            </div>
+            <div class="w-full bg-amber-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              <div class="bg-amber-500 h-full w-[35%] rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button class="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#131b2e] text-white hover:bg-[#4648d4] transition text-xs font-semibold shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Editar
+          </button>
+          <button class="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#c7c4d7]/60 text-[#464554] hover:text-[#a43a3d] hover:bg-[#ffdad6]/40 hover:border-[#a43a3d] transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- CARD 8: Batería de Gel Sellada 12V -->
+      <div class="rounded-3xl border border-[#c7c4d7]/70 bg-white p-3.5 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition-all duration-200 group">
+        <div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#f2f3ff] border border-[#c7c4d7]/30">
+          <img src="https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600&auto=format&fit=crop&q=80" alt="Batería de Gel" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+          <div class="absolute top-2 left-2">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-emerald-700 font-mono-commit text-[10px] font-bold border border-emerald-200 shadow-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ACTIVO
+            </span>
+          </div>
+          <div class="absolute top-2 right-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-[#464554] font-mono-commit text-[10px] font-semibold border border-[#c7c4d7]/60 shadow-xs">
+              ELE-BAT-12V
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1 px-1">
+          <span class="font-mono-commit uppercase text-[10px] font-bold tracking-wider text-[#4648d4]">
+            Electricidad
+          </span>
+          <h3 class="font-bold text-[#131b2e] text-[14px] leading-snug line-clamp-2 min-h-[40px] group-hover:text-[#4648d4] transition">
+            Batería de Gel Sellada 12V 7Ah Magneti Marelli
+          </h3>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-[#faf8ff] border border-[#c7c4d7]/40 rounded-xl p-2 flex flex-col justify-center">
+            <span class="font-mono-commit text-[9px] uppercase font-bold text-[#767586] tracking-wider">PRECIO</span>
+            <span class="font-mono-commit text-[13px] font-bold text-[#131b2e] truncate">
+              $ 130.000
+            </span>
+          </div>
+          <div class="bg-emerald-50/50 border border-emerald-200/60 rounded-xl p-2 flex flex-col justify-center">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[9px] uppercase font-bold text-emerald-800 tracking-wider">STOCK</span>
+              <span class="font-mono-commit text-[11px] font-bold text-emerald-700">19 uds.</span>
+            </div>
+            <div class="w-full bg-emerald-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              <div class="bg-emerald-500 h-full w-[85%] rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button class="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#131b2e] text-white hover:bg-[#4648d4] transition text-xs font-semibold shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Editar
+          </button>
+          <button class="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#c7c4d7]/60 text-[#464554] hover:text-[#a43a3d] hover:bg-[#ffdad6]/40 hover:border-[#a43a3d] transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- CARD 9: Aceite Sintético Motul 7100 4T -->
+      <div class="rounded-3xl border border-[#c7c4d7]/70 bg-white p-3.5 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition-all duration-200 group">
+        <div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#f2f3ff] border border-[#c7c4d7]/30">
+          <img src="https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=600&auto=format&fit=crop&q=80" alt="Aceite Motul 7100" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+          <div class="absolute top-2 left-2">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-emerald-700 font-mono-commit text-[10px] font-bold border border-emerald-200 shadow-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ACTIVO
+            </span>
+          </div>
+          <div class="absolute top-2 right-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-[#464554] font-mono-commit text-[10px] font-semibold border border-[#c7c4d7]/60 shadow-xs">
+              MEC-LUB-7100
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1 px-1">
+          <span class="font-mono-commit uppercase text-[10px] font-bold tracking-wider text-[#4648d4]">
+            Mecánica & Lubricantes
+          </span>
+          <h3 class="font-bold text-[#131b2e] text-[14px] leading-snug line-clamp-2 min-h-[40px] group-hover:text-[#4648d4] transition">
+            Aceite Sintético Motul 7100 4T 10W-40 100% Ester
+          </h3>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-[#faf8ff] border border-[#c7c4d7]/40 rounded-xl p-2 flex flex-col justify-center">
+            <span class="font-mono-commit text-[9px] uppercase font-bold text-[#767586] tracking-wider">PRECIO</span>
+            <span class="font-mono-commit text-[13px] font-bold text-[#131b2e] truncate">
+              $ 68.000
+            </span>
+          </div>
+          <div class="bg-emerald-50/50 border border-emerald-200/60 rounded-xl p-2 flex flex-col justify-center">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[9px] uppercase font-bold text-emerald-800 tracking-wider">STOCK</span>
+              <span class="font-mono-commit text-[11px] font-bold text-emerald-700">42 uds.</span>
+            </div>
+            <div class="w-full bg-emerald-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              <div class="bg-emerald-500 h-full w-[100%] rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button class="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#131b2e] text-white hover:bg-[#4648d4] transition text-xs font-semibold shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Editar
+          </button>
+          <button class="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#c7c4d7]/60 text-[#464554] hover:text-[#a43a3d] hover:bg-[#ffdad6]/40 hover:border-[#a43a3d] transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- CARD 10: Espejos Stealth Aerodinámicos -->
+      <div class="rounded-3xl border border-[#c7c4d7]/70 bg-white p-3.5 flex flex-col justify-between gap-3 shadow-xs hover:border-[#4648d4] hover:shadow-md transition-all duration-200 group">
+        <div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#f2f3ff] border border-[#c7c4d7]/30">
+          <img src="https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80" alt="Espejos Stealth" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+          <div class="absolute top-2 left-2">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-amber-700 font-mono-commit text-[10px] font-bold border border-amber-200 shadow-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> STOCK BAJO
+            </span>
+          </div>
+          <div class="absolute top-2 right-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-xs text-[#464554] font-mono-commit text-[10px] font-semibold border border-[#c7c4d7]/60 shadow-xs">
+              LUJ-ESP-STL
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1 px-1">
+          <span class="font-mono-commit uppercase text-[10px] font-bold tracking-wider text-[#4648d4]">
+            Lujos & Accesorios
+          </span>
+          <h3 class="font-bold text-[#131b2e] text-[14px] leading-snug line-clamp-2 min-h-[40px] group-hover:text-[#4648d4] transition">
+            Espejos Stealth Aerodinámicos en Aleación CNC
+          </h3>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-[#faf8ff] border border-[#c7c4d7]/40 rounded-xl p-2 flex flex-col justify-center">
+            <span class="font-mono-commit text-[9px] uppercase font-bold text-[#767586] tracking-wider">PRECIO</span>
+            <span class="font-mono-commit text-[13px] font-bold text-[#131b2e] truncate">
+              $ 110.000
+            </span>
+          </div>
+          <div class="bg-amber-50/50 border border-amber-200/60 rounded-xl p-2 flex flex-col justify-center">
+            <div class="flex items-center justify-between">
+              <span class="font-mono-commit text-[9px] uppercase font-bold text-amber-800 tracking-wider">STOCK</span>
+              <span class="font-mono-commit text-[11px] font-bold text-amber-700">5 uds.</span>
+            </div>
+            <div class="w-full bg-amber-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              <div class="bg-amber-500 h-full w-[30%] rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button class="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#131b2e] text-white hover:bg-[#4648d4] transition text-xs font-semibold shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Editar
+          </button>
+          <button class="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#c7c4d7]/60 text-[#464554] hover:text-[#a43a3d] hover:bg-[#ffdad6]/40 hover:border-[#a43a3d] transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+</body>
+</html>

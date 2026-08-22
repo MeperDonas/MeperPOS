@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { cn, formatCurrency } from "@/lib/utils";
-import { AlertTriangle, Package, Power, RotateCcw, Star } from "lucide-react";
+import { Package, Power, RotateCcw, Star, Edit3 } from "lucide-react";
 
 type ProductCardData = {
   id: string;
@@ -27,23 +27,6 @@ interface ProductCardProps {
   onToggleFavorite?: () => void;
 }
 
-function getStockChipClasses({
-  isOutOfStock,
-  isLowStockStrict,
-}: {
-  isOutOfStock: boolean;
-  isLowStockStrict: boolean;
-}) {
-  return cn(
-    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold font-mono tabular-nums",
-    isOutOfStock
-      ? "bg-rose-500 border-rose-500 text-white"
-      : isLowStockStrict
-        ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-        : "bg-muted/60 border-border/60 text-foreground",
-  );
-}
-
 export function ProductCard({
   product,
   mode,
@@ -60,11 +43,9 @@ export function ProductCard({
   const hasCategory = categoryLabel !== null && categoryLabel.length > 0;
   const hasMinStock = typeof product.minStock === "number";
   const isOutOfStock = product.stock === 0;
-  const isLowStockStrict =
-    hasMinStock && product.stock > 0 && product.stock <= (product.minStock as number);
-  const showStockAlert = isOutOfStock || isLowStockStrict;
+  const isLowStock = hasMinStock && product.stock > 0 && product.stock <= (product.minStock as number);
 
-  const stockChipClasses = getStockChipClasses({ isOutOfStock, isLowStockStrict });
+  const stockPercentage = Math.min(100, Math.max(8, (product.stock / Math.max(1, (product.minStock ?? 5) * 3)) * 100));
 
   const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (!onClick) return;
@@ -77,217 +58,216 @@ export function ProductCard({
   if (mode === "inventory") {
     const isReactivate = isInactive;
     const footerHandler = isReactivate ? onReactivate : onDelete;
-    const showFooter = Boolean(footerHandler);
 
     return (
       <div
-        role={onClick ? "button" : undefined}
-        tabIndex={onClick ? 0 : undefined}
-        aria-label={onClick ? `Editar producto: ${product.name}` : undefined}
-        onClick={onClick ? () => onClick() : undefined}
-        onKeyDown={onClick ? handleCardKeyDown : undefined}
         className={cn(
-          "group flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all duration-200 ease-out",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-          onClick && isActive
-            ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
-            : onClick
-              ? "cursor-pointer"
-              : "cursor-default",
-          !isActive && "opacity-60",
+          "group relative flex flex-col justify-between rounded-3xl border border-border/80 bg-card p-3 shadow-xs transition-all duration-200",
+          "hover:border-primary/40 hover:shadow-md",
+          !isActive && "opacity-60 bg-muted/20"
         )}
       >
-        {/* Banda 1 — Imagen */}
-        <div className="relative aspect-[4/3] overflow-hidden rounded-t-2xl bg-muted">
+        {/* Top Image Frame */}
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-white dark:bg-muted/40 border border-border/60 flex items-center justify-center">
           {product.imageUrl ? (
             <Image
               src={product.imageUrl}
               alt={product.name}
               fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-              className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
-            <div
-              className="flex h-full w-full items-center justify-center"
-              aria-hidden="true"
-            >
+            <div className="flex h-full w-full items-center justify-center">
               <Package className="h-10 w-10 text-muted-foreground/40" />
             </div>
           )}
-          {!isActive && (
-            <span className="absolute right-2.5 top-2.5 inline-flex items-center rounded-full border border-border/60 bg-card/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-md">
-              Inactivo
-            </span>
-          )}
-        </div>
 
-        {/* Banda 2 — Meta */}
-        <div className="flex flex-1 flex-col px-4 py-3.5">
-          <p className="line-clamp-2 min-h-[38px] text-[15px] font-bold leading-tight text-foreground">
-            {product.name}
-          </p>
-          <div className="mt-1.5">
+          {/* Floating Stock Tag */}
+          <div className="absolute top-2.5 left-2.5">
             <span
               className={cn(
-                "inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium",
-                hasCategory ? "text-muted-foreground" : "text-muted-foreground/60",
+                "inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-bold shadow-xs",
+                isOutOfStock
+                  ? "bg-rose-500 text-white"
+                  : isLowStock
+                  ? "bg-amber-500 text-white"
+                  : "bg-emerald-500 text-white"
               )}
             >
-              {hasCategory ? categoryLabel : "Sin categoría"}
+              {isOutOfStock ? "Agotado" : `${product.stock} en stock`}
             </span>
           </div>
-          <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3">
-            <p className="text-xl font-black leading-none tracking-tight text-primary tabular-nums">
-              {formatCurrency(product.salePrice)}
-            </p>
-            <span className={stockChipClasses}>
-              {showStockAlert && (
-                <AlertTriangle
-                  data-testid="stock-alert-icon"
-                  className="h-3 w-3"
-                  aria-hidden="true"
-                />
-              )}
-              {isOutOfStock ? "Agotado" : `${product.stock} uds.`}
+
+          {/* Floating SKU Tag */}
+          <div className="absolute top-2.5 right-2.5">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-card/90 border border-border/60 text-[10px] font-mono font-semibold text-muted-foreground backdrop-blur-xs">
+              {product.sku}
             </span>
           </div>
         </div>
 
-        {/* Banda 3 — Pie de acción */}
-        {showFooter && (
+        {/* Info Body */}
+        <div className="mt-3 flex-1 flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">
+              {hasCategory ? categoryLabel : "General"}
+            </span>
+            <h3 className="mt-0.5 text-xs font-bold text-foreground line-clamp-2 min-h-[34px] leading-snug">
+              {product.name}
+            </h3>
+          </div>
+
+          {/* Price & Stock Progress Bar */}
+          <div className="mt-3 pt-2.5 border-t border-border/60">
+            <div className="flex items-baseline justify-between font-mono">
+              <span className="text-sm font-extrabold text-foreground tracking-tight">
+                {formatCurrency(product.salePrice)}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {product.stock} uds.
+              </span>
+            </div>
+
+            <div className="mt-1.5 w-full h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-300",
+                  isOutOfStock
+                    ? "bg-rose-500"
+                    : isLowStock
+                    ? "bg-amber-500"
+                    : "bg-primary"
+                )}
+                style={{ width: `${stockPercentage}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mt-3 pt-2 flex items-center gap-1.5">
           <button
             type="button"
-            aria-label={
-              isReactivate ? "Reactivar producto" : "Desactivar producto"
-            }
-            onClick={(event) => {
-              event.stopPropagation();
-              footerHandler?.();
-            }}
-            className={cn(
-              "relative flex w-full items-center justify-center gap-2 overflow-hidden border-t border-border/60 px-4 py-2.5 text-xs font-semibold transition-all duration-300 ease-out",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset",
-              isReactivate
-                ? "text-accent hover:bg-gradient-to-r hover:from-accent/5 hover:via-accent/15 hover:to-accent/5 hover:tracking-wide"
-                : "text-muted-foreground hover:bg-gradient-to-r hover:from-primary/5 hover:via-primary/15 hover:to-primary/5 hover:text-primary hover:tracking-wide",
-            )}
+            onClick={onClick}
+            className="flex-1 h-8 rounded-xl bg-primary text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-primary-dark active:scale-95 transition-all shadow-xs"
           >
-            {isReactivate ? (
-              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-            ) : (
-              <Power className="h-3.5 w-3.5" aria-hidden="true" />
-            )}
-            <span>{isReactivate ? "Reactivar" : "Desactivar"}</span>
+            <Edit3 className="w-3.5 h-3.5" />
+            <span>Editar</span>
           </button>
-        )}
+
+          {footerHandler && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                footerHandler();
+              }}
+              title={isReactivate ? "Reactivar producto" : "Desactivar producto"}
+              className={cn(
+                "w-8 h-8 rounded-xl border flex items-center justify-center active:scale-90 transition-all shadow-xs",
+                isReactivate
+                  ? "border-emerald-500/40 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                  : "border-border/80 text-muted-foreground hover:text-danger hover:border-danger/40 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+              )}
+            >
+              {isReactivate ? (
+                <RotateCcw className="w-3.5 h-3.5" />
+              ) : (
+                <Power className="w-3.5 h-3.5" />
+              )}
+            </button>
+          )}
+        </div>
       </div>
     );
   }
 
-  const showLastUnitsAlert = product.stock > 0 && product.stock <= 5;
-
+  // POS Mode
   return (
     <div
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      aria-label={onClick ? `Agregar ${product.name} al carrito` : undefined}
-      onClick={onClick ? () => onClick() : undefined}
-      onKeyDown={onClick ? handleCardKeyDown : undefined}
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={handleCardKeyDown}
       className={cn(
-        "group flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all duration-200 ease-out",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        onClick && isActive
-          ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
-          : onClick
-            ? "cursor-pointer"
-            : "cursor-default",
-        !isActive && "opacity-60",
+        "group relative flex flex-col justify-between rounded-3xl border border-border/80 bg-card p-3 shadow-xs transition-all duration-200 cursor-pointer",
+        "hover:border-primary/40 hover:shadow-md active:scale-[0.98]",
+        !isActive && "opacity-60 pointer-events-none"
       )}
     >
-      {/* Banda 1 — Imagen */}
-      <div className="relative aspect-[4/3] overflow-hidden rounded-t-2xl bg-muted">
+      {/* Top Image Frame */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-white dark:bg-muted/40 border border-border/60 flex items-center justify-center">
         {product.imageUrl ? (
           <Image
             src={product.imageUrl}
             alt={product.name}
             fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-            className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <div
-            className="flex h-full w-full items-center justify-center"
-            aria-hidden="true"
-          >
+          <div className="flex h-full w-full items-center justify-center">
             <Package className="h-10 w-10 text-muted-foreground/40" />
           </div>
         )}
+
+        {/* Favorite Star Button */}
         {onToggleFavorite && (
           <button
             type="button"
-            aria-label={
-              isFavorite
-                ? `Quitar ${product.name} de favoritos`
-                : `Marcar ${product.name} como favorito`
-            }
-            onClick={(event) => {
-              event.stopPropagation();
+            onClick={(e) => {
+              e.stopPropagation();
               onToggleFavorite();
             }}
             className={cn(
-              "absolute right-2.5 top-2.5 inline-flex items-center justify-center rounded-full border border-border/60 bg-card/90 p-1.5 backdrop-blur-md transition-all duration-200",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+              "absolute top-2 right-2 w-7 h-7 rounded-lg border border-border/60 bg-card/90 flex items-center justify-center backdrop-blur-xs transition-all",
               isFavorite
-                ? "text-primary hover:border-primary/40"
-                : "text-muted-foreground hover:text-primary",
+                ? "text-amber-500 border-amber-300 fill-amber-500"
+                : "text-muted-foreground hover:text-amber-500"
             )}
           >
-            <Star
-              className={cn("h-4 w-4", isFavorite && "fill-current")}
-              aria-hidden="true"
-            />
+            <Star className={cn("w-3.5 h-3.5", isFavorite && "fill-current")} />
           </button>
         )}
-      </div>
 
-      {/* Banda 2 — Meta */}
-      <div className="flex flex-1 flex-col px-4 py-3.5">
-        <p className="line-clamp-2 min-h-[38px] text-[15px] font-bold leading-tight text-foreground">
-          {product.name}
-        </p>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        {/* Stock Badge */}
+        <div className="absolute top-2 left-2">
           <span
             className={cn(
-              "inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium",
-              hasCategory ? "text-muted-foreground" : "text-muted-foreground/60",
+              "inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-bold shadow-xs",
+              isOutOfStock
+                ? "bg-rose-500 text-white"
+                : isLowStock
+                ? "bg-amber-500 text-white"
+                : "bg-emerald-500 text-white"
             )}
           >
-            {hasCategory ? categoryLabel : "Sin categoría"}
-          </span>
-          <span className="text-[10px] font-mono uppercase tracking-[0.08em] text-muted-foreground/70">
-            SKU {product.sku}
+            {isOutOfStock ? "Agotado" : `${product.stock} stock`}
           </span>
         </div>
-        <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3">
-          <p className="text-xl font-black leading-none tracking-tight text-primary tabular-nums">
+      </div>
+
+      {/* Info Body */}
+      <div className="mt-2.5 flex-1 flex flex-col justify-between">
+        <div>
+          <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">
+            {hasCategory ? categoryLabel : "General"}
+          </span>
+          <h3 className="mt-0.5 text-xs font-bold text-foreground line-clamp-2 min-h-[34px] leading-snug">
+            {product.name}
+          </h3>
+        </div>
+
+        {/* Price & Add Indicator */}
+        <div className="mt-2.5 pt-2 border-t border-border/60 flex items-center justify-between font-mono">
+          <span className="text-sm font-extrabold text-foreground tracking-tight">
             {formatCurrency(product.salePrice)}
-          </p>
-          <span className={stockChipClasses}>
-            {showStockAlert && (
-              <AlertTriangle
-                className="h-3 w-3"
-                aria-hidden="true"
-              />
-            )}
-            {isOutOfStock ? "Agotado" : `${product.stock} uds.`}
+          </span>
+          <span className="inline-flex items-center justify-center px-2 py-1 rounded-lg bg-primary-light text-primary text-[11px] font-bold group-hover:bg-primary group-hover:text-white transition-colors">
+            + Agregar
           </span>
         </div>
-        {showLastUnitsAlert && (
-          <p className="mt-1.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-            Últimas {product.stock} uds.
-          </p>
-        )}
       </div>
     </div>
   );

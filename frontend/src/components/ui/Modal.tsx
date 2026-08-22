@@ -54,27 +54,27 @@ export function Modal({
       {/* Panel */}
       <div
         className={cn(
-          "relative w-full overflow-hidden rounded-xl border border-border/60",
-          "bg-card shadow-2xl shadow-black/30",
+          "relative w-full overflow-hidden rounded-3xl border border-border/80",
+          "bg-card shadow-2xl shadow-black/20",
           "animate-fade-in-up",
           sizes[size],
         )}
       >
+        {/* Header */}
         {title && (
           <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
-            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+            <h2 className="text-base font-bold text-foreground">{title}</h2>
             <button
-              type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="w-8 h-8 rounded-xl border border-border/60 bg-muted/40 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-xs"
             >
-              <X className="h-5 w-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
-        <div className="max-h-[75vh] overflow-y-auto p-6 scrollbar-hide">
-          {children}
-        </div>
+
+        {/* Content */}
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );

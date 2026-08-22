@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeperPOS - Login & Autenticación (Kinetic Bento Preview)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              primary: '#c25e36',
+              primaryHover: '#a84d28',
+              primaryLight: '#faece5',
+              coral: '#d0453f',
+            },
+            obsidian: {
+              bg: '#111114',
+              card: '#18181c',
+              cardHigh: '#222228',
+              cardHigher: '#2c2c34',
+              border: '#30303a',
+              borderLight: '#3d3d4a',
+              text: '#f2f2f5',
+              textMuted: '#9494a3',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Geist', sans-serif;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .font-mono-jetbrains {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body class="bg-[#faf8ff] dark:bg-[#111114] text-[#131b2e] dark:text-[#f2f2f5] min-h-screen antialiased flex flex-col justify-between">
+
+  <!-- TOP HEADER / CONTROLS -->
+  <header class="p-4 md:px-8 border-b border-[#c7c4d7]/50 dark:border-[#30303a] flex items-center justify-between bg-white/70 dark:bg-[#18181c]/70 backdrop-blur-md sticky top-0 z-50">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-xl bg-[#c25e36] flex items-center justify-center text-white shadow-sm shadow-[#c25e36]/30">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      </div>
+      <div>
+        <span class="font-bold text-sm text-[#131b2e] dark:text-white">MeperPOS</span>
+        <span class="font-mono-jetbrains text-[10px] text-[#767586] dark:text-[#9494a3] ml-1">· Auth Redesign</span>
+      </div>
+    </div>
+
+    <!-- Layout Switcher & Theme Mode -->
+    <div class="flex items-center gap-3">
+      <!-- Layout Toggle: Split vs Centered -->
+      <div class="hidden sm:flex items-center bg-[#faf8ff] dark:bg-[#222228] p-1 rounded-xl border border-[#c7c4d7]/60 dark:border-[#30303a] text-xs">
+        <button onclick="switchLayout('split')" id="btn-layout-split" class="px-3 py-1 rounded-lg font-bold bg-[#c25e36] text-white shadow-xs transition">
+          Split-Bento (Hero)
+        </button>
+        <button onclick="switchLayout('centered')" id="btn-layout-centered" class="px-3 py-1 rounded-lg font-semibold text-[#464554] dark:text-[#9494a3] hover:text-[#131b2e] dark:hover:text-white transition">
+          Centrado Elevado
+        </button>
+      </div>
+
+      <!-- Theme Switcher -->
+      <div class="flex items-center bg-[#faf8ff] dark:bg-[#222228] p-1 rounded-xl border border-[#c7c4d7]/60 dark:border-[#30303a]">
+        <button onclick="setTheme('light')" id="btn-theme-light" class="p-1.5 rounded-lg bg-white dark:bg-transparent text-[#c25e36] shadow-xs">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
+        <button onclick="setTheme('dark')" id="btn-theme-dark" class="p-1.5 rounded-lg text-[#464554] dark:text-[#9494a3] hover:text-white">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================= -->
+  <!-- OPTION 1: SPLIT-BENTO HERO (DESKTOP DUAL PANE) -->
+  <!-- ========================================================= -->
+  <main id="view-split" class="flex-1 flex items-center justify-center p-6 md:p-12">
+    <div class="w-full max-w-5xl rounded-3xl border border-[#c7c4d7]/60 dark:border-[#30303a] bg-white dark:bg-[#18181c] shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[580px]">
+      
+      <!-- Left Hero Showcase Pane (7 cols) -->
+      <div class="lg:col-span-7 bg-[#faece5]/60 dark:bg-[#151518] p-8 md:p-12 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-[#c7c4d7]/60 dark:border-[#30303a] relative overflow-hidden">
+        
+        <!-- Subtle Background Glow -->
+        <div class="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-[#c25e36]/10 dark:bg-[#c25e36]/15 blur-3xl pointer-events-none"></div>
+
+        <!-- Top Showcase Header -->
+        <div class="space-y-4 relative z-10">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white dark:bg-[#222228] border border-[#c7c4d7]/60 dark:border-[#30303a] shadow-xs">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="font-mono-jetbrains text-xs font-bold text-[#c25e36]">MeperPOS v2.0 · Punto de Venta</span>
+          </div>
+
+          <h2 class="text-3xl lg:text-4xl font-extrabold tracking-tight text-[#131b2e] dark:text-white leading-tight">
+            Control total de tu negocio e inventario de motos.
+          </h2>
+          <p class="text-xs lg:text-sm text-[#464554] dark:text-[#9494a3] max-w-md">
+            Punto de venta táctico, cálculo automático de costo COGS, sincronización de stock en tiempo real y facturación multi-método.
+          </p>
+        </div>
+
+        <!-- Live Bento Micro-Cards Grid in Hero -->
+        <div class="grid grid-cols-2 gap-3.5 my-6 relative z-10">
+          <!-- Card 1: Ventas Hoy -->
+          <div class="rounded-2xl border border-[#c7c4d7]/60 dark:border-[#30303a] bg-white/80 dark:bg-[#1e1e24] p-4 space-y-1.5 shadow-xs backdrop-blur-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold uppercase text-[#767586] dark:text-[#9494a3]">Ventas Hoy</span>
+              <span class="font-mono-jetbrains text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded">+18.4%</span>
+            </div>
+            <p class="font-mono-jetbrains font-extrabold text-lg text-[#131b2e] dark:text-white">$ 2.450.000</p>
+            <p class="text-[11px] text-[#767586] dark:text-[#9494a3] font-mono-jetbrains">24 transacciones</p>
+          </div>
+
+          <!-- Card 2: Stock Rápido -->
+          <div class="rounded-2xl border border-[#c7c4d7]/60 dark:border-[#30303a] bg-white/80 dark:bg-[#1e1e24] p-4 space-y-1.5 shadow-xs backdrop-blur-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold uppercase text-[#767586] dark:text-[#9494a3]">Catálogo Activo</span>
+              <span class="w-2 h-2 rounded-full bg-[#c25e36]"></span>
+            </div>
+            <p class="font-mono-jetbrains font-extrabold text-lg text-[#131b2e] dark:text-white">142 SKUs</p>
+            <p class="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono-jetbrains">98% con stock óptimo</p>
+          </div>
+        </div>
+
+        <!-- Hero Footer -->
+        <div class="pt-4 border-t border-[#c7c4d7]/40 dark:border-[#30303a] flex items-center justify-between text-xs text-[#767586] dark:text-[#9494a3] font-mono-jetbrains">
+          <span>Family Motors Club</span>
+          <span>COP · es-CO</span>
+        </div>
+
+      </div>
+
+      <!-- Right Form Pane (5 cols) -->
+      <div class="lg:col-span-5 p-8 md:p-12 flex flex-col justify-between bg-white dark:bg-[#18181c]">
+        
+        <div>
+          <!-- Logo Squircle -->
+          <div class="w-12 h-12 rounded-2xl bg-[#c25e36] text-white flex items-center justify-center shadow-md shadow-[#c25e36]/30 mb-6">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+          </div>
+
+          <h3 class="text-2xl font-bold text-[#131b2e] dark:text-white tracking-tight">Bienvenido de nuevo</h3>
+          <p class="text-xs text-[#767586] dark:text-[#9494a3] mt-1">Ingresa tus credenciales para acceder a la terminal POS</p>
+
+          <!-- Form -->
+          <form class="mt-6 space-y-4 text-xs">
+            <div>
+              <label class="block font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider mb-1.5">CORREO ELECTRÓNICO *</label>
+              <div class="relative">
+                <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#767586] dark:text-[#9494a3]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                <input 
+                  type="email" 
+                  value="usuario@correo.com" 
+                  class="w-full bg-[#faf8ff] dark:bg-[#222228] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-[#131b2e] dark:text-white focus:outline-none focus:border-[#c25e36] font-mono-jetbrains"
+                />
+              </div>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="block font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider">CONTRASEÑA *</label>
+                <a href="#" class="text-[11px] text-[#c25e36] font-semibold hover:underline">¿Olvidaste tu clave?</a>
+              </div>
+              <div class="relative">
+                <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#767586] dark:text-[#9494a3]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <input 
+                  type="password" 
+                  value="••••••••" 
+                  class="w-full bg-[#faf8ff] dark:bg-[#222228] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl pl-10 pr-10 py-2.5 text-xs text-[#131b2e] dark:text-white focus:outline-none focus:border-[#c25e36]"
+                />
+                <button type="button" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#767586] dark:text-[#9494a3] hover:text-[#131b2e] dark:hover:text-white">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <button type="button" class="w-full py-3 rounded-xl bg-[#c25e36] text-white font-bold text-xs hover:bg-[#a84d28] active:scale-[0.99] transition shadow-md shadow-[#c25e36]/25 flex items-center justify-center gap-2 mt-2">
+              <span>Iniciar Sesión</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+          </form>
+        </div>
+
+        <div class="pt-6 border-t border-[#c7c4d7]/40 dark:border-[#30303a] text-center text-xs text-[#767586] dark:text-[#9494a3]">
+          ¿No tienes cuenta? <a href="#" class="font-bold text-[#c25e36] hover:underline ml-1">Registrarse</a>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- OPTION 2: CENTERED ELEVATED BENTO (MINIMALISTA) -->
+  <!-- ========================================================= -->
+  <main id="view-centered" class="hidden flex-1 flex items-center justify-center p-6">
+    <div class="w-full max-w-md rounded-3xl border border-[#c7c4d7]/60 dark:border-[#30303a] bg-white dark:bg-[#18181c] p-8 md:p-10 shadow-2xl space-y-6">
+      
+      <div class="text-center space-y-2">
+        <div class="w-14 h-14 rounded-2xl bg-[#c25e36] text-white flex items-center justify-center shadow-lg shadow-[#c25e36]/30 mx-auto mb-4">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-[#131b2e] dark:text-white tracking-tight">Bienvenido de nuevo</h2>
+        <p class="text-xs text-[#767586] dark:text-[#9494a3]">MeperPOS · Terminal de Ventas</p>
+      </div>
+
+      <form class="space-y-4 text-xs">
+        <div>
+          <label class="block font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider mb-1.5">CORREO ELECTRÓNICO *</label>
+          <input 
+            type="email" 
+            value="usuario@correo.com" 
+            class="w-full bg-[#faf8ff] dark:bg-[#222228] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl px-3.5 py-2.5 text-xs text-[#131b2e] dark:text-white focus:outline-none focus:border-[#c25e36] font-mono-jetbrains"
+          />
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="block font-bold text-[#767586] dark:text-[#9494a3] uppercase tracking-wider">CONTRASEÑA *</label>
+            <a href="#" class="text-[11px] text-[#c25e36] font-semibold hover:underline">¿Olvidaste tu clave?</a>
+          </div>
+          <input 
+            type="password" 
+            value="••••••••" 
+            class="w-full bg-[#faf8ff] dark:bg-[#222228] border border-[#c7c4d7]/60 dark:border-[#30303a] rounded-xl px-3.5 py-2.5 text-xs text-[#131b2e] dark:text-white focus:outline-none focus:border-[#c25e36]"
+          />
+        </div>
+
+        <button type="button" class="w-full py-3 rounded-xl bg-[#c25e36] text-white font-bold text-xs hover:bg-[#a84d28] active:scale-[0.99] transition shadow-md shadow-[#c25e36]/25 flex items-center justify-center gap-2">
+          <span>Iniciar Sesión</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </form>
+
+      <div class="pt-4 border-t border-[#c7c4d7]/40 dark:border-[#30303a] text-center text-xs text-[#767586] dark:text-[#9494a3]">
+        ¿No tienes cuenta? <a href="#" class="font-bold text-[#c25e36] hover:underline ml-1">Registrarse</a>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="py-4 text-center text-[11px] text-[#767586] dark:text-[#9494a3] font-mono-jetbrains">
+    MeperPOS © 2026 · Desarrollado con Kinetic Bento Design System
+  </footer>
+
+  <script>
+    function setTheme(mode) {
+      const html = document.documentElement;
+      const btnLight = document.getElementById('btn-theme-light');
+      const btnDark = document.getElementById('btn-theme-dark');
+      if (mode === 'dark') {
+        html.classList.add('dark');
+        html.classList.remove('light');
+        btnDark.className = 'p-1.5 rounded-lg bg-[#222228] text-white shadow-xs';
+        btnLight.className = 'p-1.5 rounded-lg text-[#9494a3] hover:text-white';
+      } else {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        btnLight.className = 'p-1.5 rounded-lg bg-white text-[#c25e36] shadow-xs';
+        btnDark.className = 'p-1.5 rounded-lg text-[#464554] hover:text-[#131b2e]';
+      }
+    }
+
+    function switchLayout(layout) {
+      const splitView = document.getElementById('view-split');
+      const centeredView = document.getElementById('view-centered');
+      const btnSplit = document.getElementById('btn-layout-split');
+      const btnCentered = document.getElementById('btn-layout-centered');
+
+      if (layout === 'split') {
+        splitView.classList.remove('hidden');
+        centeredView.classList.add('hidden');
+        btnSplit.className = 'px-3 py-1 rounded-lg font-bold bg-[#c25e36] text-white shadow-xs transition';
+        btnCentered.className = 'px-3 py-1 rounded-lg font-semibold text-[#464554] dark:text-[#9494a3] hover:text-[#131b2e] dark:hover:text-white transition';
+      } else {
+        splitView.classList.add('hidden');
+        centeredView.classList.remove('hidden');
+        btnCentered.className = 'px-3 py-1 rounded-lg font-bold bg-[#c25e36] text-white shadow-xs transition';
+        btnSplit.className = 'px-3 py-1 rounded-lg font-semibold text-[#464554] dark:text-[#9494a3] hover:text-[#131b2e] dark:hover:text-white transition';
+      }
+    }
+  </script>
+
+</body>
+</html>

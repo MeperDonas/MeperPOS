@@ -1,6 +1,7 @@
 "use client";
 
 import { CreditCard, DollarSign, Smartphone, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface PaymentMethodCardProps {
   label: string;
@@ -18,29 +19,31 @@ export function PaymentMethodCard({
   return (
     <div
       onClick={onClick}
-      className={`
-        relative p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:scale-[1.02]
-        ${selected
-          ? "border-primary bg-primary/5 shadow-lg"
-          : "border-border bg-card hover:border-primary/50"
-        }
-      `}
+      className={cn(
+        "relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 hover:scale-[1.02] shadow-xs",
+        selected
+          ? "border-primary bg-primary-light text-primary shadow-md shadow-primary/10 font-bold"
+          : "border-border/80 bg-card hover:border-primary/40 text-foreground"
+      )}
     >
-      <div className="flex flex-col items-center justify-center gap-2">
-        <div className={`
-          p-4 rounded-xl ${
-            selected ? "bg-primary text-white" : "bg-primary/10 text-primary"
-          } flex items-center justify-center
-        `}>
+      <div className="flex flex-col items-center justify-center gap-2.5">
+        <div
+          className={cn(
+            "p-3.5 rounded-xl flex items-center justify-center transition-colors",
+            selected
+              ? "bg-primary text-white shadow-xs"
+              : "bg-muted text-muted-foreground"
+          )}
+        >
           {icon}
         </div>
-        <h4 className={`font-semibold text-sm ${selected ? "text-primary" : "text-foreground"}`}>
+        <h4 className="font-bold text-xs tracking-tight">
           {label}
         </h4>
       </div>
       {selected && (
-        <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-          <Check className="w-4 h-4 text-white" />
+        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center shadow-xs">
+          <Check className="w-3 h-3 stroke-[3]" />
         </div>
       )}
     </div>
