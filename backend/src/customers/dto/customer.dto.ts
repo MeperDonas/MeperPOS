@@ -30,6 +30,16 @@ export class CreateCustomerDto {
   @IsOptional()
   phone?: string;
 
+  @ApiProperty({ example: 'Entrega en portería', required: false })
+  @IsString()
+  @IsOptional()
+  referencia?: string;
+
+  @ApiProperty({ example: 'ABC-123', required: false })
+  @IsString()
+  @IsOptional()
+  placaMoto?: string;
+
   @ApiProperty({ example: '123 Main St', required: false })
   @IsString()
   @IsOptional()
@@ -70,6 +80,16 @@ export class UpdateCustomerDto {
   @IsString()
   @IsOptional()
   phone?: string;
+
+  @ApiProperty({ example: 'Entrega en portería', required: false })
+  @IsString()
+  @IsOptional()
+  referencia?: string;
+
+  @ApiProperty({ example: 'ABC-123', required: false })
+  @IsString()
+  @IsOptional()
+  placaMoto?: string;
 
   @ApiProperty({ example: '123 Main St', required: false })
   @IsString()

@@ -372,6 +372,8 @@ export class ExportsService {
         'Email',
         'Phone',
         'Segment',
+        'Referencia',
+        'Placa de la moto',
       ],
       inventory: [
         'Date',
@@ -415,6 +417,8 @@ export class ExportsService {
         item.email || 'N/A',
         item.phone || 'N/A',
         item.segment,
+        item.referencia || 'N/A',
+        item.placaMoto || 'N/A',
       ],
       inventory: (item) => [
         new Date(item.createdAt).toLocaleDateString(),
@@ -441,7 +445,7 @@ export class ExportsService {
     const widths: Record<string, number[]> = {
       sales: [20, 30, 40, 25, 25, 30],
       products: [50, 25, 25, 20, 20, 15, 15],
-      customers: [35, 25, 25, 30, 25, 20],
+      customers: [35, 25, 25, 30, 25, 20, 30, 28],
       inventory: [25, 40, 25, 15, 20, 20, 25],
       expenses: [25, 40, 40, 20, 20],
       economic: [30, 40, 30],
