@@ -37,6 +37,11 @@ export class CreateSupplierDto {
   @IsOptional()
   contactName?: string;
 
+  @ApiProperty({ example: 'Bancolombia', required: false })
+  @IsString()
+  @IsOptional()
+  bank?: string;
+
   @ApiProperty({ example: '1234567890', required: false })
   @IsString()
   @IsOptional()
