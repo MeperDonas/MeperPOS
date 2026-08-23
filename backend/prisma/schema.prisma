@@ -335,6 +335,7 @@ model Supplier {
   phone          String?
   address        String?
   contactName    String?
+  bank           String?
   accountNumber  String?
   accountType    SupplierAccountType?
   active         Boolean         @default(true)

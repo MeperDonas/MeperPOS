@@ -42,6 +42,11 @@ export class UpdateSupplierDto {
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
+  bank?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
   accountNumber?: string;
 
   @ApiProperty({ enum: SupplierAccountType, required: false })

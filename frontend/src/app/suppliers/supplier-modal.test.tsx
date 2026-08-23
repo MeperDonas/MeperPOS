@@ -38,6 +38,7 @@ vi.mock("@/hooks/useSuppliers", () => ({
           phone: null,
           address: null,
           contactName: null,
+          bank: "Bancolombia",
           active: true,
           accountNumber: "0111111111",
           accountType: "CHECKING",
@@ -96,7 +97,7 @@ describe("Suppliers page modal — customer-supplier-info-fields (T19)", () => {
     cleanup();
   });
 
-  it("sends accountNumber and accountType (Ahorros/SAVINGS) to createSupplier", async () => {
+  it("sends bank, accountNumber and accountType (Ahorros/SAVINGS) to createSupplier", async () => {
     const user = userEvent.setup();
     render(<SuppliersPage />);
 
@@ -105,12 +106,18 @@ describe("Suppliers page modal — customer-supplier-info-fields (T19)", () => {
     const accountNumberInput = await screen.findByLabelText(/Número de cuenta/i);
     expect(accountNumberInput).toBeTruthy();
 
-    const accountTypeTrigger = screen.getByRole("button", { name: /Seleccionar.../i });
-    expect(accountTypeTrigger).toBeTruthy();
+    const selectTriggers = screen.getAllByRole("button", { name: /Seleccionar.../i });
+    expect(selectTriggers.length).toBeGreaterThanOrEqual(2);
+
+    const bankTrigger = selectTriggers[0];
+    const accountTypeTrigger = selectTriggers[1];
 
     await user.type(screen.getByLabelText(/Nombre \/ Razón social/i), "Dist Test");
     await user.type(screen.getByLabelText(/NIT \/ Documento/i), "900");
     await user.type(accountNumberInput, "0112345678");
+
+    await user.click(bankTrigger);
+    await user.click(screen.getByText("Nequi"));
 
     await user.click(accountTypeTrigger);
     await user.click(screen.getByText("Ahorros"));
@@ -122,6 +129,7 @@ describe("Suppliers page modal — customer-supplier-info-fields (T19)", () => {
     });
     expect(createSupplierMutateAsyncMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        bank: "Nequi",
         accountNumber: "0112345678",
         accountType: "SAVINGS",
       })
@@ -129,7 +137,7 @@ describe("Suppliers page modal — customer-supplier-info-fields (T19)", () => {
     expect(toastSuccessMock).toHaveBeenCalledWith("Proveedor creado correctamente");
   });
 
-  it("coerces whitespace accountNumber to null and empty accountType to null", async () => {
+  it("coerces whitespace accountNumber, bank and empty accountType to null", async () => {
     const user = userEvent.setup();
     render(<SuppliersPage />);
 
@@ -148,13 +156,14 @@ describe("Suppliers page modal — customer-supplier-info-fields (T19)", () => {
     });
     expect(createSupplierMutateAsyncMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        bank: null,
         accountNumber: null,
         accountType: null,
       })
     );
   });
 
-  it("seeds accountNumber and accountType (Corriente/CHECKING) when editing a supplier", async () => {
+  it("seeds bank, accountNumber and accountType (Corriente/CHECKING) when editing a supplier", async () => {
     const user = userEvent.setup();
     render(<SuppliersPage />);
 
@@ -163,12 +172,14 @@ describe("Suppliers page modal — customer-supplier-info-fields (T19)", () => {
 
     const accountNumberInput = await screen.findByLabelText(/Número de cuenta/i);
     expect(accountNumberInput).toHaveValue("0111111111");
-    // BentoSelect value=CHECKING renders its label as the trigger text.
+    // BentoSelect value=Bancolombia and value=CHECKING render their labels as the trigger text.
+    expect(screen.getByRole("button", { name: /Bancolombia/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Corriente/i })).toBeTruthy();
   });
 
-  it("renders bank account number and type on the supplier card", () => {
+  it("renders bank badge and account type/number on the supplier card", () => {
     render(<SuppliersPage />);
+    expect(screen.getByText("Bancolombia")).toBeTruthy();
     expect(screen.getByText("Corriente: 0111111111")).toBeTruthy();
   });
 });
