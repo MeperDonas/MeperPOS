@@ -47,12 +47,13 @@ describe('SuppliersService', () => {
       expect(result.name).toBe('Proveedor Andino');
     });
 
-    it('survives accountNumber and accountType into the create payload', async () => {
+    it('survives accountNumber, accountType and bank into the create payload', async () => {
       prismaMock.supplier.findFirst.mockResolvedValue(null);
       prismaMock.supplier.create.mockResolvedValue({
         id: 's1',
         name: 'Proveedor Andino',
         documentNumber: '900123456',
+        bank: 'Bancolombia',
         accountNumber: '1234567890',
         accountType: 'SAVINGS',
         organizationId: orgId,
@@ -62,6 +63,7 @@ describe('SuppliersService', () => {
       const dto = {
         name: 'Proveedor Andino',
         documentNumber: '900123456',
+        bank: 'Bancolombia',
         accountNumber: '1234567890',
         accountType: 'SAVINGS' as SupplierAccountType,
       };
@@ -70,6 +72,7 @@ describe('SuppliersService', () => {
       expect(prismaMock.supplier.create).toHaveBeenCalledWith({
         data: { ...dto, organizationId: orgId },
       });
+      expect(result.bank).toBe('Bancolombia');
       expect(result.accountType).toBe('SAVINGS');
     });
 
@@ -173,7 +176,7 @@ describe('SuppliersService', () => {
       expect(result.name).toBe('Andino Updated');
     });
 
-    it('survives accountNumber and accountType into the update payload', async () => {
+    it('survives accountNumber, accountType and bank into the update payload', async () => {
       prismaMock.supplier.findFirst
         .mockResolvedValueOnce({ id: 's1', documentNumber: '900' })
         .mockResolvedValueOnce(null);
@@ -181,12 +184,14 @@ describe('SuppliersService', () => {
         id: 's1',
         name: 'Andino Updated',
         documentNumber: '900',
+        bank: 'Davivienda',
         accountNumber: '0987654321',
         accountType: 'CHECKING',
       });
 
       const dto = {
         name: 'Andino Updated',
+        bank: 'Davivienda',
         accountNumber: '0987654321',
         accountType: 'CHECKING' as SupplierAccountType,
       };
@@ -196,6 +201,7 @@ describe('SuppliersService', () => {
         where: { id: 's1' },
         data: dto,
       });
+      expect(result.bank).toBe('Davivienda');
       expect(result.accountType).toBe('CHECKING');
     });
 

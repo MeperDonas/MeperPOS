@@ -13,6 +13,7 @@ export type SupplierPayload = Partial<
     | "phone"
     | "address"
     | "contactName"
+    | "bank"
     | "accountNumber"
     | "accountType"
     | "active"

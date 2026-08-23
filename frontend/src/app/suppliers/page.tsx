@@ -39,6 +39,53 @@ import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiErrorMessage } from "@/lib/api";
 
+const BANK_STYLES: Record<string, { label: string; badge: string }> = {
+  Bancolombia: {
+    label: "Bancolombia",
+    badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25",
+  },
+  Davivienda: {
+    label: "Davivienda",
+    badge: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/25",
+  },
+  Nequi: {
+    label: "Nequi",
+    badge: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/25",
+  },
+  "Bre-B": {
+    label: "Bre-B",
+    badge: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/25",
+  },
+  "Banco de Bogotá": {
+    label: "Banco de Bogotá",
+    badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/25",
+  },
+  BBVA: {
+    label: "BBVA",
+    badge: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/25",
+  },
+  Nu: {
+    label: "Nu",
+    badge: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/25",
+  },
+  "Lulo Bank": {
+    label: "Lulo Bank",
+    badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25",
+  },
+};
+
+function getBankStyle(bankName: string | null | undefined) {
+  if (!bankName) return null;
+  const match = Object.entries(BANK_STYLES).find(
+    ([key]) => key.toLowerCase() === bankName.trim().toLowerCase(),
+  );
+  if (match) return match[1];
+  return {
+    label: bankName,
+    badge: "bg-muted text-muted-foreground border-border/70",
+  };
+}
+
 function SupplierAvatar({ name }: { name: string }) {
   const initials = name
     .split(" ")
@@ -60,9 +107,9 @@ export default function SuppliersPage() {
   const { user } = useAuth();
   const canManage = user?.role === "ADMIN" || user?.role === "INVENTORY_USER";
 
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
-  const [page, setPage] = useState(1);
 
   const [showModal, setShowModal] = useState(false);
   const [showConfirmDeactivate, setShowConfirmDeactivate] = useState(false);
@@ -94,6 +141,7 @@ export default function SuppliersPage() {
       phone: supplier.phone,
       address: supplier.address,
       contactName: supplier.contactName,
+      bank: supplier.bank,
       accountNumber: supplier.accountNumber,
       accountType: supplier.accountType,
     });
@@ -110,6 +158,7 @@ export default function SuppliersPage() {
       phone: "",
       address: "",
       contactName: "",
+      bank: null,
       accountNumber: "",
       accountType: null,
     });
@@ -153,6 +202,7 @@ export default function SuppliersPage() {
       phone: formData.phone?.trim() || null,
       address: formData.address?.trim() || null,
       contactName: formData.contactName?.trim() || null,
+      bank: formData.bank?.trim() || null,
       accountNumber: formData.accountNumber?.trim() || null,
       accountType: formData.accountType || null,
     };
@@ -338,10 +388,20 @@ export default function SuppliersPage() {
                         <span className="truncate">{supplier.address}</span>
                       </div>
                     )}
-                    {(supplier.accountNumber || supplier.accountType) && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <CreditCard className="w-3 h-3 shrink-0" />
-                        <span className="truncate">
+                    {(supplier.bank || supplier.accountNumber || supplier.accountType) && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+                        <CreditCard className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        {supplier.bank && (
+                          <span
+                            className={cn(
+                              "inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-md border",
+                              getBankStyle(supplier.bank)?.badge,
+                            )}
+                          >
+                            {supplier.bank}
+                          </span>
+                        )}
+                        <span className="text-muted-foreground font-mono text-[11px] truncate">
                           {supplier.accountType === "SAVINGS"
                             ? "Ahorros"
                             : supplier.accountType === "CHECKING"
@@ -418,12 +478,26 @@ export default function SuppliersPage() {
               }
               className="sm:col-span-2"
             />
-            <Input
-              label="Número de cuenta"
-              value={formData.accountNumber || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, accountNumber: e.target.value })
+            <BentoSelect
+              label="Banco / Entidad"
+              value={formData.bank || ""}
+              onChange={(value) =>
+                setFormData({
+                  ...formData,
+                  bank: value || null,
+                })
               }
+              options={[
+                { value: "", label: "Seleccionar..." },
+                { value: "Bancolombia", label: "Bancolombia" },
+                { value: "Davivienda", label: "Davivienda" },
+                { value: "Nequi", label: "Nequi" },
+                { value: "Bre-B", label: "Bre-B (Llave / Transfiya)" },
+                { value: "Banco de Bogotá", label: "Banco de Bogotá" },
+                { value: "BBVA", label: "BBVA" },
+                { value: "Nu", label: "Nu Colombia" },
+                { value: "Lulo Bank", label: "Lulo Bank" },
+              ]}
             />
             <BentoSelect
               label="Tipo de cuenta"
@@ -439,6 +513,14 @@ export default function SuppliersPage() {
                 { value: "SAVINGS", label: "Ahorros" },
                 { value: "CHECKING", label: "Corriente" },
               ]}
+            />
+            <Input
+              label="Número de cuenta o Llave"
+              value={formData.accountNumber || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, accountNumber: e.target.value })
+              }
+              className="sm:col-span-2"
             />
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4 border-t border-border/60">

@@ -54,15 +54,15 @@ export function Modal({
       {/* Panel */}
       <div
         className={cn(
-          "relative w-full overflow-hidden rounded-3xl border border-border/80",
+          "relative w-full rounded-3xl border border-border/80",
           "bg-card shadow-2xl shadow-black/20",
-          "animate-fade-in-up",
+          "animate-fade-in-up flex flex-col max-h-[calc(100dvh-2rem)]",
           sizes[size],
         )}
       >
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
+          <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 shrink-0">
             <h2 className="text-base font-bold text-foreground">{title}</h2>
             <button
               onClick={onClose}
@@ -74,7 +74,7 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto scrollbar-app flex-1">{children}</div>
       </div>
     </div>
   );

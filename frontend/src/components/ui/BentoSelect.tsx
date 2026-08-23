@@ -32,6 +32,7 @@ export function BentoSelect({
   disabled = false,
 }: BentoSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpwards, setOpenUpwards] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value);
@@ -54,6 +55,22 @@ export function BentoSelect({
     };
   }, [isOpen]);
 
+  const toggleOpen = () => {
+    if (disabled) return;
+    if (!isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // If space below is less than 240px and there's more space above, open upwards
+      if (spaceBelow < 240 && spaceAbove > spaceBelow) {
+        setOpenUpwards(true);
+      } else {
+        setOpenUpwards(false);
+      }
+    }
+    setIsOpen((prev) => !prev);
+  };
+
   const handleSelect = (val: string) => {
     onChange(val);
     setIsOpen(false);
@@ -71,7 +88,7 @@ export function BentoSelect({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleOpen}
         className={cn(
           "w-full rounded-xl border bg-card px-3.5 py-2.5 text-xs font-medium text-foreground",
           "flex items-center justify-between gap-2 shadow-xs transition-all duration-200",
@@ -103,9 +120,10 @@ export function BentoSelect({
       {isOpen && (
         <div
           className={cn(
-            "absolute left-0 right-0 z-50 mt-1.5 rounded-2xl border border-border/80 bg-card p-1.5",
+            "absolute left-0 right-0 z-50 rounded-2xl border border-border/80 bg-card p-1.5",
             "shadow-xl shadow-black/10 backdrop-blur-md animate-fade-in-up",
-            "max-h-60 overflow-y-auto"
+            "max-h-60 overflow-y-auto scrollbar-app",
+            openUpwards ? "bottom-full mb-1.5" : "top-full mt-1.5"
           )}
         >
           {options.map((option) => {

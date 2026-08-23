@@ -467,6 +467,7 @@ export interface Supplier {
   phone?: string | null;
   address?: string | null;
   contactName?: string | null;
+  bank?: string | null;
   accountNumber?: string | null;
   accountType?: "SAVINGS" | "CHECKING" | null;
   active: boolean;
