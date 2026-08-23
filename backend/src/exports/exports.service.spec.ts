@@ -142,6 +142,91 @@ describe('ExportsService', () => {
     );
   });
 
+  it('exportCustomers writes 8 customer headers and rows with referencia/placaMoto (null renders N/A)', async () => {
+    prismaMock.customer.findMany.mockResolvedValue([
+      {
+        name: 'Juan Pérez',
+        documentType: 'CC',
+        documentNumber: '1234567890',
+        email: null,
+        phone: null,
+        segment: 'OCCASIONAL',
+        referencia: null,
+        placaMoto: null,
+      },
+    ]);
+
+    await service.exportCustomers(
+      ORG_ID,
+      { format: 'csv', type: 'customers' } as ExportQueryDto,
+      buildResMock(),
+    );
+
+    expect(csv.write).toHaveBeenCalledWith(
+      [
+        [
+          'Name',
+          'Document Type',
+          'Document #',
+          'Email',
+          'Phone',
+          'Segment',
+          'Referencia',
+          'Placa de la moto',
+        ],
+        [
+          'Juan Pérez',
+          'CC',
+          '1234567890',
+          'N/A',
+          'N/A',
+          'OCCASIONAL',
+          'N/A',
+          'N/A',
+        ],
+      ],
+      { headers: false },
+    );
+  });
+
+  it('exportCustomers renders real referencia/placaMoto values, not N/A', async () => {
+    prismaMock.customer.findMany.mockResolvedValue([
+      {
+        name: 'Laura Gómez',
+        documentType: 'CC',
+        documentNumber: '555666777',
+        email: 'laura@example.com',
+        phone: '3001234567',
+        segment: 'VIP',
+        referencia: 'Ref-01',
+        placaMoto: 'ABC-123',
+      },
+    ]);
+
+    await service.exportCustomers(
+      ORG_ID,
+      { format: 'csv', type: 'customers' } as ExportQueryDto,
+      buildResMock(),
+    );
+
+    expect(csv.write).toHaveBeenCalledWith(
+      [
+        expect.arrayContaining(['Name', 'Referencia', 'Placa de la moto']),
+        [
+          'Laura Gómez',
+          'CC',
+          '555666777',
+          'laura@example.com',
+          '3001234567',
+          'VIP',
+          'Ref-01',
+          'ABC-123',
+        ],
+      ],
+      { headers: false },
+    );
+  });
+
   it('exportInventory filters by organizationId', async () => {
     prismaMock.inventoryMovement.findMany.mockResolvedValue([]);
     const res = {
