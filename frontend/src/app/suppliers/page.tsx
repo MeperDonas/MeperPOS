@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { BentoSelect } from "@/components/ui/BentoSelect";
 import { Pagination } from "@/components/ui/Pagination";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -31,6 +32,7 @@ import {
   Power,
   PowerOff,
   UserRound,
+  CreditCard,
 } from "lucide-react";
 import type { Supplier } from "@/types";
 import { useToast } from "@/contexts/ToastContext";
@@ -92,6 +94,8 @@ export default function SuppliersPage() {
       phone: supplier.phone,
       address: supplier.address,
       contactName: supplier.contactName,
+      accountNumber: supplier.accountNumber,
+      accountType: supplier.accountType,
     });
     setShowModal(true);
   };
@@ -106,6 +110,8 @@ export default function SuppliersPage() {
       phone: "",
       address: "",
       contactName: "",
+      accountNumber: "",
+      accountType: null,
     });
     setShowModal(true);
   };
@@ -147,6 +153,8 @@ export default function SuppliersPage() {
       phone: formData.phone?.trim() || null,
       address: formData.address?.trim() || null,
       contactName: formData.contactName?.trim() || null,
+      accountNumber: formData.accountNumber?.trim() || null,
+      accountType: formData.accountType || null,
     };
     try {
       if (editingSupplier) {
@@ -330,6 +338,19 @@ export default function SuppliersPage() {
                         <span className="truncate">{supplier.address}</span>
                       </div>
                     )}
+                    {(supplier.accountNumber || supplier.accountType) && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <CreditCard className="w-3 h-3 shrink-0" />
+                        <span className="truncate">
+                          {supplier.accountType === "SAVINGS"
+                            ? "Ahorros"
+                            : supplier.accountType === "CHECKING"
+                            ? "Corriente"
+                            : "Cuenta"}
+                          {supplier.accountNumber ? `: ${supplier.accountNumber}` : ""}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -396,6 +417,28 @@ export default function SuppliersPage() {
                 setFormData({ ...formData, address: e.target.value })
               }
               className="sm:col-span-2"
+            />
+            <Input
+              label="Número de cuenta"
+              value={formData.accountNumber || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, accountNumber: e.target.value })
+              }
+            />
+            <BentoSelect
+              label="Tipo de cuenta"
+              value={formData.accountType || ""}
+              onChange={(value) =>
+                setFormData({
+                  ...formData,
+                  accountType: (value || null) as Supplier["accountType"],
+                })
+              }
+              options={[
+                { value: "", label: "Seleccionar..." },
+                { value: "SAVINGS", label: "Ahorros" },
+                { value: "CHECKING", label: "Corriente" },
+              ]}
             />
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4 border-t border-border/60">
