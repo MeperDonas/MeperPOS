@@ -9,7 +9,6 @@ const useExpensesMock = vi.fn();
 const useExpenseSummaryMock = vi.fn();
 const useExpenseCategoriesMock = vi.fn();
 const useSuppliersMock = vi.fn();
-const deleteMutateAsyncMock = vi.fn();
 const duplicateMutateAsyncMock = vi.fn();
 const uploadReceiptMutateAsyncMock = vi.fn();
 const toastSuccessMock = vi.fn();
@@ -23,7 +22,6 @@ vi.mock("@/hooks/useExpenses", () => ({
   useExpenses: (params?: unknown) => useExpensesMock(params),
   useExpenseSummary: (month?: string) => useExpenseSummaryMock(month),
   useExpenseCategories: () => useExpenseCategoriesMock(),
-  useDeleteExpense: () => ({ mutateAsync: deleteMutateAsyncMock }),
   useDuplicateExpense: () => ({ mutateAsync: duplicateMutateAsyncMock }),
   useUploadExpenseReceipt: () => ({ mutateAsync: uploadReceiptMutateAsyncMock }),
 }));
@@ -126,7 +124,6 @@ describe("Expenses page evidence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     exportDataMock.mockResolvedValue(undefined);
-    deleteMutateAsyncMock.mockResolvedValue({} as never);
     duplicateMutateAsyncMock.mockResolvedValue({} as never);
     uploadReceiptMutateAsyncMock.mockResolvedValue({} as never);
 
@@ -284,20 +281,6 @@ describe("Expenses page evidence", () => {
     });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("title", "La salida ya está pagada");
-  });
-
-  it("deletes an expense after confirmation (EXP-5)", async () => {
-    const user = userEvent.setup();
-
-    render(<ExpensesPage />);
-
-    await user.click(screen.getByRole("button", { name: "Eliminar gasto" }));
-    expect(screen.getByText("Eliminar gasto")).toBeTruthy();
-
-    await user.click(screen.getByRole("button", { name: "Sí, eliminar" }));
-
-    expect(deleteMutateAsyncMock).toHaveBeenCalledWith("exp-1");
-    expect(toastSuccessMock).toHaveBeenCalledWith("Gasto eliminado");
   });
 
   it("duplicates an expense after confirmation (EXP-10)", async () => {

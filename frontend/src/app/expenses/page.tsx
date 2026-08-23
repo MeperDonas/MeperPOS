@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import {
-  useDeleteExpense,
   useDuplicateExpense,
   useExpenseCategories,
   useExpenses,
@@ -34,7 +33,6 @@ import {
   History,
   Pencil,
   Plus,
-  Trash2,
   Upload,
   Wallet,
   Download,
@@ -66,7 +64,6 @@ export default function ExpensesPage() {
   const [paymentExpense, setPaymentExpense] = useState<Expense | null>(null);
   const [historyExpense, setHistoryExpense] = useState<Expense | null>(null);
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [duplicateTarget, setDuplicateTarget] = useState<Expense | null>(null);
 
   const { data: summary } = useExpenseSummary(month);
@@ -82,7 +79,6 @@ export default function ExpensesPage() {
     search: search.trim() || undefined,
   });
 
-  const deleteExpense = useDeleteExpense();
   const duplicateExpense = useDuplicateExpense();
   const uploadReceipt = useUploadExpenseReceipt();
 
@@ -123,16 +119,6 @@ export default function ExpensesPage() {
       toast.success("Exportación generada correctamente");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Error al exportar gastos"));
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      await deleteExpense.mutateAsync(deleteTarget.id);
-      toast.success("Gasto eliminado");
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, "No se pudo eliminar el gasto"));
     }
   };
 
@@ -488,17 +474,6 @@ export default function ExpensesPage() {
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                type="button"
-                                aria-label="Eliminar gasto"
-                                title="Eliminar gasto"
-                                onClick={() => setDeleteTarget(expense)}
-                                className="p-1.5 h-7 w-7 hover:text-red-500"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -557,15 +532,6 @@ export default function ExpensesPage() {
           onClose={() => setDetailExpense(null)}
         />
       )}
-
-      <ConfirmDialog
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        title="Eliminar gasto"
-        message="El gasto se ocultará de los listados y el resumen del mes. Esta acción no se puede deshacer."
-        confirmText="Sí, eliminar"
-      />
 
       <ConfirmDialog
         isOpen={!!duplicateTarget}
