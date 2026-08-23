@@ -141,6 +141,34 @@ describe('CustomersService', () => {
       expect(result.name).toBe('John');
     });
 
+    it('survives referencia and placaMoto into the create payload', async () => {
+      prismaMock.customer.findFirst.mockResolvedValue(null);
+      prismaMock.customer.create.mockResolvedValue({
+        id: 'c1',
+        name: 'John',
+        documentType: 'CC',
+        documentNumber: '123',
+        referencia: 'Entrega en portería',
+        placaMoto: 'ABC-123',
+        active: true,
+      });
+
+      const dto = {
+        name: 'John',
+        documentType: 'CC',
+        documentNumber: '123',
+        referencia: 'Entrega en portería',
+        placaMoto: 'ABC-123',
+      };
+      const result = await service.create(dto, orgId);
+
+      expect(prismaMock.customer.create).toHaveBeenCalledWith({
+        data: { ...dto, organizationId: orgId },
+      });
+      expect(result.referencia).toBe('Entrega en portería');
+      expect(result.placaMoto).toBe('ABC-123');
+    });
+
     it('throws ConflictException when document exists in organization', async () => {
       prismaMock.customer.findFirst.mockResolvedValue({ id: 'existing' });
 

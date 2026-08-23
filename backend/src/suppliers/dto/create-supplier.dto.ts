@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEmail, IsOptional, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsBoolean,
+  IsEnum,
+} from 'class-validator';
+import { SupplierAccountType } from '@prisma/client';
 
 export class CreateSupplierDto {
   @ApiProperty({ example: 'Distribuidora XYZ S.A.S.' })
@@ -29,6 +36,16 @@ export class CreateSupplierDto {
   @IsString()
   @IsOptional()
   contactName?: string;
+
+  @ApiProperty({ example: '1234567890', required: false })
+  @IsString()
+  @IsOptional()
+  accountNumber?: string;
+
+  @ApiProperty({ enum: SupplierAccountType, example: 'SAVINGS', required: false })
+  @IsEnum(SupplierAccountType)
+  @IsOptional()
+  accountType?: SupplierAccountType;
 
   @ApiProperty({ example: true, required: false })
   @IsBoolean()
