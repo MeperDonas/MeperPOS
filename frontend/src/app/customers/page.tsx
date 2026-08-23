@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -26,6 +26,8 @@ import {
   Users,
   Pencil,
   ShoppingBag,
+  Bookmark,
+  Bike,
 } from "lucide-react";
 import type { Customer } from "@/types";
 import { useToast } from "@/contexts/ToastContext";
@@ -82,6 +84,8 @@ export default function CustomersPage() {
       email: customer.email,
       phone: customer.phone,
       address: customer.address,
+      referencia: customer.referencia,
+      placaMoto: customer.placaMoto,
       segment: customer.segment,
       active: customer.active,
     });
@@ -91,7 +95,7 @@ export default function CustomersPage() {
   const handleCreate = () => {
     if (!canCreate) return;
     setEditingCustomer(null);
-    setFormData({ name: "", documentType: "CC", documentNumber: "", email: "", phone: "", address: "", segment: "OCCASIONAL" });
+    setFormData({ name: "", documentType: "CC", documentNumber: "", email: "", phone: "", address: "", referencia: "", placaMoto: "", segment: "OCCASIONAL" });
     setShowModal(true);
   };
 
@@ -271,6 +275,18 @@ export default function CustomersPage() {
                           <span className="truncate">{customer.address}</span>
                         </div>
                       )}
+                      {customer.referencia && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Bookmark className="w-3 h-3 shrink-0" />
+                          <span className="truncate">Ref: {customer.referencia}</span>
+                        </div>
+                      )}
+                      {customer.placaMoto && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Bike className="w-3 h-3 shrink-0" />
+                          <span className="font-mono font-medium text-foreground uppercase">{customer.placaMoto}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -299,6 +315,8 @@ export default function CustomersPage() {
             <Input label="Email" type="email" value={formData.email || ""} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="sm:col-span-2" />
             <Input label="Teléfono" value={formData.phone || ""} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
             <Input label="Dirección" value={formData.address || ""} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
+            <Input label="Referencia" value={formData.referencia || ""} onChange={(e) => setFormData({ ...formData, referencia: e.target.value })} />
+            <Input label="Placa de la moto" value={formData.placaMoto || ""} onChange={(e) => setFormData({ ...formData, placaMoto: e.target.value })} />
             <BentoSelect label="Segmento" value={formData.segment || "OCCASIONAL"} onChange={(value) => setFormData({ ...formData, segment: value as Customer["segment"] })} options={[{ value: "OCCASIONAL", label: "Ocasional" }, { value: "FREQUENT", label: "Frecuente" }, { value: "VIP", label: "VIP" }, { value: "INACTIVE", label: "Inactivo" }]} />
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4 border-t border-border/60">

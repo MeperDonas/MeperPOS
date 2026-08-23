@@ -694,7 +694,7 @@ export default function POSPage() {
             <div className="scrollbar-app max-h-[55vh] overflow-y-auto p-4 lg:flex-1 lg:min-h-0 lg:max-h-none">
               <div
                 className={cn(
-                  "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 transition-opacity duration-150",
+                  "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 transition-opacity duration-150",
                   isFetching && !searching ? "opacity-60" : "opacity-100",
                 )}
               >
