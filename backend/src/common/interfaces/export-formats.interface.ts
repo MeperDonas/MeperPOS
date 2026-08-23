@@ -46,6 +46,8 @@ export interface ExportCustomer {
   email: string | null;
   phone: string | null;
   address: string | null;
+  referencia: string | null;
+  placaMoto: string | null;
   segment: string;
   totalPurchases: number;
 }

@@ -1,4 +1,8 @@
 import { SuppliersService } from './suppliers.service';
+import { validate } from 'class-validator';
+import { SupplierAccountType } from '@prisma/client';
+import { CreateSupplierDto } from './dto/create-supplier.dto';
+import { UpdateSupplierDto } from './dto/update-supplier.dto';
 
 describe('SuppliersService', () => {
   let service: SuppliersService;
@@ -16,7 +20,7 @@ describe('SuppliersService', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     service = new SuppliersService(prismaMock as never);
   });
 
@@ -41,6 +45,32 @@ describe('SuppliersService', () => {
         data: { ...dto, organizationId: orgId },
       });
       expect(result.name).toBe('Proveedor Andino');
+    });
+
+    it('survives accountNumber and accountType into the create payload', async () => {
+      prismaMock.supplier.findFirst.mockResolvedValue(null);
+      prismaMock.supplier.create.mockResolvedValue({
+        id: 's1',
+        name: 'Proveedor Andino',
+        documentNumber: '900123456',
+        accountNumber: '1234567890',
+        accountType: 'SAVINGS',
+        organizationId: orgId,
+        active: true,
+      });
+
+      const dto = {
+        name: 'Proveedor Andino',
+        documentNumber: '900123456',
+        accountNumber: '1234567890',
+        accountType: 'SAVINGS' as SupplierAccountType,
+      };
+      const result = await service.create(dto, orgId);
+
+      expect(prismaMock.supplier.create).toHaveBeenCalledWith({
+        data: { ...dto, organizationId: orgId },
+      });
+      expect(result.accountType).toBe('SAVINGS');
     });
 
     it('throws ConflictException when document exists in organization', async () => {
@@ -143,6 +173,32 @@ describe('SuppliersService', () => {
       expect(result.name).toBe('Andino Updated');
     });
 
+    it('survives accountNumber and accountType into the update payload', async () => {
+      prismaMock.supplier.findFirst
+        .mockResolvedValueOnce({ id: 's1', documentNumber: '900' })
+        .mockResolvedValueOnce(null);
+      prismaMock.supplier.update.mockResolvedValue({
+        id: 's1',
+        name: 'Andino Updated',
+        documentNumber: '900',
+        accountNumber: '0987654321',
+        accountType: 'CHECKING',
+      });
+
+      const dto = {
+        name: 'Andino Updated',
+        accountNumber: '0987654321',
+        accountType: 'CHECKING' as SupplierAccountType,
+      };
+      const result = await service.update('s1', dto, orgId);
+
+      expect(prismaMock.supplier.update).toHaveBeenCalledWith({
+        where: { id: 's1' },
+        data: dto,
+      });
+      expect(result.accountType).toBe('CHECKING');
+    });
+
     it('throws NotFoundException when supplier not in organization', async () => {
       prismaMock.supplier.findFirst.mockResolvedValue(null);
 
@@ -227,6 +283,41 @@ describe('SuppliersService', () => {
       await expect(service.reactivate('s-999', orgId)).rejects.toThrow(
         'Proveedor no encontrado',
       );
+    });
+  });
+
+  describe('accountType field validation', () => {
+    it('accepts SAVINGS and CHECKING as valid enum values on create', async () => {
+      const dto = new CreateSupplierDto();
+      dto.name = 'Andino';
+      dto.documentNumber = '900';
+      dto.accountType = 'SAVINGS';
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('accepts CHECKING on update', async () => {
+      const dto = new UpdateSupplierDto();
+      dto.accountType = 'CHECKING';
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('rejects an arbitrary invalid accountType value (e.g. AHORROS)', async () => {
+      const dto = new CreateSupplierDto();
+      dto.name = 'Andino';
+      dto.documentNumber = '900';
+      dto.accountType = 'AHORROS' as SupplierAccountType;
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'accountType')).toBe(true);
+    });
+
+    it('treats accountNumber and accountType as optional fields', async () => {
+      const dto = new CreateSupplierDto();
+      dto.name = 'Andino';
+      dto.documentNumber = '900';
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
     });
   });
 });
