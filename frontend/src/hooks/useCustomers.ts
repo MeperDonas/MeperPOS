@@ -13,6 +13,8 @@ export type CustomerPayload = Partial<
     | "email"
     | "phone"
     | "address"
+    | "referencia"
+    | "placaMoto"
     | "segment"
     | "active"
   >
