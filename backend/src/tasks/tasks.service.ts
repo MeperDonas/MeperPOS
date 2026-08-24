@@ -110,6 +110,20 @@ export class TasksService {
       andFilters.push({ status: { not: TaskStatus.COMPLETED } });
     }
 
+    if (query.assignedToId) {
+      andFilters.push({ assignedToId: query.assignedToId });
+    }
+
+    if (query.createdById) {
+      andFilters.push({ createdById: query.createdById });
+    }
+
+    if (query.myTasksOnly) {
+      andFilters.push({
+        OR: [{ createdById: user.userId }, { assignedToId: user.userId }],
+      });
+    }
+
     if (query.search) {
       andFilters.push({
         OR: [
@@ -136,7 +150,7 @@ export class TasksService {
     return this.prisma.task.findMany({
       where,
       orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
-      take: query.limit ?? 12,
+      take: query.limit ?? 50,
       select: taskSelect,
     });
   }
@@ -240,6 +254,35 @@ export class TasksService {
     });
   }
 
+  async getAssignees(user: RequestUser) {
+    const memberships = await this.prisma.organizationUser.findMany({
+      where: {
+        organizationId: user.organizationId!,
+        user: { active: true },
+      },
+      select: {
+        role: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        user: { name: 'asc' },
+      },
+    });
+
+    return memberships.map((m) => ({
+      id: m.user.id,
+      name: m.user.name,
+      email: m.user.email,
+      role: m.role,
+    }));
+  }
+
   async getTimeline(taskId: string, user: RequestUser) {
     await this.findVisibleTaskOrThrow(taskId, user);
 
@@ -299,17 +342,8 @@ export class TasksService {
   }
 
   private buildVisibilityWhere(user: RequestUser): Prisma.TaskWhereInput {
-    const base: Prisma.TaskWhereInput = {
-      organizationId: user.organizationId!,
-    };
-
-    if (user.role === OrgRole.ADMIN || user.role === OrgRole.OWNER) {
-      return base;
-    }
-
     return {
-      ...base,
-      OR: [{ createdById: user.userId }, { assignedToId: user.userId }],
+      organizationId: user.organizationId!,
     };
   }
 

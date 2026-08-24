@@ -14,8 +14,15 @@ vi.mock("@/components/layout/DashboardLayout", () => ({
   DashboardLayout: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({
+    user: { id: "user-1", name: "Ana Admin", role: "ADMIN" },
+  }),
+}));
+
 vi.mock("@/hooks/useTasks", () => ({
   useTasks: () => useTasksMock(),
+  useTaskAssignees: () => ({ data: [], isLoading: false }),
   useTaskTimeline: (taskId: string, options?: { enabled?: boolean }) =>
     useTaskTimelineMock(taskId, options),
   useCreateTask: () => useCreateTaskMock(),

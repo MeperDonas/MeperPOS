@@ -12,6 +12,7 @@ describe('TasksService', () => {
     },
     organizationUser: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     task: {
       create: jest.fn(),
@@ -140,26 +141,64 @@ describe('TasksService', () => {
     expect(prismaMock.taskEvent.delete).not.toHaveBeenCalled();
   });
 
-  it('scopes non-admin list queries to created or assigned tasks', async () => {
+  it('scopes list queries to organization and supports myTasksOnly filter', async () => {
     prismaMock.task.findMany.mockResolvedValue([]);
 
     await service.findAll(
       { ...baseUser, userId: 'cashier-1' },
-      { includeCompleted: false },
+      { includeCompleted: false, myTasksOnly: true },
     );
 
     expect(prismaMock.task.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           AND: expect.arrayContaining([
+            expect.objectContaining({ organizationId: 'org-1' }),
             expect.objectContaining({
-              organizationId: 'org-1',
               OR: [{ createdById: 'cashier-1' }, { assignedToId: 'cashier-1' }],
             }),
           ]),
         }),
       }),
     );
+  });
+
+  it('lists active members of the organization as assignees', async () => {
+    prismaMock.organizationUser.findMany.mockResolvedValue([
+      {
+        role: OrgRole.ADMIN,
+        user: { id: 'u-1', name: 'Ana Admin', email: 'ana@example.com' },
+      },
+      {
+        role: OrgRole.CASHIER,
+        user: { id: 'u-2', name: 'Carlos Cajero', email: 'carlos@example.com' },
+      },
+    ]);
+
+    const assignees = await service.getAssignees(baseUser);
+
+    expect(prismaMock.organizationUser.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId: 'org-1',
+          user: { active: true },
+        },
+      }),
+    );
+    expect(assignees).toEqual([
+      {
+        id: 'u-1',
+        name: 'Ana Admin',
+        email: 'ana@example.com',
+        role: OrgRole.ADMIN,
+      },
+      {
+        id: 'u-2',
+        name: 'Carlos Cajero',
+        email: 'carlos@example.com',
+        role: OrgRole.CASHIER,
+      },
+    ]);
   });
 
   it('soft deletes tasks and appends a deletion event', async () => {

@@ -29,7 +29,13 @@ import { TasksService } from './tasks.service';
 @Controller('tasks')
 @UseGuards(JwtAuthGuard, RolesGuard, OrganizationRequiredGuard)
 @UseInterceptors(AdminOrganizationInterceptor)
-@Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+@Roles(
+  OrgRole.ADMIN,
+  OrgRole.OWNER,
+  OrgRole.MEMBER,
+  OrgRole.CASHIER,
+  OrgRole.INVENTORY_USER,
+)
 @ApiBearerAuth()
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
@@ -44,6 +50,14 @@ export class TasksController {
   @ApiOperation({ summary: 'List visible dashboard tasks' })
   findAll(@Query() query: QueryTasksDto, @CurrentUser() user: RequestUser) {
     return this.tasksService.findAll(user, query);
+  }
+
+  @Get('assignees')
+  @ApiOperation({
+    summary: 'List team members available for task assignment',
+  })
+  getAssignees(@CurrentUser() user: RequestUser) {
+    return this.tasksService.getAssignees(user);
   }
 
   @Get(':id/timeline')
