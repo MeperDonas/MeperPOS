@@ -314,7 +314,7 @@ describe("POS behavior evidence (#19, #18)", () => {
     });
 
     render(<POSPage />);
-    const searchInput = screen.getByPlaceholderText("Buscar por nombre, SKU o código...");
+    const searchInput = screen.getByPlaceholderText("Escanear o buscar por nombre, SKU o código...");
     await userEvent.click(searchInput);
     await userEvent.type(searchInput, "sinresultados");
 
@@ -336,7 +336,7 @@ describe("POS behavior evidence (#19, #18)", () => {
 
     render(<POSPage />);
 
-    const scannerInput = screen.getByPlaceholderText("Escanear codigo de barras o SKU");
+    const scannerInput = screen.getByPlaceholderText("Escanear o buscar por nombre, SKU o código...");
     await userEvent.type(scannerInput, "7701234567890{enter}");
 
     await waitFor(() => {
@@ -360,7 +360,7 @@ describe("POS behavior evidence (#19, #18)", () => {
 
     render(<POSPage />);
 
-    const scannerInput = screen.getByPlaceholderText("Escanear codigo de barras o SKU");
+    const scannerInput = screen.getByPlaceholderText("Escanear o buscar por nombre, SKU o código...");
     await userEvent.type(scannerInput, "NO-EXISTE{enter}");
 
     await waitFor(() => {
