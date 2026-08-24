@@ -32,6 +32,13 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["lucide-react", "@tanstack/react-query"],
   },
   images: {
+    // Custom Cloudinary loader: the backend stores the original Cloudinary URL
+    // (no width/format/quality transforms), so pushing all delivery transforms
+    // to Cloudinary's edge CDN and bypassing the Next.js optimizer avoids
+    // re-transcoding every image on a single Next server. See
+    // src/lib/image-loader.ts for the transform chain.
+    loader: "custom",
+    loaderFile: "./src/lib/image-loader.ts",
     remotePatterns: [
       {
         protocol: "https",
