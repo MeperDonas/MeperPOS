@@ -182,6 +182,41 @@ describe("Reports economics-first evidence", () => {
     expect(screen.getAllByRole("alert").length).toBeGreaterThan(0);
   });
 
+  it("renders humanized business labels, narrative summary, and breakdown card", () => {
+    render(<ReportsPage />);
+
+    // Header subtitle
+    expect(screen.getByText("Así va tu negocio")).toBeTruthy();
+
+    // Narrative summary
+    expect(
+      screen.getByText(/En este período vendiste.*Te quedaron.*de ganancia después de.*en gastos/)
+    ).toBeTruthy();
+
+    // Humanized KPI cards & Breakdown labels
+    expect(screen.getAllByText("Total vendido").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Ganancia antes de gastos").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Ganancia real").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/Gastos/).length).toBeGreaterThanOrEqual(2);
+
+    // Helpers
+    expect(screen.getByText("Lo que entró por ventas")).toBeTruthy();
+    expect(screen.getByText("Lo que pagás para que funcione el negocio")).toBeTruthy();
+
+    // Breakdown card
+    expect(screen.getByText("Desglose")).toBeTruthy();
+    expect(screen.getByText("El camino de tu plata")).toBeTruthy();
+    expect(screen.getByText("(-) Costo de productos")).toBeTruthy();
+    expect(screen.getByText("(-) Gastos")).toBeTruthy();
+
+    // Humanized Cash and Inventory labels
+    expect(screen.getByText("Plata que entró")).toBeTruthy();
+    expect(screen.getByText("Plata que salió")).toBeTruthy();
+    expect(screen.getByText("Lo que costó tu inventario")).toBeTruthy();
+    expect(screen.getByText("Lo que vale si vendés todo")).toBeTruthy();
+    expect(screen.getByText("Ganancia posible")).toBeTruthy();
+  });
+
   it("renders an intentional empty state when economics has no data", () => {
     useEconomicOverviewMock.mockReturnValueOnce({ data: undefined, isLoading: false, error: null });
     render(<ReportsPage />);
