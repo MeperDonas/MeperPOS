@@ -631,7 +631,7 @@ export default function TasksPage() {
                         ? "No se encontraron tareas con los filtros aplicados"
                         : "No hay tareas creadas aún"
                     }
-                    description={
+                    subtitle={
                       searchQuery || statusFilter !== "ALL"
                         ? "Prueba cambiando o limpiando los filtros de búsqueda."
                         : "Comienza agregando una tarea para organizar las actividades del local."
