@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import {
   useProducts,
@@ -66,6 +66,8 @@ export default function InventoryPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<Partial<Product>>({});
   const [taxRateInput, setTaxRateInput] = useState("");
+  const barcodeInputRef = useRef<HTMLInputElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   const { data, isLoading } = useProducts({
     page: showLowStockOnly || selectedCategory ? 1 : page,
@@ -285,6 +287,33 @@ export default function InventoryPage() {
       return result.imageUrl;
     }
   };
+
+  const handleBarcodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    // "Captura" mode: pressing Enter on a focused barcode field must NOT submit
+    // the form (which would save a product mid-scan). We preventDefault and
+    // advance focus to the Name field instead. Applied on BOTH create and edit
+    // so scanning a code during an edit also respects capture-and-advance; the
+    // auto-focus to barcode itself is create-only (see effect below).
+    e.preventDefault();
+    nameInputRef.current?.focus();
+  };
+
+  // Auto-focus the barcode field when the modal opens to CREATE (editingProduct
+  // === null). When editing an existing product we do NOT steal focus to the
+  // barcode field, leaving the default focus behavior intact. rAF defers to the
+  // next frame so the conditionally-rendered Modal has mounted the field.
+  useEffect(() => {
+    if (!showModal || editingProduct) return;
+    const scheduleFocus =
+      typeof window.requestAnimationFrame === "function"
+        ? window.requestAnimationFrame.bind(window)
+        : (callback: FrameRequestCallback) => window.setTimeout(callback, 0);
+    const frameId = scheduleFocus(() => {
+      barcodeInputRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [showModal, editingProduct]);
 
   const hasFilter =
     selectedCategory || showLowStockOnly || statusFilter !== "active";
@@ -535,6 +564,7 @@ export default function InventoryPage() {
             </div>
             <div className="md:col-span-1 space-y-3 lg:space-y-4">
               <Input
+                ref={nameInputRef}
                 label="Nombre"
                 value={formData.name || ""}
                 onChange={(e) =>
@@ -551,11 +581,13 @@ export default function InventoryPage() {
                 required
               />
               <Input
+                ref={barcodeInputRef}
                 label="Código de Barras"
                 value={formData.barcode || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, barcode: e.target.value })
                 }
+                onKeyDown={handleBarcodeKeyDown}
               />
               <BentoSelect
                 label="Categoría"
