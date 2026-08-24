@@ -9,14 +9,33 @@ import type {
   TaskStatus,
 } from "@/types";
 
-type CreateTaskPayload = {
+export type CreateTaskPayload = {
   title: string;
   description?: string;
+  assignedToId?: string | null;
+  dueDate?: string | null;
 };
 
-type UpdateTaskPayload = {
+export type UpdateTaskPayload = {
   title?: string;
   description?: string | null;
+  assignedToId?: string | null;
+  dueDate?: string | null;
+};
+
+export type TaskAssignee = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
+export type QueryTasksParams = {
+  search?: string;
+  status?: TaskStatus;
+  myTasksOnly?: boolean;
+  assignedToId?: string;
+  includeCompleted?: boolean;
 };
 
 type TimelineQueryOptions = {
@@ -31,15 +50,26 @@ function getErrorStatus(error: unknown) {
   return (error as { response?: { status?: number } }).response?.status;
 }
 
-export function useTasks() {
+export function useTasks(params?: QueryTasksParams) {
   return useQuery({
-    queryKey: ["tasks"],
+    queryKey: ["tasks", params],
     queryFn: async (): Promise<TaskListResult> => {
       const response = await api.get<Task[]>("/tasks", {
-        includeCompleted: true,
-        limit: 20,
+        includeCompleted: params?.includeCompleted ?? true,
+        limit: 50,
+        ...params,
       });
       return { tasks: response.data, source: "remote" };
+    },
+  });
+}
+
+export function useTaskAssignees() {
+  return useQuery({
+    queryKey: ["tasks", "assignees"],
+    queryFn: async (): Promise<TaskAssignee[]> => {
+      const response = await api.get<TaskAssignee[]>("/tasks/assignees");
+      return response.data;
     },
   });
 }
