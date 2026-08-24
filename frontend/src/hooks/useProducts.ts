@@ -15,13 +15,16 @@ export function useProducts(params?: {
   search?: string;
   categoryId?: string;
   status?: "active" | "inactive" | "all";
+  enabled?: boolean;
 }) {
+  const { enabled = true, ...rest } = params ?? {};
   return useQuery({
-    queryKey: ["products", params],
+    queryKey: ["products", rest],
     queryFn: () =>
-      api.get<PaginatedResponse<Product>>("/products", params).then(
+      api.get<PaginatedResponse<Product>>("/products", rest).then(
         (res) => res.data
       ),
+    enabled,
     placeholderData: keepPreviousData,
   });
 }

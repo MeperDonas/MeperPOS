@@ -91,7 +91,6 @@ export default function TasksPage() {
   const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>("ALL");
 
   // Selection & Forms
-  const [taskInput, setTaskInput] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [pendingDeletedTaskIds, setPendingDeletedTaskIds] = useState<string[]>([]);
   const [isEditingTask, setIsEditingTask] = useState(false);
@@ -224,20 +223,6 @@ export default function TasksPage() {
       await updateTaskStatus.mutateAsync({ id: taskId, status });
     } catch (error) {
       toast.error(getApiErrorMessage(error, "No se pudo actualizar la tarea"));
-    }
-  };
-
-  const handleQuickAddTask = async () => {
-    const trimmed = taskInput.trim();
-    if (!trimmed) return;
-
-    try {
-      const created = await createTask.mutateAsync({ title: trimmed });
-      setSelectedTaskId(created.id);
-      setTaskInput("");
-      toast.success("Tarea agregada");
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, "No se pudo crear la tarea"));
     }
   };
 
@@ -573,29 +558,8 @@ export default function TasksPage() {
 
         {/* Main Content: Split Master-Detail */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Quick Add + Task List (7 cols) */}
+          {/* Left Column: Task List (7 cols) */}
           <div className="lg:col-span-7 space-y-4">
-            {/* Quick Add Bar */}
-            <form
-              className="flex items-center gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleQuickAddTask();
-              }}
-            >
-              <input
-                value={taskInput}
-                onChange={(e) => setTaskInput(e.target.value)}
-                placeholder="Agregar nueva tarea rápida (presiona Enter)..."
-                className="h-10 min-w-0 flex-1 rounded-2xl border border-border/70 bg-card px-4 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-xs"
-                maxLength={120}
-              />
-              <Button type="submit" disabled={createTask.isPending || !taskInput.trim()} size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                {createTask.isPending ? "Guardando" : "Agregar"}
-              </Button>
-            </form>
-
             {/* Task List Card */}
             <Card className="overflow-hidden border-border/80 bg-card shadow-xs">
               <div className="border-b border-border/60 px-4 py-3 flex items-center justify-between">
