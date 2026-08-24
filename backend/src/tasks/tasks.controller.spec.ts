@@ -28,16 +28,37 @@ describe('TasksController', () => {
   it('allows every authenticated business role at the tasks boundary', () => {
     const requiredRoles = Reflect.getMetadata(ROLES_KEY, TasksController);
 
-    expect(requiredRoles).toEqual([OrgRole.ADMIN, OrgRole.MEMBER]);
+    expect(requiredRoles).toEqual([
+      OrgRole.ADMIN,
+      OrgRole.OWNER,
+      OrgRole.MEMBER,
+      OrgRole.CASHIER,
+      OrgRole.INVENTORY_USER,
+    ]);
   });
 
-  it('denies access to roles outside the configured task boundary', () => {
+  it('delegates assignees retrieval for the authenticated actor', async () => {
     const controller = new TasksController(tasksServiceMock as never);
-    const guard = new RolesGuard(new Reflector());
+    const user: RequestUser = {
+      userId: 'user-1',
+      email: 'test@example.com',
+      organizationId: 'org-1',
+      role: OrgRole.MEMBER,
+      tokenVersion: 1,
+      isSuperAdmin: false,
+    };
+    const assignees = [
+      {
+        id: 'user-1',
+        name: 'User 1',
+        email: 'u1@test.com',
+        role: OrgRole.MEMBER,
+      },
+    ];
+    tasksServiceMock.getAssignees = jest.fn().mockResolvedValue(assignees);
 
-    expect(() =>
-      guard.canActivate(createContext(controller.findAll, OrgRole.CASHIER)),
-    ).toThrow(ForbiddenException);
+    await expect(controller.getAssignees(user)).resolves.toEqual(assignees);
+    expect(tasksServiceMock.getAssignees).toHaveBeenCalledWith(user);
   });
 
   it('delegates task creation with the authenticated actor', async () => {
