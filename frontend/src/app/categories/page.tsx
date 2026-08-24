@@ -16,6 +16,7 @@ import type {
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { CategoryProductsModal } from "@/components/categories/CategoryProductsModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -51,6 +52,7 @@ export default function CategoriesPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [productsCategory, setProductsCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState<CategoryPayload>({});
   const [defaultTaxRateInput, setDefaultTaxRateInput] = useState("");
 
@@ -244,7 +246,15 @@ export default function CategoriesPage() {
 
                     {/* Tax rate & Product count */}
                     <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-border/40">
-                      <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProductsCategory(category);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 -ml-2 text-left transition-colors hover:bg-primary/10 hover:text-primary"
+                        aria-label={`Ver productos de ${category.name}`}
+                      >
                         <Package className="w-3.5 h-3.5 text-muted-foreground/60" />
                         <span
                           className={cn(
@@ -259,7 +269,7 @@ export default function CategoriesPage() {
                             ? "producto"
                             : "productos"}
                         </span>
-                      </div>
+                      </button>
                       {category.defaultTaxRate != null ? (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
                           <Percent className="w-2.5 h-2.5" />
@@ -358,6 +368,11 @@ export default function CategoriesPage() {
         message="¿Estás seguro? Esta acción no se puede deshacer."
         confirmText="Eliminar"
         cancelText="Cancelar"
+      />
+
+      <CategoryProductsModal
+        category={productsCategory}
+        onClose={() => setProductsCategory(null)}
       />
     </DashboardLayout>
   );
