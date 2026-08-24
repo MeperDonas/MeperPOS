@@ -62,6 +62,19 @@ interface ScanFeedback {
 const FAVORITE_PRODUCTS_KEY = "pos_favorite_product_ids";
 const DEFAULT_SCAN_FEEDBACK: ScanFeedback = { tone: "idle", message: "" };
 
+/**
+ * Heuristic (unified "doble intención" field) to tell a real barcode/SKU code
+ * being scanned from free-text browsing. An exact barcode/SKU lookup only
+ * surfaces the "not found" error when the value actually looks like a compact
+ * code: no whitespace and at most 64 chars. Anything with spaces or longer is
+ * treated as browse intent, so a failed exact lookup silently keeps the grid
+ * filtered by the (already-run) debounced contains search.
+ */
+function isCompactCode(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= 64 && !/\s/.test(trimmed);
+}
+
 export default function POSPage() {
   const toast = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -101,7 +114,6 @@ export default function POSPage() {
     null,
   );
   const [showDeletePausedModal, setShowDeletePausedModal] = useState(false);
-  const [scannerCode, setScannerCode] = useState("");
   const [scanFeedback, setScanFeedback] = useState<ScanFeedback>(
     DEFAULT_SCAN_FEEDBACK,
   );
@@ -121,6 +133,15 @@ export default function POSPage() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
+  }, []);
+
+  // Clear the unified search/scan field: reset both the immediate value and the
+  // debounced grid filter, and cancel any pending debounce so a stalled timer
+  // doesn't re-apply a cleared query.
+  const clearSearchInput = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setSearchQuery("");
+    setDebouncedSearch("");
   }, []);
 
   const {
@@ -361,7 +382,7 @@ export default function POSPage() {
       return;
     }
 
-    const normalizedCode = scannerCode.trim();
+    const normalizedCode = searchQuery.trim();
 
     if (!normalizedCode) {
       setScanFeedback({
@@ -376,11 +397,19 @@ export default function POSPage() {
       const product = await quickSearchProduct.mutateAsync(normalizedCode);
 
       if (!product) {
-        setScanFeedback({
-          tone: "error",
-          message: "No encontramos un producto con ese código.",
-        });
-        setScannerCode("");
+        // Only surface the "not found" error when the value actually looks
+        // like a compact barcode/SKU. Free-text browse queries keep the grid
+        // filtered by the debounced contains search, with neutral feedback, so
+        // typing the start of a name never interrupts browsing.
+        if (isCompactCode(normalizedCode)) {
+          setScanFeedback({
+            tone: "error",
+            message: "No encontramos un producto con ese código.",
+          });
+          clearSearchInput();
+        } else {
+          setScanFeedback(DEFAULT_SCAN_FEEDBACK);
+        }
         return;
       }
 
@@ -389,7 +418,7 @@ export default function POSPage() {
           tone: "warning",
           message: `${product.name} no tiene stock disponible.`,
         });
-        setScannerCode("");
+        clearSearchInput();
         return;
       }
 
@@ -399,7 +428,7 @@ export default function POSPage() {
           tone: "warning",
           message: `${product.name} ya alcanzó el stock máximo en el carrito.`,
         });
-        setScannerCode("");
+        clearSearchInput();
         return;
       }
 
@@ -408,7 +437,7 @@ export default function POSPage() {
         tone: "success",
         message: `${product.name} agregado al carrito.`,
       });
-      setScannerCode("");
+      clearSearchInput();
     } catch (error) {
       setScanFeedback({
         tone: "error",
@@ -417,17 +446,18 @@ export default function POSPage() {
           "No se pudo procesar el código escaneado.",
         ),
       });
-      setScannerCode("");
+      clearSearchInput();
     } finally {
       focusScannerInput();
     }
   }, [
     addToCart,
     cart,
+    clearSearchInput,
     focusScannerInput,
     isScannerBlocked,
     quickSearchProduct,
-    scannerCode,
+    searchQuery,
   ]);
 
   const handleScannerKeyDown = useCallback(
@@ -620,74 +650,58 @@ export default function POSPage() {
               </div>
             </div>
 
-            {/* Scanner */}
-            <div className="border-b border-primary/20 bg-primary/5 px-4 py-3.5">
-              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    Escaner POS
-                  </p>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Input
-                      ref={scannerInputRef}
-                      placeholder="Escanear codigo de barras o SKU"
-                      value={scannerCode}
-                      onChange={(e) => {
-                        setScannerCode(e.target.value);
-                        if (scanFeedback.message) {
-                          setScanFeedback(DEFAULT_SCAN_FEEDBACK);
-                        }
-                      }}
-                      onKeyDown={handleScannerKeyDown}
-                      disabled={
-                        isScannerBlocked || quickSearchProduct.isPending
+            {/* Unified search & scanner — types to filter the grid, Enter scans/adds */}
+            <div className="flex flex-col gap-2.5 p-4 border-b border-primary/20 bg-background/40">
+              <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    ref={scannerInputRef}
+                    placeholder="Escanear o buscar por nombre, SKU o código..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      handleSearchChange(e.target.value);
+                      if (scanFeedback.message) {
+                        setScanFeedback(DEFAULT_SCAN_FEEDBACK);
                       }
-                      className="h-10"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => void handleScanSubmit()}
-                      disabled={
-                        isScannerBlocked ||
-                        quickSearchProduct.isPending ||
-                        scannerCode.trim().length === 0
-                      }
-                      className="sm:w-auto"
-                    >
-                      Agregar
-                    </Button>
-                  </div>
+                    }}
+                    onKeyDown={handleScannerKeyDown}
+                    disabled={isScannerBlocked || quickSearchProduct.isPending}
+                    className="pl-9 h-9 text-sm"
+                  />
                 </div>
+                <Button
+                  type="button"
+                  variant={showFavoritesOnly ? "primary" : "secondary"}
+                  size="sm"
+                  onClick={() => {
+                    setShowFavoritesOnly((c) => !c);
+                    setCurrentPage(1);
+                  }}
+                  className="shrink-0"
+                >
+                  <Star
+                    className={`w-3.5 h-3.5 ${showFavoritesOnly ? "fill-current" : ""}`}
+                  />
+                  {showFavoritesOnly ? "Favoritos" : "Todos"}
+                </Button>
               </div>
-            </div>
-
-            {/* Search & Filters */}
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center p-4 border-b border-primary/20 bg-background/40">
-              <div className="relative flex-1 min-w-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nombre, SKU o código..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="pl-9 h-9 text-sm"
-                />
-              </div>
-              <Button
-                type="button"
-                variant={showFavoritesOnly ? "primary" : "secondary"}
-                size="sm"
-                onClick={() => {
-                  setShowFavoritesOnly((c) => !c);
-                  setCurrentPage(1);
-                }}
-                className="shrink-0"
-              >
-                <Star
-                  className={`w-3.5 h-3.5 ${showFavoritesOnly ? "fill-current" : ""}`}
-                />
-                {showFavoritesOnly ? "Favoritos" : "Todos"}
-              </Button>
+              {scanFeedback.message && (
+                <p
+                  role="status"
+                  className={cn(
+                    "text-xs font-medium",
+                    {
+                      idle: "text-muted-foreground",
+                      success: "text-emerald-600 dark:text-emerald-400",
+                      warning: "text-amber-600 dark:text-amber-400",
+                      error: "text-red-600 dark:text-red-400",
+                    }[scanFeedback.tone],
+                  )}
+                >
+                  {scanFeedback.message}
+                </p>
+              )}
             </div>
 
             {/* Product Grid */}
