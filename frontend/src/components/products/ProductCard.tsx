@@ -94,6 +94,16 @@ function DualMetrics({ product }: { product: ProductCardData }) {
     typeof product.effectiveSalePrice === "number" &&
     product.effectiveSalePrice !== product.salePrice;
 
+  // Approximate discount as a whole percentage (rounded) of the list price.
+  const discountPercent = hasPromo
+    ? Math.max(
+        0,
+        Math.round(
+          100 - (Number(product.effectiveSalePrice) / product.salePrice) * 100,
+        ),
+      )
+    : 0;
+
   const stockBadgeClass = isOutOfStock
     ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
     : isLowStock
@@ -101,41 +111,56 @@ function DualMetrics({ product }: { product: ProductCardData }) {
       : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
 
   return (
-    <div className="flex items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/30 px-2.5 py-2">
-      <div className="flex flex-col min-w-0">
-        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+    <div className="flex items-start justify-between gap-2 rounded-xl border border-border/50 bg-muted/30 px-2.5 py-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
           Precio
-          {hasPromo && (
-            <Badge variant="danger" className="text-[9px] px-1.5 py-0 font-mono uppercase">
-              Oferta
-            </Badge>
-          )}
         </span>
-        <span className="font-mono text-[13px] sm:text-[14px] font-extrabold text-foreground tracking-tight truncate">
-          {hasPromo ? (
-            <>
+
+        {hasPromo ? (
+          <>
+            {/* Promo price — prominent, never truncated */}
+            <span
+              data-testid="offer-effective-price"
+              className="font-mono text-[15px] font-extrabold leading-none tracking-tight text-foreground"
+            >
+              {formatCurrency(product.effectiveSalePrice as number)}
+            </span>
+            {/* OFERTA badge + struck-through list price + discount approx (wrap-safe, no cut/overlap) */}
+            <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+              <Badge
+                variant="danger"
+                className="shrink-0 text-[9px] px-1.5 py-0 font-mono uppercase"
+              >
+                Oferta
+              </Badge>
               <s
                 data-testid="offer-list-price"
-                className="mr-1 text-[11px] font-semibold text-muted-foreground line-through"
+                className="font-mono text-[11px] font-semibold text-muted-foreground line-through"
               >
                 {formatCurrency(product.salePrice)}
               </s>
-              <span data-testid="offer-effective-price">
-                {formatCurrency(product.effectiveSalePrice as number)}
-              </span>
-            </>
-          ) : (
-            formatCurrency(product.salePrice)
-          )}
-        </span>
+              {discountPercent > 0 && (
+                <span className="shrink-0 font-mono text-[10px] font-bold text-danger dark:text-red-400">
+                  -{discountPercent}%
+                </span>
+              )}
+            </span>
+          </>
+        ) : (
+          <span className="font-mono text-[14px] font-extrabold leading-none tracking-tight text-foreground">
+            {formatCurrency(product.salePrice)}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col items-end shrink-0">
-        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">
+
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
           Stock
         </span>
         <span
           className={cn(
-            "inline-flex items-center font-mono text-[11px] font-bold px-2 py-0.5 rounded-md border",
+            "inline-flex shrink-0 items-center font-mono text-[11px] font-bold px-2 py-0.5 rounded-md border",
             stockBadgeClass,
           )}
         >
