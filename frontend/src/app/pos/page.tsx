@@ -56,17 +56,18 @@ const POS_PAGE_SIZE = 20;
  * line is not on offer.
  */
 function cartItemOffer(item: CartItem) {
-  // salePrice can arrive as a Decimal string over HTTP while effectiveSalePrice
-  // is a number; normalize both so the offer is detected regardless.
-  const price = Number(item.product?.effectiveSalePrice);
+  // effectiveSalePrice is null/undefined when there is NO active promotion;
+  // Number(null) would be 0, so guard the presence explicitly to avoid a
+  // bogus "-100%" offer. salePrice may arrive as a Decimal string.
+  const price = item.product?.effectiveSalePrice;
   const listPrice = Number(item.product?.salePrice);
-  if (!Number.isFinite(price) || !Number.isFinite(listPrice)) return null;
-  if (price === listPrice || price >= listPrice) return null;
+  if (typeof price !== "number" || !Number.isFinite(listPrice)) return null;
+  if (price <= 0 || price >= listPrice) return null;
   const percent = Math.max(
     0,
     Math.round(100 - (price / listPrice) * 100),
   );
-  return { percent };
+  return percent > 0 ? { percent } : null;
 }
 
 interface PaymentMethod {
