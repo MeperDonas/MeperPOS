@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { ReportsService } from './reports.service';
 
 describe('ReportsService', () => {
@@ -14,11 +15,15 @@ describe('ReportsService', () => {
     },
     product: {
       count: jest.fn(),
+      findMany: jest.fn(),
     },
     customer: {
       count: jest.fn(),
     },
     saleItem: {
+      findMany: jest.fn(),
+    },
+    inventoryMovement: {
       findMany: jest.fn(),
     },
     $queryRaw: jest.fn(),
@@ -282,5 +287,22 @@ describe('ReportsService', () => {
         { date: '2026-08-22', category: 'Bebidas', total: 20000, quantity: 1 },
       ]),
     );
+  });
+
+  it('values inventory at list price, ignoring active promotions', async () => {
+    prismaMock.product.findMany.mockResolvedValue([
+      {
+        stock: 10,
+        costPrice: new Prisma.Decimal('2000'),
+        salePrice: new Prisma.Decimal('5000'),
+        promotionType: 'PERCENTAGE',
+        promotionValue: new Prisma.Decimal('20'),
+      },
+    ]);
+    prismaMock.inventoryMovement.findMany.mockResolvedValue([]);
+
+    const result = await service.getInventorySnapshot('org-1');
+
+    expect(result.current.retailValue).toBe('50000.00');
   });
 });

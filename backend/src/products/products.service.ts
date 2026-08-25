@@ -4,12 +4,108 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, PromotionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
 import { PlanLimitService } from '../plan-limits/plan-limits.service';
+
+export interface PromoPricingProduct {
+  salePrice: Prisma.Decimal | number;
+  promotionType?: PromotionType | null;
+  promotionValue?: Prisma.Decimal | number | null;
+}
+
+/**
+ * Derives the effective sale price for a product from its optional promotion:
+ *
+ *   PERCENTAGE   → salePrice * (1 - promotionValue / 100)
+ *   FIXED_PRICE  → promotionValue
+ *   no promotion → null
+ *
+ * Computed in `number` (never float-chained Decimals) and rounded half-up to
+ * two decimals, consistent with the DECIMAL(10,2) columns.
+ */
+export function computeEffectiveSalePrice(product: PromoPricingProduct): number | null {
+  const { salePrice, promotionType, promotionValue } = product;
+
+  if (!promotionType || promotionValue == null) {
+    return null;
+  }
+
+  const listPrice = Number(salePrice);
+  const value = Number(promotionValue);
+
+  let raw: number;
+  if (promotionType === PromotionType.PERCENTAGE) {
+    raw = listPrice * (1 - value / 100);
+  } else {
+    raw = value;
+  }
+
+  return Math.round((raw + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Cross-field promotion invariants, mirroring the taxable/taxRate precedent:
+ *
+ *   - PERCENTAGE  → 0 < promotionValue <= 100
+ *   - FIXED_PRICE → 0 < promotionValue < salePrice
+ *   - both fields null (or omitted) → no-op / explicit clearing
+ *   - partial writes (one field without the other) are rejected
+ *
+ * Shape validation lives in the DTO; this guards the business rules that need
+ * context (the effective sale price) the DTO cannot see.
+ */
+function assertValidPromotion(
+  promotionType: PromotionType | null | undefined,
+  promotionValue: number | null | undefined,
+  salePrice: number,
+): void {
+  const typeSent = promotionType !== undefined;
+  const valueSent = promotionValue !== undefined;
+
+  if (!typeSent && !valueSent) {
+    return;
+  }
+
+  const clearing = promotionType === null && promotionValue === null;
+  const fullySet = promotionType != null && promotionValue != null;
+
+  if (!clearing && !fullySet) {
+    throw new BadRequestException(
+      'promotionType and promotionValue must be provided together (send both as null to clear the promotion)',
+    );
+  }
+
+  if (!fullySet) {
+    return;
+  }
+
+  const value = Number(promotionValue);
+
+  if (promotionType === PromotionType.PERCENTAGE) {
+    if (!(value > 0 && value <= 100)) {
+      throw new BadRequestException(
+        'promotionValue must be greater than 0 and at most 100 for PERCENTAGE promotions',
+      );
+    }
+    return;
+  }
+
+  if (!(value > 0)) {
+    throw new BadRequestException(
+      'promotionValue must be greater than 0 for FIXED_PRICE promotions',
+    );
+  }
+
+  if (!(value < salePrice)) {
+    throw new BadRequestException(
+      'promotionValue must be less than salePrice for FIXED_PRICE promotions',
+    );
+  }
+}
 
 @Injectable()
 export class ProductsService {
@@ -74,6 +170,12 @@ export class ProductsService {
       resolvedTaxRate = 0;
     }
 
+    assertValidPromotion(
+      createProductDto.promotionType,
+      createProductDto.promotionValue,
+      Number(createProductDto.salePrice),
+    );
+
     const product = await this.prisma.product.create({
       data: {
         ...rest,
@@ -99,7 +201,7 @@ export class ProductsService {
       organizationId,
     );
 
-    return this.enrichWithEffectiveTax(product);
+    return this.enrichWithEffectiveTax(this.enrichWithPromo(product));
   }
 
   async findAll(
@@ -146,7 +248,9 @@ export class ProductsService {
     ]);
 
     return {
-      data: products.map((p) => this.enrichWithEffectiveTax(p)),
+      data: products.map((p) =>
+        this.enrichWithEffectiveTax(this.enrichWithPromo(p)),
+      ),
       meta: {
         total,
         page,
@@ -166,7 +270,7 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    return this.enrichWithEffectiveTax(product);
+    return this.enrichWithEffectiveTax(this.enrichWithPromo(product));
   }
 
   async update(
@@ -240,6 +344,12 @@ export class ProductsService {
           ? { taxable: false, taxRate: 0 }
           : {};
 
+    assertValidPromotion(
+      updateProductDto.promotionType,
+      updateProductDto.promotionValue,
+      Number(updateProductDto.salePrice ?? existingProduct.salePrice),
+    );
+
     const updateResult = await this.prisma.product.updateMany({
       where: { id, version: existingProduct.version, active: true },
       data: {
@@ -280,7 +390,7 @@ export class ProductsService {
       );
     }
 
-    return this.enrichWithEffectiveTax(product);
+    return this.enrichWithEffectiveTax(this.enrichWithPromo(product));
   }
 
   async deactivate(id: string, organizationId: string | undefined) {
@@ -439,6 +549,19 @@ export class ProductsService {
     return {
       ...product,
       effectiveTaxRate: resolveEffectiveTaxRate(product, product.category),
+    };
+  }
+
+  /**
+   * Enriches a product with the promotion-aware effective sale price so every
+   * pricing read carries the same backend-computed value (null = no promo).
+   */
+  private enrichWithPromo<T extends PromoPricingProduct>(
+    product: T,
+  ): T & { effectiveSalePrice: number | null } {
+    return {
+      ...product,
+      effectiveSalePrice: computeEffectiveSalePrice(product),
     };
   }
 
