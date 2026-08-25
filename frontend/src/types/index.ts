@@ -6,6 +6,11 @@ export interface Product {
   description: string | null;
   costPrice: number;
   salePrice: number;
+  /** Active promotion on the product (backend-computed effectiveSalePrice derives from these) */
+  promotionType?: "PERCENTAGE" | "FIXED_PRICE" | null;
+  promotionValue?: number | null;
+  /** Backend-computed promo price (null when no active promotion) */
+  effectiveSalePrice?: number | null;
   taxRate: number;
   effectiveTaxRate?: number;
   stock: number;
@@ -274,6 +279,9 @@ export interface SearchProductResult {
   sku: string;
   barcode: string | null;
   salePrice: number;
+  promotionType?: "PERCENTAGE" | "FIXED_PRICE" | null;
+  promotionValue?: number | null;
+  effectiveSalePrice?: number | null;
   stock: number;
   imageUrl: string | null;
   category: { name: string };
