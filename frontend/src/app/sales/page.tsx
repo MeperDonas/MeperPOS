@@ -231,8 +231,83 @@ function SalesPageContent() {
         {isLoading ? (
           <LoadingState icon={<Receipt className="w-4 h-4 text-primary/50" />} message="Cargando ventas..." />
         ) : (
-          <>
-            <div className="rounded-3xl border border-accent/30 bg-accent/10 overflow-hidden">
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-3">
+              {sales.length === 0 ? (
+                <EmptyState
+                  icon={<Receipt className="w-6 h-6 text-muted-foreground/30" />}
+                  title="No hay ventas registradas"
+                />
+              ) : (
+                sales.map((sale) => (
+                  <div
+                    key={sale.id}
+                    className="rounded-2xl border border-accent/30 bg-card p-4 shadow-xs space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-sm font-bold text-primary">
+                        #{sale.saleNumber}
+                      </span>
+                      {getStatusBadge(sale.status)}
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between items-center text-muted-foreground">
+                        <span>Cliente</span>
+                        <span className="font-semibold text-foreground truncate max-w-[180px]">
+                          {sale.customer?.name || "General"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-muted-foreground">
+                        <span>Fecha</span>
+                        <span className="font-mono">{formatDateTime(sale.createdAt)}</span>
+                      </div>
+                      {isAdmin && sale.user?.name && (
+                        <div className="flex justify-between items-center text-muted-foreground">
+                          <span>Vendedor</span>
+                          <span className="text-foreground">{sale.user.name}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center text-muted-foreground pt-1">
+                        <span>Método de pago</span>
+                        <div>{getPaymentBadge(sale.payments)}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2.5 border-t border-border/60">
+                      <div>
+                        <p className="text-[10px] uppercase font-semibold text-muted-foreground">Total</p>
+                        <p className="stat-number text-base font-bold text-foreground">
+                          {formatCurrency(sale.total)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleViewDetails(sale)}
+                          className="h-8 px-2.5 text-xs"
+                        >
+                          <Eye className="w-3.5 h-3.5 mr-1" /> Detalle
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handlePrintReceipt(sale.id)}
+                          className="h-8 w-8 p-0"
+                          title="Descargar comprobante"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-3xl border border-accent/30 bg-accent/10 overflow-hidden">
               <div className="overflow-x-auto">
                 <Table variant="accent" className="min-w-[680px]">
                   <TableHeader>
