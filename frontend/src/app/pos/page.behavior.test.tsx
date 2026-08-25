@@ -380,6 +380,29 @@ describe("POS behavior evidence (#19, #18)", () => {
     expect(screen.getByTestId("original-unit-price")).toBeTruthy();
   });
 
+  it("does NOT show the OFERTA badge for a product without an active promotion", async () => {
+    useProductsMock.mockReturnValue({
+      data: {
+        data: [
+          makeProduct("1", "Sin Oferta", {
+            salePrice: "6900" as unknown as number,
+            effectiveSalePrice: null,
+          }),
+        ],
+        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      },
+      isLoading: false,
+      isFetching: false,
+    });
+
+    render(<POSPage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Sin Oferta" }));
+
+    expect(screen.queryByText(/^Oferta -/)).toBeNull();
+    expect(screen.queryByTestId("original-unit-price")).toBeNull();
+  });
+
   it("shows scanner feedback when the scanned code is not found", async () => {
     useProductsMock.mockReturnValue({
       data: {
