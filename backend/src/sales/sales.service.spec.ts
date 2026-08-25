@@ -966,4 +966,174 @@ describe('SalesService', () => {
       }),
     );
   });
+
+  describe('create promotion pricing', () => {
+    const promoProduct = {
+      id: 'prod-1',
+      name: 'Promo Product',
+      active: true,
+      costPrice: 5000,
+      salePrice: 10000,
+      taxable: false,
+      taxRate: 0,
+      stock: 10,
+      category: { taxable: false, defaultTaxRate: null },
+      promotionType: 'PERCENTAGE',
+      promotionValue: 20,
+    };
+
+    const buildTx = () => ({
+      sale: { create: jest.fn() },
+      saleItem: { create: jest.fn() },
+      product: {
+        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      inventoryMovement: { create: jest.fn() },
+      payment: { create: jest.fn() },
+    });
+
+    const primeCreate = (
+      tx: ReturnType<typeof buildTx>,
+      product: Record<string, unknown>,
+      saleNumber: number,
+    ) => {
+      prismaMock.$transaction.mockImplementation(
+        async (callback: (tx: unknown) => unknown) => callback(tx),
+      );
+      sequenceServiceMock.nextNumber.mockResolvedValue({
+        number: saleNumber,
+        formatted: String(saleNumber),
+      });
+      prismaMock.product.findFirst.mockResolvedValue(product);
+      tx.sale.create.mockResolvedValue({ id: 'sale-new', saleNumber });
+      prismaMock.sale.findFirst.mockResolvedValue({
+        id: 'sale-new',
+        saleNumber,
+        userId: 'user-1',
+        user: { id: 'user-1', name: 'User', email: 'user@example.com' },
+        customer: null,
+        items: [],
+        payments: [],
+      });
+    };
+
+    it('falls back to the promotional effective price when the client omits unitPrice', async () => {
+      const tx = buildTx();
+      primeCreate(tx, promoProduct, 50);
+
+      await service.create(
+        {
+          items: [{ productId: 'prod-1', quantity: 2, discountAmount: 0 }],
+          discountAmount: 0,
+          payments: [{ method: 'CASH' as const, amount: 16000 }],
+        },
+        'user-1',
+        'org-1',
+      );
+
+      expect(tx.saleItem.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ unitPrice: 8000, subtotal: 16000 }),
+        }),
+      );
+      expect(tx.sale.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ subtotal: 16000 }),
+        }),
+      );
+    });
+
+    it('snapshots the promotional unit price at creation time (historical immutability)', async () => {
+      const tx = buildTx();
+      const product = { ...promoProduct };
+      primeCreate(tx, product, 51);
+
+      await service.create(
+        {
+          items: [{ productId: 'prod-1', quantity: 1, discountAmount: 0 }],
+          discountAmount: 0,
+          payments: [{ method: 'CASH' as const, amount: 8000 }],
+        },
+        'user-1',
+        'org-1',
+      );
+
+      // Later promo removal must not mutate the already-persisted SaleItem.
+      product.promotionType = null;
+      product.promotionValue = null;
+      product.salePrice = 12000;
+
+      const persisted = tx.saleItem.create.mock.calls[0][0].data;
+      expect(persisted.unitPrice).toBe(8000);
+      expect(persisted.subtotal).toBe(8000);
+      expect(persisted.total).toBe(8000);
+    });
+
+    it('honors a trusted client unitPrice override even with an active promotion', async () => {
+      const tx = buildTx();
+      primeCreate(tx, promoProduct, 52);
+
+      await service.create(
+        {
+          items: [
+            { productId: 'prod-1', quantity: 1, unitPrice: 9000, discountAmount: 0 },
+          ],
+          discountAmount: 0,
+          payments: [{ method: 'CASH' as const, amount: 9000 }],
+        },
+        'user-1',
+        'org-1',
+      );
+
+      expect(tx.saleItem.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ unitPrice: 9000, subtotal: 9000 }),
+        }),
+      );
+    });
+
+    it('stacks the manual rebate on the offer price and floors the item total at zero', async () => {
+      const tx = buildTx();
+      primeCreate(tx, promoProduct, 53);
+
+      await service.create(
+        {
+          items: [{ productId: 'prod-1', quantity: 1, discountAmount: 8000 }],
+          discountAmount: 0,
+          payments: [{ method: 'CASH' as const, amount: 0 }],
+        },
+        'user-1',
+        'org-1',
+      );
+
+      const persisted = tx.saleItem.create.mock.calls[0][0].data;
+      expect(persisted.unitPrice).toBe(8000);
+      expect(persisted.discountAmount).toBe(8000);
+      expect(persisted.subtotal).toBe(0);
+      expect(persisted.total).toBe(0);
+      expect(tx.sale.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ subtotal: 0, total: 0 }),
+        }),
+      );
+    });
+
+    it('rejects an item discount greater than the offer gross subtotal', async () => {
+      const tx = buildTx();
+      primeCreate(tx, promoProduct, 54);
+
+      await expect(
+        service.create(
+          {
+            items: [{ productId: 'prod-1', quantity: 1, discountAmount: 8000.01 }],
+            discountAmount: 0,
+            payments: [{ method: 'CASH' as const, amount: 8000 }],
+          },
+          'user-1',
+          'org-1',
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
 });
