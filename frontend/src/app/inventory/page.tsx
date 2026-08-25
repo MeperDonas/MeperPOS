@@ -38,7 +38,7 @@ import type { Product } from "@/types";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiErrorMessage } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, resolveTaxFields } from "@/lib/utils";
 
 export default function InventoryPage() {
   const toast = useToast();
@@ -235,6 +235,11 @@ export default function InventoryPage() {
       toast.error("Ingresa una tasa de impuesto valida");
       return;
     }
+    // Tax is opt-in: a positive rate keeps the product taxable, while 0 or an
+    // empty field marks it NOT taxable (rate forced to 0 server-side). Sending
+    // taxable:true with a 0 rate would be rejected by the backend, silently
+    // keeping the old rate — so derive taxable from the entered rate.
+    const taxData = resolveTaxFields(taxRateInput);
     // Promotion: empty type = no offer (explicit nulls clear it server-side);
     // a selected type requires a positive value.
     const hasPromotion = promotionTypeInput !== "";
@@ -272,7 +277,7 @@ export default function InventoryPage() {
         const cleanedData = {
           ...updateData,
           ...(normalizedCategoryId ? { categoryId: normalizedCategoryId } : {}),
-          ...(hasExplicitTaxRate ? { taxRate: parsedTaxRate } : {}),
+          ...taxData,
           costPrice: updateData.costPrice ?? 0,
           salePrice: updateData.salePrice ?? 0,
           stock: updateData.stock ?? 0,
@@ -295,7 +300,7 @@ export default function InventoryPage() {
         const cleanedFormData = {
           ...formData,
           categoryId: normalizedCategoryId,
-          ...(hasExplicitTaxRate ? { taxRate: parsedTaxRate } : {}),
+          ...taxData,
           costPrice: formData.costPrice ?? 0,
           salePrice: formData.salePrice ?? 0,
           stock: formData.stock ?? 0,
@@ -725,17 +730,28 @@ export default function InventoryPage() {
                   />
                   {promotionTypeInput !== "" && (
                     <>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="Valor"
-                        value={promotionValueInput}
-                        onChange={(e) =>
-                          setPromotionValueInput(e.target.value)
-                        }
-                        className="w-full"
-                      />
+                      {promotionTypeInput === "FIXED_PRICE" ? (
+                        <CurrencyInput
+                          placeholder="Valor"
+                          value={promotionValueInput}
+                          onChange={(value) =>
+                            setPromotionValueInput(String(value))
+                          }
+                          className="w-full"
+                        />
+                      ) : (
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Valor"
+                          value={promotionValueInput}
+                          onChange={(e) =>
+                            setPromotionValueInput(e.target.value)
+                          }
+                          className="w-full"
+                        />
+                      )}
                       <Button
                         type="button"
                         variant="secondary"
