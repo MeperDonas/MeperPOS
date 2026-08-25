@@ -13,6 +13,26 @@ interface PausedSale {
 
 const PAUSED_SALES_KEY = "paused_sales";
 
+/**
+ * Stable identity of a paused sale's content: same customer + same cart lines
+ * (product, quantity, prices, discount). Used to avoid stacking duplicate
+ * paused sales for the very same order.
+ */
+function pausedSaleSignature(cart: CartItem[], customerId: string | ""): string {
+  const lines = cart
+    .map((item) =>
+      [
+        item.productId,
+        item.quantity,
+        Number(item.unitPrice),
+        Number(item.discountAmount),
+        item.discountPercent ?? 0,
+      ].join("|"),
+    )
+    .sort();
+  return `${customerId}::${lines.join("&")}`;
+}
+
 export function usePausedSales() {
   const [pausedSales, setPausedSales] = useState<PausedSale[]>(() => {
     if (typeof window === "undefined") {
@@ -25,7 +45,21 @@ export function usePausedSales() {
     }
 
     try {
-      return JSON.parse(saved) as PausedSale[];
+      const parsed = JSON.parse(saved) as PausedSale[];
+      // Normalize any duplicate saved entries (identical customer + cart),
+      // keeping the most recently paused one.
+      const seen = new Set<string>();
+      const deduped: PausedSale[] = [];
+      for (const sale of [...parsed].sort(
+        (a, b) => new Date(b.pausedAt).getTime() - new Date(a.pausedAt).getTime(),
+      )) {
+        const sig = pausedSaleSignature(sale.cart, sale.customerId);
+        if (!seen.has(sig)) {
+          seen.add(sig);
+          deduped.push(sale);
+        }
+      }
+      return deduped;
     } catch {
       return [];
     }
@@ -54,7 +88,27 @@ export function usePausedSales() {
       customerName,
     };
 
-    setPausedSales((prev) => [...prev, pausedSale]);
+    setPausedSales((prev) => {
+      const sig = pausedSaleSignature(cart, customerId);
+      const existingIndex = prev.findIndex(
+        (s) => pausedSaleSignature(s.cart, s.customerId) === sig,
+      );
+      // Refresh the existing identical paused sale (new pausedAt) instead of
+      // stacking a duplicate for the very same order.
+      if (existingIndex >= 0) {
+        return prev.map((s, i) =>
+          i === existingIndex
+            ? {
+                ...s,
+                discountAmount,
+                customerName,
+                pausedAt: pausedSale.pausedAt,
+              }
+            : s,
+        );
+      }
+      return [...prev, pausedSale];
+    });
     return pausedSale.id;
   };
 
