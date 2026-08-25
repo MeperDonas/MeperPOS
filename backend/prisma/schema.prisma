@@ -164,6 +164,8 @@ model Product {
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   version             Int                 @default(0)
+  promotionType       PromotionType?
+  promotionValue      Decimal?            @db.Decimal(10, 2)
   preferredSupplierId String?
   organizationId      String
   movements           InventoryMovement[]
@@ -511,6 +513,11 @@ enum OrgRole {
   MEMBER
   CASHIER
   INVENTORY_USER
+}
+
+enum PromotionType {
+  PERCENTAGE
+  FIXED_PRICE
 }
 
 enum MovementType {
