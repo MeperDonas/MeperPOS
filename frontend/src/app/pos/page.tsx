@@ -248,7 +248,9 @@ export default function POSPage() {
           productId: product.id,
           product,
           quantity: Math.min(quantity, product.stock),
-          unitPrice: product.salePrice,
+          // Promotional price wins when present; list price stays snapshotted
+          // as originalUnitPrice so the cart can strike it through.
+          unitPrice: product.effectiveSalePrice ?? product.salePrice,
           originalUnitPrice: product.salePrice,
           discountAmount: 0,
           availableStock: product.stock,
