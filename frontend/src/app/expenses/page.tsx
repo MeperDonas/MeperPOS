@@ -240,7 +240,7 @@ export default function ExpensesPage() {
           }}
           searchPlaceholder="Buscar por descripción..."
           filterControls={
-            <>
+            <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
               <input
                 type="month"
                 aria-label="Mes"
@@ -249,7 +249,7 @@ export default function ExpensesPage() {
                   setPage(1);
                   setMonth(e.target.value);
                 }}
-                className="h-8 px-2 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50"
+                className="h-8 px-2 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50 w-full sm:w-auto"
               />
               <BentoSelect
                 value={categoryId}
@@ -257,7 +257,7 @@ export default function ExpensesPage() {
                   setPage(1);
                   setCategoryId(value);
                 }}
-                className="w-52"
+                className="w-full sm:w-52"
                 placeholder="Todas las categorías"
                 options={[
                   { value: "", label: "Todas las categorías" },
@@ -273,7 +273,7 @@ export default function ExpensesPage() {
                   setPage(1);
                   setSupplierId(value);
                 }}
-                className="w-52"
+                className="w-full sm:w-52"
                 placeholder="Todos los proveedores"
                 options={[
                   { value: "", label: "Todos los proveedores" },
@@ -289,7 +289,7 @@ export default function ExpensesPage() {
                   setPage(1);
                   setStatus(value as "" | ExpenseStatus);
                 }}
-                className="w-44"
+                className="w-full sm:w-44"
                 placeholder="Todos los estados"
                 options={STATUS_OPTIONS.map((option) => ({
                   value: option.value,
@@ -304,7 +304,7 @@ export default function ExpensesPage() {
                   Limpiar
                 </button>
               )}
-            </>
+            </div>
           }
         />
 
@@ -315,7 +315,125 @@ export default function ExpensesPage() {
           />
         ) : (
           <>
-            <div className="rounded-3xl border border-accent/30 bg-accent/10 overflow-hidden">
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-3">
+              {expenses.length === 0 ? (
+                <EmptyState
+                  icon={
+                    <Wallet className="w-6 h-6 text-muted-foreground/30" />
+                  }
+                  title="No hay salidas registradas"
+                />
+              ) : (
+                expenses.map((expense) => {
+                  const isPaid = expense.status === "PAID";
+                  const paymentButtonLabel = isPaid
+                    ? "La salida ya está pagada"
+                    : "Agregar pago";
+
+                  return (
+                    <div
+                      key={expense.id}
+                      className="rounded-2xl border border-accent/30 bg-card p-4 shadow-xs space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm text-foreground truncate max-w-[200px]">
+                          {expense.category?.name ?? "Salida general"}
+                        </span>
+                        <ExpenseStatusBadge status={expense.status} />
+                      </div>
+
+                      {expense.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {expense.description}
+                        </p>
+                      )}
+
+                      <div className="space-y-1 text-xs">
+                        {expense.supplier?.name && (
+                          <div className="flex justify-between items-center text-muted-foreground">
+                            <span>Proveedor</span>
+                            <span className="font-semibold text-foreground truncate max-w-[180px]">
+                              {expense.supplier.name}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center text-muted-foreground">
+                          <span>Fecha</span>
+                          <span className="font-mono">{formatDate(expense.date)}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2.5 border-t border-border/60">
+                        <div>
+                          <p className="text-[10px] uppercase font-semibold text-muted-foreground">Total</p>
+                          <p className="stat-number text-base font-bold text-foreground">
+                            {formatCurrency(Number(expense.total))}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            type="button"
+                            aria-label="Ver detalle"
+                            title="Ver detalle"
+                            onClick={() => setDetailExpense(expense)}
+                            className="p-1.5 h-8 w-8"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            type="button"
+                            aria-label={paymentButtonLabel}
+                            title={paymentButtonLabel}
+                            disabled={isPaid}
+                            onClick={() => setPaymentExpense(expense)}
+                            className="p-1.5 h-8 w-8"
+                          >
+                            <Wallet className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            type="button"
+                            aria-label="Ver historial"
+                            title="Ver historial"
+                            onClick={() => setHistoryExpense(expense)}
+                            className="p-1.5 h-8 w-8"
+                          >
+                            <History className="w-4 h-4" />
+                          </Button>
+                          <label
+                            className="inline-flex items-center justify-center p-1.5 h-8 w-8 rounded-lg cursor-pointer text-muted-foreground hover:text-foreground hover:bg-muted"
+                            title="Subir comprobante"
+                          >
+                            <input
+                              type="file"
+                              accept="image/*"
+                              aria-label="Subir comprobante"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  void handleReceiptUpload(expense, file);
+                                }
+                              }}
+                            />
+                            <Upload className="w-4 h-4" />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-3xl border border-accent/30 bg-accent/10 overflow-hidden">
               <div className="overflow-x-auto">
                 <Table variant="accent" className="min-w-[860px]">
                   <TableHeader>

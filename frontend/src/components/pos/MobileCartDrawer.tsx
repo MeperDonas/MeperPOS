@@ -99,9 +99,9 @@ export function MobileCartDrawer({
         role="dialog"
         aria-modal="true"
         aria-label="Carrito de compras"
-        className="relative z-10 flex max-h-[90vh] w-full flex-col rounded-t-3xl border-t border-accent/40 bg-card shadow-2xl overflow-hidden animate-slide-in-bottom"
+        className="relative z-10 flex h-[92dvh] max-h-[92dvh] w-full flex-col rounded-t-3xl border-t border-accent/40 bg-card shadow-2xl overflow-hidden animate-slide-in-bottom"
       >
-        {/* Pull handle & Header */}
+        {/* Pull handle & Header (Pinned Top) */}
         <div className="flex flex-col border-b border-border/80 bg-muted/20 px-5 pt-3 pb-3 shrink-0">
           <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-muted-foreground/30" />
           <div className="flex items-center justify-between">
@@ -129,111 +129,111 @@ export function MobileCartDrawer({
           </div>
         </div>
 
-        {/* Scrollable Cart Items */}
-        <div className="scrollbar-app flex-1 overflow-y-auto p-4 space-y-2.5 min-h-[160px] max-h-[42vh]">
-          {cart.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <ShoppingCart className="h-10 w-10 text-muted-foreground/40 mb-2" />
-              <p className="text-sm font-semibold text-foreground">Carrito vacío</p>
-              <p className="text-xs text-muted-foreground">Agrega productos para comenzar</p>
-            </div>
-          ) : (
-            cart.map((item) => (
-              <div
-                key={item.productId}
-                className="flex items-start gap-2.5 rounded-2xl border border-accent/20 bg-background/50 p-3 shadow-2xs"
-              >
-                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-primary/10 flex items-center justify-center">
-                  {item.product.imageUrl ? (
-                    <Image
-                      src={item.product.imageUrl}
-                      alt={item.product.name}
-                      fill
-                      sizes="44px"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <Package className="h-5 w-5 text-primary/60" />
-                  )}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold text-foreground line-clamp-1 mb-1">
-                    {item.product.name}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground mb-1.5">
-                    {cartItemOffer(item) && (
-                      <Badge
-                        variant="danger"
-                        className="shrink-0 text-[9px] px-1.5 py-0 font-mono uppercase"
-                      >
-                        Oferta -{cartItemOffer(item)!.percent}%
-                      </Badge>
-                    )}
-                    {Number.isFinite(Number(item.originalUnitPrice)) &&
-                      Number(item.unitPrice) !== Number(item.originalUnitPrice) && (
-                        <s className="text-muted-foreground/60 line-through">
-                          {formatCurrency(Number(item.originalUnitPrice))}
-                        </s>
-                      )}
-                    <span className="font-medium text-foreground">
-                      {formatCurrency(item.unitPrice)}
-                    </span>{" "}
-                    × {item.quantity}
-                    {item.discountAmount > 0 && (
-                      <span className="ml-1 text-emerald-600 dark:text-emerald-400">
-                        (-{formatCurrency(item.discountAmount)})
-                      </span>
+        {/* Unified Scrollable Body: Cart Items + Customer + Totals + Payment Methods */}
+        <div className="scrollbar-app flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+          {/* Cart Items Section */}
+          <div className="space-y-2.5">
+            {cart.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <ShoppingCart className="h-10 w-10 text-muted-foreground/40 mb-2" />
+                <p className="text-sm font-semibold text-foreground">Carrito vacío</p>
+                <p className="text-xs text-muted-foreground">Agrega productos para comenzar</p>
+              </div>
+            ) : (
+              cart.map((item) => (
+                <div
+                  key={item.productId}
+                  className="flex items-start gap-2.5 rounded-2xl border border-accent/20 bg-background/50 p-3 shadow-2xs"
+                >
+                  <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-primary/10 flex items-center justify-center">
+                    {item.product.imageUrl ? (
+                      <Image
+                        src={item.product.imageUrl}
+                        alt={item.product.name}
+                        fill
+                        sizes="44px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <Package className="h-5 w-5 text-primary/60" />
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Stepper
-                      value={item.quantity}
-                      min={0}
-                      max={item.availableStock}
-                      size="sm"
-                      onChange={(value) => onUpdateQuantity(item.productId, value)}
-                    />
-                    {item.quantity >= item.availableStock && (
-                      <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                        máx.
-                      </span>
-                    )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-foreground line-clamp-1 mb-1">
+                      {item.product.name}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground mb-1.5">
+                      {cartItemOffer(item) && (
+                        <Badge
+                          variant="danger"
+                          className="shrink-0 text-[9px] px-1.5 py-0 font-mono uppercase"
+                        >
+                          Oferta -{cartItemOffer(item)!.percent}%
+                        </Badge>
+                      )}
+                      {Number.isFinite(Number(item.originalUnitPrice)) &&
+                        Number(item.unitPrice) !== Number(item.originalUnitPrice) && (
+                          <s className="text-muted-foreground/60 line-through">
+                            {formatCurrency(Number(item.originalUnitPrice))}
+                          </s>
+                        )}
+                      <span className="font-medium text-foreground">
+                        {formatCurrency(item.unitPrice)}
+                      </span>{" "}
+                      × {item.quantity}
+                      {item.discountAmount > 0 && (
+                        <span className="ml-1 text-emerald-600 dark:text-emerald-400">
+                          (-{formatCurrency(item.discountAmount)})
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Stepper
+                        value={item.quantity}
+                        min={0}
+                        max={item.availableStock}
+                        size="sm"
+                        onChange={(value) => onUpdateQuantity(item.productId, value)}
+                      />
+                      {item.quantity >= item.availableStock && (
+                        <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                          máx.
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onOpenDiscountModal(item.productId)}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-accent/30 bg-background/80 text-muted-foreground hover:text-primary transition-colors"
+                        title="Descuento"
+                      >
+                        <Percent className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end justify-between gap-3 shrink-0">
+                    <span className="stat-number text-sm font-bold text-foreground">
+                      {formatCurrency(
+                        item.quantity * item.unitPrice - item.discountAmount,
+                      )}
+                    </span>
                     <button
                       type="button"
-                      onClick={() => onOpenDiscountModal(item.productId)}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-accent/30 bg-background/80 text-muted-foreground hover:text-primary transition-colors"
-                      title="Descuento"
+                      onClick={() => onRemoveFromCart(item.productId)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                      aria-label={`Eliminar ${item.product.name}`}
                     >
-                      <Percent className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
+              ))
+            )}
+          </div>
 
-                <div className="flex flex-col items-end justify-between gap-3 shrink-0">
-                  <span className="stat-number text-sm font-bold text-foreground">
-                    {formatCurrency(
-                      item.quantity * item.unitPrice - item.discountAmount,
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveFromCart(item.productId)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
-                    aria-label={`Eliminar ${item.product.name}`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Footer: Customer, Totals, Actions, Checkout */}
-        <div className="border-t border-border/80 bg-muted/10 p-4 space-y-3 shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-          {/* Customer */}
+          {/* Customer Selection */}
           <div>
             <button
               type="button"
@@ -248,7 +248,7 @@ export function MobileCartDrawer({
           </div>
 
           {/* Totals Breakdown */}
-          <div className="space-y-1 rounded-2xl bg-muted/30 p-2.5 border border-border/60">
+          <div className="space-y-1 rounded-2xl bg-muted/30 p-3 border border-border/60">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Subtotal</span>
               <span className="font-medium text-foreground">{formatCurrency(subtotal)}</span>
@@ -279,7 +279,7 @@ export function MobileCartDrawer({
               onClick={onOpenPausedSales}
               className="flex-1 text-xs h-8"
             >
-              <Play className="w-3.5 h-3.5" />
+              <Play className="w-3.5 h-3.5 mr-1" />
               Reanudar ({pausedSalesCount})
             </Button>
             <Button
@@ -289,20 +289,25 @@ export function MobileCartDrawer({
               disabled={cart.length === 0}
               className="flex-1 text-xs h-8"
             >
-              <Pause className="w-3.5 h-3.5" />
+              <Pause className="w-3.5 h-3.5 mr-1" />
               Pausar
             </Button>
           </div>
 
-          {/* Payment Method */}
+          {/* Payment Method Selector */}
           <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+              Método de Pago
+            </p>
             <PaymentMethodCards
               selectedMethod={selectedPaymentMethod}
               onMethodChange={onPaymentMethodChange}
             />
           </div>
+        </div>
 
-          {/* Checkout Button */}
+        {/* Pinned Bottom Checkout Action Bar */}
+        <div className="border-t border-border/80 bg-card p-3.5 shrink-0 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-lg">
           <Button
             className="w-full h-11 text-base font-bold shadow-md shadow-primary/20"
             size="lg"
