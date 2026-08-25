@@ -32,6 +32,7 @@ import {
   Package,
   SlidersHorizontal,
   Upload,
+  X,
 } from "lucide-react";
 import type { Product } from "@/types";
 import { useToast } from "@/contexts/ToastContext";
@@ -66,6 +67,11 @@ export default function InventoryPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<Partial<Product>>({});
   const [taxRateInput, setTaxRateInput] = useState("");
+  // "Oferta" inputs kept as raw strings (like taxRateInput) so partial typing
+  // works; parsed on submit. Empty type = no promotion (explicit null clears).
+  const [promotionTypeInput, setPromotionTypeInput] =
+    useState<"" | "PERCENTAGE" | "FIXED_PRICE">("");
+  const [promotionValueInput, setPromotionValueInput] = useState("");
   const barcodeInputRef = useRef<HTMLInputElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -114,6 +120,10 @@ export default function InventoryPage() {
     setEditingProduct(product);
     setFormData(product);
     setTaxRateInput(product.taxRate > 0 ? String(product.taxRate) : "");
+    setPromotionTypeInput(product.promotionType ?? "");
+    setPromotionValueInput(
+      product.promotionValue != null ? String(product.promotionValue) : "",
+    );
     setShowModal(true);
   };
 
@@ -132,6 +142,8 @@ export default function InventoryPage() {
       categoryId: "",
     });
     setTaxRateInput("");
+    setPromotionTypeInput("");
+    setPromotionValueInput("");
     setShowModal(true);
   };
 
@@ -223,6 +235,21 @@ export default function InventoryPage() {
       toast.error("Ingresa una tasa de impuesto valida");
       return;
     }
+    // Promotion: empty type = no offer (explicit nulls clear it server-side);
+    // a selected type requires a positive value.
+    const hasPromotion = promotionTypeInput !== "";
+    let parsedPromotionValue: number | null = null;
+    if (hasPromotion) {
+      parsedPromotionValue = Number(promotionValueInput);
+      if (
+        promotionValueInput.trim() === "" ||
+        Number.isNaN(parsedPromotionValue) ||
+        parsedPromotionValue <= 0
+      ) {
+        toast.error("Ingresa un valor de oferta valido");
+        return;
+      }
+    }
 
     try {
       if (editingProduct) {
@@ -236,9 +263,12 @@ export default function InventoryPage() {
         delete updateData.categoryId;
         delete updateData.taxRate;
         delete updateData.effectiveTaxRate;
+        delete updateData.effectiveSalePrice;
         delete updateData.isLowStock;
         delete updateData.preferredSupplierId;
         delete updateData.organizationId;
+        delete updateData.promotionType;
+        delete updateData.promotionValue;
         const cleanedData = {
           ...updateData,
           ...(normalizedCategoryId ? { categoryId: normalizedCategoryId } : {}),
@@ -247,6 +277,11 @@ export default function InventoryPage() {
           salePrice: updateData.salePrice ?? 0,
           stock: updateData.stock ?? 0,
           minStock: updateData.minStock ?? 5,
+          promotionType: hasPromotion ? promotionTypeInput : null,
+          promotionValue:
+            hasPromotion && parsedPromotionValue !== null
+              ? parsedPromotionValue
+              : null,
         };
         await updateProduct.mutateAsync({
           id: editingProduct.id,
@@ -265,6 +300,11 @@ export default function InventoryPage() {
           salePrice: formData.salePrice ?? 0,
           stock: formData.stock ?? 0,
           minStock: formData.minStock ?? 5,
+          promotionType: hasPromotion ? promotionTypeInput : null,
+          promotionValue:
+            hasPromotion && parsedPromotionValue !== null
+              ? parsedPromotionValue
+              : null,
         };
         await createProduct.mutateAsync(cleanedFormData as Product);
         toast.success("Producto creado correctamente");
@@ -273,6 +313,8 @@ export default function InventoryPage() {
       setShowModal(false);
       setFormData({});
       setTaxRateInput("");
+      setPromotionTypeInput("");
+      setPromotionValueInput("");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Error al guardar el producto"));
     }
@@ -659,6 +701,58 @@ export default function InventoryPage() {
                   required
                 />
               </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Oferta
+                </label>
+                <div className="flex items-start gap-2">
+                  <BentoSelect
+                    value={promotionTypeInput}
+                    onChange={(value) =>
+                      setPromotionTypeInput(
+                        value === "PERCENTAGE" || value === "FIXED_PRICE"
+                          ? value
+                          : "",
+                      )
+                    }
+                    className="w-full"
+                    placeholder="Sin oferta"
+                    options={[
+                      { value: "", label: "Sin oferta" },
+                      { value: "PERCENTAGE", label: "Porcentaje" },
+                      { value: "FIXED_PRICE", label: "Precio fijo" },
+                    ]}
+                  />
+                  {promotionTypeInput !== "" && (
+                    <>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Valor"
+                        value={promotionValueInput}
+                        onChange={(e) =>
+                          setPromotionValueInput(e.target.value)
+                        }
+                        className="w-full"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        title="Quitar oferta"
+                        aria-label="Quitar oferta"
+                        onClick={() => {
+                          setPromotionTypeInput("");
+                          setPromotionValueInput("");
+                        }}
+                        className="shrink-0 px-3"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
           <Input
@@ -699,6 +793,8 @@ export default function InventoryPage() {
                 setEditingProduct(null);
                 setFormData({});
                 setTaxRateInput("");
+                setPromotionTypeInput("");
+                setPromotionValueInput("");
               }}
               className="w-full sm:w-auto"
             >
