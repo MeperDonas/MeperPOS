@@ -14,6 +14,7 @@ import { OrganizationRequiredGuard } from '../common/guards/organization-require
 import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
+import { computeEffectiveSalePrice } from './products.service';
 
 @ApiTags('Products')
 @Controller('products')
@@ -71,6 +72,8 @@ export class ProductsSearchController {
         stock: true,
         minStock: true,
         imageUrl: true,
+        promotionType: true,
+        promotionValue: true,
         category: {
           select: {
             id: true,
@@ -89,6 +92,7 @@ export class ProductsSearchController {
       data: products.map((product) => ({
         ...product,
         isLowStock: product.stock <= product.minStock,
+        effectiveSalePrice: computeEffectiveSalePrice(product),
       })),
     };
   }
@@ -116,6 +120,8 @@ export class ProductsSearchController {
         stock: true,
         minStock: true,
         imageUrl: true,
+        promotionType: true,
+        promotionValue: true,
         category: {
           select: {
             id: true,
@@ -138,6 +144,7 @@ export class ProductsSearchController {
       data: {
         ...product,
         isLowStock: product.stock <= product.minStock,
+        effectiveSalePrice: computeEffectiveSalePrice(product),
       },
     };
   }
