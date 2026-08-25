@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProductCard } from "@/components/products/ProductCard";
+import { formatCurrency } from "@/lib/utils";
 
 const baseProduct = {
   id: "p-1",
@@ -184,5 +185,68 @@ describe("ProductCard inventory mode — category chip", () => {
       />,
     );
     expect(screen.getByText("Sin categoría")).toBeInTheDocument();
+  });
+});
+
+describe("ProductCard — offer badge and strikethrough (#74)", () => {
+  it("renders an 'Oferta' badge and strikes through the list price when a promo is active", () => {
+    render(
+      <ProductCard
+        product={{
+          ...baseProduct,
+          salePrice: 10000,
+          effectiveSalePrice: 8000,
+          promotionType: "PERCENTAGE",
+          promotionValue: 20,
+        }}
+        mode="inventory"
+      />,
+    );
+
+    expect(screen.getByText("Oferta")).toBeInTheDocument();
+
+    const listPrice = screen.getByTestId("offer-list-price");
+    expect(listPrice).toHaveClass("line-through");
+    expect(listPrice.textContent).toContain(formatCurrency(10000));
+    expect(screen.getByTestId("offer-effective-price").textContent).toContain(
+      formatCurrency(8000),
+    );
+  });
+
+  it("renders neither the 'Oferta' badge nor a strikethrough without an active promo", () => {
+    render(
+      <ProductCard
+        product={{ ...baseProduct, salePrice: 45000 }}
+        mode="inventory"
+      />,
+    );
+
+    expect(screen.queryByText("Oferta")).toBeNull();
+    expect(screen.queryByTestId("offer-list-price")).toBeNull();
+    expect(screen.queryByTestId("offer-effective-price")).toBeNull();
+  });
+
+  it("shows the offer price and badge in POS mode too", () => {
+    render(
+      <ProductCard
+        product={{
+          ...baseProduct,
+          salePrice: 19900,
+          effectiveSalePrice: 16915,
+          promotionType: "PERCENTAGE",
+          promotionValue: 15,
+        }}
+        mode="pos"
+        onClick={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Oferta")).toBeInTheDocument();
+    expect(screen.getByTestId("offer-list-price").textContent).toContain(
+      formatCurrency(19900),
+    );
+    expect(screen.getByTestId("offer-effective-price").textContent).toContain(
+      formatCurrency(16915),
+    );
   });
 });
