@@ -19,6 +19,9 @@ type UseProductsParams = {
 const useProductsMock = vi.fn();
 const quickSearchMutateMock = vi.fn();
 const createSaleMutateMock = vi.fn();
+const resumeSaleMock = vi.fn();
+const apiGetMock = vi.fn();
+const pausedSalesState = vi.hoisted(() => ({ list: [] as unknown[] }));
 
 vi.mock("next/image", () => ({
   default: (props: { alt?: string }) => (
@@ -166,11 +169,16 @@ vi.mock("@/hooks/useSales", () => ({
 
 vi.mock("@/hooks/usePausedSales", () => ({
   usePausedSales: () => ({
-    pausedSales: [],
+    pausedSales: pausedSalesState.list,
     pauseSale: vi.fn(),
-    resumeSale: vi.fn(),
+    resumeSale: resumeSaleMock,
     deletePausedSale: vi.fn(),
   }),
+}));
+
+vi.mock("@/lib/api", () => ({
+  api: { get: (...args: unknown[]) => apiGetMock(...args) },
+  getApiErrorMessage: (_error: unknown, fallback: string) => fallback,
 }));
 
 vi.mock("@/hooks/useReceipt", () => ({
@@ -674,6 +682,7 @@ describe("POS item price override (pos-edit-item-price)", () => {
 describe("POS promotion pricing (#74)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pausedSalesState.list = [];
   });
 
   afterEach(() => {
@@ -779,6 +788,73 @@ describe("POS promotion pricing (#74)", () => {
     // promotional unitPrice (not the 10000 list price, which would give 2000).
     expect(screen.getByTestId("line-discount").textContent).toContain(
       formatCurrency(1600),
+    );
+  });
+
+  it("reprices a paused cart line from the current product state on resume, re-clamping the rebate", async () => {
+    const staleProduct = makeProduct("promo-stale", "Producto Pausado", {
+      salePrice: 10000,
+      effectiveSalePrice: 8000,
+      promotionType: "PERCENTAGE",
+      promotionValue: 20,
+    });
+    pausedSalesState.list = [
+      {
+        id: "paused-1",
+        customerId: "",
+        discountAmount: 0,
+        pausedAt: "2026-08-25T10:00:00.000Z",
+        cart: [
+          {
+            productId: "promo-stale",
+            product: staleProduct,
+            quantity: 1,
+            unitPrice: 8000,
+            originalUnitPrice: 10000,
+            discountAmount: 7500,
+            availableStock: 10,
+          },
+        ],
+      },
+    ];
+    renderWithProducts([makeProduct("base-1", "Producto Base")]);
+
+    resumeSaleMock.mockReturnValue({
+      id: "paused-1",
+      customerId: "",
+      discountAmount: 0,
+      pausedAt: "2026-08-25T10:00:00.000Z",
+      cart: [
+        {
+          productId: "promo-stale",
+          product: staleProduct,
+          quantity: 1,
+          unitPrice: 8000,
+          originalUnitPrice: 10000,
+          discountAmount: 7500,
+          availableStock: 10,
+        },
+      ],
+    });
+    // Promo was removed while paused: list price is now 5000, no offer.
+    apiGetMock.mockResolvedValue({
+      data: makeProduct("promo-stale", "Producto Pausado", { salePrice: 5000 }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Reanudar (1)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Reanudar" }));
+
+    await waitFor(() => {
+      expect(apiGetMock).toHaveBeenCalledWith("/products/promo-stale");
+    });
+
+    // Line repriced from the fresh product (list price after promo removal)…
+    expect(screen.getByTestId("line-unit-price").textContent).toContain(
+      formatCurrency(5000),
+    );
+    // …and the stale rebate shrank to the new unit price instead of going negative.
+    expect(screen.getByTestId("line-discount").textContent).toContain(
+      formatCurrency(5000),
     );
   });
 });
