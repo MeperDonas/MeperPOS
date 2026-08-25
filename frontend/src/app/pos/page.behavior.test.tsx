@@ -355,6 +355,31 @@ describe("POS behavior evidence (#19, #18)", () => {
     expect(screen.getByText("1 en carrito")).toBeTruthy();
   });
 
+  it("shows the OFERTA badge and struck list price in the cart for a promoted product (Decimal-string salePrice)", async () => {
+    useProductsMock.mockReturnValue({
+      data: {
+        data: [
+          makeProduct("1", "Promo Product", {
+            salePrice: "10000" as unknown as number,
+            effectiveSalePrice: 8000,
+            promotionType: "PERCENTAGE",
+            promotionValue: 20,
+          }),
+        ],
+        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      },
+      isLoading: false,
+      isFetching: false,
+    });
+
+    render(<POSPage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Promo Product" }));
+
+    expect(screen.getByText(/Oferta -20%/)).toBeTruthy();
+    expect(screen.getByTestId("original-unit-price")).toBeTruthy();
+  });
+
   it("shows scanner feedback when the scanned code is not found", async () => {
     useProductsMock.mockReturnValue({
       data: {

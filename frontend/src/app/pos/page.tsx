@@ -56,10 +56,12 @@ const POS_PAGE_SIZE = 20;
  * line is not on offer.
  */
 function cartItemOffer(item: CartItem) {
-  const price = item.product?.effectiveSalePrice;
-  const listPrice = item.product?.salePrice;
-  if (typeof price !== "number" || typeof listPrice !== "number") return null;
-  if (price === listPrice) return null;
+  // salePrice can arrive as a Decimal string over HTTP while effectiveSalePrice
+  // is a number; normalize both so the offer is detected regardless.
+  const price = Number(item.product?.effectiveSalePrice);
+  const listPrice = Number(item.product?.salePrice);
+  if (!Number.isFinite(price) || !Number.isFinite(listPrice)) return null;
+  if (price === listPrice || price >= listPrice) return null;
   const percent = Math.max(
     0,
     Math.round(100 - (price / listPrice) * 100),
@@ -267,9 +269,11 @@ export default function POSPage() {
           product,
           quantity: Math.min(quantity, product.stock),
           // Promotional price wins when present; list price stays snapshotted
-          // as originalUnitPrice so the cart can strike it through.
-          unitPrice: product.effectiveSalePrice ?? product.salePrice,
-          originalUnitPrice: product.salePrice,
+          // as originalUnitPrice so the cart can strike it through. Prices are
+          // normalized to numbers because salePrice can arrive as a Decimal
+          // string over HTTP while effectiveSalePrice is a number.
+          unitPrice: Number(product.effectiveSalePrice ?? product.salePrice),
+          originalUnitPrice: Number(product.salePrice),
           discountAmount: 0,
           availableStock: product.stock,
         },
@@ -851,25 +855,20 @@ export default function POSPage() {
                       </p>
                       <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground mb-1.5">
                         {cartItemOffer(item) && (
-                          <span className="inline-flex shrink-0 items-center gap-1">
-                            <Badge
-                              variant="danger"
-                              className="px-1.5 py-0 text-[9px] font-mono uppercase shrink-0"
-                            >
-                              Oferta
-                            </Badge>
-                            <span className="font-mono text-[10px] font-bold text-danger dark:text-red-400">
-                              -{cartItemOffer(item)!.percent}%
-                            </span>
-                          </span>
+                          <Badge
+                            variant="danger"
+                            className="shrink-0 text-[9px] px-1.5 py-0 font-mono uppercase"
+                          >
+                            Oferta -{cartItemOffer(item)!.percent}%
+                          </Badge>
                         )}
-                        {typeof item.originalUnitPrice === "number" &&
-                          item.unitPrice !== item.originalUnitPrice && (
+                        {Number.isFinite(Number(item.originalUnitPrice)) &&
+                          Number(item.unitPrice) !== Number(item.originalUnitPrice) && (
                             <s
                               data-testid="original-unit-price"
                               className="text-muted-foreground/60 line-through"
                             >
-                              {formatCurrency(item.originalUnitPrice)}
+                              {formatCurrency(Number(item.originalUnitPrice))}
                             </s>
                           )}
                         <span data-testid="line-unit-price">

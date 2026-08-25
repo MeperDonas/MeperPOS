@@ -92,14 +92,16 @@ function DualMetrics({ product }: { product: ProductCardData }) {
 
   const hasPromo =
     typeof product.effectiveSalePrice === "number" &&
-    product.effectiveSalePrice !== product.salePrice;
+    Number(product.effectiveSalePrice) !== Number(product.salePrice);
 
   // Approximate discount as a whole percentage (rounded) of the list price.
   const discountPercent = hasPromo
     ? Math.max(
         0,
         Math.round(
-          100 - (Number(product.effectiveSalePrice) / product.salePrice) * 100,
+          100 -
+            (Number(product.effectiveSalePrice) / Number(product.salePrice)) *
+              100,
         ),
       )
     : 0;
@@ -124,32 +126,26 @@ function DualMetrics({ product }: { product: ProductCardData }) {
               data-testid="offer-effective-price"
               className="font-mono text-[15px] font-extrabold leading-none tracking-tight text-foreground"
             >
-              {formatCurrency(product.effectiveSalePrice as number)}
+              {formatCurrency(Number(product.effectiveSalePrice))}
             </span>
-            {/* OFERTA badge + struck-through list price + discount approx (wrap-safe, no cut/overlap) */}
-            <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-              <Badge
-                variant="danger"
-                className="shrink-0 text-[9px] px-1.5 py-0 font-mono uppercase"
-              >
-                Oferta
-              </Badge>
-              <s
-                data-testid="offer-list-price"
-                className="font-mono text-[11px] font-semibold text-muted-foreground line-through"
-              >
-                {formatCurrency(product.salePrice)}
-              </s>
-              {discountPercent > 0 && (
-                <span className="shrink-0 font-mono text-[10px] font-bold text-danger dark:text-red-400">
-                  -{discountPercent}%
-                </span>
-              )}
-            </span>
+            {/* OFERTA tag carries the discount %, and the original list price is
+                struck through BELOW the offer price (no cut/overlap/stack). */}
+            <Badge
+              variant="danger"
+              className="shrink-0 w-fit text-[9px] px-1.5 py-0 font-mono uppercase"
+            >
+              Oferta{discountPercent > 0 ? ` -${discountPercent}%` : ""}
+            </Badge>
+            <s
+              data-testid="offer-list-price"
+              className="font-mono text-[11px] font-semibold text-muted-foreground line-through"
+            >
+              {formatCurrency(Number(product.salePrice))}
+            </s>
           </>
         ) : (
           <span className="font-mono text-[14px] font-extrabold leading-none tracking-tight text-foreground">
-            {formatCurrency(product.salePrice)}
+            {formatCurrency(Number(product.salePrice))}
           </span>
         )}
       </div>
