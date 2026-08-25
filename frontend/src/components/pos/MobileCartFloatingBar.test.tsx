@@ -2,21 +2,31 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MobileCartFloatingBar } from "./MobileCartFloatingBar";
-import type { CartItem } from "@/types";
+import type { CartItem, Product } from "@/types";
+
+const mockProduct: Product = {
+  id: "prod-1",
+  name: "Aceite 4T",
+  sku: "OIL-4T",
+  barcode: null,
+  description: null,
+  costPrice: 20000,
+  salePrice: 35000,
+  taxRate: 19,
+  stock: 5,
+  minStock: 1,
+  imageUrl: null,
+  categoryId: "cat-1",
+  active: true,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  organizationId: "org-1",
+  version: 1,
+};
 
 const mockCartItem: CartItem = {
   productId: "prod-1",
-  product: {
-    id: "prod-1",
-    name: "Aceite 4T",
-    sku: "OIL-4T",
-    salePrice: 35000,
-    stock: 5,
-    active: true,
-    createdAt: "2026-01-01",
-    updatedAt: "2026-01-01",
-    organizationId: "org-1",
-  },
+  product: mockProduct,
   quantity: 3,
   unitPrice: 35000,
   originalUnitPrice: 35000,
