@@ -44,7 +44,7 @@ export function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -54,19 +54,20 @@ export function Modal({
       {/* Panel */}
       <div
         className={cn(
-          "relative w-full rounded-3xl border border-border/80",
+          "relative w-full rounded-2xl sm:rounded-3xl border border-border/80",
           "bg-card shadow-2xl shadow-black/20",
-          "animate-fade-in-up flex flex-col max-h-[calc(100dvh-2rem)]",
+          "animate-fade-in-up flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)]",
           sizes[size],
         )}
       >
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 shrink-0">
-            <h2 className="text-base font-bold text-foreground">{title}</h2>
+          <div className="flex items-center justify-between border-b border-border/60 px-4 py-3 sm:px-6 sm:py-4 shrink-0">
+            <h2 className="text-base font-bold text-foreground truncate pr-2">{title}</h2>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-xl border border-border/60 bg-muted/40 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-xs"
+              className="w-8 h-8 rounded-xl border border-border/60 bg-muted/40 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-xs shrink-0"
+              aria-label="Cerrar"
             >
               <X className="w-4 h-4" />
             </button>
@@ -74,7 +75,7 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto scrollbar-app flex-1">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto scrollbar-app flex-1">{children}</div>
       </div>
     </div>
   );

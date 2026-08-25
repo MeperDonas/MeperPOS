@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/QueryProvider";
@@ -22,6 +22,17 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: APP_NAME,
   description: `${APP_NAME} — ${APP_DESCRIPTION}`,
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FAF8FF" },
+    { media: "(prefers-color-scheme: dark)", color: "#111114" },
+  ],
 };
 
 export default function RootLayout({

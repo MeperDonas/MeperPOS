@@ -214,6 +214,17 @@ h4 {
     }
 }
 
+@keyframes slide-in-bottom {
+    from {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .animate-fade-in-up {
     opacity: 0;
     animation: fade-in-up 0.4s ease-out forwards;
@@ -227,6 +238,10 @@ h4 {
 .animate-slide-in-left {
     opacity: 0;
     animation: slide-in-left 0.3s ease-out forwards;
+}
+
+.animate-slide-in-bottom {
+    animation: slide-in-bottom 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .stagger-children > * {

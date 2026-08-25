@@ -17,7 +17,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
     const inputId = id || reactId;
 
     const commonClasses = cn(
-      "w-full rounded-xl border bg-card px-3.5 py-2.5 text-xs text-foreground",
+      "w-full rounded-xl border bg-card px-3.5 py-2.5 text-base sm:text-xs text-foreground",
       "placeholder:text-muted-foreground/60",
       "transition-all duration-200 shadow-xs",
       "focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",
