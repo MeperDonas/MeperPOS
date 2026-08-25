@@ -2,18 +2,26 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MobileCartDrawer } from "./MobileCartDrawer";
-import type { CartItem } from "@/types";
+import type { CartItem, Product } from "@/types";
 
-const mockProduct = {
+const mockProduct: Product = {
   id: "prod-1",
   name: "Bujía NGK Racing",
   sku: "BUJ-001",
+  barcode: null,
+  description: null,
+  costPrice: 15000,
   salePrice: 25000,
+  taxRate: 19,
   stock: 10,
+  minStock: 2,
+  imageUrl: null,
+  categoryId: "cat-1",
   active: true,
-  createdAt: "2026-01-01",
-  updatedAt: "2026-01-01",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
   organizationId: "org-1",
+  version: 1,
 };
 
 const mockCartItem: CartItem = {
