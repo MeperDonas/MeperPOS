@@ -326,8 +326,9 @@ export default function SuppliersPage() {
                                 e.stopPropagation();
                                 handleEdit(supplier);
                               }}
-                              className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100"
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                               title="Editar"
+                              aria-label={`Editar ${supplier.name}`}
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
@@ -336,8 +337,9 @@ export default function SuppliersPage() {
                                 e.stopPropagation();
                                 handleAskDeactivate(supplier.id);
                               }}
-                              className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                               title="Desactivar"
+                              aria-label={`Desactivar ${supplier.name}`}
                             >
                               <PowerOff className="w-3.5 h-3.5" />
                             </button>

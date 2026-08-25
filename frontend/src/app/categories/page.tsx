@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -200,13 +200,14 @@ export default function CategoriesPage() {
                     onClick={() => handleEdit(category)}
                   >
                     {/* Actions */}
-                    <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-3 right-3 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEdit(category);
                         }}
                         className="p-1.5 rounded-lg bg-card border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors shadow-sm"
+                        aria-label={`Editar ${category.name}`}
                       >
                         <Pencil className="w-3 h-3" />
                       </button>
@@ -216,6 +217,7 @@ export default function CategoriesPage() {
                           handleDelete(category.id);
                         }}
                         className="p-1.5 rounded-lg bg-card border border-border/60 text-muted-foreground hover:text-red-500 hover:border-red-500/30 transition-colors shadow-sm"
+                        aria-label={`Eliminar ${category.name}`}
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>

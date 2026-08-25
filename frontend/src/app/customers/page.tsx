@@ -236,13 +236,15 @@ export default function CustomersPage() {
                           <>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleEdit(customer); }}
-                              className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100"
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                              aria-label={`Editar ${customer.name}`}
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleDelete(customer.id); }}
-                              className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                              aria-label={`Eliminar ${customer.name}`}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

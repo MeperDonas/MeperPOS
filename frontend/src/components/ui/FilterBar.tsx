@@ -37,7 +37,7 @@ export function FilterBar({
             placeholder={searchPlaceholder}
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full h-10 pl-10 pr-4 bg-muted/40 rounded-xl text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 border border-transparent focus:border-primary/40 transition"
+            className="w-full h-10 pl-10 pr-4 bg-muted/40 rounded-xl text-base sm:text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 border border-transparent focus:border-primary/40 transition"
           />
         </div>
         {filterControls && (
