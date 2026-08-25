@@ -18,6 +18,7 @@ import {
 import { CacheService } from '../common/services/cache.service';
 import { SettingsService } from '../settings/settings.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
+import { computeEffectiveSalePrice } from '../products/products.service';
 import { CURRENCY, LOCALE, TIMEZONE } from '../common/constants/locale.constants';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { SequenceService } from '../common/sequences/sequence.service';
@@ -108,7 +109,9 @@ export class SalesService {
         throw new BadRequestException(`Product ${product.name} is not active`);
       }
 
-      const unitPrice = Number(item.unitPrice ?? product.salePrice);
+      const unitPrice = Number(
+        item.unitPrice ?? computeEffectiveSalePrice(product) ?? product.salePrice,
+      );
       const grossSubtotal = unitPrice * item.quantity;
       const itemDiscount = Math.max(0, item.discountAmount || 0);
 
