@@ -6,7 +6,9 @@ import {
   IsBoolean,
   Min,
   IsUUID,
+  IsEnum,
 } from 'class-validator';
+import { PromotionType } from '@prisma/client';
 
 export class CreateProductDto {
   @ApiProperty({ example: 'Product Name' })
@@ -66,6 +68,22 @@ export class CreateProductDto {
   @ApiProperty({ example: 'uuid-category-id' })
   @IsUUID('all')
   categoryId: string;
+
+  @ApiProperty({
+    enum: PromotionType,
+    enumName: 'PromotionType',
+    required: false,
+    nullable: true,
+  })
+  @IsEnum(PromotionType)
+  @IsOptional()
+  promotionType?: PromotionType | null;
+
+  @ApiProperty({ example: 8000, required: false, nullable: true })
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  promotionValue?: number | null;
 }
 
 export class UpdateProductDto {
@@ -138,4 +156,20 @@ export class UpdateProductDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
+
+  @ApiProperty({
+    enum: PromotionType,
+    enumName: 'PromotionType',
+    required: false,
+    nullable: true,
+  })
+  @IsEnum(PromotionType)
+  @IsOptional()
+  promotionType?: PromotionType | null;
+
+  @ApiProperty({ example: 8000, required: false, nullable: true })
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  promotionValue?: number | null;
 }

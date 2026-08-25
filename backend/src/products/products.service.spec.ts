@@ -655,4 +655,158 @@ describe('ProductsService — Opt-in tax resolution', () => {
       expect(result.effectiveSalePrice).toBe(16915);
     });
   });
+
+  // ════════════════════════════════════════════════════════════════════
+  // Promotion validation (cross-field invariants)
+  // ════════════════════════════════════════════════════════════════════
+  describe('Promotion validation', () => {
+    const createBase = {
+      name: 'Promo Product',
+      sku: 'SKU-PROMO-2',
+      costPrice: 100,
+      salePrice: 10000,
+      stock: 10,
+      minStock: 5,
+      categoryId: 'cat-1',
+    };
+
+    const setupCreateSuccess = () => {
+      prismaMock.category.findFirst.mockResolvedValue(
+        categoryWithDefault(null, false),
+      );
+      prismaMock.product.findUnique.mockResolvedValue(null);
+      prismaMock.product.create.mockResolvedValue(buildProduct());
+      prismaMock.inventoryMovement.create.mockResolvedValue({});
+    };
+
+    it('rejects PERCENTAGE values above 100 on create', async () => {
+      setupCreateSuccess();
+
+      await expect(
+        service.create(
+          { ...createBase, promotionType: 'PERCENTAGE', promotionValue: 150 },
+          USER_ID,
+          ORG_ID,
+        ),
+      ).rejects.toThrow(/promotionValue.*100/);
+    });
+
+    it('rejects FIXED_PRICE at or above the sale price on create', async () => {
+      setupCreateSuccess();
+
+      await expect(
+        service.create(
+          { ...createBase, promotionType: 'FIXED_PRICE', promotionValue: 10000 },
+          USER_ID,
+          ORG_ID,
+        ),
+      ).rejects.toThrow(/promotionValue.*salePrice/);
+    });
+
+    it('rejects FIXED_PRICE of 0 or less', async () => {
+      setupCreateSuccess();
+
+      await expect(
+        service.create(
+          { ...createBase, promotionType: 'FIXED_PRICE', promotionValue: 0 },
+          USER_ID,
+          ORG_ID,
+        ),
+      ).rejects.toThrow(/promotionValue/);
+    });
+
+    it('rejects a promotion type sent without a value', async () => {
+      setupCreateSuccess();
+
+      await expect(
+        service.create(
+          { ...createBase, promotionType: 'PERCENTAGE' },
+          USER_ID,
+          ORG_ID,
+        ),
+      ).rejects.toThrow(/together/);
+    });
+
+    it('validates FIXED_PRICE against the new salePrice when salePrice is also updated', async () => {
+      const existing = buildProduct({ salePrice: 20000, version: 1 });
+      prismaMock.product.findFirst.mockResolvedValueOnce(existing);
+
+      await expect(
+        service.update(
+          'prod-1',
+          { salePrice: 5000, promotionType: 'FIXED_PRICE', promotionValue: 6000 },
+          USER_ID,
+          ORG_ID,
+        ),
+      ).rejects.toThrow(/promotionValue.*salePrice/);
+    });
+
+    it('validates FIXED_PRICE against the existing salePrice when salePrice is omitted', async () => {
+      const existing = buildProduct({ salePrice: 10000, version: 1 });
+      prismaMock.product.findFirst.mockResolvedValueOnce(existing);
+
+      await expect(
+        service.update(
+          'prod-1',
+          { promotionType: 'FIXED_PRICE', promotionValue: 12000 },
+          USER_ID,
+          ORG_ID,
+        ),
+      ).rejects.toThrow(/promotionValue.*salePrice/);
+    });
+
+    it('clears the promotion when both fields are explicitly null and exposes null effectiveSalePrice', async () => {
+      const existing = buildProduct({
+        salePrice: 19900,
+        promotionType: 'PERCENTAGE',
+        promotionValue: 15,
+        version: 3,
+      });
+      prismaMock.product.findFirst
+        .mockResolvedValueOnce(existing)
+        .mockResolvedValueOnce(buildProduct({ version: 4 }));
+      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.update(
+        'prod-1',
+        { promotionType: null, promotionValue: null },
+        USER_ID,
+        ORG_ID,
+      );
+
+      expect(prismaMock.product.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            promotionType: null,
+            promotionValue: null,
+          }),
+        }),
+      );
+      expect(result.effectiveSalePrice).toBeNull();
+    });
+
+    it('keeps optimistic concurrency intact on promo updates (version where + increment)', async () => {
+      const existing = buildProduct({ version: 3 });
+      prismaMock.product.findFirst
+        .mockResolvedValueOnce(existing)
+        .mockResolvedValueOnce(
+          buildProduct({ promotionType: 'PERCENTAGE', promotionValue: 20, version: 4 }),
+        );
+      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.update(
+        'prod-1',
+        { promotionType: 'PERCENTAGE', promotionValue: 20 },
+        USER_ID,
+        ORG_ID,
+      );
+
+      expect(prismaMock.product.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: 'prod-1', version: 3 }),
+          data: expect.objectContaining({ version: { increment: 1 } }),
+        }),
+      );
+    });
+  });
 });
