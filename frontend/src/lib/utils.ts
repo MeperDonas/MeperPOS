@@ -100,3 +100,24 @@ export function safeRemoveItem(key: string): void {
     // Silently fail
   }
 }
+
+/**
+ * Derives the opt-in tax fields for a product from the entered tax-rate input.
+ * A positive rate keeps the product taxable; 0 or an empty field marks it NOT
+ * taxable (the backend forces the stored rate to 0). This prevents sending
+ * `taxable: true` with a 0 rate, which the backend rejects and would silently
+ * leave the old rate in place.
+ */
+export function resolveTaxFields(
+  taxRateInput: string,
+): { taxable: boolean; taxRate: number } {
+  const trimmed = taxRateInput.trim();
+  if (trimmed === "") {
+    return { taxable: false, taxRate: 0 };
+  }
+  const value = Number(trimmed);
+  if (value > 0) {
+    return { taxable: true, taxRate: value };
+  }
+  return { taxable: false, taxRate: 0 };
+}
