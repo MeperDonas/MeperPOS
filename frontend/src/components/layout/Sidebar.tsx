@@ -304,7 +304,10 @@ export function Sidebar() {
       )}
 
       {/* Nav */}
-      <nav ref={navRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+      <nav
+        ref={navRef}
+        className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-1 pb-20 lg:pb-3 scrollbar-app"
+      >
         {filteredItems.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -367,15 +370,14 @@ export function Sidebar() {
         />
       )}
 
-      {/* Sidebar (Fixed 320px) */}
+      {/* Sidebar (Fixed 320px Desktop / Responsive Drawer Mobile) */}
       <aside
         className={cn(
-          "fixed top-0 left-0 h-screen flex flex-col z-50 w-[320px]",
-          "bg-card border-r border-border/80",
+          "fixed top-14 bottom-0 left-0 lg:top-0 lg:bottom-auto lg:h-screen flex flex-col z-50 w-[280px] sm:w-[320px]",
+          "bg-card border-r border-border/80 shadow-2xl lg:shadow-none",
           "transition-transform duration-300 ease-in-out",
           "lg:translate-x-0",
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full",
-          "lg:mt-0 mt-14"
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex flex-col flex-1 min-h-0">

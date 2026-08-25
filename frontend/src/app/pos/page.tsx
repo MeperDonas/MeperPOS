@@ -141,6 +141,7 @@ export default function POSPage() {
     DEFAULT_SCAN_FEEDBACK,
   );
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+  const [openedFromMobileCart, setOpenedFromMobileCart] = useState(false);
 
   // Debounce search input: 400ms delay, reset to page 1 on new search
   const handleSearchChange = useCallback((value: string) => {
@@ -331,8 +332,12 @@ export default function POSPage() {
       );
       setEditingDiscount(null);
       setCustomDiscount("");
+      if (openedFromMobileCart) {
+        setIsMobileCartOpen(true);
+        setOpenedFromMobileCart(false);
+      }
     },
-    [],
+    [openedFromMobileCart],
   );
 
   /** Apply a percentage discount that scales with quantity changes */
@@ -355,8 +360,12 @@ export default function POSPage() {
       );
       setEditingDiscount(null);
       setCustomDiscount("");
+      if (openedFromMobileCart) {
+        setIsMobileCartOpen(true);
+        setOpenedFromMobileCart(false);
+      }
     },
-    [],
+    [openedFromMobileCart],
   );
 
   /** Override a cart line's unit price, preserving any existing discount */
@@ -385,8 +394,12 @@ export default function POSPage() {
       setEditingDiscount(null);
       setCustomDiscount("");
       setCustomPrice("");
+      if (openedFromMobileCart) {
+        setIsMobileCartOpen(true);
+        setOpenedFromMobileCart(false);
+      }
     },
-    [],
+    [openedFromMobileCart],
   );
 
   const openDiscountModal = useCallback(
@@ -403,7 +416,11 @@ export default function POSPage() {
     setEditingDiscount(null);
     setCustomDiscount("");
     setCustomPrice("");
-  }, []);
+    if (openedFromMobileCart) {
+      setIsMobileCartOpen(true);
+      setOpenedFromMobileCart(false);
+    }
+  }, [openedFromMobileCart]);
 
   const handleScanSubmit = useCallback(async () => {
     if (isScannerBlocked) {
@@ -872,7 +889,8 @@ export default function POSPage() {
                           </Badge>
                         )}
                         {Number.isFinite(Number(item.originalUnitPrice)) &&
-                          Number(item.unitPrice) !== Number(item.originalUnitPrice) && (
+                          Number(item.unitPrice) !==
+                            Number(item.originalUnitPrice) && (
                             <s
                               data-testid="original-unit-price"
                               className="text-muted-foreground/60 line-through"
@@ -913,11 +931,20 @@ export default function POSPage() {
                           </span>
                         )}
                         <button
+                          type="button"
                           onClick={() => openDiscountModal(item.productId)}
-                          className="w-7 h-7 rounded-lg border border-accent/30 bg-background/60 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+                          className="p-1 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                           title="Descuento"
                         >
-                          <Percent className="w-3 h-3" />
+                          <Percent className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.productId)}
+                          className="p-1 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -927,12 +954,6 @@ export default function POSPage() {
                           item.quantity * item.unitPrice - item.discountAmount,
                         )}
                       </span>
-                      <button
-                        onClick={() => removeFromCart(item.productId)}
-                        className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   </div>
                 ))
@@ -940,8 +961,8 @@ export default function POSPage() {
             </div>
 
             {/* Cart Footer */}
-            <div className="border-t border-accent/20 p-4 space-y-3">
-              {/* Customer Selector — near checkout */}
+            <div className="p-4 border-t border-border/80 bg-muted/10 space-y-3 shrink-0">
+              {/* Customer Selector */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
                   Cliente (opcional)
@@ -949,17 +970,17 @@ export default function POSPage() {
                 <button
                   type="button"
                   onClick={() => setShowCustomerModal(true)}
-                  className="flex items-center gap-2 w-full h-9 px-3 rounded-lg border border-accent/30 bg-background/60 text-sm text-foreground hover:border-accent/50 transition-colors overflow-hidden"
+                  className="flex items-center gap-2 w-full h-9 px-3 rounded-xl border border-border/80 bg-background text-sm text-foreground hover:border-primary/50 transition-colors overflow-hidden"
                 >
                   <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate text-sm font-medium">
+                  <span className="truncate text-xs font-semibold">
                     {selectedCustomerName || "Sin cliente"}
                   </span>
                 </button>
               </div>
 
-              {/* Totals */}
-              <div className="space-y-1.5">
+              {/* Totals Breakdown */}
+              <div className="space-y-1 rounded-2xl bg-muted/30 p-2.5 border border-border/60">
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Subtotal</span>
                   <span className="font-medium text-foreground">
@@ -980,17 +1001,17 @@ export default function POSPage() {
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between items-center pt-2 border-t border-accent/20">
-                  <span className="text-sm font-bold text-foreground">
+                <div className="flex justify-between items-center pt-1.5 border-t border-border/40">
+                  <span className="text-xs font-bold text-foreground">
                     Total
                   </span>
-                  <span className="stat-number text-xl font-bold text-primary">
+                  <span className="stat-number text-lg font-bold text-primary">
                     {formatCurrency(total)}
                   </span>
                 </div>
               </div>
 
-              {/* Pause/Resume */}
+              {/* Pause / Resume */}
               <div className="flex gap-2">
                 <Button
                   variant="secondary"
@@ -1013,25 +1034,21 @@ export default function POSPage() {
                 </Button>
               </div>
 
-              {/* Payment Method */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                  Método de Pago
-                </p>
-                <PaymentMethodCards
-                  selectedMethod={selectedPaymentMethod}
-                  onMethodChange={(method) => setSelectedPaymentMethod(method)}
-                />
-              </div>
+              {/* Payment Method Cards */}
+              <PaymentMethodCards
+                selectedMethod={selectedPaymentMethod}
+                onMethodChange={setSelectedPaymentMethod}
+              />
 
+              {/* Checkout Button */}
               <Button
-                className="w-full"
+                className="w-full h-11 text-sm font-bold shadow-md shadow-primary/20"
                 size="lg"
                 onClick={openPaymentModal}
                 disabled={cart.length === 0}
                 loading={createSale.isPending}
               >
-                <ShoppingCart className="w-4 h-4" />
+                <ShoppingCart className="w-4 h-4 mr-2" />
                 Finalizar Venta
               </Button>
             </div>
@@ -1046,7 +1063,7 @@ export default function POSPage() {
         onClick={() => setIsMobileCartOpen(true)}
       />
 
-      {/* Mobile Cart Drawer (Bottom Sheet) */}
+      {/* Mobile Cart Drawer */}
       <MobileCartDrawer
         isOpen={isMobileCartOpen}
         onClose={() => setIsMobileCartOpen(false)}
@@ -1057,11 +1074,13 @@ export default function POSPage() {
         total={total}
         selectedCustomerName={selectedCustomerName}
         onOpenCustomerModal={() => {
+          setOpenedFromMobileCart(true);
           setIsMobileCartOpen(false);
           setShowCustomerModal(true);
         }}
         pausedSalesCount={pausedSales.length}
         onOpenPausedSales={() => {
+          setOpenedFromMobileCart(true);
           setIsMobileCartOpen(false);
           setShowPausedSalesModal(true);
         }}
@@ -1070,6 +1089,7 @@ export default function POSPage() {
         onPaymentMethodChange={(method) => setSelectedPaymentMethod(method)}
         onUpdateQuantity={updateQuantity}
         onOpenDiscountModal={(productId) => {
+          setOpenedFromMobileCart(true);
           setIsMobileCartOpen(false);
           openDiscountModal(productId);
         }}
@@ -1084,7 +1104,13 @@ export default function POSPage() {
       {/* Customer Modal */}
       <Modal
         isOpen={showCustomerModal}
-        onClose={() => setShowCustomerModal(false)}
+        onClose={() => {
+          setShowCustomerModal(false);
+          if (openedFromMobileCart) {
+            setIsMobileCartOpen(true);
+            setOpenedFromMobileCart(false);
+          }
+        }}
         title="Seleccionar Cliente"
         size="sm"
       >
@@ -1096,6 +1122,10 @@ export default function POSPage() {
               onClick={() => {
                 setSelectedCustomer("");
                 setShowCustomerModal(false);
+                if (openedFromMobileCart) {
+                  setIsMobileCartOpen(true);
+                  setOpenedFromMobileCart(false);
+                }
               }}
             >
               <p className="text-sm font-semibold text-foreground">
@@ -1112,6 +1142,10 @@ export default function POSPage() {
                 onClick={() => {
                   setSelectedCustomer(customer.id);
                   setShowCustomerModal(false);
+                  if (openedFromMobileCart) {
+                    setIsMobileCartOpen(true);
+                    setOpenedFromMobileCart(false);
+                  }
                 }}
               >
                 <p className="text-sm font-semibold text-foreground">
@@ -1336,7 +1370,13 @@ export default function POSPage() {
       {/* Paused Sales Modal */}
       <Modal
         isOpen={showPausedSalesModal}
-        onClose={() => setShowPausedSalesModal(false)}
+        onClose={() => {
+          setShowPausedSalesModal(false);
+          if (openedFromMobileCart) {
+            setIsMobileCartOpen(true);
+            setOpenedFromMobileCart(false);
+          }
+        }}
         title="Ventas Pausadas"
         size="xl"
       >

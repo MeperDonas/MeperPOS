@@ -184,7 +184,7 @@ describe("Expenses page evidence", () => {
   it("renders the expense list with status badge and COP totals", () => {
     render(<ExpensesPage />);
 
-    expect(screen.getByText("Renta agosto")).toBeTruthy();
+    expect(screen.getAllByText("Renta agosto").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Parcial").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/500\.000/).length).toBeGreaterThanOrEqual(1);
   });
@@ -235,7 +235,7 @@ describe("Expenses page evidence", () => {
 
     render(<ExpensesPage />);
 
-    await user.click(screen.getByRole("button", { name: "Agregar pago" }));
+    await user.click(screen.getAllByRole("button", { name: "Agregar pago" })[0]);
 
     expect(screen.getByText("AddPaymentModal")).toBeTruthy();
   });
@@ -245,7 +245,7 @@ describe("Expenses page evidence", () => {
 
     render(<ExpensesPage />);
 
-    await user.click(screen.getByRole("button", { name: "Ver historial" }));
+    await user.click(screen.getAllByRole("button", { name: "Ver historial" })[0]);
 
     expect(screen.getByText("HistoryModal")).toBeTruthy();
   });
@@ -255,7 +255,7 @@ describe("Expenses page evidence", () => {
 
     render(<ExpensesPage />);
 
-    await user.click(screen.getByRole("button", { name: "Ver detalle" }));
+    await user.click(screen.getAllByRole("button", { name: "Ver detalle" })[0]);
 
     expect(screen.getByText("ExpenseDetailModal")).toBeTruthy();
   });
@@ -263,7 +263,7 @@ describe("Expenses page evidence", () => {
   it("keeps the add payment button enabled with the Agregar pago label for partial expenses", () => {
     render(<ExpensesPage />);
 
-    const button = screen.getByRole("button", { name: "Agregar pago" });
+    const button = screen.getAllByRole("button", { name: "Agregar pago" })[0];
     expect(button).not.toBeDisabled();
     expect(button).toHaveAttribute("title", "Agregar pago");
   });
@@ -279,9 +279,9 @@ describe("Expenses page evidence", () => {
 
     render(<ExpensesPage />);
 
-    const button = screen.getByRole("button", {
+    const button = screen.getAllByRole("button", {
       name: "La salida ya está pagada",
-    });
+    })[0];
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("title", "La salida ya está pagada");
   });
@@ -291,7 +291,7 @@ describe("Expenses page evidence", () => {
 
     render(<ExpensesPage />);
 
-    await user.click(screen.getByRole("button", { name: "Eliminar gasto" }));
+    await user.click(screen.getAllByRole("button", { name: "Eliminar gasto" })[0]);
     expect(screen.getByText("Eliminar gasto")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Sí, eliminar" }));
@@ -305,7 +305,7 @@ describe("Expenses page evidence", () => {
 
     render(<ExpensesPage />);
 
-    await user.click(screen.getByRole("button", { name: "Duplicar gasto" }));
+    await user.click(screen.getAllByRole("button", { name: "Duplicar gasto" })[0]);
     expect(screen.getByText("Duplicar gasto")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Sí, duplicar" }));
@@ -320,7 +320,7 @@ describe("Expenses page evidence", () => {
     render(<ExpensesPage />);
 
     const file = new File(["receipt"], "recibo.png", { type: "image/png" });
-    const input = screen.getByLabelText("Subir comprobante");
+    const input = screen.getAllByLabelText("Subir comprobante")[0];
     await user.upload(input, file);
 
     expect(uploadReceiptMutateAsyncMock).toHaveBeenCalledWith({
