@@ -29,7 +29,7 @@ export function FilterBar({
       )}
     >
       {preContent}
-      <div className="flex items-center flex-wrap sm:flex-nowrap gap-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
         {/* Search */}
         <div className="relative w-full sm:flex-1 sm:min-w-0">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -41,7 +41,7 @@ export function FilterBar({
           />
         </div>
         {filterControls && (
-          <div className="flex items-center gap-1.5 px-1 shrink-0 flex-wrap">
+          <div className="flex items-center gap-1.5 px-0.5 sm:px-1 flex-wrap w-full sm:w-auto">
             {filterControls}
           </div>
         )}

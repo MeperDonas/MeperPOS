@@ -107,14 +107,14 @@ export default function PurchaseOrdersPage() {
           }}
           searchPlaceholder="Buscar por N° OC o proveedor..."
           filterControls={
-            <>
+            <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
               <BentoSelect
                 value={supplierId}
                 onChange={(value) => {
                   setPage(1);
                   setSupplierId(value);
                 }}
-                className="w-52"
+                className="w-full sm:w-52"
                 placeholder="Todos los proveedores"
                 options={[
                   { value: "", label: "Todos los proveedores" },
@@ -130,31 +130,33 @@ export default function PurchaseOrdersPage() {
                   setPage(1);
                   setStatus(value as "" | PurchaseOrderStatus);
                 }}
-                className="w-44"
+                className="w-full sm:w-44"
                 placeholder="Todos los estados"
                 options={statusOptions.map((opt) => ({
                   value: opt.value,
                   label: opt.label,
                 }))}
               />
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => {
-                  setPage(1);
-                  setDateFrom(e.target.value);
-                }}
-                className="h-8 px-2 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50"
-              />
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => {
-                  setPage(1);
-                  setDateTo(e.target.value);
-                }}
-                className="h-8 px-2 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50"
-              />
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => {
+                    setPage(1);
+                    setDateFrom(e.target.value);
+                  }}
+                  className="h-8 px-2 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50 flex-1 sm:flex-none"
+                />
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => {
+                    setPage(1);
+                    setDateTo(e.target.value);
+                  }}
+                  className="h-8 px-2 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50 flex-1 sm:flex-none"
+                />
+              </div>
               {hasFilters && (
                 <button
                   onClick={clearFilters}
@@ -163,7 +165,7 @@ export default function PurchaseOrdersPage() {
                   <X className="w-3 h-3" /> Limpiar
                 </button>
               )}
-            </>
+            </div>
           }
         />
 

@@ -37,15 +37,14 @@ export function CategoryStackedChart({
   const hoveredDay = hoveredIndex >= 0 ? series[hoveredIndex] : null;
 
   /**
-   * Clamps the tooltip horizontally so it never overflows the chart edges:
-   * first day → left edge pinned to the bar start, last day → right edge
-   * pinned to the bar end, middle days → centered on the bar.
+   * Clamps the tooltip horizontally so it never overflows the chart edges on any screen size.
    */
+  const ratio = series.length > 1 && hoveredIndex >= 0 ? hoveredIndex / (series.length - 1) : 0.5;
   const tooltipTranslate =
-    series.length > 1 && hoveredIndex === 0
-      ? "translate-x-0"
-      : series.length > 1 && hoveredIndex === series.length - 1
-        ? "-translate-x-full"
+    ratio > 0.65
+      ? "-translate-x-full"
+      : ratio < 0.35
+        ? "translate-x-0"
         : "-translate-x-1/2";
 
   const slot = series.length > 0 ? 400 / series.length : 0;
@@ -111,9 +110,11 @@ export function CategoryStackedChart({
           <div
             key={day.date}
             data-testid="category-daily-bar"
-            className="flex-1"
+            className="flex-1 cursor-pointer"
             onMouseEnter={() => setHoveredDate(day.date)}
             onMouseLeave={() => setHoveredDate(null)}
+            onClick={() => setHoveredDate((curr) => curr === day.date ? null : day.date)}
+            onTouchStart={() => setHoveredDate(day.date)}
           />
         ))}
       </div>

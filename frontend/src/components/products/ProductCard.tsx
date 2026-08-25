@@ -113,55 +113,50 @@ function DualMetrics({ product }: { product: ProductCardData }) {
       : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
 
   return (
-    <div className="flex items-start justify-between gap-2 rounded-xl border border-border/50 bg-muted/30 px-2.5 py-2">
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+    <div className="flex flex-col gap-1.5 rounded-xl border border-border/50 bg-muted/30 p-2 sm:p-2.5">
+      <div className="flex items-center justify-between gap-1">
         <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
           Precio
         </span>
-
-        {hasPromo ? (
-          <>
-            {/* Promo price — prominent, never truncated */}
-            <span
-              data-testid="offer-effective-price"
-              className="font-mono text-[15px] font-extrabold leading-none tracking-tight text-foreground"
-            >
-              {formatCurrency(Number(product.effectiveSalePrice))}
-            </span>
-            {/* OFERTA tag carries the discount %, and the original list price is
-                struck through BELOW the offer price (no cut/overlap/stack). */}
-            <Badge
-              variant="danger"
-              className="shrink-0 w-fit text-[9px] px-1.5 py-0 font-mono uppercase"
-            >
-              Oferta{discountPercent > 0 ? ` -${discountPercent}%` : ""}
-            </Badge>
-            <s
-              data-testid="offer-list-price"
-              className="font-mono text-[11px] font-semibold text-muted-foreground line-through"
-            >
-              {formatCurrency(Number(product.salePrice))}
-            </s>
-          </>
-        ) : (
-          <span className="font-mono text-[14px] font-extrabold leading-none tracking-tight text-foreground">
-            {formatCurrency(Number(product.salePrice))}
-          </span>
-        )}
-      </div>
-
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-          Stock
-        </span>
         <span
           className={cn(
-            "inline-flex shrink-0 items-center font-mono text-[11px] font-bold px-2 py-0.5 rounded-md border",
+            "inline-flex shrink-0 items-center font-mono text-[10px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded-md border leading-none",
             stockBadgeClass,
           )}
         >
           {product.stock} uds.
         </span>
+      </div>
+
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+        {hasPromo ? (
+          <>
+            <div className="flex items-baseline gap-1.5 min-w-0">
+              <span
+                data-testid="offer-effective-price"
+                className="font-mono text-sm sm:text-base font-extrabold leading-none tracking-tight text-foreground truncate"
+              >
+                {formatCurrency(Number(product.effectiveSalePrice))}
+              </span>
+              <Badge
+                variant="danger"
+                className="shrink-0 text-[8px] sm:text-[9px] px-1 py-0 font-mono uppercase"
+              >
+                Oferta{discountPercent > 0 ? ` -${discountPercent}%` : ""}
+              </Badge>
+            </div>
+            <s
+              data-testid="offer-list-price"
+              className="font-mono text-[10px] sm:text-[11px] font-semibold text-muted-foreground line-through shrink-0"
+            >
+              {formatCurrency(Number(product.salePrice))}
+            </s>
+          </>
+        ) : (
+          <span className="font-mono text-sm sm:text-base font-extrabold leading-none tracking-tight text-foreground">
+            {formatCurrency(Number(product.salePrice))}
+          </span>
+        )}
       </div>
     </div>
   );
