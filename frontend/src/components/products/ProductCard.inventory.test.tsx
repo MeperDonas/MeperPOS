@@ -203,11 +203,37 @@ describe("ProductCard — offer badge and strikethrough (#74)", () => {
       />,
     );
 
-    expect(screen.getByText("Oferta")).toBeInTheDocument();
+    expect(screen.getByText(/Oferta/)).toBeInTheDocument();
+    // The tag carries the approximate discount %.
+    expect(screen.getByText(/Oferta/).textContent).toContain("-20%");
 
     const listPrice = screen.getByTestId("offer-list-price");
     expect(listPrice).toHaveClass("line-through");
     expect(listPrice.textContent).toContain(formatCurrency(10000));
+    expect(screen.getByTestId("offer-effective-price").textContent).toContain(
+      formatCurrency(8000),
+    );
+  });
+
+  it("detects the offer even when salePrice arrives as a numeric string (Decimal)", () => {
+    render(
+      <ProductCard
+        product={{
+          ...baseProduct,
+          salePrice: "10000" as unknown as number,
+          effectiveSalePrice: 8000,
+          promotionType: "PERCENTAGE",
+          promotionValue: 20,
+        }}
+        mode="inventory"
+      />,
+    );
+
+    expect(screen.getByText(/Oferta/)).toBeInTheDocument();
+    expect(screen.getByText(/Oferta/).textContent).toContain("-20%");
+    expect(screen.getByTestId("offer-list-price").textContent).toContain(
+      formatCurrency(10000),
+    );
     expect(screen.getByTestId("offer-effective-price").textContent).toContain(
       formatCurrency(8000),
     );
@@ -221,7 +247,7 @@ describe("ProductCard — offer badge and strikethrough (#74)", () => {
       />,
     );
 
-    expect(screen.queryByText("Oferta")).toBeNull();
+    expect(screen.queryByText(/Oferta/)).toBeNull();
     expect(screen.queryByTestId("offer-list-price")).toBeNull();
     expect(screen.queryByTestId("offer-effective-price")).toBeNull();
   });
@@ -241,7 +267,8 @@ describe("ProductCard — offer badge and strikethrough (#74)", () => {
       />,
     );
 
-    expect(screen.getByText("Oferta")).toBeInTheDocument();
+    expect(screen.getByText(/Oferta/)).toBeInTheDocument();
+    expect(screen.getByText(/Oferta/).textContent).toContain("-15%");
     expect(screen.getByTestId("offer-list-price").textContent).toContain(
       formatCurrency(19900),
     );
