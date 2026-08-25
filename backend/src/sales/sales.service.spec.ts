@@ -1069,5 +1069,71 @@ describe('SalesService', () => {
       expect(persisted.subtotal).toBe(8000);
       expect(persisted.total).toBe(8000);
     });
+
+    it('honors a trusted client unitPrice override even with an active promotion', async () => {
+      const tx = buildTx();
+      primeCreate(tx, promoProduct, 52);
+
+      await service.create(
+        {
+          items: [
+            { productId: 'prod-1', quantity: 1, unitPrice: 9000, discountAmount: 0 },
+          ],
+          discountAmount: 0,
+          payments: [{ method: 'CASH' as const, amount: 9000 }],
+        },
+        'user-1',
+        'org-1',
+      );
+
+      expect(tx.saleItem.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ unitPrice: 9000, subtotal: 9000 }),
+        }),
+      );
+    });
+
+    it('stacks the manual rebate on the offer price and floors the item total at zero', async () => {
+      const tx = buildTx();
+      primeCreate(tx, promoProduct, 53);
+
+      await service.create(
+        {
+          items: [{ productId: 'prod-1', quantity: 1, discountAmount: 8000 }],
+          discountAmount: 0,
+          payments: [{ method: 'CASH' as const, amount: 0 }],
+        },
+        'user-1',
+        'org-1',
+      );
+
+      const persisted = tx.saleItem.create.mock.calls[0][0].data;
+      expect(persisted.unitPrice).toBe(8000);
+      expect(persisted.discountAmount).toBe(8000);
+      expect(persisted.subtotal).toBe(0);
+      expect(persisted.total).toBe(0);
+      expect(tx.sale.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ subtotal: 0, total: 0 }),
+        }),
+      );
+    });
+
+    it('rejects an item discount greater than the offer gross subtotal', async () => {
+      const tx = buildTx();
+      primeCreate(tx, promoProduct, 54);
+
+      await expect(
+        service.create(
+          {
+            items: [{ productId: 'prod-1', quantity: 1, discountAmount: 8000.01 }],
+            discountAmount: 0,
+            payments: [{ method: 'CASH' as const, amount: 8000 }],
+          },
+          'user-1',
+          'org-1',
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
   });
 });
