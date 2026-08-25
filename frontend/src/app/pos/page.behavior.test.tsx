@@ -734,4 +734,51 @@ describe("POS promotion pricing (#74)", () => {
       formatCurrency(19900),
     );
   });
+
+  it("caps a manual rebate at the promotional gross so the line totals zero, never negative", async () => {
+    renderWithProducts([
+      makeProduct("promo-cap", "Producto Tope", {
+        salePrice: 10000,
+        effectiveSalePrice: 8000,
+        promotionType: "PERCENTAGE",
+        promotionValue: 20,
+      }),
+    ]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Producto Tope" }));
+
+    await userEvent.click(screen.getByTitle("Descuento"));
+    await userEvent.type(screen.getByPlaceholderText("0.00"), "99999");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    // Rebate caps at the offer gross (8000 × 1) — line total floors at $0.
+    const discount = screen.getByTestId("line-discount");
+    expect(discount.textContent).toContain(formatCurrency(8000));
+    expect(screen.getByTestId("line-unit-price").textContent).toContain(
+      formatCurrency(8000),
+    );
+  });
+
+  it("recomputes a percentage rebate against the offer price when quantity grows", async () => {
+    renderWithProducts([
+      makeProduct("promo-qty", "Producto Cantidad", {
+        salePrice: 10000,
+        effectiveSalePrice: 8000,
+        promotionType: "PERCENTAGE",
+        promotionValue: 20,
+      }),
+    ]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Producto Cantidad" }));
+    await userEvent.click(screen.getByRole("button", { name: "Producto Cantidad" }));
+
+    await userEvent.click(screen.getByTitle("Descuento"));
+    await userEvent.click(screen.getByRole("button", { name: "10%" }));
+
+    // Offer gross at qty 2 is 16000 → 10% rebate = 1600, anchored to the
+    // promotional unitPrice (not the 10000 list price, which would give 2000).
+    expect(screen.getByTestId("line-discount").textContent).toContain(
+      formatCurrency(1600),
+    );
+  });
 });
