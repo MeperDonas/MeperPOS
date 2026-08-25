@@ -231,6 +231,7 @@ function SalesPageContent() {
         {isLoading ? (
           <LoadingState icon={<Receipt className="w-4 h-4 text-primary/50" />} message="Cargando ventas..." />
         ) : (
+          <>
             {/* Mobile Cards View */}
             <div className="md:hidden space-y-3">
               {sales.length === 0 ? (
