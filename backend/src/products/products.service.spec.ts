@@ -3,7 +3,8 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { ProductsService } from './products.service';
+import { Prisma } from '@prisma/client';
+import { computeEffectiveSalePrice, ProductsService } from './products.service';
 
 describe('ProductsService — Opt-in tax resolution', () => {
   let service: ProductsService;
@@ -508,6 +509,150 @@ describe('ProductsService — Opt-in tax resolution', () => {
       const result = await service.getLowStockProducts(ORG_ID);
 
       expect(result).toEqual([{ id: 'prod-1', name: 'Panela' }]);
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════
+  // Effective sale price derivation (promotions)
+  // ════════════════════════════════════════════════════════════════════
+  describe('computeEffectiveSalePrice', () => {
+    it('derives a percentage promo from the list price', () => {
+      expect(
+        computeEffectiveSalePrice({
+          salePrice: 19900,
+          promotionType: 'PERCENTAGE',
+          promotionValue: 15,
+        }),
+      ).toBe(16915);
+    });
+
+    it('returns the promotion value for a fixed-price promo', () => {
+      expect(
+        computeEffectiveSalePrice({
+          salePrice: 10000,
+          promotionType: 'FIXED_PRICE',
+          promotionValue: 8000,
+        }),
+      ).toBe(8000);
+    });
+
+    it('returns null when the product has no active promotion', () => {
+      expect(
+        computeEffectiveSalePrice({
+          salePrice: 19900,
+          promotionType: null,
+          promotionValue: null,
+        }),
+      ).toBeNull();
+      expect(computeEffectiveSalePrice({ salePrice: 19900 })).toBeNull();
+    });
+
+    it('rounds half-up to two decimals', () => {
+      expect(
+        computeEffectiveSalePrice({
+          salePrice: 999,
+          promotionType: 'PERCENTAGE',
+          promotionValue: 12.5,
+        }),
+      ).toBe(874.13);
+    });
+
+    it('accepts Prisma Decimal inputs', () => {
+      expect(
+        computeEffectiveSalePrice({
+          salePrice: new Prisma.Decimal('19900'),
+          promotionType: 'PERCENTAGE',
+          promotionValue: new Prisma.Decimal('15'),
+        }),
+      ).toBe(16915);
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════
+  // Promotion enrichment on reads
+  // ════════════════════════════════════════════════════════════════════
+  describe('Promotion enrichment on reads', () => {
+    const baseDto = {
+      name: 'Promo Product',
+      sku: 'SKU-PROMO',
+      costPrice: 100,
+      salePrice: 19900,
+      stock: 10,
+      minStock: 5,
+      categoryId: 'cat-1',
+    };
+
+    const promoProduct = buildProduct({
+      salePrice: 19900,
+      promotionType: 'PERCENTAGE',
+      promotionValue: 15,
+    });
+
+    it('create persists the promotion and returns effectiveSalePrice', async () => {
+      prismaMock.category.findFirst.mockResolvedValue(
+        categoryWithDefault(null, false),
+      );
+      prismaMock.product.findUnique.mockResolvedValue(null);
+      prismaMock.product.create.mockResolvedValue(promoProduct);
+      prismaMock.inventoryMovement.create.mockResolvedValue({});
+
+      const result = await service.create(
+        {
+          ...baseDto,
+          promotionType: 'PERCENTAGE',
+          promotionValue: 15,
+        },
+        USER_ID,
+        ORG_ID,
+      );
+
+      expect(prismaMock.product.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            promotionType: 'PERCENTAGE',
+            promotionValue: 15,
+          }),
+        }),
+      );
+      expect(result.effectiveSalePrice).toBe(16915);
+    });
+
+    it('findAll enriches every product with effectiveSalePrice', async () => {
+      prismaMock.product.findMany.mockResolvedValue([
+        promoProduct,
+        buildProduct({ id: 'p2' }),
+      ]);
+      prismaMock.product.count.mockResolvedValue(2);
+
+      const result = await service.findAll(ORG_ID, 1, 10);
+
+      expect(result.data[0].effectiveSalePrice).toBe(16915);
+      expect(result.data[1].effectiveSalePrice).toBeNull();
+    });
+
+    it('findOne returns effectiveSalePrice for a promoted product', async () => {
+      prismaMock.product.findFirst.mockResolvedValue(promoProduct);
+
+      const result = await service.findOne('prod-1', ORG_ID);
+
+      expect(result.effectiveSalePrice).toBe(16915);
+    });
+
+    it('update returns effectiveSalePrice for the updated product', async () => {
+      prismaMock.product.findFirst
+        .mockResolvedValueOnce(buildProduct({ version: 1 }))
+        .mockResolvedValueOnce(promoProduct);
+      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
+      prismaMock.inventoryMovement.create.mockResolvedValue({});
+
+      const result = await service.update(
+        'prod-1',
+        { promotionType: 'PERCENTAGE', promotionValue: 15 },
+        USER_ID,
+        ORG_ID,
+      );
+
+      expect(result.effectiveSalePrice).toBe(16915);
     });
   });
 });
