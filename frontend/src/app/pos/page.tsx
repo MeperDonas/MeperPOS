@@ -49,6 +49,24 @@ import { api, getApiErrorMessage } from "@/lib/api";
 
 const POS_PAGE_SIZE = 20;
 
+/**
+ * Detect whether a cart line is carrying an active product promotion based on
+ * the product's backend-computed effectiveSalePrice (not on a manual price
+ * override). Returns the approximate whole-percent discount, or null when the
+ * line is not on offer.
+ */
+function cartItemOffer(item: CartItem) {
+  const price = item.product?.effectiveSalePrice;
+  const listPrice = item.product?.salePrice;
+  if (typeof price !== "number" || typeof listPrice !== "number") return null;
+  if (price === listPrice) return null;
+  const percent = Math.max(
+    0,
+    Math.round(100 - (price / listPrice) * 100),
+  );
+  return { percent };
+}
+
 interface PaymentMethod {
   type: "CASH" | "CARD" | "TRANSFER";
   amount: number;
@@ -831,12 +849,25 @@ export default function POSPage() {
                       <p className="text-xs font-semibold text-foreground line-clamp-1 mb-1">
                         {item.product.name}
                       </p>
-                      <p className="text-xs text-muted-foreground mb-1.5">
+                      <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground mb-1.5">
+                        {cartItemOffer(item) && (
+                          <span className="inline-flex shrink-0 items-center gap-1">
+                            <Badge
+                              variant="danger"
+                              className="px-1.5 py-0 text-[9px] font-mono uppercase shrink-0"
+                            >
+                              Oferta
+                            </Badge>
+                            <span className="font-mono text-[10px] font-bold text-danger dark:text-red-400">
+                              -{cartItemOffer(item)!.percent}%
+                            </span>
+                          </span>
+                        )}
                         {typeof item.originalUnitPrice === "number" &&
                           item.unitPrice !== item.originalUnitPrice && (
                             <s
                               data-testid="original-unit-price"
-                              className="mr-1 text-muted-foreground/60 line-through"
+                              className="text-muted-foreground/60 line-through"
                             >
                               {formatCurrency(item.originalUnitPrice)}
                             </s>
