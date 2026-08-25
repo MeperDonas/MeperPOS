@@ -533,7 +533,7 @@ export default function TasksPage() {
                   placeholder="Buscar tarea..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-9 pl-9 pr-3 bg-muted/40 rounded-xl text-xs text-foreground placeholder:text-muted-foreground/60 border border-border/60 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+                  className="w-full h-9 pl-9 pr-3 bg-muted/40 rounded-xl text-base sm:text-xs text-foreground placeholder:text-muted-foreground/60 border border-border/60 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
                 />
               </div>
 

@@ -171,7 +171,63 @@ export default function PurchaseOrdersPage() {
           <LoadingState icon={<ClipboardList className="w-4 h-4 text-primary/50" />} message="Cargando órdenes..." />
         ) : (
           <>
-            <div className="rounded-3xl border border-accent/30 bg-accent/10 overflow-hidden">
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-3">
+              {orders.length === 0 ? (
+                <EmptyState icon={<ClipboardList className="w-6 h-6 text-muted-foreground/30" />} title="No hay órdenes de compra" />
+              ) : (
+                orders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="rounded-2xl border border-accent/30 bg-card p-4 shadow-xs space-y-3 cursor-pointer active:scale-[0.99] transition-transform"
+                    onClick={() => router.push(`/purchase-orders/${order.id}`)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-sm font-bold text-primary">
+                        OC-{order.orderNumber}
+                      </span>
+                      <PurchaseOrderStatusBadge status={order.status} />
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between items-center text-muted-foreground">
+                        <span>Proveedor</span>
+                        <span className="font-semibold text-foreground truncate max-w-[180px]">
+                          {order.supplier?.name ?? "—"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-muted-foreground">
+                        <span>Fecha</span>
+                        <span className="font-mono">{formatDate(order.createdAt)}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2.5 border-t border-border/60">
+                      <div>
+                        <p className="text-[10px] uppercase font-semibold text-muted-foreground">Total</p>
+                        <p className="stat-number text-base font-bold text-foreground">
+                          {formatCurrency(order.total)}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/purchase-orders/${order.id}`);
+                        }}
+                        className="h-8 px-2.5 text-xs"
+                      >
+                        <Eye className="w-3.5 h-3.5 mr-1" /> Detalle
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-3xl border border-accent/30 bg-accent/10 overflow-hidden">
               <div className="overflow-x-auto">
                 <Table variant="accent" className="min-w-[680px]">
                   <TableHeader>
