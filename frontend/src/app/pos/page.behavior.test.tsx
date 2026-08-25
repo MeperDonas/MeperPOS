@@ -19,6 +19,9 @@ type UseProductsParams = {
 const useProductsMock = vi.fn();
 const quickSearchMutateMock = vi.fn();
 const createSaleMutateMock = vi.fn();
+const resumeSaleMock = vi.fn();
+const apiGetMock = vi.fn();
+const pausedSalesState = vi.hoisted(() => ({ list: [] as unknown[] }));
 
 vi.mock("next/image", () => ({
   default: (props: { alt?: string }) => (
@@ -166,11 +169,16 @@ vi.mock("@/hooks/useSales", () => ({
 
 vi.mock("@/hooks/usePausedSales", () => ({
   usePausedSales: () => ({
-    pausedSales: [],
+    pausedSales: pausedSalesState.list,
     pauseSale: vi.fn(),
-    resumeSale: vi.fn(),
+    resumeSale: resumeSaleMock,
     deletePausedSale: vi.fn(),
   }),
+}));
+
+vi.mock("@/lib/api", () => ({
+  api: { get: (...args: unknown[]) => apiGetMock(...args) },
+  getApiErrorMessage: (_error: unknown, fallback: string) => fallback,
 }));
 
 vi.mock("@/hooks/useReceipt", () => ({
@@ -549,19 +557,22 @@ describe("POS item price override (pos-edit-item-price)", () => {
     );
   });
 
-  it("rejects a negative price and leaves the unit price unchanged", async () => {
+  it("sanitizes a negative price entry to its digits via the COP input", async () => {
     renderWithSingleProduct("Producto Precio", 50000);
     await userEvent.click(screen.getByRole("button", { name: "Producto Precio" }));
 
     await openDiscountModal();
     const priceInput = screen.getByPlaceholderText("Precio");
     await userEvent.clear(priceInput);
+    // CurrencyInput strips non-digit characters, so "-500" reaches the page as 500.
     await userEvent.type(priceInput, "-500");
     await userEvent.click(screen.getByRole("button", { name: "Aplicar precio" }));
 
-    expect(screen.queryByTestId("original-unit-price")).toBeNull();
-    expect(screen.getByTestId("line-unit-price").textContent).toContain(
+    expect(screen.getByTestId("original-unit-price").textContent).toContain(
       formatCurrency(50000),
+    );
+    expect(screen.getByTestId("line-unit-price").textContent).toContain(
+      formatCurrency(500),
     );
   });
 
@@ -665,5 +676,185 @@ describe("POS item price override (pos-edit-item-price)", () => {
     expect(payload.items[0].unitPrice).toBe(45000);
     // The original price must not leak into the sale payload.
     expect(payload.items[0]).not.toHaveProperty("originalUnitPrice");
+  });
+});
+
+describe("POS promotion pricing (#74)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pausedSalesState.list = [];
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  function renderWithProducts(list: Product[]) {
+    useProductsMock.mockReturnValue({
+      data: { data: list, meta: { total: list.length, page: 1, limit: 20, totalPages: 1 } },
+      isLoading: false,
+      isFetching: false,
+    });
+    return render(<POSPage />);
+  }
+
+  it("adds a grid product to the cart at the promotional effective price, snapshotting the list price", async () => {
+    renderWithProducts([
+      makeProduct("promo-1", "Producto Oferta", {
+        salePrice: 10000,
+        effectiveSalePrice: 8000,
+        promotionType: "PERCENTAGE",
+        promotionValue: 20,
+      }),
+    ]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Producto Oferta" }));
+
+    expect(screen.getByTestId("line-unit-price").textContent).toContain(
+      formatCurrency(8000),
+    );
+    expect(screen.getByTestId("original-unit-price").textContent).toContain(
+      formatCurrency(10000),
+    );
+  });
+
+  it("adds a scanned product to the cart at its promotional effective price", async () => {
+    renderWithProducts([makeProduct("base-1", "Producto Base")]);
+    quickSearchMutateMock.mockResolvedValue(
+      makeProduct("promo-scan", "Producto Escaneado Oferta", {
+        salePrice: 19900,
+        effectiveSalePrice: 16915,
+        promotionType: "PERCENTAGE",
+        promotionValue: 15,
+      }),
+    );
+
+    const scannerInput = screen.getByPlaceholderText("Escanear o buscar por nombre, SKU o código...");
+    await userEvent.type(scannerInput, "7709876543210{enter}");
+
+    await waitFor(() => {
+      expect(screen.getByText("Producto Escaneado Oferta agregado al carrito.")).toBeTruthy();
+    });
+
+    expect(screen.getByTestId("line-unit-price").textContent).toContain(
+      formatCurrency(16915),
+    );
+    expect(screen.getByTestId("original-unit-price").textContent).toContain(
+      formatCurrency(19900),
+    );
+  });
+
+  it("caps a manual rebate at the promotional gross so the line totals zero, never negative", async () => {
+    renderWithProducts([
+      makeProduct("promo-cap", "Producto Tope", {
+        salePrice: 10000,
+        effectiveSalePrice: 8000,
+        promotionType: "PERCENTAGE",
+        promotionValue: 20,
+      }),
+    ]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Producto Tope" }));
+
+    await userEvent.click(screen.getByTitle("Descuento"));
+    await userEvent.type(screen.getByPlaceholderText("0.00"), "99999");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    // Rebate caps at the offer gross (8000 × 1) — line total floors at $0.
+    const discount = screen.getByTestId("line-discount");
+    expect(discount.textContent).toContain(formatCurrency(8000));
+    expect(screen.getByTestId("line-unit-price").textContent).toContain(
+      formatCurrency(8000),
+    );
+  });
+
+  it("recomputes a percentage rebate against the offer price when quantity grows", async () => {
+    renderWithProducts([
+      makeProduct("promo-qty", "Producto Cantidad", {
+        salePrice: 10000,
+        effectiveSalePrice: 8000,
+        promotionType: "PERCENTAGE",
+        promotionValue: 20,
+      }),
+    ]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Producto Cantidad" }));
+    await userEvent.click(screen.getByRole("button", { name: "Producto Cantidad" }));
+
+    await userEvent.click(screen.getByTitle("Descuento"));
+    await userEvent.click(screen.getByRole("button", { name: "10%" }));
+
+    // Offer gross at qty 2 is 16000 → 10% rebate = 1600, anchored to the
+    // promotional unitPrice (not the 10000 list price, which would give 2000).
+    expect(screen.getByTestId("line-discount").textContent).toContain(
+      formatCurrency(1600),
+    );
+  });
+
+  it("reprices a paused cart line from the current product state on resume, re-clamping the rebate", async () => {
+    const staleProduct = makeProduct("promo-stale", "Producto Pausado", {
+      salePrice: 10000,
+      effectiveSalePrice: 8000,
+      promotionType: "PERCENTAGE",
+      promotionValue: 20,
+    });
+    pausedSalesState.list = [
+      {
+        id: "paused-1",
+        customerId: "",
+        discountAmount: 0,
+        pausedAt: "2026-08-25T10:00:00.000Z",
+        cart: [
+          {
+            productId: "promo-stale",
+            product: staleProduct,
+            quantity: 1,
+            unitPrice: 8000,
+            originalUnitPrice: 10000,
+            discountAmount: 7500,
+            availableStock: 10,
+          },
+        ],
+      },
+    ];
+    renderWithProducts([makeProduct("base-1", "Producto Base")]);
+
+    resumeSaleMock.mockReturnValue({
+      id: "paused-1",
+      customerId: "",
+      discountAmount: 0,
+      pausedAt: "2026-08-25T10:00:00.000Z",
+      cart: [
+        {
+          productId: "promo-stale",
+          product: staleProduct,
+          quantity: 1,
+          unitPrice: 8000,
+          originalUnitPrice: 10000,
+          discountAmount: 7500,
+          availableStock: 10,
+        },
+      ],
+    });
+    // Promo was removed while paused: list price is now 5000, no offer.
+    apiGetMock.mockResolvedValue({
+      data: makeProduct("promo-stale", "Producto Pausado", { salePrice: 5000 }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Reanudar (1)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Reanudar" }));
+
+    await waitFor(() => {
+      expect(apiGetMock).toHaveBeenCalledWith("/products/promo-stale");
+    });
+
+    // Line repriced from the fresh product (list price after promo removal)…
+    expect(screen.getByTestId("line-unit-price").textContent).toContain(
+      formatCurrency(5000),
+    );
+    // …and the stale rebate shrank to the new unit price instead of going negative.
+    expect(screen.getByTestId("line-discount").textContent).toContain(
+      formatCurrency(5000),
+    );
   });
 });

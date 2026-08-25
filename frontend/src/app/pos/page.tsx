@@ -45,7 +45,7 @@ import {
 import { cn, formatCurrency, safeGetItem, safeSetItem } from "@/lib/utils";
 import type { CartItem, Product, Sale } from "@/types";
 import { useToast } from "@/contexts/ToastContext";
-import { getApiErrorMessage } from "@/lib/api";
+import { api, getApiErrorMessage } from "@/lib/api";
 
 const POS_PAGE_SIZE = 20;
 
@@ -248,7 +248,9 @@ export default function POSPage() {
           productId: product.id,
           product,
           quantity: Math.min(quantity, product.stock),
-          unitPrice: product.salePrice,
+          // Promotional price wins when present; list price stays snapshotted
+          // as originalUnitPrice so the cart can strike it through.
+          unitPrice: product.effectiveSalePrice ?? product.salePrice,
           originalUnitPrice: product.salePrice,
           discountAmount: 0,
           availableStock: product.stock,
@@ -587,10 +589,37 @@ export default function POSPage() {
     }
   };
 
-  const handleResumeSale = (saleId: string) => {
+  const handleResumeSale = async (saleId: string) => {
     try {
       const resumedSale = resumeSale(saleId);
-      setCart(resumedSale.cart);
+      // Re-derive each line's price from the product's CURRENT state so a
+      // promo changed/removed while the sale sat paused reprices before
+      // checkout (stale rebates shrink to the new unit price instead of
+      // going negative). Mirrors the availableStock backfill precedent.
+      const freshProducts = await Promise.all(
+        resumedSale.cart.map((item) =>
+          api
+            .get<Product>(`/products/${item.productId}`)
+            .then((res) => res.data)
+            .catch(() => item.product),
+        ),
+      );
+      const repricedCart = resumedSale.cart.map((item, index) => {
+        const freshProduct = freshProducts[index] ?? item.product;
+        const unitPrice = freshProduct.effectiveSalePrice ?? freshProduct.salePrice;
+        return {
+          ...item,
+          product: freshProduct,
+          availableStock: freshProduct.stock,
+          unitPrice,
+          originalUnitPrice: freshProduct.salePrice,
+          discountAmount: Math.min(
+            Math.max(0, item.discountAmount),
+            unitPrice * item.quantity,
+          ),
+        };
+      });
+      setCart(repricedCart);
       setSelectedCustomer(resumedSale.customerId);
       setDiscountAmount(resumedSale.discountAmount);
       setShowPausedSalesModal(false);

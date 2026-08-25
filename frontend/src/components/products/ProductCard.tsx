@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { cn, formatCurrency } from "@/lib/utils";
+import { Badge } from "@/components/ui/Badge";
 import { AlertTriangle, Package, Power, RotateCcw, Star, Edit3 } from "lucide-react";
 
 type ProductCardData = {
@@ -15,6 +16,10 @@ type ProductCardData = {
   minStock?: number;
   category?: { name: string } | null;
   active?: boolean;
+  /** Active promotion — when present, effectiveSalePrice is the selling price */
+  promotionType?: string | null;
+  promotionValue?: number | null;
+  effectiveSalePrice?: number | null;
 };
 
 interface ProductCardProps {
@@ -85,6 +90,10 @@ function DualMetrics({ product }: { product: ProductCardData }) {
   const hasMinStock = typeof product.minStock === "number";
   const isLowStock = hasMinStock && product.stock > 0 && product.stock <= (product.minStock as number);
 
+  const hasPromo =
+    typeof product.effectiveSalePrice === "number" &&
+    product.effectiveSalePrice !== product.salePrice;
+
   const stockBadgeClass = isOutOfStock
     ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
     : isLowStock
@@ -94,11 +103,30 @@ function DualMetrics({ product }: { product: ProductCardData }) {
   return (
     <div className="flex items-center justify-between gap-2 rounded-xl border border-border/50 bg-muted/30 px-2.5 py-2">
       <div className="flex flex-col min-w-0">
-        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
           Precio
+          {hasPromo && (
+            <Badge variant="danger" className="text-[9px] px-1.5 py-0 font-mono uppercase">
+              Oferta
+            </Badge>
+          )}
         </span>
         <span className="font-mono text-[13px] sm:text-[14px] font-extrabold text-foreground tracking-tight truncate">
-          {formatCurrency(product.salePrice)}
+          {hasPromo ? (
+            <>
+              <s
+                data-testid="offer-list-price"
+                className="mr-1 text-[11px] font-semibold text-muted-foreground line-through"
+              >
+                {formatCurrency(product.salePrice)}
+              </s>
+              <span data-testid="offer-effective-price">
+                {formatCurrency(product.effectiveSalePrice as number)}
+              </span>
+            </>
+          ) : (
+            formatCurrency(product.salePrice)
+          )}
         </span>
       </div>
       <div className="flex flex-col items-end shrink-0">
