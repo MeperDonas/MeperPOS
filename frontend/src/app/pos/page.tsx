@@ -28,6 +28,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { PaymentConfirmationModal } from "@/components/pos/PaymentConfirmationModal";
 import { PaymentMethodCards } from "@/components/pos/PaymentMethodCards";
+import { MobileCartDrawer } from "@/components/pos/MobileCartDrawer";
+import { MobileCartFloatingBar } from "@/components/pos/MobileCartFloatingBar";
 import { ProductCard } from "@/components/products/ProductCard";
 import {
   Search,
@@ -138,6 +140,7 @@ export default function POSPage() {
   const [scanFeedback, setScanFeedback] = useState<ScanFeedback>(
     DEFAULT_SCAN_FEEDBACK,
   );
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
 
   // Debounce search input: 400ms delay, reset to page 1 on new search
   const handleSearchChange = useCallback((value: string) => {
@@ -757,7 +760,12 @@ export default function POSPage() {
             </div>
 
             {/* Product Grid */}
-            <div className="scrollbar-app max-h-[55vh] overflow-y-auto p-4 lg:flex-1 lg:min-h-0 lg:max-h-none">
+            <div
+              className={cn(
+                "scrollbar-app overflow-y-auto p-4 lg:flex-1 lg:min-h-0 lg:max-h-none",
+                cart.length > 0 ? "pb-28 lg:pb-4" : "",
+              )}
+            >
               <div
                 className={cn(
                   "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 transition-opacity duration-150",
@@ -811,8 +819,8 @@ export default function POSPage() {
           </div>
         </div>
 
-        {/* Cart Panel */}
-        <div className="min-h-0 lg:col-span-4 lg:h-full">
+        {/* Cart Panel (Desktop) */}
+        <div className="hidden lg:flex min-h-0 lg:col-span-4 lg:h-full flex-col">
           <div className="h-auto min-h-0 overflow-hidden rounded-3xl border border-accent/30 bg-accent/10 lg:h-full flex flex-col">
             {/* Cart Header */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-accent/20">
@@ -1030,6 +1038,48 @@ export default function POSPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Cart Floating Bar */}
+      <MobileCartFloatingBar
+        cart={cart}
+        total={total}
+        onClick={() => setIsMobileCartOpen(true)}
+      />
+
+      {/* Mobile Cart Drawer (Bottom Sheet) */}
+      <MobileCartDrawer
+        isOpen={isMobileCartOpen}
+        onClose={() => setIsMobileCartOpen(false)}
+        cart={cart}
+        subtotal={subtotal}
+        taxAmount={taxAmount}
+        discountAmount={discountAmount}
+        total={total}
+        selectedCustomerName={selectedCustomerName}
+        onOpenCustomerModal={() => {
+          setIsMobileCartOpen(false);
+          setShowCustomerModal(true);
+        }}
+        pausedSalesCount={pausedSales.length}
+        onOpenPausedSales={() => {
+          setIsMobileCartOpen(false);
+          setShowPausedSalesModal(true);
+        }}
+        onPauseSale={handlePauseSale}
+        selectedPaymentMethod={selectedPaymentMethod}
+        onPaymentMethodChange={(method) => setSelectedPaymentMethod(method)}
+        onUpdateQuantity={updateQuantity}
+        onOpenDiscountModal={(productId) => {
+          setIsMobileCartOpen(false);
+          openDiscountModal(productId);
+        }}
+        onRemoveFromCart={removeFromCart}
+        onCheckout={() => {
+          setIsMobileCartOpen(false);
+          openPaymentModal();
+        }}
+        isPending={createSale.isPending}
+      />
 
       {/* Customer Modal */}
       <Modal
