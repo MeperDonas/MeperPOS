@@ -59,7 +59,7 @@ export default function DashboardPage() {
         <TodayStats />
 
         {/* Stacked category chart — replaces the simple revenue bars */}
-        <div className="min-w-0 overflow-hidden rounded-3xl border border-border/80 bg-card px-6 py-6 text-foreground">
+        <div className="min-w-0 rounded-3xl border border-border/80 bg-card px-4 sm:px-6 py-6 text-foreground relative">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
             Ingresos de {monthLabel}
           </p>
