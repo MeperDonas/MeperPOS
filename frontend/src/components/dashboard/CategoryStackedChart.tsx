@@ -37,12 +37,14 @@ export function CategoryStackedChart({
   const hoveredDay = hoveredIndex >= 0 ? series[hoveredIndex] : null;
 
   /**
-   * Always projects the tooltip towards the side furthest from the chart edge:
-   * - If ratio >= 0.5 (closer to right edge), reflects to the LEFT (-translate-x-full).
-   * - If ratio < 0.5 (closer to left edge), reflects to the RIGHT (translate-x-0).
+   * Always projects the tooltip towards the side furthest from the chart edge,
+   * leaving a 12px gap so the hovered bar remains completely visible and unobstructed:
+   * - If ratio >= 0.5 (closer to right edge), reflects to the LEFT with offset.
+   * - If ratio < 0.5 (closer to left edge), reflects to the RIGHT with offset.
    */
   const ratio = series.length > 1 && hoveredIndex >= 0 ? hoveredIndex / (series.length - 1) : 0.5;
-  const tooltipTranslate = ratio >= 0.5 ? "-translate-x-full" : "translate-x-0";
+  const isRightSide = ratio >= 0.5;
+  const tooltipTranslate = isRightSide ? "-translate-x-[calc(100%+12px)]" : "translate-x-3";
 
   const slot = series.length > 0 ? 400 / series.length : 0;
   const barWidth = Math.max(3, slot * 0.72);
@@ -122,8 +124,8 @@ export function CategoryStackedChart({
           data-testid="category-tooltip"
           className={`pointer-events-none absolute z-30 min-w-[180px] ${tooltipTranslate} rounded-lg border border-white/10 bg-black/90 px-3 py-2 shadow-xl backdrop-blur-sm`}
           style={{
-            left: `${hoveredIndex >= 0 ? (hoveredIndex / Math.max(series.length - 1, 1)) * 100 : 50}%`,
-            top: "6px",
+            left: `${hoveredIndex >= 0 ? ((hoveredIndex + 0.5) / Math.max(series.length, 1)) * 100 : 50}%`,
+            top: "0px",
           }}
         >
           <p className="text-center text-[10px] font-semibold uppercase tracking-wider text-white/60">
