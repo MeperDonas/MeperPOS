@@ -1,7 +1,7 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type MetricCardTone = "primary" | "accent" | "rose";
+export type MetricCardTone = "primary" | "accent" | "rose" | "green" | "blue";
 
 export interface MetricCardDelta {
   percentage: number | null;
@@ -20,12 +20,16 @@ const toneCardClasses: Record<MetricCardTone, string> = {
   primary: "border-primary/25 bg-card hover:border-primary/45 transition-colors",
   accent: "border-accent/25 bg-card hover:border-accent/45 transition-colors",
   rose: "border-rose-500/25 bg-card hover:border-rose-500/45 transition-colors",
+  green: "border-green-500/25 bg-card hover:border-green-500/45 transition-colors",
+  blue: "border-blue-500/25 bg-card hover:border-blue-500/45 transition-colors",
 };
 
 const toneValueClasses: Record<MetricCardTone, string> = {
   primary: "text-primary",
   accent: "text-accent",
   rose: "text-rose-500",
+  green: "text-green-500",
+  blue: "text-blue-500",
 };
 
 /**

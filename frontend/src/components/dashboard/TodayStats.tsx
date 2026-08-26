@@ -28,7 +28,7 @@ export function TodayStatsInner({ today }: { today: string }) {
         label="Ventas hoy"
         value={formatCurrency(metric.sales)}
         helper="del día"
-        tone="primary"
+        tone="green"
       />
       <MetricCard
         label="Salidas hoy"
@@ -52,13 +52,13 @@ export function TodayStatsInner({ today }: { today: string }) {
         label="Productos totales"
         value={(dashboard?.totalProducts ?? 0).toLocaleString("es-CO")}
         helper="catálogo"
-        tone="accent"
+        tone="primary"
       />
       <MetricCard
         label="Clientes totales"
         value={(dashboard?.totalCustomers ?? 0).toLocaleString("es-CO")}
         helper="registrados"
-        tone="primary"
+        tone="blue"
       />
       <MetricCard
         label="Stock crítico"
