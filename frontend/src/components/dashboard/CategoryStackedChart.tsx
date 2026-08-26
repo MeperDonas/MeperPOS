@@ -43,8 +43,8 @@ export function CategoryStackedChart({
    * - If ratio < 0.5 (closer to left edge), reflects to the RIGHT with offset.
    */
   const ratio = series.length > 1 && hoveredIndex >= 0 ? hoveredIndex / (series.length - 1) : 0.5;
-  const isRightSide = ratio >= 1.5;
-  const tooltipTranslate = isRightSide ? "-translate-x-[calc(100%+12px)]" : "translate-x-3";
+  const isRightSide = ratio >= 0.5;
+  const tooltipTranslate = isRightSide ? "-translate-x-[calc(100%+20px)]" : "translate-x-3";
 
   const slot = series.length > 0 ? 400 / series.length : 0;
   const barWidth = Math.max(3, slot * 0.72);
@@ -54,7 +54,7 @@ export function CategoryStackedChart({
     const safeDate = new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1, 12, 0, 0));
     const weekday = capitalizeLabel(
       new Intl.DateTimeFormat("es-CO", {
-        weekday: "short",
+        weekday: "long",
         timeZone: "America/Bogota",
       })
         .format(safeDate)
