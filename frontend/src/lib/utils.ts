@@ -121,3 +121,18 @@ export function resolveTaxFields(
   }
   return { taxable: false, taxRate: 0 };
 }
+
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CASH: "Efectivo",
+  CARD: "Tarjeta",
+  TRANSFER: "Transferencia",
+  MIXED: "Mixto",
+  CREDIT: "Crédito",
+};
+
+export function formatPaymentMethod(method?: string | null): string {
+  if (!method) return "Sin pago";
+  const normalized = method.toUpperCase().trim();
+  return PAYMENT_METHOD_LABELS[normalized] ?? method;
+}
+
