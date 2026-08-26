@@ -17,9 +17,9 @@ interface MetricCardProps {
 }
 
 const toneCardClasses: Record<MetricCardTone, string> = {
-  primary: "border-border/80 bg-card",
-  accent: "border-border/80 bg-card",
-  rose: "border-border/80 bg-card",
+  primary: "border-primary/25 bg-card hover:border-primary/45 transition-colors",
+  accent: "border-accent/25 bg-card hover:border-accent/45 transition-colors",
+  rose: "border-rose-500/25 bg-card hover:border-rose-500/45 transition-colors",
 };
 
 const toneValueClasses: Record<MetricCardTone, string> = {

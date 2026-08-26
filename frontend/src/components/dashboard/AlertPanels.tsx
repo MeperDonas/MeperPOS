@@ -59,7 +59,7 @@ export function AlertPanels() {
   return (
     <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
       {/* Low stock panel */}
-      <div className="min-w-0 rounded-3xl border border-border/80 bg-card px-6 py-5 text-foreground">
+      <div className="min-w-0 rounded-3xl border border-rose-500/25 bg-card px-6 py-5 text-foreground hover:border-rose-500/40 transition-colors">
         <PanelHeader
           icon={<AlertTriangle className="h-5 w-5 text-rose-500" />}
           title="Stock bajo"
@@ -111,7 +111,7 @@ export function AlertPanels() {
       </div>
 
       {/* Partial expenses panel */}
-      <div className="min-w-0 rounded-3xl border border-border/80 bg-card px-6 py-5 text-foreground">
+      <div className="min-w-0 rounded-3xl border border-primary/25 bg-card px-6 py-5 text-foreground hover:border-primary/40 transition-colors">
         <PanelHeader
           icon={<Receipt className="h-5 w-5 text-primary" />}
           title="Gastos por pagar"
@@ -170,7 +170,7 @@ export function AlertPanels() {
       </div>
 
       {/* Open tasks panel */}
-      <div className="min-w-0 rounded-3xl border border-border/80 bg-card px-6 py-5 text-foreground">
+      <div className="min-w-0 rounded-3xl border border-accent/25 bg-card px-6 py-5 text-foreground hover:border-accent/40 transition-colors">
         <PanelHeader
           icon={<ListTodo className="h-5 w-5 text-accent" />}
           title="Tareas abiertas"
