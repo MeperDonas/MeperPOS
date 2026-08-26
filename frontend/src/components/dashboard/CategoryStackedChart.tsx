@@ -37,15 +37,12 @@ export function CategoryStackedChart({
   const hoveredDay = hoveredIndex >= 0 ? series[hoveredIndex] : null;
 
   /**
-   * Clamps the tooltip horizontally so it never overflows the chart edges on any screen size.
+   * Always projects the tooltip towards the side furthest from the chart edge:
+   * - If ratio >= 0.5 (closer to right edge), reflects to the LEFT (-translate-x-full).
+   * - If ratio < 0.5 (closer to left edge), reflects to the RIGHT (translate-x-0).
    */
   const ratio = series.length > 1 && hoveredIndex >= 0 ? hoveredIndex / (series.length - 1) : 0.5;
-  const tooltipTranslate =
-    ratio > 0.65
-      ? "-translate-x-full"
-      : ratio < 0.35
-        ? "translate-x-0"
-        : "-translate-x-1/2";
+  const tooltipTranslate = ratio >= 0.5 ? "-translate-x-full" : "translate-x-0";
 
   const slot = series.length > 0 ? 400 / series.length : 0;
   const barWidth = Math.max(3, slot * 0.72);
