@@ -68,13 +68,13 @@ describe("CategoryStackedChart (daily stacked by category)", () => {
     render(<CategoryStackedChart data={data} days={days} />);
     const bars = screen.getAllByTestId("category-daily-bar");
 
-    // First day (left side) → projects to the right (translate-x-0).
+    // First day (left side) → projects to the right with gap (translate-x-3).
     fireEvent.mouseEnter(bars[0]);
-    expect(screen.getByTestId("category-tooltip").className).toContain("translate-x-0");
+    expect(screen.getByTestId("category-tooltip").className).toContain("translate-x-3");
 
-    // Last day (right side) → projects to the left (-translate-x-full).
+    // Last day (right side) → projects to the left with gap (-translate-x-[calc(100%+12px)]).
     fireEvent.mouseEnter(bars[bars.length - 1]);
-    expect(screen.getByTestId("category-tooltip").className).toContain("-translate-x-full");
+    expect(screen.getByTestId("category-tooltip").className).toContain("-translate-x-[calc(100%+12px)]");
   });
 });
 
