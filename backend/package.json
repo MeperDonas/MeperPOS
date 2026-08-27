@@ -20,6 +20,8 @@
     "test:debug": "dotenv -e .env.development -- node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "dotenv -e .env.development -- jest --config ./test/jest-e2e.json",
     "seed": "dotenv -e .env.development -- ts-node prisma/seed.ts",
+    "seed:org": "dotenv -e .env.development -- ts-node prisma/seed-org.ts",
+    "seed:org:prod": "set SEED_ALLOW_NON_DEV=true&&dotenv -e .env.production -- ts-node prisma/seed-org.ts",
     "migrate:dev": "dotenv -e .env.development -- npx prisma migrate dev",
     "migrate:prod": "dotenv -e .env.production -- npx prisma migrate deploy",
     "studio": "dotenv -e .env.development -- npx prisma studio"
