@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpStatus,
+  NotFoundException,
   Param,
   ParseFilePipeBuilder,
   Post,
@@ -16,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -29,7 +31,12 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { ImportsService } from './imports.service';
-import { RetryImportRowDto } from './dto/import.dto';
+import { MultiSheetImportService } from './multi-sheet-import.service';
+import { TemplateService } from './template.service';
+import {
+  RetryImportRowDto,
+  ImportJobStatusResponseDto,
+} from './dto/import.dto';
 
 @ApiTags('Imports')
 @Controller('imports')
@@ -37,7 +44,11 @@ import { RetryImportRowDto } from './dto/import.dto';
 @UseInterceptors(AdminOrganizationInterceptor)
 @ApiBearerAuth()
 export class ImportsController {
-  constructor(private readonly importsService: ImportsService) {}
+  constructor(
+    private readonly importsService: ImportsService,
+    private readonly multiSheetImportService: MultiSheetImportService,
+    private readonly templateService: TemplateService,
+  ) {}
 
   @Get('products/template')
   @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
@@ -82,24 +93,98 @@ export class ImportsController {
     );
   }
 
+  @Get('full-template')
+  @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
+  @ApiOperation({ summary: 'Download multi-sheet import template' })
+  async downloadFullTemplate(@Res() res: any): Promise<void> {
+    return this.templateService.downloadTemplate(res);
+  }
+
+  @Post('full')
+  @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Upload multi-sheet Excel file (.xlsx)' })
+  async startFullImport(
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addMaxSizeValidator({ maxSize: 5 * 1024 * 1024 })
+        .build({
+          fileIsRequired: true,
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    file: Express.Multer.File,
+    @CurrentUser() user: RequestUser,
+  ): Promise<any> {
+    return this.multiSheetImportService.startFullImport(
+      file,
+      user.userId,
+      user.organizationId,
+    );
+  }
+
   @Get(':jobId/status')
   @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
+  @ApiOkResponse({ type: ImportJobStatusResponseDto })
   @ApiOperation({ summary: 'Get import job status for polling' })
   getImportStatus(
     @Param('jobId') jobId: string,
     @Request() req: { user: { userId: string } },
   ): any {
-    return this.importsService.getImportStatus(jobId, req.user.userId);
+    const userId = req.user.userId;
+    try {
+      return this.importsService.getImportStatus(jobId, userId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        return this.multiSheetImportService.getImportStatus(jobId, userId);
+      }
+      throw error;
+    }
   }
 
   @Post(':jobId/retry-row')
   @Roles(OrgRole.ADMIN, OrgRole.CASHIER)
+  @ApiOkResponse({ type: ImportJobStatusResponseDto })
   @ApiOperation({ summary: 'Retry a failed row with corrected data' })
-  retryImportRow(
+  async retryImportRow(
     @Param('jobId') jobId: string,
     @Body() dto: RetryImportRowDto,
     @Request() req: { user: { userId: string } },
   ): Promise<any> {
-    return this.importsService.retryImportRow(jobId, req.user.userId, dto);
+    const userId = req.user.userId;
+
+    if (dto.sheetId && dto.sheetId !== 'productos') {
+      return this.multiSheetImportService.retryImportRow(jobId, userId, {
+        rowIndex: dto.rowIndex,
+        sheetId: dto.sheetId,
+        correctedData: dto.correctedData,
+      });
+    }
+
+    try {
+      return this.importsService.retryImportRow(jobId, userId, dto);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        return this.multiSheetImportService.retryImportRow(jobId, userId, {
+          rowIndex: dto.rowIndex,
+          sheetId: dto.sheetId ?? 'productos',
+          correctedData: dto.correctedData,
+        });
+      }
+      throw error;
+    }
   }
 }
