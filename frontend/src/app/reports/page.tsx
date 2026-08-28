@@ -214,9 +214,27 @@ export default function ReportsPage() {
     <DashboardLayout>
       <div className="space-y-5 lg:space-y-7">
         <header>
-          <div className="flex items-center gap-3"><div className="h-7 w-1 rounded-full bg-primary" /><h1 className="text-2xl font-bold text-foreground lg:text-3xl">Reportes</h1></div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3"><div className="h-7 w-1 rounded-full bg-primary" /><h1 className="text-2xl font-bold text-foreground lg:text-3xl">Reportes</h1></div>
+            <Button variant="ghost" size="sm" onClick={() => setShowExportSection((current) => !current)} className="shrink-0">
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />
+              {showExportSection ? "Ocultar exportación" : "Exportar"}
+            </Button>
+          </div>
           <p className="ml-4 mt-1 text-sm text-muted-foreground">Así va tu negocio</p>
         </header>
+
+        {showExportSection && (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-background/40 p-4">
+            <div className="flex-1 text-xs text-muted-foreground">
+              Genera el paquete económico del período{" "}
+              <span className="font-mono font-bold text-foreground">({startDate} → {endDate})</span>.
+            </div>
+            <Button onClick={handleEconomicExport} loading={showExporting}>
+              <Download className="h-4 w-4" aria-hidden="true" /> Exportar economía
+            </Button>
+          </div>
+        )}
 
         <section className="overflow-hidden rounded-3xl border border-primary/30 bg-primary/10" aria-label="Filtros de período">
           <div className="flex flex-wrap items-center gap-2 border-b border-primary/20 bg-primary/5 px-4 py-3"><Calendar className="h-4 w-4 text-primary" aria-hidden="true" /><span className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Período</span><Button variant="secondary" size="sm" onClick={setToday}>Hoy</Button><Button variant="secondary" size="sm" onClick={setLast30Days}>Últimos 30 días</Button>{(startDate || endDate) && <Button variant="ghost" size="sm" onClick={() => { setStartDate(""); setEndDate(""); }}>Limpiar</Button>}</div>
@@ -296,7 +314,6 @@ export default function ReportsPage() {
           <SectionShell title="Métodos de Pago" icon={Receipt}>{paymentMethods.isLoading ? <div aria-busy="true"><LoadingState icon={<Receipt className="h-4 w-4 text-primary/50" />} message="Cargando pagos..." /></div> : paymentMethods.error ? <ErrorState message={getApiErrorMessage(paymentMethods.error, "No se pudieron cargar pagos")} /> : operationalPaymentMethods.length === 0 ? <OperationalEmpty label="métodos de pago" /> : <div className="space-y-2">{operationalPaymentMethods.map((method) => <div key={method.paymentMethod} className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/40 p-3 transition-all hover:border-primary/30 hover:bg-primary/5"><div className="flex items-center gap-3"><span className="inline-flex h-2 w-2 shrink-0 rounded-full bg-primary" /><span className="text-sm font-medium text-foreground">{formatPaymentMethod(method.paymentMethod)}</span></div><span className="font-mono text-sm font-bold text-primary">{formatCurrency(method.total)}</span></div>)}</div>}</SectionShell>
         </div></div>
 
-        <SectionShell title="Exportación económica" icon={Download}><div className="flex flex-wrap items-center justify-between gap-3"><p className="max-w-xl text-sm text-muted-foreground">Descarga un único paquete con economía, caja e inventario actual para el período seleccionado.</p><Button variant="ghost" onClick={() => setShowExportSection((current) => !current)} className="w-full sm:w-auto shrink-0"><Download className="h-4 w-4" aria-hidden="true" /> {showExportSection ? "Ocultar exportación" : "Exportar economía"}</Button></div>{showExportSection && <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-background/40 p-4"><div className="flex-1 text-xs text-muted-foreground">Genera el paquete económico del período <span className="font-mono font-bold text-foreground">({startDate} → {endDate})</span>.</div><Button onClick={handleEconomicExport} loading={showExporting}><Download className="h-4 w-4" aria-hidden="true" /> Exportar economía</Button></div>}</SectionShell>
       </div>
     </DashboardLayout>
   );
