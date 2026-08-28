@@ -25,7 +25,6 @@ import {
   ClipboardList,
   Truck,
   Wallet,
-  FileSpreadsheet,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
@@ -70,12 +69,6 @@ const navItems: NavItem[] = [
     href: "/inventory",
     icon: <Package className="w-4 h-4" />,
     roles: ["ADMIN", "CASHIER", "INVENTORY_USER"],
-  },
-  {
-    label: "Importar",
-    href: "/imports",
-    icon: <FileSpreadsheet className="w-4 h-4" />,
-    roles: ["ADMIN", "CASHIER"],
   },
   {
     label: "Categorías",

@@ -1,5 +1,6 @@
 import {
   Building2,
+  Database,
   Receipt,
   UsersRound,
   type LucideIcon,
@@ -30,5 +31,11 @@ export const settingsSections: SettingsSection[] = [
     label: "Equipo y acceso",
     href: "/settings/team",
     icon: UsersRound,
+  },
+  {
+    key: "data",
+    label: "Importar datos",
+    href: "/settings/data",
+    icon: Database,
   },
 ];

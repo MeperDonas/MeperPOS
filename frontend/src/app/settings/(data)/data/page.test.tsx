@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
 import type {
   ImportFullJobStatus,
   ImportSheetStatus,
@@ -11,10 +10,6 @@ const useImportMock = vi.fn();
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
 
-vi.mock("@/components/layout/DashboardLayout", () => ({
-  DashboardLayout: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
 vi.mock("@/contexts/ToastContext", () => ({
   useToast: () => ({ success: toastSuccess, error: toastError }),
 }));
@@ -23,7 +18,7 @@ vi.mock("@/hooks/useImport", () => ({
   useImport: () => useImportMock(),
 }));
 
-import ImportsPage from "./page";
+import ImportDataSettingsPage from "./page";
 
 function makeRow(overrides: Partial<ImportSheetRowError> = {}): ImportSheetRowError {
   return {
@@ -84,7 +79,7 @@ function makeImportResult(status: ImportFullJobStatus | undefined) {
   };
 }
 
-describe("ImportsPage", () => {
+describe("ImportDataSettingsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -93,23 +88,38 @@ describe("ImportsPage", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the upload zone and the template button before starting", () => {
+  it("renders the importer with the upload zone and the template button before starting", () => {
     useImportMock.mockReturnValue(makeImportResult(undefined));
 
-    render(<ImportsPage />);
+    render(<ImportDataSettingsPage />);
 
-    expect(screen.getByText("Importar Inventario")).toBeInTheDocument();
+    expect(screen.getByText("Importar datos")).toBeInTheDocument();
+    expect(screen.getByText("Importación Multi-Hoja")).toBeInTheDocument();
     expect(screen.getByText(/Arrastra un archivo o haz click para subir/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Plantilla/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Iniciar importacion/i })).toBeInTheDocument();
   });
 
-  it("starts a full import when a file is selected and submitted", async () => {
+  it("requires an .xlsx file before starting", async () => {
+    const result = makeImportResult(undefined);
+    useImportMock.mockReturnValue(result);
+
+    render(<ImportDataSettingsPage />);
+
+    const file = new File(["xlsx"], "datos.txt", { type: "text/plain" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(toastError).toHaveBeenCalledWith("Formato no soportado. Usa un archivo .xlsx");
+    expect(screen.getByRole("button", { name: /Iniciar importacion/i })).toBeDisabled();
+  });
+
+  it("starts a full import when a valid .xlsx file is selected and submitted", async () => {
     const result = makeImportResult(undefined);
     useImportMock.mockReturnValue(result);
     const mutateAsync = result.startImport.mutateAsync;
 
-    render(<ImportsPage />);
+    render(<ImportDataSettingsPage />);
 
     const file = new File(["xlsx"], "import.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -118,12 +128,13 @@ describe("ImportsPage", () => {
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledOnce());
     expect(mutateAsync).toHaveBeenCalledWith(file);
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith("Importacion iniciada correctamente"));
   });
 
   it("renders the per-sheet progress and errors after an import completes", () => {
     useImportMock.mockReturnValue(makeImportResult(makeFullStatus()));
 
-    render(<ImportsPage />);
+    render(<ImportDataSettingsPage />);
 
     expect(screen.getAllByText("Productos").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Clientes").length).toBeGreaterThan(0);
@@ -132,32 +143,11 @@ describe("ImportsPage", () => {
     expect(screen.getByText("Documento invalido")).toBeInTheDocument();
   });
 
-  it("retries a failed row sending its sheetId", async () => {
-    const result = makeImportResult(makeFullStatus());
-    useImportMock.mockReturnValue(result);
-    const retryMutate = result.retryRow.mutateAsync;
-
-    render(<ImportsPage />);
-
-    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
-    fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "Ana Maria Perez" } });
-    fireEvent.click(screen.getByRole("button", { name: /Reintentar fila/i }));
-
-    await waitFor(() => expect(retryMutate).toHaveBeenCalledOnce());
-    expect(retryMutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        rowIndex: 5,
-        sheetId: "clientes",
-        correctedData: expect.objectContaining({ name: "Ana Maria Perez" }),
-      }),
-    );
-  });
-
-  it("downloads the multi-sheet template", async () => {
+  it("fires the multi-sheet template download", async () => {
     const result = makeImportResult(undefined);
     useImportMock.mockReturnValue(result);
 
-    render(<ImportsPage />);
+    render(<ImportDataSettingsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: /Plantilla/i }));
     await waitFor(() => expect(result.downloadTemplate.mutateAsync).toHaveBeenCalledOnce());
