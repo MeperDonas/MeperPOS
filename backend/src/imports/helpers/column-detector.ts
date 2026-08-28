@@ -1,3 +1,5 @@
+import type { SheetId } from '../engine/import-sheet-handler.interface';
+
 export type ImportFieldKey =
   | 'name'
   | 'sku'
@@ -9,6 +11,14 @@ export type ImportFieldKey =
   | 'minStock'
   | 'taxRate'
   | 'description';
+
+/** Result of {@link detectColumns} for a single entity sheet. */
+export interface SheetColumnDetectionResult {
+  sheetId: SheetId;
+  detectedColumns: string[];
+  mapping: Record<string, string>;
+  missingRequiredFields: string[];
+}
 
 export type ColumnMapping = Partial<Record<ImportFieldKey, string>>;
 
@@ -121,5 +131,107 @@ export function detectColumnMapping(headers: string[]): ColumnDetectionResult {
     mapping,
     missingRequiredFields,
     usesGenericPriceColumn,
+  };
+}
+
+/** Fields that must be present on each sheet for it to be importable. */
+export const SHEET_REQUIRED_FIELDS: Record<SheetId, string[]> = {
+  productos: ['name', 'salePrice', 'stock'],
+  clientes: ['name', 'documentType', 'documentNumber'],
+  proveedores: ['name', 'documentNumber'],
+  usuarios: ['email', 'password'],
+};
+
+/**
+ * Per-entity column alias tables, keyed by import field name and normalized
+ * via {@link normalizeHeader}. The Productos table reuses the existing
+ * product-only aliases so both code paths share one source of truth.
+ */
+export const SHEET_COLUMN_ALIASES: Record<SheetId, Record<string, string[]>> = {
+  productos: COLUMN_ALIASES,
+  clientes: {
+    name: ['nombre', 'name', 'cliente', 'customer', 'nombre_cliente'],
+    documentType: [
+      'tipo_documento',
+      'document_type',
+      'tipo_doc',
+      'tipo_de_documento',
+      'documenttype',
+    ],
+    documentNumber: [
+      'documento',
+      'document_number',
+      'numero_documento',
+      'cedula',
+      'documento_identidad',
+      'num_documento',
+      'nit',
+    ],
+    email: ['email', 'correo', 'correo_electronico', 'mail'],
+    phone: ['telefono', 'phone', 'celular', 'movil'],
+    segment: ['segmento', 'segment', 'tipo_cliente'],
+  },
+  proveedores: {
+    name: ['nombre', 'name', 'proveedor', 'supplier', 'razon_social'],
+    documentNumber: [
+      'documento',
+      'document_number',
+      'nit',
+      'nit_number',
+      'numero_documento',
+      'cedula',
+      'ruc',
+      'cuit',
+    ],
+    email: ['email', 'correo', 'correo_electronico', 'mail'],
+    phone: ['telefono', 'phone', 'celular', 'movil'],
+    accountType: [
+      'tipo_cuenta',
+      'account_type',
+      'tipo_de_cuenta',
+      'accounttype',
+    ],
+  },
+  usuarios: {
+    email: ['email', 'correo', 'correo_electronico', 'mail'],
+    password: ['password', 'contrasena', 'clave', 'pass'],
+    name: ['nombre', 'name', 'usuario', 'user', 'nombres'],
+    role: ['rol', 'role', 'perfil'],
+  },
+};
+
+/**
+ * Detects the column mapping for a single entity sheet, returning the minimum
+ * set of import fields that are missing so the sheet can be rejected (or
+ * repaired) before any row is processed.
+ */
+export function detectColumns(
+  sheetId: SheetId,
+  headers: string[],
+): SheetColumnDetectionResult {
+  const detectedColumns = headers.filter((header) => header.trim().length > 0);
+  const normalizedHeaders = detectedColumns.map(normalizeHeader);
+  const aliases = SHEET_COLUMN_ALIASES[sheetId] ?? {};
+  const mapping: Record<string, string> = {};
+
+  for (const [field, fieldAliases] of Object.entries(aliases)) {
+    const matchedIndex = normalizedHeaders.findIndex((header) =>
+      fieldAliases.includes(header),
+    );
+
+    if (matchedIndex >= 0) {
+      mapping[field] = detectedColumns[matchedIndex];
+    }
+  }
+
+  const missingRequiredFields = (SHEET_REQUIRED_FIELDS[sheetId] ?? []).filter(
+    (field) => !mapping[field],
+  );
+
+  return {
+    sheetId,
+    detectedColumns,
+    mapping,
+    missingRequiredFields,
   };
 }
