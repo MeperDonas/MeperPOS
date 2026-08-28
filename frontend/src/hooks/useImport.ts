@@ -25,8 +25,8 @@ export type RetryRowPayload = {
  * Pass `{ mode: "full" }` to use `POST /imports/full`, the sheet-aware
  * `/imports/:jobId/status` and `/imports/:jobId/retry-row` (sending `sheetId`),
  * and `GET /imports/full-template`. The default `"products"` mode preserves the
- * legacy product-import endpoints and query keys, so the existing
- * `ImportSection` keeps working unchanged.
+ * legacy product-import endpoints and query keys (the product-only UI was
+ * folded into the multi-sheet importer, which now lives under `/settings`).
  */
 export function useImport<TMode extends ImportMode = "products">(
   options: { mode?: TMode } = {},
