@@ -235,3 +235,25 @@ export function detectColumns(
     missingRequiredFields,
   };
 }
+
+/**
+ * Re-maps a raw worksheet row's header-keyed cells into the field-keyed object
+ * the per-entity handlers expect, using the alias detection for `sheetId`.
+ *
+ * Cell values are left as their raw strings; field-level parsing and
+ * normalization are owned by each entity's validator/parser so the helpers here
+ * stay purely about column mapping.
+ */
+export function mapRawRow(
+  sheetId: SheetId,
+  rawData: Record<string, string>,
+): Record<string, unknown> {
+  const { mapping } = detectColumns(sheetId, Object.keys(rawData));
+  const mapped: Record<string, unknown> = {};
+
+  for (const [field, header] of Object.entries(mapping)) {
+    mapped[field] = rawData[header];
+  }
+
+  return mapped;
+}
