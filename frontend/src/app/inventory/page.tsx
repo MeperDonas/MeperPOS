@@ -25,13 +25,11 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { ProductCard } from "@/components/products/ProductCard";
-import { ImportSection } from "@/components/reports/ImportSection";
 import {
   Plus,
   AlertTriangle,
   Package,
   SlidersHorizontal,
-  Upload,
   X,
 } from "lucide-react";
 import type { Product } from "@/types";
@@ -56,7 +54,6 @@ export default function InventoryPage() {
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [showReactivateModal, setShowReactivateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showImporter, setShowImporter] = useState(false);
   const [productToDeactivate, setProductToDeactivate] = useState<string | null>(
     null,
   );
@@ -388,16 +385,10 @@ export default function InventoryPage() {
             </p>
           </div>
           {canManageInventory && (
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-              <Button variant="ghost" onClick={() => setShowImporter((current) => !current)} className="w-full sm:w-auto shrink-0">
-                <Upload className="w-4 h-4" />
-                {showImporter ? "Ocultar importador" : "Importar productos"}
-              </Button>
-              <Button onClick={handleCreate} className="w-full sm:w-auto shrink-0">
-                <Plus className="w-4 h-4" />
-                Nuevo Producto
-              </Button>
-            </div>
+            <Button onClick={handleCreate} className="w-full sm:w-auto shrink-0">
+              <Plus className="w-4 h-4" />
+              Nuevo Producto
+            </Button>
           )}
         </div>
 
@@ -501,8 +492,6 @@ export default function InventoryPage() {
             ) : undefined
           }
         />
-
-        {canManageInventory && showImporter && <ImportSection />}
 
         {/* Low stock alert */}
         {/* {lowStockProducts.length > 0 &&
