@@ -34,7 +34,7 @@ export const settingsSections: SettingsSection[] = [
   },
   {
     key: "data",
-    label: "Importar datos",
+    label: "Importar y exportar datos",
     href: "/settings/data",
     icon: Database,
   },

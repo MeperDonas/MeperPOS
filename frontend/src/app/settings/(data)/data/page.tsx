@@ -7,17 +7,143 @@ import { ImportSheetProgress } from "@/components/imports/ImportSheetProgress";
 import { ImportSheetErrors } from "@/components/imports/ImportSheetErrors";
 import { useImport } from "@/hooks/useImport";
 import { useToast } from "@/contexts/ToastContext";
-import { getApiErrorMessage } from "@/lib/api";
+import { api, getApiErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { BentoSelect } from "@/components/ui/BentoSelect";
+import { Input } from "@/components/ui/Input";
 import { SettingsCard } from "../../_components/SettingsCard";
 import {
   CheckCircle2,
   Database,
+  Download,
   FileSpreadsheet,
   RefreshCcw,
 } from "lucide-react";
 import type { ImportSheetRowError } from "@/types";
+
+interface ExportTileDefinition {
+  type: string;
+  title: string;
+  description: string;
+  hasDates: boolean;
+}
+
+const EXPORT_TILES: ExportTileDefinition[] = [
+  {
+    type: "products",
+    title: "Productos",
+    description: "Exporta el catálogo de productos y su stock.",
+    hasDates: false,
+  },
+  {
+    type: "sales",
+    title: "Ventas",
+    description: "Exporta las ventas del período seleccionado.",
+    hasDates: true,
+  },
+  {
+    type: "customers",
+    title: "Clientes",
+    description: "Exporta la cartera de clientes registrados.",
+    hasDates: false,
+  },
+  {
+    type: "inventory",
+    title: "Movimientos",
+    description: "Exporta los movimientos de inventario del período.",
+    hasDates: true,
+  },
+  {
+    type: "expenses",
+    title: "Gastos",
+    description: "Exporta los gastos registrados en el negocio.",
+    hasDates: false,
+  },
+  {
+    type: "economic",
+    title: "Económico",
+    description: "Exporta el reporte económico consolidado del período.",
+    hasDates: true,
+  },
+];
+
+const EXPORT_FORMATS: Array<{ value: "excel" | "csv"; label: string }> = [
+  { value: "excel", label: "Excel" },
+  { value: "csv", label: "CSV" },
+];
+
+function ExportTile({ type, title, description, hasDates }: ExportTileDefinition) {
+  const toast = useToast();
+  const [format, setFormat] = useState<"excel" | "csv">("excel");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await api.exportData(`/exports/${type}`, {
+        format,
+        type,
+        ...(startDate && { startDate }),
+        ...(endDate && { endDate }),
+      });
+      toast.success("Exportación generada correctamente");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "No se pudo generar la exportación"));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div
+      data-testid={`export-tile-${type}`}
+      className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4"
+    >
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+      </div>
+
+      <BentoSelect
+        value={format}
+        onChange={(value) => setFormat(value as "excel" | "csv")}
+        placeholder="Formato de exportación"
+        options={EXPORT_FORMATS}
+      />
+
+      {hasDates && (
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            type="date"
+            label="Desde"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+          <Input
+            type="date"
+            label="Hasta"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
+        </div>
+      )}
+
+      <Button
+        variant="secondary"
+        size="sm"
+        type="button"
+        onClick={handleExport}
+        loading={exporting}
+        className="w-full shrink-0"
+      >
+        <Download className="w-3.5 h-3.5" aria-hidden="true" /> Exportar
+      </Button>
+    </div>
+  );
+}
 
 export default function ImportDataSettingsPage() {
   const toast = useToast();
@@ -31,6 +157,7 @@ export default function ImportDataSettingsPage() {
   } = useImport({ mode: "full" });
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showExportSection, setShowExportSection] = useState(false);
 
   const status = statusQuery.data;
   const hasStarted = !!startData;
@@ -94,7 +221,7 @@ export default function ImportDataSettingsPage() {
     <div className="space-y-5">
       <div className="flex items-center gap-3 mb-5">
         <div className="w-1 h-6 rounded-full bg-primary shrink-0" />
-        <h2 className="text-xl font-bold text-foreground">Importar datos</h2>
+        <h2 className="text-xl font-bold text-foreground">Importar y exportar datos</h2>
       </div>
 
       <SettingsCard
@@ -200,6 +327,38 @@ export default function ImportDataSettingsPage() {
               Usuarios. Descarga la plantilla para conocer las columnas requeridas.
             </span>
           </div>
+        </div>
+      </SettingsCard>
+
+      <SettingsCard
+        title="Exportar datos"
+        description="Descarga los datos del negocio en formato Excel o CSV"
+        icon={<Download className="w-4 h-4 text-primary" />}
+      >
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="max-w-xl text-sm text-muted-foreground">
+              Exporta productos, ventas, clientes, movimientos, gastos y el reporte
+              económico consolidado.
+            </p>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setShowExportSection((current) => !current)}
+              className="w-full sm:w-auto shrink-0"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              {showExportSection ? "Ocultar exportación" : "Exportar datos"}
+            </Button>
+          </div>
+
+          {showExportSection && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {EXPORT_TILES.map((tile) => (
+                <ExportTile key={tile.type} {...tile} />
+              ))}
+            </div>
+          )}
         </div>
       </SettingsCard>
     </div>

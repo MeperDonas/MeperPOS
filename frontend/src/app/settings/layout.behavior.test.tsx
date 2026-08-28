@@ -48,7 +48,7 @@ describe("settings sub-sidebar layout", () => {
     expect(
       screen.getByRole("link", { name: "Equipo y acceso" })
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Importar datos" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Importar y exportar datos" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Avanzado" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Facturación" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Localización" })).not.toBeInTheDocument();
