@@ -12,6 +12,11 @@ import * as ExcelJS from 'exceljs';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProductsService } from '../products/products.service';
 import type { RetryImportRowDto } from './dto/import.dto';
+import type {
+  SheetId,
+  ImportSheetStatus,
+} from './engine/import-sheet-handler.interface';
+import { parseProductRow } from './engine/handlers/product.handler';
 import {
   detectColumnMapping,
   type ColumnMapping,
@@ -21,8 +26,6 @@ import {
   normalizeCategoryName,
   normalizeLookupKey,
   normalizeText,
-  parseDecimal,
-  parseInteger,
   toTitleCase,
   type ParsedImportRowData,
 } from './helpers/row-validator';
@@ -45,6 +48,7 @@ interface ImportEvent {
 
 interface ImportRowError {
   rowIndex: number;
+  sheetId: SheetId;
   rawData: Record<string, string>;
   mappedData: Record<string, unknown>;
   errorCode: string;
@@ -137,7 +141,9 @@ export class ImportsService implements OnModuleDestroy {
     organizationId: string | undefined,
   ) {
     if (!organizationId) {
-      throw new BadRequestException('Organization ID is required for this operation');
+      throw new BadRequestException(
+        'Organization ID is required for this operation',
+      );
     }
     this.validateIncomingFile(file);
 
@@ -571,159 +577,33 @@ export class ImportsService implements OnModuleDestroy {
         kind: 'ok';
         data: ParsedImportRowData;
       } {
-    const getValue = (field: keyof ColumnMapping) => {
-      const header = job.columnMapping[field];
-      if (!header) {
-        return '';
+    const mapped: Record<string, unknown> = {};
+    for (const [field, header] of Object.entries(job.columnMapping)) {
+      if (header) {
+        mapped[field] = row.rawData[header];
       }
-      return normalizeText(row.rawData[header]);
-    };
+    }
 
-    const mappedData: Record<string, unknown> = {
-      name: getValue('name'),
-      sku: getValue('sku'),
-      barcode: getValue('barcode'),
-      category: getValue('category') || 'General',
-      salePrice: getValue('salePrice'),
-      costPrice: getValue('costPrice'),
-      stock: getValue('stock'),
-      minStock: getValue('minStock'),
-      taxRate: getValue('taxRate'),
-      description: getValue('description'),
-    };
-
-    const name = normalizeText(mappedData.name);
-    if (!name) {
+    // Preserve the product-only skip-on-empty-name behavior: rows without a
+    // product name are skipped, not reported as errors. Everything else is
+    // delegated to the extracted product handler parser so both code paths
+    // share one source of product import semantics.
+    if (!normalizeText(mapped.name)) {
       return { kind: 'skip' };
     }
 
-    let sku = normalizeText(mappedData.sku);
-    if (!sku) {
-      sku = buildGeneratedSku(row.rowIndex - 1);
-    }
-
-    const salePrice = parseDecimal(mappedData.salePrice);
-    if (salePrice === null || salePrice <= 0) {
+    const parsed = parseProductRow(mapped, row.rowIndex);
+    if (parsed.kind === 'error') {
       return {
         kind: 'error',
-        errorCode: 'INVALID_PRICE',
-        message: 'Precio de venta invalido',
-        field: 'salePrice',
-        mappedData: {
-          ...mappedData,
-          sku,
-          name,
-        },
+        errorCode: parsed.errorCode,
+        message: parsed.message,
+        field: parsed.field,
+        mappedData: parsed.mappedData,
       };
     }
 
-    const stock = parseInteger(mappedData.stock);
-    if (stock === null || stock < 0) {
-      return {
-        kind: 'error',
-        errorCode: 'INVALID_STOCK',
-        message: 'Stock invalido. Debe ser un numero entero mayor o igual a 0',
-        field: 'stock',
-        mappedData: {
-          ...mappedData,
-          sku,
-          name,
-          salePrice,
-        },
-      };
-    }
-
-    const rawCostPrice = normalizeText(mappedData.costPrice);
-    let costInferred = false;
-    let costPrice = parseDecimal(rawCostPrice);
-
-    if (!rawCostPrice) {
-      costInferred = true;
-      costPrice = salePrice;
-    }
-
-    if (costPrice === null || costPrice < 0) {
-      return {
-        kind: 'error',
-        errorCode: 'INVALID_COST_PRICE',
-        message: 'Precio de costo invalido',
-        field: 'costPrice',
-        mappedData: {
-          ...mappedData,
-          sku,
-          name,
-          salePrice,
-          stock,
-        },
-      };
-    }
-
-    const minStockRaw = normalizeText(mappedData.minStock);
-    let minStock = parseInteger(minStockRaw);
-    if (!minStockRaw) {
-      minStock = 0;
-    }
-
-    if (minStock === null || minStock < 0) {
-      return {
-        kind: 'error',
-        errorCode: 'INVALID_MIN_STOCK',
-        message:
-          'Stock minimo invalido. Debe ser un numero entero mayor o igual a 0',
-        field: 'minStock',
-        mappedData: {
-          ...mappedData,
-          sku,
-          name,
-          salePrice,
-          stock,
-          costPrice,
-        },
-      };
-    }
-
-    const taxRateRaw = normalizeText(mappedData.taxRate);
-    const taxRateProvided = taxRateRaw.length > 0;
-    let taxRate = parseDecimal(taxRateRaw);
-    if (!taxRateProvided) {
-      taxRate = 0;
-    }
-
-    if (taxRate === null || taxRate < 0) {
-      return {
-        kind: 'error',
-        errorCode: 'INVALID_TAX_RATE',
-        message: 'Impuesto invalido',
-        field: 'taxRate',
-        mappedData: {
-          ...mappedData,
-          sku,
-          name,
-          salePrice,
-          stock,
-          costPrice,
-          minStock,
-        },
-      };
-    }
-
-    return {
-      kind: 'ok',
-      data: {
-        name,
-        sku,
-        barcode: normalizeText(mappedData.barcode) || undefined,
-        category: normalizeText(mappedData.category) || 'General',
-        salePrice,
-        costPrice,
-        stock,
-        minStock,
-        taxRate,
-        taxRateProvided,
-        description: normalizeText(mappedData.description) || undefined,
-        costInferred,
-      },
-    };
+    return { kind: 'ok', data: parsed.data };
   }
 
   private parseMappedDataForRetry(
@@ -767,101 +647,20 @@ export class ImportsService implements OnModuleDestroy {
       };
     }
 
-    const salePrice = parseDecimal(mappedData.salePrice);
-    if (salePrice === null || salePrice <= 0) {
+    // Delegate the rest of the row validation to the extracted product handler
+    // parser so the retry path reuses the exact same product semantics.
+    const parsed = parseProductRow(mappedData, rowIndex);
+    if (parsed.kind === 'error') {
       return {
         kind: 'error',
-        errorCode: 'INVALID_PRICE',
-        message: 'Precio de venta invalido',
-        field: 'salePrice',
-        mappedData,
+        errorCode: parsed.errorCode,
+        message: parsed.message,
+        field: parsed.field,
+        mappedData: parsed.mappedData,
       };
     }
 
-    const stock = parseInteger(mappedData.stock);
-    if (stock === null || stock < 0) {
-      return {
-        kind: 'error',
-        errorCode: 'INVALID_STOCK',
-        message: 'Stock invalido. Debe ser un numero entero mayor o igual a 0',
-        field: 'stock',
-        mappedData,
-      };
-    }
-
-    const rawCostPrice = normalizeText(mappedData.costPrice);
-    let costInferred = false;
-    let costPrice = parseDecimal(rawCostPrice);
-
-    if (!rawCostPrice) {
-      costInferred = true;
-      costPrice = salePrice;
-    }
-
-    if (costPrice === null || costPrice < 0) {
-      return {
-        kind: 'error',
-        errorCode: 'INVALID_COST_PRICE',
-        message: 'Precio de costo invalido',
-        field: 'costPrice',
-        mappedData,
-      };
-    }
-
-    const minStockRaw = normalizeText(mappedData.minStock);
-    let minStock = parseInteger(minStockRaw);
-    if (!minStockRaw) {
-      minStock = 0;
-    }
-
-    if (minStock === null || minStock < 0) {
-      return {
-        kind: 'error',
-        errorCode: 'INVALID_MIN_STOCK',
-        message:
-          'Stock minimo invalido. Debe ser un numero entero mayor o igual a 0',
-        field: 'minStock',
-        mappedData,
-      };
-    }
-
-    const taxRateRaw = normalizeText(mappedData.taxRate);
-    const taxRateProvided =
-      source.taxRate !== undefined &&
-      source.taxRate !== null &&
-      taxRateRaw.length > 0;
-    let taxRate = parseDecimal(taxRateRaw);
-    if (!taxRateProvided) {
-      taxRate = 0;
-    }
-
-    if (taxRate === null || taxRate < 0) {
-      return {
-        kind: 'error',
-        errorCode: 'INVALID_TAX_RATE',
-        message: 'Impuesto invalido',
-        field: 'taxRate',
-        mappedData,
-      };
-    }
-
-    return {
-      kind: 'ok',
-      data: {
-        name,
-        sku: normalizeText(mappedData.sku),
-        barcode: normalizeText(mappedData.barcode) || undefined,
-        category: normalizeText(mappedData.category) || 'General',
-        salePrice,
-        costPrice,
-        stock,
-        minStock,
-        taxRate,
-        taxRateProvided,
-        description: normalizeText(mappedData.description) || undefined,
-        costInferred,
-      },
-    };
+    return { kind: 'ok', data: parsed.data };
   }
 
   private async validateDuplicateInDatabase(
@@ -1087,6 +886,7 @@ export class ImportsService implements OnModuleDestroy {
 
     job.errors.push({
       rowIndex,
+      sheetId: 'productos',
       rawData,
       mappedData: data.mappedData ?? {},
       errorCode,
@@ -1140,6 +940,22 @@ export class ImportsService implements OnModuleDestroy {
   }
 
   private buildStatusResponse(job: ImportJobInternal) {
+    const productSheet: ImportSheetStatus = {
+      sheetId: 'productos',
+      status:
+        job.status === 'PARSING'
+          ? 'PENDING'
+          : job.status === 'PROCESSING'
+            ? 'PROCESSING'
+            : job.status,
+      totalRows: job.totalRows,
+      processedRows: job.processedRows,
+      imported: job.importedCount,
+      skipped: job.skippedCount,
+      errors: job.errorCount,
+      warnings: job.warningCount,
+    };
+
     return {
       jobId: job.id,
       status: job.status,
@@ -1152,6 +968,7 @@ export class ImportsService implements OnModuleDestroy {
       warningCount: job.warningCount,
       columnMapping: job.columnMapping,
       detectedColumns: job.detectedColumns,
+      sheets: [productSheet],
       errors: job.errors,
       warnings: job.warnings,
       recentEvents: job.recentEvents,
