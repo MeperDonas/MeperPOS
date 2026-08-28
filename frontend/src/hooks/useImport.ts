@@ -3,17 +3,43 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { ImportJobStatus, ImportStartResponse } from "@/types";
+import type { UseQueryResult } from "@tanstack/react-query";
+import type {
+  ImportFullJobStatus,
+  ImportJobStatus,
+  ImportSheetId,
+  ImportStartResponse,
+} from "@/types";
 
-type RetryPayload = {
+export type ImportMode = "products" | "full";
+
+export type RetryRowPayload = {
   rowIndex: number;
   correctedData: Record<string, unknown>;
+  /** Required for multi-sheet imports; omitted for product-only retries. */
+  sheetId?: ImportSheetId;
 };
 
-export function useImport() {
+/**
+ * Generalizes the product-only importer to the multi-sheet importer.
+ * Pass `{ mode: "full" }` to use `POST /imports/full`, the sheet-aware
+ * `/imports/:jobId/status` and `/imports/:jobId/retry-row` (sending `sheetId`),
+ * and `GET /imports/full-template`. The default `"products"` mode preserves the
+ * legacy product-import endpoints and query keys, so the existing
+ * `ImportSection` keeps working unchanged.
+ */
+export function useImport<TMode extends ImportMode = "products">(
+  options: { mode?: TMode } = {},
+) {
+  const mode: ImportMode = options.mode ?? "products";
+  const isFull = mode === "full";
   const queryClient = useQueryClient();
   const [jobId, setJobId] = useState<string | null>(null);
   const [startData, setStartData] = useState<ImportStartResponse | null>(null);
+
+  const startUrl = isFull ? "/imports/full" : "/imports/products";
+  const templateUrl = isFull ? "/imports/full-template" : "/imports/products/template";
+  const statusQueryKey = ["imports", isFull ? "full" : "products", jobId];
 
   const startImport = useMutation({
     mutationFn: (file: File) => {
@@ -21,7 +47,7 @@ export function useImport() {
       formData.append("file", file);
 
       return api
-        .postWithFormData<ImportStartResponse>("/imports/products", formData)
+        .postWithFormData<ImportStartResponse>(startUrl, formData)
         .then((res) => res.data);
     },
     onSuccess: (data) => {
@@ -30,11 +56,11 @@ export function useImport() {
     },
   });
 
-  const statusQuery = useQuery({
-    queryKey: ["imports", "products", jobId],
+  const statusQuery = useQuery<ImportJobStatus | ImportFullJobStatus>({
+    queryKey: statusQueryKey,
     queryFn: () =>
       api
-        .get<ImportJobStatus>(`/imports/${jobId}/status`)
+        .get<ImportJobStatus | ImportFullJobStatus>(`/imports/${jobId}/status`)
         .then((res) => res.data),
     enabled: !!jobId,
     refetchInterval: (query) => {
@@ -48,13 +74,16 @@ export function useImport() {
   });
 
   const retryRow = useMutation({
-    mutationFn: (payload: RetryPayload) => {
+    mutationFn: (payload: RetryRowPayload) => {
       if (!jobId) {
         throw new Error("No hay un trabajo de importacion activo");
       }
 
       return api
-        .post<ImportJobStatus>(`/imports/${jobId}/retry-row`, payload)
+        .post<ImportJobStatus | ImportFullJobStatus>(
+          `/imports/${jobId}/retry-row`,
+          payload,
+        )
         .then((res) => res.data);
     },
     onSuccess: (data) => {
@@ -62,18 +91,18 @@ export function useImport() {
         return;
       }
 
-      queryClient.setQueryData(["imports", "products", jobId], data);
+      queryClient.setQueryData(statusQueryKey, data);
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 
   const downloadTemplate = useMutation({
-    mutationFn: () => api.downloadData("/imports/products/template"),
+    mutationFn: () => api.downloadData(templateUrl),
   });
 
   const reset = () => {
     if (jobId) {
-      queryClient.removeQueries({ queryKey: ["imports", "products", jobId] });
+      queryClient.removeQueries({ queryKey: statusQueryKey });
     }
 
     setJobId(null);
@@ -86,7 +115,9 @@ export function useImport() {
     jobId,
     startData,
     startImport,
-    statusQuery,
+    statusQuery: statusQuery as UseQueryResult<
+      TMode extends "full" ? ImportFullJobStatus : ImportJobStatus
+    >,
     retryRow,
     downloadTemplate,
     reset,
