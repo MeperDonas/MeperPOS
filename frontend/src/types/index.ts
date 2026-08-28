@@ -357,8 +357,21 @@ export interface ImportEvent {
   timestamp: string;
 }
 
+/** The four entity sheets processed by the multi-sheet importer. */
+export type ImportSheetId = "productos" | "clientes" | "proveedores" | "usuarios";
+
+/** Per-sheet lifecycle sub-status inside a job's per-sheet breakdown. */
+export type ImportSheetSubStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "REJECTED"
+  | "FAILED";
+
 export interface ImportRowError {
   rowIndex: number;
+  /** Originating sheet for the failed row. Present on multi-sheet imports. */
+  sheetId?: ImportSheetId;
   rawData: Record<string, string>;
   mappedData: Record<string, unknown>;
   errorCode: string;
@@ -367,6 +380,50 @@ export interface ImportRowError {
   retried: boolean;
   retriedSuccess?: boolean;
   editableFields: string[];
+}
+
+/** A row error from a multi-sheet import, always carrying its sheetId. */
+export interface ImportSheetRowError {
+  rowIndex: number;
+  sheetId: ImportSheetId;
+  errorCode: string;
+  message: string;
+  field?: string;
+  mappedData?: Record<string, unknown>;
+  editableFields: string[];
+  retried: boolean;
+  retriedSuccess?: boolean;
+}
+
+/** Per-sheet counters and sub-status returned in a job's per-sheet breakdown. */
+export interface ImportSheetStatus {
+  sheetId: ImportSheetId;
+  status: ImportSheetSubStatus;
+  totalRows: number;
+  processedRows: number;
+  imported: number;
+  skipped: number;
+  errors: number;
+  warnings: number;
+  missingRequiredFields?: string[];
+  planLimitRejected?: boolean;
+  planLimitMessage?: string;
+  rowErrors: ImportSheetRowError[];
+}
+
+/** Full (multi-sheet) import job status: global counters + per-sheet breakdown. */
+export interface ImportFullJobStatus {
+  jobId: string;
+  status: "PARSING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  fileName: string;
+  totalRows: number;
+  processedRows: number;
+  importedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  warningCount: number;
+  sheets: ImportSheetStatus[];
+  errors: ImportSheetRowError[];
 }
 
 export interface ImportJobStatus {
