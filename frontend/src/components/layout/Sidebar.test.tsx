@@ -147,6 +147,7 @@ describe("Sidebar", () => {
       "Ventas",
       "Clientes",
       "Inventario",
+      "Importar",
       "Categorías",
       "Proveedores",
       "Compras",
@@ -157,6 +158,71 @@ describe("Sidebar", () => {
       "Configuración",
     ]);
     expect(screen.queryByRole("link", { name: "Usuarios" })).not.toBeInTheDocument();
+  });
+
+  it("shows the Importar nav item for ADMIN users", async () => {
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { organizations },
+    });
+
+    render(<Sidebar />, { wrapper });
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith("/auth/organizations");
+    });
+
+    const link = screen.getByRole("link", { name: "Importar" });
+    expect(link).toHaveAttribute("href", "/imports");
+  });
+
+  it("shows the Importar nav item for CASHIER users", async () => {
+    useAuthMock.mockReturnValue({
+      user: {
+        id: "user-cash",
+        name: "Carlos Cajero",
+        role: "CASHIER",
+        active: true,
+        organizationId: "org-a",
+      },
+      logout: vi.fn(),
+      switchOrganization: switchOrganizationMock,
+    });
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { organizations: [organizations[0]] },
+    });
+
+    render(<Sidebar />, { wrapper });
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith("/auth/organizations");
+    });
+
+    expect(screen.getByRole("link", { name: "Importar" })).toHaveAttribute("href", "/imports");
+  });
+
+  it("hides the Importar nav item for INVENTORY_USER users", async () => {
+    useAuthMock.mockReturnValue({
+      user: {
+        id: "user-inv",
+        name: "Inventario User",
+        role: "INVENTORY_USER",
+        active: true,
+        organizationId: "org-a",
+      },
+      logout: vi.fn(),
+      switchOrganization: switchOrganizationMock,
+    });
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { organizations: [organizations[0]] },
+    });
+
+    render(<Sidebar />, { wrapper });
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith("/auth/organizations");
+    });
+
+    expect(screen.queryByRole("link", { name: "Importar" })).not.toBeInTheDocument();
   });
 
   it("hides the Salidas nav item for CASHIER users", async () => {
