@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 const useEconomicOverviewMock = vi.fn();
@@ -55,6 +55,7 @@ vi.mock("@/hooks/useReports", () => ({
 }));
 
 import ReportsPage from "./page";
+import { api } from "@/lib/api";
 
 const range = {
   startDate: "2026-01-10",
@@ -160,6 +161,23 @@ describe("Reports economics-first evidence", () => {
     expect(screen.getByText("Métodos de Pago")).toBeTruthy();
     expect(screen.queryByText("Rendimiento por vendedor")).toBeNull();
     expect(screen.queryByText("Importar Inventario")).toBeNull();
+  });
+
+  it("expands the enterprise export toggle and triggers the economic export", () => {
+    render(<ReportsPage />);
+
+    const toggle = screen.getByRole("button", { name: "Exportar" });
+    expect(screen.queryByText(/Genera el paquete económico del período/)).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(screen.getByRole("button", { name: "Exportar economía" })).toBeTruthy();
+    expect(screen.getByText(/Genera el paquete económico del período/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Exportar economía" }));
+    expect(api.exportData).toHaveBeenCalledWith(
+      "/exports/economic",
+      expect.objectContaining({ format: "excel", type: "economic" }),
+    );
   });
 
   it("exposes the financial data-quality warning instead of estimating costs", () => {
