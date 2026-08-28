@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type {
   ImportFullJobStatus,
   ImportSheetStatus,
   ImportSheetRowError,
 } from "@/types";
+
+const { exportDataMock } = vi.hoisted(() => ({ exportDataMock: vi.fn() }));
 
 const useImportMock = vi.fn();
 const toastSuccess = vi.fn();
@@ -16,6 +18,42 @@ vi.mock("@/contexts/ToastContext", () => ({
 
 vi.mock("@/hooks/useImport", () => ({
   useImport: () => useImportMock(),
+}));
+
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return {
+    ...actual,
+    api: { exportData: exportDataMock },
+  };
+});
+
+vi.mock("@/components/ui/BentoSelect", () => ({
+  BentoSelect: ({
+    value,
+    onChange,
+    options,
+    placeholder,
+    label,
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+    options: Array<{ value: string; label: string }>;
+    placeholder?: string;
+    label?: string;
+  }) => (
+    <select
+      aria-label={label || placeholder || "Formato de exportación"}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  ),
 }));
 
 import ImportDataSettingsPage from "./page";
@@ -93,7 +131,7 @@ describe("ImportDataSettingsPage", () => {
 
     render(<ImportDataSettingsPage />);
 
-    expect(screen.getByText("Importar datos")).toBeInTheDocument();
+    expect(screen.getByText("Importar y exportar datos")).toBeInTheDocument();
     expect(screen.getByText("Importación Multi-Hoja")).toBeInTheDocument();
     expect(screen.getByText(/Arrastra un archivo o haz click para subir/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Plantilla/i })).toBeInTheDocument();
@@ -151,5 +189,119 @@ describe("ImportDataSettingsPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Plantilla/i }));
     await waitFor(() => expect(result.downloadTemplate.mutateAsync).toHaveBeenCalledOnce());
+  });
+
+  it("renders every export tile only after expanding the export section", () => {
+    useImportMock.mockReturnValue(makeImportResult(undefined));
+
+    render(<ImportDataSettingsPage />);
+
+    // Hidden by default: the tile grid is collapsed.
+    expect(screen.queryByText("Productos")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Exportar datos/ }));
+
+    for (const title of [
+      "Productos",
+      "Ventas",
+      "Clientes",
+      "Movimientos",
+      "Gastos",
+      "Económico",
+    ]) {
+      expect(screen.getByText(title)).toBeInTheDocument();
+    }
+  });
+
+  it("toggles the export panel closed from the expanded state", () => {
+    useImportMock.mockReturnValue(makeImportResult(undefined));
+
+    render(<ImportDataSettingsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Exportar datos/ }));
+    expect(screen.getByRole("button", { name: /Ocultar exportación/ })).toBeInTheDocument();
+    expect(screen.getByText("Productos")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Ocultar exportación/ }));
+    expect(screen.getByRole("button", { name: /Exportar datos/ })).toBeInTheDocument();
+    expect(screen.queryByText("Productos")).not.toBeInTheDocument();
+  });
+
+  it("exports the products tile with the right endpoint and default format", async () => {
+    useImportMock.mockReturnValue(makeImportResult(undefined));
+    exportDataMock.mockResolvedValue(undefined);
+
+    render(<ImportDataSettingsPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Exportar datos/ }));
+
+    const productsTile = screen.getByTestId("export-tile-products");
+    fireEvent.click(within(productsTile).getByRole("button", { name: /Exportar/ }));
+
+    await waitFor(() => expect(exportDataMock).toHaveBeenCalledOnce());
+    expect(exportDataMock).toHaveBeenCalledWith(
+      "/exports/products",
+      expect.objectContaining({ type: "products", format: "excel" }),
+    );
+    expect(toastSuccess).toHaveBeenCalledWith("Exportación generada correctamente");
+  });
+
+  it("exports the sales tile with the csv format", async () => {
+    useImportMock.mockReturnValue(makeImportResult(undefined));
+    exportDataMock.mockResolvedValue(undefined);
+
+    render(<ImportDataSettingsPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Exportar datos/ }));
+
+    const salesTile = screen.getByTestId("export-tile-sales");
+    fireEvent.change(within(salesTile).getByRole("combobox"), {
+      target: { value: "csv" },
+    });
+
+    fireEvent.click(within(salesTile).getByRole("button", { name: /Exportar/ }));
+
+    await waitFor(() => expect(exportDataMock).toHaveBeenCalledOnce());
+    expect(exportDataMock).toHaveBeenCalledWith(
+      "/exports/sales",
+      expect.objectContaining({ type: "sales", format: "csv" }),
+    );
+  });
+
+  it("sends the date range payload for date-bearing tiles", async () => {
+    useImportMock.mockReturnValue(makeImportResult(undefined));
+    exportDataMock.mockResolvedValue(undefined);
+
+    render(<ImportDataSettingsPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Exportar datos/ }));
+
+    const economicTile = screen.getByTestId("export-tile-economic");
+    const [startInput, endInput] = within(economicTile).getAllByLabelText(/Desde|Hasta/);
+    fireEvent.change(startInput, { target: { value: "2026-01-01" } });
+    fireEvent.change(endInput, { target: { value: "2026-01-31" } });
+
+    fireEvent.click(within(economicTile).getByRole("button", { name: /Exportar/ }));
+
+    await waitFor(() => expect(exportDataMock).toHaveBeenCalledOnce());
+    expect(exportDataMock).toHaveBeenCalledWith(
+      "/exports/economic",
+      expect.objectContaining({
+        type: "economic",
+        startDate: "2026-01-01",
+        endDate: "2026-01-31",
+      }),
+    );
+  });
+
+  it("surfaces the error toast when a tile export fails", async () => {
+    useImportMock.mockReturnValue(makeImportResult(undefined));
+    exportDataMock.mockRejectedValue(new Error("El servidor falló"));
+
+    render(<ImportDataSettingsPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Exportar datos/ }));
+
+    const productsTile = screen.getByTestId("export-tile-products");
+    fireEvent.click(within(productsTile).getByRole("button", { name: /Exportar/ }));
+
+    await waitFor(() => expect(exportDataMock).toHaveBeenCalledOnce());
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("El servidor falló"));
   });
 });
