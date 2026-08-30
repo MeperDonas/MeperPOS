@@ -15,6 +15,8 @@ export function useProducts(params?: {
   search?: string;
   categoryId?: string;
   status?: "active" | "inactive" | "all";
+  lowStock?: boolean;
+  orderBy?: "name" | "createdAt";
   enabled?: boolean;
 }) {
   const { enabled = true, ...rest } = params ?? {};
