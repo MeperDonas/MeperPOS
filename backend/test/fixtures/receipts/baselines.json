@@ -1,0 +1,12 @@
+{
+  "_comment": "Golden baselines for the receipt PDF extraction gate (S3). Regenerate with: npm run fixtures:receipts. Generated from the pre-refactor sales.service receipt builder.",
+  "normalization": "pdf-parse text; replace /\\s+/g with ' '; trim",
+  "expected": {
+    "fixture-1-normal-cash-change": "TIENDA S3 FIXTURES No. REC-1001 15/6/2026 09:30 a. m. Cliente: Ana María Torres Pago: Efectivo CANT ITEM $UNIT $TOTAL 2Panela Molida ..$2K$3K SUBTOTAL$3K IVA (19%)$570 TOTAL A PAGAR$4K RECIBIDO:$5K CAMBIO:$1K *** GRACIAS POR SU COMPRA ***",
+    "fixture-2-multipayment-cash-card": "TIENDA S3 FIXTURES No. REC-1002 15/6/2026 09:30 a. m. Cliente: Carlos Andrés Gómez Pago: Mixto (2 métodos) CANT ITEM $UNIT $TOTAL 1Café Molido Es..$12K$12K 3Taza Cerámica ..$8K$24K SUBTOTAL$36K IVA (19%)$2K TOTAL A PAGAR$38K PAGOS: Efectivo:$20K Tarjeta:$18K *** GRACIAS POR SU COMPRA ***",
+    "fixture-3-special-chars": "TIENDA S3 FIXTURES No. REC-1003 15/6/2026 09:30 a. m. Cliente: José Muñoz Ñíguez \"Pepe\" Pago: Tarjeta CANT ITEM $UNIT $TOTAL 1Café Árabe Ínt..$4K$4K 1Piñata \"Fiesta..$2K$2K SUBTOTAL$5K IVA (19%)$665 TOTAL A PAGAR$6K *** GRACIAS POR SU COMPRA ***",
+    "fixture-4-zero-tax-discount": "TIENDA S3 FIXTURES No. REC-1004 15/6/2026 09:30 a. m. Cliente: Ana María Torres Pago: Efectivo CANT ITEM $UNIT $TOTAL 1Añejo Ñoqué$3K$3K SUBTOTAL$3K DESCUENTO-$500 TOTAL A PAGAR$2K RECIBIDO:$2K *** GRACIAS POR SU COMPRA ***",
+    "fixture-5-no-customer": "TIENDA S3 FIXTURES No. REC-1005 15/6/2026 09:30 a. m. Pago: Efectivo CANT ITEM $UNIT $TOTAL 1Arepa Rellena ..$6K$6K SUBTOTAL$6K IVA (19%)$1K TOTAL A PAGAR$7K RECIBIDO:$10K CAMBIO:$3K *** GRACIAS POR SU COMPRA ***",
+    "fixture-6-long-header-footer-logo": "COMERCIALIZADORA LA ESQUINA DEL BARRIO Y ASOCIADOS S.A.S. ZONA NORTE Distribuidora Mayorista y Minorista — Factura simplificada de venta. Resolución DIAN 18764000000001 de 2026. Regímen simple de tributación. Los cambios se aceptan únicamente con este comprobante dentro de los 30 días siguientes a la compra. No. FAC-2026-2001 15/6/2026 09:30 a. m. Cliente: Laura Sofía Ventura Pago: Transferencia CANT ITEM $UNIT $TOTAL 1Mochila Artesa..$45K$45K SUBTOTAL$45K IVA (19%)$9K TOTAL A PAGAR$54K ¡Gracias por su compra! Conserve este recibo para garantías, cambios, devoluciones y reclamos. Horario de atención: lunes a sábado 8:00 a.m. - 8:00 p.m., domingos y festivos 9:00 a.m. - 2:00 p.m. Línea de servicio al cliente 601-555-0198 ext. 402. Visite nuestra sucursal principal en la Carrera 15 # 88-64, Bogotá D.C. *** GRACIAS POR SU COMPRA ***"
+  }
+}

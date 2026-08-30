@@ -1,0 +1,721 @@
+{
+  "fixture-1-normal-cash-change": {
+    "sale": {
+      "id": "1273f268-c162-49c7-902d-013fea2ee8cd",
+      "saleNumber": 1001,
+      "customerId": "c7de9023-561b-4e70-9350-c22a9354ba21",
+      "subtotal": "3000",
+      "taxAmount": "570",
+      "discountAmount": "0",
+      "total": "3570",
+      "amountPaid": "5000",
+      "change": "1430",
+      "status": "COMPLETED",
+      "userId": "b9de341f-6783-4a16-a4a2-9427190736f2",
+      "createdAt": "2026-06-15T14:30:00.000Z",
+      "updatedAt": "2026-08-30T23:54:32.524Z",
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledById": null,
+      "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3",
+      "customer": {
+        "id": "c7de9023-561b-4e70-9350-c22a9354ba21",
+        "name": "Ana María Torres",
+        "documentType": "CC",
+        "documentNumber": "S3-1001",
+        "email": null,
+        "phone": null,
+        "referencia": null,
+        "placaMoto": null,
+        "address": null,
+        "segment": "OCCASIONAL",
+        "active": true,
+        "createdAt": "2026-08-30T23:54:05.853Z",
+        "updatedAt": "2026-08-30T23:54:32.479Z",
+        "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+      },
+      "items": [
+        {
+          "id": "f0db6752-451f-4588-bb29-6ac26169f489",
+          "saleId": "1273f268-c162-49c7-902d-013fea2ee8cd",
+          "productId": "8f9fc37b-37a7-416d-a50b-ac8db5e20702",
+          "quantity": 2,
+          "unitPrice": "1500",
+          "costPriceSnapshot": null,
+          "taxRate": "19",
+          "discountAmount": "0",
+          "subtotal": "3000",
+          "total": "3000",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3",
+          "product": {
+            "id": "8f9fc37b-37a7-416d-a50b-ac8db5e20702",
+            "name": "Panela Molida Tradicional",
+            "sku": "S3-001",
+            "barcode": null,
+            "description": null,
+            "costPrice": "900",
+            "salePrice": "1500",
+            "taxRate": "19",
+            "taxable": true,
+            "stock": 100,
+            "minStock": 5,
+            "imageUrl": null,
+            "categoryId": "d4843d30-66a2-43eb-8128-536a1cf4b839",
+            "active": true,
+            "createdAt": "2026-08-30T23:54:05.825Z",
+            "updatedAt": "2026-08-30T23:54:32.458Z",
+            "version": 0,
+            "promotionType": null,
+            "promotionValue": null,
+            "preferredSupplierId": null,
+            "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+          }
+        }
+      ],
+      "payments": [
+        {
+          "id": "eaac36bf-ec41-4050-89c1-3f893b232d62",
+          "saleId": "1273f268-c162-49c7-902d-013fea2ee8cd",
+          "method": "CASH",
+          "amount": "5000",
+          "createdAt": "2026-08-30T23:54:32.524Z",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+        }
+      ],
+      "user": {
+        "id": "b9de341f-6783-4a16-a4a2-9427190736f2",
+        "name": "S3 Fixture Admin",
+        "email": "s3-receipt-fixtures@example.com"
+      }
+    },
+    "settings": {
+      "organization": {
+        "name": "Tienda S3 Fixtures",
+        "logoUrl": null
+      },
+      "invoicing": {
+        "printHeader": "",
+        "printFooter": ""
+      },
+      "receipt": {
+        "prefix": "REC"
+      },
+      "locale": {
+        "currency": "COP",
+        "locale": "es-CO",
+        "timezone": "America/Bogota"
+      },
+      "custom": {}
+    }
+  },
+  "fixture-2-multipayment-cash-card": {
+    "sale": {
+      "id": "04950678-42bb-4215-a491-ef9f887995f0",
+      "saleNumber": 1002,
+      "customerId": "bba950af-60d4-4c7f-9aa2-bb0110cb2eb4",
+      "subtotal": "36000",
+      "taxAmount": "2280",
+      "discountAmount": "0",
+      "total": "38280",
+      "amountPaid": "38280",
+      "change": null,
+      "status": "COMPLETED",
+      "userId": "b9de341f-6783-4a16-a4a2-9427190736f2",
+      "createdAt": "2026-06-15T14:30:00.000Z",
+      "updatedAt": "2026-08-30T23:54:32.542Z",
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledById": null,
+      "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3",
+      "customer": {
+        "id": "bba950af-60d4-4c7f-9aa2-bb0110cb2eb4",
+        "name": "Carlos Andrés Gómez",
+        "documentType": "CC",
+        "documentNumber": "S3-1002",
+        "email": null,
+        "phone": null,
+        "referencia": null,
+        "placaMoto": null,
+        "address": null,
+        "segment": "OCCASIONAL",
+        "active": true,
+        "createdAt": "2026-08-30T23:54:05.858Z",
+        "updatedAt": "2026-08-30T23:54:32.483Z",
+        "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+      },
+      "items": [
+        {
+          "id": "157d1117-f43c-4102-bf73-30a90d374555",
+          "saleId": "04950678-42bb-4215-a491-ef9f887995f0",
+          "productId": "b71c31f5-4d1c-4a41-9eb1-47d44af2a8a0",
+          "quantity": 1,
+          "unitPrice": "12000",
+          "costPriceSnapshot": null,
+          "taxRate": "19",
+          "discountAmount": "0",
+          "subtotal": "12000",
+          "total": "12000",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3",
+          "product": {
+            "id": "b71c31f5-4d1c-4a41-9eb1-47d44af2a8a0",
+            "name": "Café Molido Especial",
+            "sku": "S3-002",
+            "barcode": null,
+            "description": null,
+            "costPrice": "7200",
+            "salePrice": "12000",
+            "taxRate": "19",
+            "taxable": true,
+            "stock": 100,
+            "minStock": 5,
+            "imageUrl": null,
+            "categoryId": "d4843d30-66a2-43eb-8128-536a1cf4b839",
+            "active": true,
+            "createdAt": "2026-08-30T23:54:05.834Z",
+            "updatedAt": "2026-08-30T23:54:32.462Z",
+            "version": 0,
+            "promotionType": null,
+            "promotionValue": null,
+            "preferredSupplierId": null,
+            "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+          }
+        },
+        {
+          "id": "d1ad3356-bd0b-47aa-b51a-d0d64f329682",
+          "saleId": "04950678-42bb-4215-a491-ef9f887995f0",
+          "productId": "17a3999b-8399-4a9e-8b67-9530908215bc",
+          "quantity": 3,
+          "unitPrice": "8000",
+          "costPriceSnapshot": null,
+          "taxRate": "0",
+          "discountAmount": "0",
+          "subtotal": "24000",
+          "total": "24000",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3",
+          "product": {
+            "id": "17a3999b-8399-4a9e-8b67-9530908215bc",
+            "name": "Taza Cerámica Artesanal",
+            "sku": "S3-003",
+            "barcode": null,
+            "description": null,
+            "costPrice": "4800",
+            "salePrice": "8000",
+            "taxRate": "0",
+            "taxable": false,
+            "stock": 100,
+            "minStock": 5,
+            "imageUrl": null,
+            "categoryId": "d4843d30-66a2-43eb-8128-536a1cf4b839",
+            "active": true,
+            "createdAt": "2026-08-30T23:54:05.837Z",
+            "updatedAt": "2026-08-30T23:54:32.465Z",
+            "version": 0,
+            "promotionType": null,
+            "promotionValue": null,
+            "preferredSupplierId": null,
+            "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+          }
+        }
+      ],
+      "payments": [
+        {
+          "id": "c2ced708-8d4b-489c-8c67-e56e3fbe08f7",
+          "saleId": "04950678-42bb-4215-a491-ef9f887995f0",
+          "method": "CASH",
+          "amount": "20000",
+          "createdAt": "2026-08-30T23:54:32.542Z",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+        },
+        {
+          "id": "f9906a53-071a-420f-a4f6-dde61b9ec7bf",
+          "saleId": "04950678-42bb-4215-a491-ef9f887995f0",
+          "method": "CARD",
+          "amount": "18280",
+          "createdAt": "2026-08-30T23:54:32.542Z",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+        }
+      ],
+      "user": {
+        "id": "b9de341f-6783-4a16-a4a2-9427190736f2",
+        "name": "S3 Fixture Admin",
+        "email": "s3-receipt-fixtures@example.com"
+      }
+    },
+    "settings": {
+      "organization": {
+        "name": "Tienda S3 Fixtures",
+        "logoUrl": null
+      },
+      "invoicing": {
+        "printHeader": "",
+        "printFooter": ""
+      },
+      "receipt": {
+        "prefix": "REC"
+      },
+      "locale": {
+        "currency": "COP",
+        "locale": "es-CO",
+        "timezone": "America/Bogota"
+      },
+      "custom": {}
+    }
+  },
+  "fixture-3-special-chars": {
+    "sale": {
+      "id": "f6b4f321-7ab6-4897-9998-d1e01d724a23",
+      "saleNumber": 1003,
+      "customerId": "24447eea-93db-4f16-81a0-911f18c68e62",
+      "subtotal": "5000",
+      "taxAmount": "665",
+      "discountAmount": "0",
+      "total": "5665",
+      "amountPaid": "5665",
+      "change": null,
+      "status": "COMPLETED",
+      "userId": "b9de341f-6783-4a16-a4a2-9427190736f2",
+      "createdAt": "2026-06-15T14:30:00.000Z",
+      "updatedAt": "2026-08-30T23:54:32.557Z",
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledById": null,
+      "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3",
+      "customer": {
+        "id": "24447eea-93db-4f16-81a0-911f18c68e62",
+        "name": "José Muñoz Ñíguez \"Pepe\"",
+        "documentType": "CC",
+        "documentNumber": "S3-1003",
+        "email": null,
+        "phone": null,
+        "referencia": null,
+        "placaMoto": null,
+        "address": null,
+        "segment": "OCCASIONAL",
+        "active": true,
+        "createdAt": "2026-08-30T23:54:05.861Z",
+        "updatedAt": "2026-08-30T23:54:32.486Z",
+        "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+      },
+      "items": [
+        {
+          "id": "012e8253-6413-4d03-965f-70ec4dcb84ed",
+          "saleId": "f6b4f321-7ab6-4897-9998-d1e01d724a23",
+          "productId": "dd89647a-ca6c-4a59-bacb-829f51c6d2e2",
+          "quantity": 1,
+          "unitPrice": "3500",
+          "costPriceSnapshot": null,
+          "taxRate": "19",
+          "discountAmount": "0",
+          "subtotal": "3500",
+          "total": "3500",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3",
+          "product": {
+            "id": "dd89647a-ca6c-4a59-bacb-829f51c6d2e2",
+            "name": "Café Árabe Íntenso Ñoño \"Premium\"",
+            "sku": "S3-004",
+            "barcode": null,
+            "description": null,
+            "costPrice": "2100",
+            "salePrice": "3500",
+            "taxRate": "19",
+            "taxable": true,
+            "stock": 100,
+            "minStock": 5,
+            "imageUrl": null,
+            "categoryId": "d4843d30-66a2-43eb-8128-536a1cf4b839",
+            "active": true,
+            "createdAt": "2026-08-30T23:54:05.840Z",
+            "updatedAt": "2026-08-30T23:54:32.468Z",
+            "version": 0,
+            "promotionType": null,
+            "promotionValue": null,
+            "preferredSupplierId": null,
+            "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+          }
+        },
+        {
+          "id": "f8e74c26-cac5-43d2-82df-715fc3c18fc6",
+          "saleId": "f6b4f321-7ab6-4897-9998-d1e01d724a23",
+          "productId": "806ab476-cc53-4f46-b680-234e04d15962",
+          "quantity": 1,
+          "unitPrice": "1500",
+          "costPriceSnapshot": null,
+          "taxRate": "0",
+          "discountAmount": "0",
+          "subtotal": "1500",
+          "total": "1500",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3",
+          "product": {
+            "id": "806ab476-cc53-4f46-b680-234e04d15962",
+            "name": "Piñata \"Fiesta\" Ñandú",
+            "sku": "S3-005",
+            "barcode": null,
+            "description": null,
+            "costPrice": "900",
+            "salePrice": "1500",
+            "taxRate": "0",
+            "taxable": false,
+            "stock": 100,
+            "minStock": 5,
+            "imageUrl": null,
+            "categoryId": "d4843d30-66a2-43eb-8128-536a1cf4b839",
+            "active": true,
+            "createdAt": "2026-08-30T23:54:05.844Z",
+            "updatedAt": "2026-08-30T23:54:32.471Z",
+            "version": 0,
+            "promotionType": null,
+            "promotionValue": null,
+            "preferredSupplierId": null,
+            "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+          }
+        }
+      ],
+      "payments": [
+        {
+          "id": "ee10316f-efe0-4ff7-bc27-9efb81a63db5",
+          "saleId": "f6b4f321-7ab6-4897-9998-d1e01d724a23",
+          "method": "CARD",
+          "amount": "5665",
+          "createdAt": "2026-08-30T23:54:32.557Z",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+        }
+      ],
+      "user": {
+        "id": "b9de341f-6783-4a16-a4a2-9427190736f2",
+        "name": "S3 Fixture Admin",
+        "email": "s3-receipt-fixtures@example.com"
+      }
+    },
+    "settings": {
+      "organization": {
+        "name": "Tienda S3 Fixtures",
+        "logoUrl": null
+      },
+      "invoicing": {
+        "printHeader": "",
+        "printFooter": ""
+      },
+      "receipt": {
+        "prefix": "REC"
+      },
+      "locale": {
+        "currency": "COP",
+        "locale": "es-CO",
+        "timezone": "America/Bogota"
+      },
+      "custom": {}
+    }
+  },
+  "fixture-4-zero-tax-discount": {
+    "sale": {
+      "id": "221b6c17-8d38-4e43-bf26-3cc1e20ac4bf",
+      "saleNumber": 1004,
+      "customerId": "c7de9023-561b-4e70-9350-c22a9354ba21",
+      "subtotal": "2500",
+      "taxAmount": "0",
+      "discountAmount": "500",
+      "total": "2000",
+      "amountPaid": "2000",
+      "change": null,
+      "status": "COMPLETED",
+      "userId": "b9de341f-6783-4a16-a4a2-9427190736f2",
+      "createdAt": "2026-06-15T14:30:00.000Z",
+      "updatedAt": "2026-08-30T23:54:32.572Z",
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledById": null,
+      "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3",
+      "customer": {
+        "id": "c7de9023-561b-4e70-9350-c22a9354ba21",
+        "name": "Ana María Torres",
+        "documentType": "CC",
+        "documentNumber": "S3-1001",
+        "email": null,
+        "phone": null,
+        "referencia": null,
+        "placaMoto": null,
+        "address": null,
+        "segment": "OCCASIONAL",
+        "active": true,
+        "createdAt": "2026-08-30T23:54:05.853Z",
+        "updatedAt": "2026-08-30T23:54:32.479Z",
+        "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+      },
+      "items": [
+        {
+          "id": "d55ae6aa-ae12-4a3f-952d-a66cff530e4f",
+          "saleId": "221b6c17-8d38-4e43-bf26-3cc1e20ac4bf",
+          "productId": "e96f47b0-617d-4674-996d-bc26405e8e6f",
+          "quantity": 1,
+          "unitPrice": "2500",
+          "costPriceSnapshot": null,
+          "taxRate": "0",
+          "discountAmount": "0",
+          "subtotal": "2500",
+          "total": "2500",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3",
+          "product": {
+            "id": "e96f47b0-617d-4674-996d-bc26405e8e6f",
+            "name": "Añejo Ñoqué",
+            "sku": "S3-006",
+            "barcode": null,
+            "description": null,
+            "costPrice": "1500",
+            "salePrice": "2500",
+            "taxRate": "0",
+            "taxable": false,
+            "stock": 100,
+            "minStock": 5,
+            "imageUrl": null,
+            "categoryId": "d4843d30-66a2-43eb-8128-536a1cf4b839",
+            "active": true,
+            "createdAt": "2026-08-30T23:54:05.847Z",
+            "updatedAt": "2026-08-30T23:54:32.474Z",
+            "version": 0,
+            "promotionType": null,
+            "promotionValue": null,
+            "preferredSupplierId": null,
+            "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+          }
+        }
+      ],
+      "payments": [
+        {
+          "id": "36e8de6e-90eb-4fff-a70c-de181d16078c",
+          "saleId": "221b6c17-8d38-4e43-bf26-3cc1e20ac4bf",
+          "method": "CASH",
+          "amount": "2000",
+          "createdAt": "2026-08-30T23:54:32.572Z",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+        }
+      ],
+      "user": {
+        "id": "b9de341f-6783-4a16-a4a2-9427190736f2",
+        "name": "S3 Fixture Admin",
+        "email": "s3-receipt-fixtures@example.com"
+      }
+    },
+    "settings": {
+      "organization": {
+        "name": "Tienda S3 Fixtures",
+        "logoUrl": null
+      },
+      "invoicing": {
+        "printHeader": "",
+        "printFooter": ""
+      },
+      "receipt": {
+        "prefix": "REC"
+      },
+      "locale": {
+        "currency": "COP",
+        "locale": "es-CO",
+        "timezone": "America/Bogota"
+      },
+      "custom": {}
+    }
+  },
+  "fixture-5-no-customer": {
+    "sale": {
+      "id": "93e1d56a-3d19-41ad-867d-9f023aff0124",
+      "saleNumber": 1005,
+      "customerId": null,
+      "subtotal": "5900",
+      "taxAmount": "1121",
+      "discountAmount": "0",
+      "total": "7021",
+      "amountPaid": "10000",
+      "change": "2979",
+      "status": "COMPLETED",
+      "userId": "b9de341f-6783-4a16-a4a2-9427190736f2",
+      "createdAt": "2026-06-15T14:30:00.000Z",
+      "updatedAt": "2026-08-30T23:54:32.586Z",
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledById": null,
+      "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3",
+      "customer": null,
+      "items": [
+        {
+          "id": "a176f38d-86be-4440-9082-6d1226dfe5bf",
+          "saleId": "93e1d56a-3d19-41ad-867d-9f023aff0124",
+          "productId": "31d69fb6-f4e5-4026-b298-5bdae7ee472b",
+          "quantity": 1,
+          "unitPrice": "5900",
+          "costPriceSnapshot": null,
+          "taxRate": "19",
+          "discountAmount": "0",
+          "subtotal": "5900",
+          "total": "5900",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3",
+          "product": {
+            "id": "31d69fb6-f4e5-4026-b298-5bdae7ee472b",
+            "name": "Arepa Rellena de Queso",
+            "sku": "S3-007",
+            "barcode": null,
+            "description": null,
+            "costPrice": "3540",
+            "salePrice": "5900",
+            "taxRate": "19",
+            "taxable": true,
+            "stock": 100,
+            "minStock": 5,
+            "imageUrl": null,
+            "categoryId": "d4843d30-66a2-43eb-8128-536a1cf4b839",
+            "active": true,
+            "createdAt": "2026-08-30T23:54:05.850Z",
+            "updatedAt": "2026-08-30T23:54:32.477Z",
+            "version": 0,
+            "promotionType": null,
+            "promotionValue": null,
+            "preferredSupplierId": null,
+            "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+          }
+        }
+      ],
+      "payments": [
+        {
+          "id": "eb77d7de-7e9d-4b6d-90d2-77b03e2e4814",
+          "saleId": "93e1d56a-3d19-41ad-867d-9f023aff0124",
+          "method": "CASH",
+          "amount": "10000",
+          "createdAt": "2026-08-30T23:54:32.586Z",
+          "organizationId": "ab582904-5110-42e5-b0ad-78fdc162c5b3"
+        }
+      ],
+      "user": {
+        "id": "b9de341f-6783-4a16-a4a2-9427190736f2",
+        "name": "S3 Fixture Admin",
+        "email": "s3-receipt-fixtures@example.com"
+      }
+    },
+    "settings": {
+      "organization": {
+        "name": "Tienda S3 Fixtures",
+        "logoUrl": null
+      },
+      "invoicing": {
+        "printHeader": "",
+        "printFooter": ""
+      },
+      "receipt": {
+        "prefix": "REC"
+      },
+      "locale": {
+        "currency": "COP",
+        "locale": "es-CO",
+        "timezone": "America/Bogota"
+      },
+      "custom": {}
+    }
+  },
+  "fixture-6-long-header-footer-logo": {
+    "sale": {
+      "id": "1057baee-23fa-490b-832b-5e50e7f5f35e",
+      "saleNumber": 2001,
+      "customerId": "43f76b5c-773b-4570-97e6-717f8d8eb778",
+      "subtotal": "45000",
+      "taxAmount": "8550",
+      "discountAmount": "0",
+      "total": "53550",
+      "amountPaid": "53550",
+      "change": null,
+      "status": "COMPLETED",
+      "userId": "b9de341f-6783-4a16-a4a2-9427190736f2",
+      "createdAt": "2026-06-15T14:30:00.000Z",
+      "updatedAt": "2026-08-30T23:54:32.601Z",
+      "cancelReason": null,
+      "cancelledAt": null,
+      "cancelledById": null,
+      "organizationId": "11a84da1-4851-4e0c-8f2a-5b6aef6dfe50",
+      "customer": {
+        "id": "43f76b5c-773b-4570-97e6-717f8d8eb778",
+        "name": "Laura Sofía Ventura",
+        "documentType": "CC",
+        "documentNumber": "S3-2001",
+        "email": null,
+        "phone": null,
+        "referencia": null,
+        "placaMoto": null,
+        "address": null,
+        "segment": "OCCASIONAL",
+        "active": true,
+        "createdAt": "2026-08-30T23:54:05.880Z",
+        "updatedAt": "2026-08-30T23:54:32.502Z",
+        "organizationId": "11a84da1-4851-4e0c-8f2a-5b6aef6dfe50"
+      },
+      "items": [
+        {
+          "id": "111eb7e8-ba0f-4c27-a916-bd34d63be05a",
+          "saleId": "1057baee-23fa-490b-832b-5e50e7f5f35e",
+          "productId": "ee0c48ae-08de-4cb3-a17b-bbce768674bb",
+          "quantity": 1,
+          "unitPrice": "45000",
+          "costPriceSnapshot": null,
+          "taxRate": "19",
+          "discountAmount": "0",
+          "subtotal": "45000",
+          "total": "45000",
+          "organizationId": "11a84da1-4851-4e0c-8f2a-5b6aef6dfe50",
+          "product": {
+            "id": "ee0c48ae-08de-4cb3-a17b-bbce768674bb",
+            "name": "Mochila Artesanal Tejida a Mano",
+            "sku": "S3-B01",
+            "barcode": null,
+            "description": null,
+            "costPrice": "27000",
+            "salePrice": "45000",
+            "taxRate": "19",
+            "taxable": true,
+            "stock": 100,
+            "minStock": 5,
+            "imageUrl": null,
+            "categoryId": "075b52bd-f83f-48ee-8f2c-9537bf6a0d8d",
+            "active": true,
+            "createdAt": "2026-08-30T23:54:05.878Z",
+            "updatedAt": "2026-08-30T23:54:32.499Z",
+            "version": 0,
+            "promotionType": null,
+            "promotionValue": null,
+            "preferredSupplierId": null,
+            "organizationId": "11a84da1-4851-4e0c-8f2a-5b6aef6dfe50"
+          }
+        }
+      ],
+      "payments": [
+        {
+          "id": "a626dc7f-db0f-41b0-93e1-2695c5b9aef8",
+          "saleId": "1057baee-23fa-490b-832b-5e50e7f5f35e",
+          "method": "TRANSFER",
+          "amount": "53550",
+          "createdAt": "2026-08-30T23:54:32.601Z",
+          "organizationId": "11a84da1-4851-4e0c-8f2a-5b6aef6dfe50"
+        }
+      ],
+      "user": {
+        "id": "b9de341f-6783-4a16-a4a2-9427190736f2",
+        "name": "S3 Fixture Admin",
+        "email": "s3-receipt-fixtures@example.com"
+      }
+    },
+    "settings": {
+      "organization": {
+        "name": "Comercializadora La Esquina Del Barrio Y Asociados S.A.S. Zona Norte",
+        "logoUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+      },
+      "invoicing": {
+        "printHeader": "Distribuidora Mayorista y Minorista — Factura simplificada de venta. Resolución DIAN 18764000000001 de 2026. Regímen simple de tributación. Los cambios se aceptan únicamente con este comprobante dentro de los 30 días siguientes a la compra.",
+        "printFooter": "¡Gracias por su compra! Conserve este recibo para garantías, cambios, devoluciones y reclamos. Horario de atención: lunes a sábado 8:00 a.m. - 8:00 p.m., domingos y festivos 9:00 a.m. - 2:00 p.m. Línea de servicio al cliente 601-555-0198 ext. 402. Visite nuestra sucursal principal en la Carrera 15 # 88-64, Bogotá D.C."
+      },
+      "receipt": {
+        "prefix": "FAC-2026"
+      },
+      "locale": {
+        "currency": "COP",
+        "locale": "es-CO",
+        "timezone": "America/Bogota"
+      },
+      "custom": {}
+    }
+  }
+}
