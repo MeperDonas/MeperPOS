@@ -227,7 +227,7 @@ describe("Expenses page evidence", () => {
 
     await user.click(screen.getByRole("button", { name: /Nuevo gasto/i }));
 
-    expect(screen.getByText("ExpenseFormModal")).toBeTruthy();
+    expect(await screen.findByText("ExpenseFormModal")).toBeTruthy();
   });
 
   it("opens the add payment modal from the row actions", async () => {
@@ -237,7 +237,7 @@ describe("Expenses page evidence", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Agregar pago" })[0]);
 
-    expect(screen.getByText("AddPaymentModal")).toBeTruthy();
+    expect(await screen.findByText("AddPaymentModal")).toBeTruthy();
   });
 
   it("opens the history modal from the row actions", async () => {
@@ -247,7 +247,7 @@ describe("Expenses page evidence", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Ver historial" })[0]);
 
-    expect(screen.getByText("HistoryModal")).toBeTruthy();
+    expect(await screen.findByText("HistoryModal")).toBeTruthy();
   });
 
   it("opens the expense detail modal from the row actions", async () => {
@@ -257,7 +257,7 @@ describe("Expenses page evidence", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Ver detalle" })[0]);
 
-    expect(screen.getByText("ExpenseDetailModal")).toBeTruthy();
+    expect(await screen.findByText("ExpenseDetailModal")).toBeTruthy();
   });
 
   it("keeps the add payment button enabled with the Agregar pago label for partial expenses", () => {
