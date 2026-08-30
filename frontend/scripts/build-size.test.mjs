@@ -2,7 +2,12 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { collectRouteSizes, diffRouteSizes } from "./build-size.mjs";
+import { collectRouteSizes, diffRouteSizes, parseRouteChunkPaths } from "./build-size.mjs";
+
+function manifestFixture(routeKey, ownPageChunks, otherPageChunks) {
+  const routeDir = routeKey.replace(/^\//, "").replace(/\/page$/, "");
+  return `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["${routeKey}"]={"moduleLoading":{"prefix":"/_next/"},"clientModules":{"C:/app/src/app/${routeDir}/page.tsx":{"id":"1","chunks":${JSON.stringify(ownPageChunks)}},"C:/app/src/app/other/page.tsx":{"id":"2","chunks":${JSON.stringify(otherPageChunks)}},"C:/app/src/contexts/AuthContext.tsx":{"id":"3","chunks":["static/chunks/shared-abc.js"]}},"rscModuleMapping":{}}`;
+}
 
 describe("build-size harness", () => {
   let tempRoot;
@@ -15,49 +20,71 @@ describe("build-size harness", () => {
     rmSync(tempRoot, { recursive: true, force: true });
   });
 
-  describe("collectRouteSizes", () => {
-    it("sums page chunk bytes per route directory", () => {
-      const posDir = join(tempRoot, "chunks", "app", "pos");
-      mkdirSync(posDir, { recursive: true });
-      writeFileSync(join(posDir, "page-aaa111.js"), "x".repeat(1000));
-      writeFileSync(join(posDir, "page-bbb222.js"), "x".repeat(500));
+  describe("parseRouteChunkPaths", () => {
+    it("collects the route's own chunks and shared module chunks", () => {
+      const source = manifestFixture("/pos", ["static/chunks/app/pos/page-a.js"], [
+        "static/chunks/other-page-chunk.js",
+      ]);
 
-      const sizes = collectRouteSizes(join(tempRoot, "chunks", "app"));
+      const chunks = parseRouteChunkPaths(source, "/pos/page");
 
-      expect(sizes["/pos"]).toEqual({
-        bytes: 1500,
-        files: ["page-aaa111.js", "page-bbb222.js"],
-      });
-    });
-
-    it("maps route groups and dynamic segments to their URL route", () => {
-      const groupedDir = join(
-        tempRoot,
-        "chunks",
-        "app",
-        "settings",
-        "(advanced)",
-        "advanced",
+      expect(chunks).toEqual(
+        new Set([
+          "static/chunks/app/pos/page-a.js",
+          "static/chunks/shared-abc.js",
+        ]),
       );
-      const dynamicDir = join(tempRoot, "chunks", "app", "sales", "[id]");
-      mkdirSync(groupedDir, { recursive: true });
-      mkdirSync(dynamicDir, { recursive: true });
-      writeFileSync(join(groupedDir, "page-abc.js"), "x".repeat(120));
-      writeFileSync(join(dynamicDir, "page-def.js"), "x".repeat(340));
-
-      const sizes = collectRouteSizes(join(tempRoot, "chunks", "app"));
-
-      expect(sizes["/settings/advanced"].bytes).toBe(120);
-      expect(sizes["/sales/[id]"].bytes).toBe(340);
     });
 
-    it("assigns root-level layout chunks to the / route", () => {
-      mkdirSync(join(tempRoot, "chunks", "app"), { recursive: true });
-      writeFileSync(join(tempRoot, "chunks", "app", "layout-xyz.js"), "x".repeat(80));
+    it("excludes chunks referenced only by other routes' page modules", () => {
+      const source = manifestFixture("/", [], [
+        "static/chunks/other-route-only.js",
+      ]);
 
-      const sizes = collectRouteSizes(join(tempRoot, "chunks", "app"));
+      const chunks = parseRouteChunkPaths(source, "/page");
 
-      expect(sizes["/"].bytes).toBe(80);
+      expect(chunks).toEqual(new Set(["static/chunks/shared-abc.js"]));
+    });
+  });
+
+  describe("collectRouteSizes", () => {
+    it("sums manifest chunk bytes plus root main files per URL route", () => {
+      const serverApp = join(tempRoot, "server", "app");
+      const posDir = join(serverApp, "pos");
+      const groupedDir = join(serverApp, "settings", "(advanced)", "advanced");
+      mkdirSync(posDir, { recursive: true });
+      mkdirSync(groupedDir, { recursive: true });
+      writeFileSync(
+        join(posDir, "page_client-reference-manifest.js"),
+        manifestFixture("/pos/page", ["static/chunks/pos-page-aaa.js"], []),
+      );
+      writeFileSync(
+        join(groupedDir, "page_client-reference-manifest.js"),
+        manifestFixture(
+          "/settings/(advanced)/advanced/page",
+          ["static/chunks/advanced-page-bbb.js"],
+          [],
+        ),
+      );
+      writeFileSync(
+        join(tempRoot, "build-manifest.json"),
+        JSON.stringify({ polyfillFiles: [], rootMainFiles: ["static/chunks/main-xyz.js"] }),
+      );
+      mkdirSync(join(tempRoot, "static", "chunks"), { recursive: true });
+      writeFileSync(join(tempRoot, "static", "chunks", "pos-page-aaa.js"), "x".repeat(1000));
+      writeFileSync(join(tempRoot, "static", "chunks", "advanced-page-bbb.js"), "x".repeat(500));
+      writeFileSync(join(tempRoot, "static", "chunks", "main-xyz.js"), "x".repeat(80));
+
+      const sizes = collectRouteSizes(serverApp, {
+        rootManifestPath: join(tempRoot, "build-manifest.json"),
+        chunkRoot: tempRoot,
+      });
+
+      // /pos = own page chunk (1000) + shared root main file (80).
+      expect(sizes["/pos"].bytes).toBe(1080);
+      expect(sizes["/settings/advanced"].bytes).toBe(580);
+      expect(sizes["/pos"].files).toContain("static/chunks/pos-page-aaa.js");
+      expect(sizes["/pos"].files).toContain("static/chunks/main-xyz.js");
     });
   });
 
