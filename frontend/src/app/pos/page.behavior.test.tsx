@@ -4,8 +4,11 @@ import userEvent from "@testing-library/user-event";
 import {
   forwardRef,
   type ChangeEvent,
+  type ComponentType,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
+  useEffect,
+  useState,
 } from "react";
 import type { Product, Sale } from "@/types";
 import { formatCurrency } from "@/lib/utils";
@@ -75,6 +78,57 @@ vi.mock("@/components/pos/PaymentConfirmationModal", () => ({
       </button>
     ) : null,
 }));
+
+// S1 code splitting: heavy modals load through next/dynamic. The mock keeps a
+// deterministic fallback window (one macrotask) so tests can observe the
+// DynamicFallback skeleton before the chunk resolves; __resetDynamicChunks
+// keeps tests independent of each other's cached chunks.
+vi.mock("next/dynamic", () => {
+  type ChunkState = { resolved: ComponentType<Record<string, unknown>> | null };
+  const chunks: ChunkState[] = [];
+
+  return {
+    default: (
+      loader: () => Promise<{ default: ComponentType<Record<string, unknown>> }>,
+      options?: { loading?: () => ReactNode },
+    ) => {
+      const state: ChunkState = { resolved: null };
+      chunks.push(state);
+
+      function DynamicChunk(props: Record<string, unknown>) {
+        const [, setLoaded] = useState(false);
+
+        useEffect(() => {
+          // 50ms window: outlives userEvent's internal setTimeout(0) waits so
+          // the fallback is observable synchronously after the click, while
+          // findByRole still resolves the chunk quickly.
+          const timer = setTimeout(
+            () => {
+              void loader().then((mod) => {
+                state.resolved = mod.default;
+                setLoaded(true);
+              });
+            },
+            50,
+          );
+          return () => clearTimeout(timer);
+        }, [loader]);
+
+        if (state.resolved) {
+          const Loaded = state.resolved;
+          return <Loaded {...props} />;
+        }
+
+        return <>{options?.loading ? options.loading() : null}</>;
+      }
+
+      return DynamicChunk;
+    },
+    __resetDynamicChunks: () => {
+      for (const chunk of chunks) chunk.resolved = null;
+    },
+  };
+});
 
 vi.mock("@/components/ui/Input", () => {
   const MockInput = forwardRef<
@@ -208,6 +262,11 @@ vi.mock("@/contexts/ToastContext", () => ({
 
 import POSPage from "./page";
 import { printReceipt, printThermalReceipt } from "@/hooks/useReceipt";
+import * as nextDynamic from "next/dynamic";
+
+const resetDynamicChunks = () =>
+  (nextDynamic as unknown as { __resetDynamicChunks?: () => void })
+    .__resetDynamicChunks?.();
 
 function makeProduct(
   id: string,
@@ -258,6 +317,7 @@ function makeSale(): Sale {
 describe("POS behavior evidence (#19, #18)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetDynamicChunks();
     createSaleMutateMock.mockResolvedValue(makeSale());
   });
 
@@ -439,13 +499,39 @@ describe("POS behavior evidence (#19, #18)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Producto Checkout" }));
     await userEvent.click(screen.getByRole("button", { name: /tarjeta/i }));
     await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
-    await userEvent.click(screen.getByRole("button", { name: /confirmar pago/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /confirmar pago/i }, { timeout: 3000 }),
+    );
 
     await waitFor(() => {
       expect(createSaleMutateMock).toHaveBeenCalled();
     });
 
     expect(screen.getByText("Venta Exitosa")).toBeTruthy();
+  });
+
+  it("opens the payment modal through the dynamic loading fallback (S1)", async () => {
+    useProductsMock.mockReturnValue({
+      data: { data: [makeProduct("1", "Producto Split")], meta: { total: 1, page: 1, limit: 20, totalPages: 1 } },
+      isLoading: false,
+      isFetching: false,
+    });
+
+    render(<POSPage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Producto Split" }));
+    await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
+
+    // The modal chunk loads lazily: the shared fallback skeleton renders
+    // first, then the payment modal opens with identical behavior.
+    expect(screen.getByTestId("dynamic-fallback")).toBeTruthy();
+
+    const confirmButton = await screen.findByRole(
+      "button",
+      { name: /confirmar pago/i },
+      { timeout: 3000 },
+    );
+    expect(confirmButton).toBeTruthy();
   });
 
   it("shows a thermal print button after checkout and calls printThermalReceipt", async () => {
@@ -460,7 +546,9 @@ describe("POS behavior evidence (#19, #18)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Producto Checkout" }));
     await userEvent.click(screen.getByRole("button", { name: /tarjeta/i }));
     await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
-    await userEvent.click(screen.getByRole("button", { name: /confirmar pago/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /confirmar pago/i }, { timeout: 3000 }),
+    );
 
     await waitFor(() => {
       expect(createSaleMutateMock).toHaveBeenCalled();
@@ -491,7 +579,9 @@ describe("POS behavior evidence (#19, #18)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Producto Checkout" }));
     await userEvent.click(screen.getByRole("button", { name: /tarjeta/i }));
     await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
-    await userEvent.click(screen.getByRole("button", { name: /confirmar pago/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /confirmar pago/i }, { timeout: 3000 }),
+    );
 
     await waitFor(() => {
       expect(createSaleMutateMock).toHaveBeenCalled();
@@ -533,7 +623,9 @@ describe("POS behavior evidence (#19, #18)", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /tarjeta/i }));
     await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
-    await userEvent.click(screen.getByRole("button", { name: /confirmar pago/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /confirmar pago/i }, { timeout: 3000 }),
+    );
 
     await waitFor(() => {
       expect(createSaleMutateMock).toHaveBeenCalled();
@@ -711,7 +803,9 @@ describe("POS item price override (pos-edit-item-price)", () => {
     // Complete checkout with a card payment (covers the full total).
     await userEvent.click(screen.getByRole("button", { name: /tarjeta/i }));
     await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
-    await userEvent.click(screen.getByRole("button", { name: /confirmar pago/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /confirmar pago/i }, { timeout: 3000 }),
+    );
 
     await waitFor(() => {
       expect(createSaleMutateMock).toHaveBeenCalled();

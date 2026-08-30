@@ -26,9 +26,10 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
-import { PaymentConfirmationModal } from "@/components/pos/PaymentConfirmationModal";
+import { DynamicFallback } from "@/components/ui/DynamicFallback";
+import { prefetchOnIdle } from "@/lib/prefetch";
+import dynamic from "next/dynamic";
 import { PaymentMethodCards } from "@/components/pos/PaymentMethodCards";
-import { MobileCartDrawer } from "@/components/pos/MobileCartDrawer";
 import { MobileCartFloatingBar } from "@/components/pos/MobileCartFloatingBar";
 import { ProductCard } from "@/components/products/ProductCard";
 import {
@@ -50,6 +51,25 @@ import { useToast } from "@/contexts/ToastContext";
 import { api, getApiErrorMessage } from "@/lib/api";
 
 const POS_PAGE_SIZE = 20;
+
+// S1 code splitting (#98): the payment modal and mobile cart drawer are the
+// heaviest POS-only components; they load as separate chunks on first open
+// and are prefetched once the browser is idle after mount.
+const loadPaymentConfirmationModal = () =>
+  import("@/components/pos/PaymentConfirmationModal").then((m) => ({
+    default: m.PaymentConfirmationModal,
+  }));
+const loadMobileCartDrawer = () =>
+  import("@/components/pos/MobileCartDrawer").then((m) => ({
+    default: m.MobileCartDrawer,
+  }));
+
+const PaymentConfirmationModal = dynamic(loadPaymentConfirmationModal, {
+  loading: () => <DynamicFallback />,
+});
+const MobileCartDrawer = dynamic(loadMobileCartDrawer, {
+  loading: () => <DynamicFallback />,
+});
 
 /**
  * Detect whether a cart line is carrying an active product promotion based on
@@ -232,6 +252,12 @@ export default function POSPage() {
     if (isScannerBlocked) return;
     focusScannerInput();
   }, [isScannerBlocked, focusScannerInput]);
+
+  // Warm the lazily loaded modal chunks once idle (S1 code splitting).
+  useEffect(
+    () => prefetchOnIdle([loadPaymentConfirmationModal, loadMobileCartDrawer]),
+    [],
+  );
 
   // Filter out-of-stock products from POS — they simply don't appear
   const inStockProducts = useMemo(
@@ -1063,43 +1089,45 @@ export default function POSPage() {
         onClick={() => setIsMobileCartOpen(true)}
       />
 
-      {/* Mobile Cart Drawer */}
-      <MobileCartDrawer
-        isOpen={isMobileCartOpen}
-        onClose={() => setIsMobileCartOpen(false)}
-        cart={cart}
-        subtotal={subtotal}
-        taxAmount={taxAmount}
-        discountAmount={discountAmount}
-        total={total}
-        selectedCustomerName={selectedCustomerName}
-        onOpenCustomerModal={() => {
-          setOpenedFromMobileCart(true);
-          setIsMobileCartOpen(false);
-          setShowCustomerModal(true);
-        }}
-        pausedSalesCount={pausedSales.length}
-        onOpenPausedSales={() => {
-          setOpenedFromMobileCart(true);
-          setIsMobileCartOpen(false);
-          setShowPausedSalesModal(true);
-        }}
-        onPauseSale={handlePauseSale}
-        selectedPaymentMethod={selectedPaymentMethod}
-        onPaymentMethodChange={(method) => setSelectedPaymentMethod(method)}
-        onUpdateQuantity={updateQuantity}
-        onOpenDiscountModal={(productId) => {
-          setOpenedFromMobileCart(true);
-          setIsMobileCartOpen(false);
-          openDiscountModal(productId);
-        }}
-        onRemoveFromCart={removeFromCart}
-        onCheckout={() => {
-          setIsMobileCartOpen(false);
-          openPaymentModal();
-        }}
-        isPending={createSale.isPending}
-      />
+      {/* Mobile Cart Drawer (dynamic chunk, mounted only while open) */}
+      {isMobileCartOpen && (
+        <MobileCartDrawer
+          isOpen={isMobileCartOpen}
+          onClose={() => setIsMobileCartOpen(false)}
+          cart={cart}
+          subtotal={subtotal}
+          taxAmount={taxAmount}
+          discountAmount={discountAmount}
+          total={total}
+          selectedCustomerName={selectedCustomerName}
+          onOpenCustomerModal={() => {
+            setOpenedFromMobileCart(true);
+            setIsMobileCartOpen(false);
+            setShowCustomerModal(true);
+          }}
+          pausedSalesCount={pausedSales.length}
+          onOpenPausedSales={() => {
+            setOpenedFromMobileCart(true);
+            setIsMobileCartOpen(false);
+            setShowPausedSalesModal(true);
+          }}
+          onPauseSale={handlePauseSale}
+          selectedPaymentMethod={selectedPaymentMethod}
+          onPaymentMethodChange={(method) => setSelectedPaymentMethod(method)}
+          onUpdateQuantity={updateQuantity}
+          onOpenDiscountModal={(productId) => {
+            setOpenedFromMobileCart(true);
+            setIsMobileCartOpen(false);
+            openDiscountModal(productId);
+          }}
+          onRemoveFromCart={removeFromCart}
+          onCheckout={() => {
+            setIsMobileCartOpen(false);
+            openPaymentModal();
+          }}
+          isPending={createSale.isPending}
+        />
+      )}
 
       {/* Customer Modal */}
       <Modal
@@ -1160,25 +1188,27 @@ export default function POSPage() {
         </div>
       </Modal>
 
-      <PaymentConfirmationModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        onConfirm={handleCheckout}
-        cart={cart}
-        subtotal={subtotal}
-        taxAmount={taxAmount}
-        total={total}
-        selectedMethod={selectedPaymentMethod}
-        paymentMethods={paymentMethods}
-        onPaymentMethodChange={setPaymentMethods}
-        loading={createSale.isPending}
-        customerName={
-          selectedCustomer
-            ? customers.find((c) => c.id === selectedCustomer)?.name
-            : "Cliente General"
-        }
-        saleNumber={lastSale?.saleNumber}
-      />
+      {showPaymentModal && (
+        <PaymentConfirmationModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          onConfirm={handleCheckout}
+          cart={cart}
+          subtotal={subtotal}
+          taxAmount={taxAmount}
+          total={total}
+          selectedMethod={selectedPaymentMethod}
+          paymentMethods={paymentMethods}
+          onPaymentMethodChange={setPaymentMethods}
+          loading={createSale.isPending}
+          customerName={
+            selectedCustomer
+              ? customers.find((c) => c.id === selectedCustomer)?.name
+              : "Cliente General"
+          }
+          saleNumber={lastSale?.saleNumber}
+        />
+      )}
 
       {/* Receipt Success Modal */}
       {lastSale && (
