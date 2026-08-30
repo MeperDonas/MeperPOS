@@ -211,6 +211,8 @@ export class ProductsService {
     search?: string,
     categoryId?: string,
     status: 'active' | 'inactive' | 'all' = 'active',
+    lowStock?: boolean,
+    orderBy: 'name' | 'createdAt' = 'createdAt',
   ) {
     const skip = (page - 1) * limit;
 
@@ -236,13 +238,26 @@ export class ProductsService {
       where.categoryId = categoryId;
     }
 
+    if (lowStock) {
+      // Field reference: stock <= minStock is evaluated in the database, so
+      // low-stock pages stay coherent without loading every product first.
+      where.stock = { lte: this.prisma.product.fields.minStock };
+    }
+
+    // 'name' keeps the inventory list's alphabetical presentation coherent
+    // across page boundaries; 'createdAt' (default) preserves the legacy order.
+    const orderByClause =
+      orderBy === 'name'
+        ? { name: 'asc' as const }
+        : { createdAt: 'desc' as const };
+
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
         skip,
         take: limit,
         include: { category: true },
-        orderBy: { createdAt: 'desc' },
+        orderBy: orderByClause,
       }),
       this.prisma.product.count({ where }),
     ]);

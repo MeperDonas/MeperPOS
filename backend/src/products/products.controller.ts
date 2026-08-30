@@ -82,6 +82,8 @@ export class ProductsController {
     @Query('search') search?: string,
     @Query('categoryId') categoryId?: string,
     @Query('status') status: 'active' | 'inactive' | 'all' = 'active',
+    @Query('lowStock') lowStock?: string,
+    @Query('orderBy') orderBy?: 'name' | 'createdAt',
   ) {
     return this.productsService.findAll(
       user.organizationId,
@@ -90,6 +92,8 @@ export class ProductsController {
       search,
       categoryId,
       status,
+      lowStock === 'true',
+      orderBy,
     );
   }
 
