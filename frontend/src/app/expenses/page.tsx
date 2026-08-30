@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import {
@@ -24,10 +25,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ExpenseStatusBadge } from "@/components/expenses/ExpenseStatusBadge";
 import { ExpenseSummaryCards } from "@/components/expenses/ExpenseSummaryCards";
-import { ExpenseFormModal } from "@/components/expenses/ExpenseFormModal";
-import { AddPaymentModal } from "@/components/expenses/AddPaymentModal";
-import { HistoryModal } from "@/components/expenses/HistoryModal";
-import { ExpenseDetailModal } from "@/components/expenses/ExpenseDetailModal";
+import { DynamicFallback } from "@/components/ui/DynamicFallback";
+import { prefetchOnIdle } from "@/lib/prefetch";
 import {
   Copy,
   Eye,
@@ -42,6 +41,39 @@ import {
 import { chipStyles } from "@/lib/chipStyles";
 import type { Expense, ExpenseStatus } from "@/types";
 
+// S1 code splitting (#98): the four expense modals are heavy components used
+// only on this page; they load as separate chunks on first open and are
+// prefetched once the browser is idle after mount.
+const loadExpenseFormModal = () =>
+  import("@/components/expenses/ExpenseFormModal").then((m) => ({
+    default: m.ExpenseFormModal,
+  }));
+const loadAddPaymentModal = () =>
+  import("@/components/expenses/AddPaymentModal").then((m) => ({
+    default: m.AddPaymentModal,
+  }));
+const loadHistoryModal = () =>
+  import("@/components/expenses/HistoryModal").then((m) => ({
+    default: m.HistoryModal,
+  }));
+const loadExpenseDetailModal = () =>
+  import("@/components/expenses/ExpenseDetailModal").then((m) => ({
+    default: m.ExpenseDetailModal,
+  }));
+
+const ExpenseFormModal = dynamic(loadExpenseFormModal, {
+  loading: () => <DynamicFallback />,
+});
+const AddPaymentModal = dynamic(loadAddPaymentModal, {
+  loading: () => <DynamicFallback />,
+});
+const HistoryModal = dynamic(loadHistoryModal, {
+  loading: () => <DynamicFallback />,
+});
+const ExpenseDetailModal = dynamic(loadExpenseDetailModal, {
+  loading: () => <DynamicFallback />,
+});
+
 const STATUS_OPTIONS: Array<{ value: "" | ExpenseStatus; label: string }> = [
   { value: "", label: "Todos los estados" },
   { value: "PARTIAL", label: "Parcial" },
@@ -50,6 +82,19 @@ const STATUS_OPTIONS: Array<{ value: "" | ExpenseStatus; label: string }> = [
 
 export default function ExpensesPage() {
   const toast = useToast();
+
+  // Warm the lazily loaded modal chunks once idle (S1 code splitting).
+  useEffect(
+    () =>
+      prefetchOnIdle([
+        loadExpenseFormModal,
+        loadAddPaymentModal,
+        loadHistoryModal,
+        loadExpenseDetailModal,
+      ]),
+    [],
+  );
+
   const [month, setMonth] = useState(() =>
     getBogotaDateInputValue().slice(0, 7),
   );
