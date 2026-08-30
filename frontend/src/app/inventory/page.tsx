@@ -72,12 +72,39 @@ export default function InventoryPage() {
   const barcodeInputRef = useRef<HTMLInputElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
-  const { data, isLoading } = useProducts({
-    page: showLowStockOnly || selectedCategory ? 1 : page,
-    limit: showLowStockOnly || selectedCategory ? 1000 : 10,
+  // Filter setters reset to page 1 so a stale page number is never applied to
+  // a new filter combination (sales-page parity).
+  const updateSearch = (value: string) => {
+    setPage(1);
+    setSearch(value);
+  };
+
+  const updateStatusFilter = (value: string) => {
+    setPage(1);
+    setStatusFilter(value as "active" | "inactive" | "all");
+  };
+
+  const updateSelectedCategory = (value: string | null) => {
+    setPage(1);
+    setSelectedCategory(value);
+  };
+
+  const toggleLowStockOnly = () => {
+    setPage(1);
+    setShowLowStockOnly(!showLowStockOnly);
+  };
+
+  // Server-side pagination: every request — filtered or not — is bounded to
+  // one page of rows. Low stock and alphabetical order are resolved by the
+  // backend (findAll lowStock/orderBy) so pages stay coherent.
+  const { data, isLoading, isFetching } = useProducts({
+    page,
+    limit: 10,
     search: search || undefined,
     categoryId: selectedCategory || undefined,
     status: statusFilter,
+    lowStock: showLowStockOnly || undefined,
+    orderBy: "name",
   });
   const { data: categoriesData } = useCategories();
 
@@ -94,6 +121,13 @@ export default function InventoryPage() {
   const products = data?.data || [];
   const meta = data?.meta;
   const categories = categoriesData?.data ?? [];
+
+  useEffect(() => {
+    if (meta && meta.totalPages > 0 && page > meta.totalPages) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPage(1);
+    }
+  }, [meta, page]);
 
   const lowStockProducts = products
     .filter((p) => p.stock <= p.minStock)
@@ -395,15 +429,13 @@ export default function InventoryPage() {
         {/* Filter Bar */}
         <FilterBar
           searchValue={search}
-          onSearchChange={setSearch}
+          onSearchChange={updateSearch}
           searchPlaceholder="Buscar por nombre, SKU..."
           filterControls={
             <>
               <BentoSelect
                 value={statusFilter}
-                onChange={(value) =>
-                  setStatusFilter(value as "active" | "inactive" | "all")
-                }
+                onChange={updateStatusFilter}
                 className="w-36"
                 placeholder="Estado"
                 options={[
@@ -414,7 +446,7 @@ export default function InventoryPage() {
               />
               <BentoSelect
                 value={selectedCategory || ""}
-                onChange={(value) => setSelectedCategory(value || null)}
+                onChange={(value) => updateSelectedCategory(value || null)}
                 className={cn("w-52", selectedCategory && "border-primary/40")}
                 placeholder="Todas las categorías"
                 options={[
@@ -426,7 +458,7 @@ export default function InventoryPage() {
                 ]}
               />
               <button
-                onClick={() => setShowLowStockOnly(!showLowStockOnly)}
+                onClick={toggleLowStockOnly}
                 className={cn(
                   "flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all border",
                   showLowStockOnly
@@ -537,7 +569,19 @@ export default function InventoryPage() {
           />
         ) : (
           <>
-            <div className="grid auto-rows-fr grid-cols-1 gap-3.5 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 lg:gap-4.5">
+            {isFetching && (
+              <div
+                role="status"
+                className="flex items-center gap-2 px-1 py-1 text-xs text-muted-foreground"
+              >
+                <Package className="w-3.5 h-3.5 animate-pulse text-primary/60" />
+                Actualizando productos...
+              </div>
+            )}
+            <div
+              className="grid auto-rows-fr grid-cols-1 gap-3.5 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 lg:gap-4.5"
+              aria-busy={isFetching}
+            >
               {displayProducts.map((product) => (
                 <ProductCard
                   key={product.id}
@@ -560,18 +604,16 @@ export default function InventoryPage() {
               ))}
             </div>
 
-            {meta &&
-              meta.totalPages > 1 &&
-              !showLowStockOnly &&
-              !selectedCategory && (
-                <Pagination
-                  currentPage={page}
-                  totalPages={meta.totalPages}
-                  onPageChange={setPage}
-                  totalItems={meta.total}
-                  itemLabel="producto"
-                />
-              )}
+            {meta && meta.totalPages > 1 && (
+              <Pagination
+                currentPage={page}
+                totalPages={meta.totalPages}
+                onPageChange={setPage}
+                totalItems={meta.total}
+                itemLabel="producto"
+                isDisabled={isFetching}
+              />
+            )}
           </>
         )}
       </div>
