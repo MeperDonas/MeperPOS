@@ -70,3 +70,65 @@ describe('ProductsController — promotion write authorization', () => {
     ).toBe(true);
   });
 });
+
+describe('ProductsController — findAll additive params (D5)', () => {
+  const serviceMock = { findAll: jest.fn() };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('forwards lowStock and orderBy query params to the service', () => {
+    const controller = new ProductsController(serviceMock as never);
+    const user = { userId: 'u1', organizationId: 'org-1', role: OrgRole.ADMIN };
+
+    controller.findAll(
+      user as never,
+      1,
+      10,
+      undefined,
+      undefined,
+      'active',
+      'true',
+      'name',
+    );
+
+    expect(serviceMock.findAll).toHaveBeenCalledWith(
+      'org-1',
+      1,
+      10,
+      undefined,
+      undefined,
+      'active',
+      true,
+      'name',
+    );
+  });
+
+  it('treats any lowStock value other than "true" as absent', () => {
+    const controller = new ProductsController(serviceMock as never);
+    const user = { userId: 'u1', organizationId: 'org-1', role: OrgRole.ADMIN };
+
+    controller.findAll(
+      user as never,
+      1,
+      10,
+      undefined,
+      undefined,
+      'active',
+      'false',
+      undefined,
+    );
+
+    expect(serviceMock.findAll).toHaveBeenCalledWith(
+      'org-1',
+      1,
+      10,
+      undefined,
+      undefined,
+      'active',
+      false,
+      undefined,
+    );
+  });
+});

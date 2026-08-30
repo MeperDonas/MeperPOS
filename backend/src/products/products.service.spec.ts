@@ -9,6 +9,10 @@ import { computeEffectiveSalePrice, ProductsService } from './products.service';
 describe('ProductsService — Opt-in tax resolution', () => {
   let service: ProductsService;
 
+  // Sentinel standing in for the Prisma field reference (prisma.product
+  // .fields.minStock) used by the low-stock where clause; compared by identity.
+  const MIN_STOCK_FIELD_REF = { prismaFieldRef: 'Product.minStock' };
+
   // ── Mocks ──────────────────────────────────────────────────────────
   const prismaMock = {
     category: {
@@ -23,6 +27,7 @@ describe('ProductsService — Opt-in tax resolution', () => {
       updateMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      fields: { minStock: MIN_STOCK_FIELD_REF },
     },
     inventoryMovement: {
       create: jest.fn(),
@@ -805,6 +810,79 @@ describe('ProductsService — Opt-in tax resolution', () => {
         expect.objectContaining({
           where: expect.objectContaining({ id: 'prod-1', version: 3 }),
           data: expect.objectContaining({ version: { increment: 1 } }),
+        }),
+      );
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════
+  // findAll — additive lowStock/orderBy params (D5, inventory pagination)
+  // ════════════════════════════════════════════════════════════════════
+  describe('findAll — additive lowStock/orderBy params', () => {
+    const setupFindAll = () => {
+      prismaMock.product.findMany.mockResolvedValue([]);
+      prismaMock.product.count.mockResolvedValue(0);
+    };
+
+    it('filters stock <= minStock via a field reference when lowStock is true', async () => {
+      setupFindAll();
+
+      await service.findAll(ORG_ID, 1, 10, undefined, undefined, 'active', true);
+
+      expect(prismaMock.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            stock: { lte: MIN_STOCK_FIELD_REF },
+          }),
+        }),
+      );
+    });
+
+    it('orders by name ascending when orderBy is "name"', async () => {
+      setupFindAll();
+
+      await service.findAll(
+        ORG_ID,
+        1,
+        10,
+        undefined,
+        undefined,
+        'active',
+        undefined,
+        'name',
+      );
+
+      expect(prismaMock.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { name: 'asc' } }),
+      );
+    });
+
+    it('composes the low-stock filter with search and category filters', async () => {
+      setupFindAll();
+
+      await service.findAll(ORG_ID, 1, 10, 'panela', 'cat-2', 'active', true);
+
+      expect(prismaMock.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organizationId: ORG_ID,
+            categoryId: 'cat-2',
+            OR: expect.any(Array),
+            stock: { lte: MIN_STOCK_FIELD_REF },
+          }),
+        }),
+      );
+    });
+
+    it('keeps current behavior by default (createdAt desc, no stock filter)', async () => {
+      setupFindAll();
+
+      await service.findAll(ORG_ID, 1, 10);
+
+      expect(prismaMock.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { createdAt: 'desc' },
+          where: expect.not.objectContaining({ stock: expect.anything() }),
         }),
       );
     });
