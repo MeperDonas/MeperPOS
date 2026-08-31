@@ -321,7 +321,7 @@ export function PaymentConfirmationModal({
                     }}
                     className="text-xs"
                   >
-                    ${amount.toLocaleString()}
+                    {formatCurrency(amount)}
                   </Button>
                 ))}
               </div>
