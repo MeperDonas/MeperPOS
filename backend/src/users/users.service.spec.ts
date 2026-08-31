@@ -194,7 +194,7 @@ describe('UsersService', () => {
     );
   });
 
-  it('resets passwords from the users boundary and records the audit entry', async () => {
+  it('resets passwords from the users boundary and attaches the audit context', async () => {
     prismaMock.user.findUnique.mockResolvedValue({
       id: 'user-2',
       email: 'user2@example.com',
@@ -207,36 +207,34 @@ describe('UsersService', () => {
       organizationId: 'org-1',
     });
     prismaMock.user.update.mockResolvedValue({ id: 'user-2' });
-    prismaMock.auditLog.create.mockResolvedValue({ id: 'audit-1' });
 
-    await expect(
-      service.resetPassword(
-        'admin-1',
-        'user-2',
-        {
-          newPassword: 'NuevaClaveSegura123',
-        },
-        'org-1',
-      ),
-    ).resolves.toEqual({ message: 'Contraseña restablecida exitosamente' });
+    const result = await service.resetPassword(
+      'admin-1',
+      'user-2',
+      {
+        newPassword: 'NuevaClaveSegura123',
+      },
+      'org-1',
+    );
 
+    expect(result).toEqual({ message: 'Contraseña restablecida exitosamente' });
     expect(prismaMock.user.update).toHaveBeenCalledWith({
       where: { id: 'user-2' },
       data: { password: expect.any(String) },
     });
-    expect(prismaMock.auditLog.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          userId: 'admin-1',
-          organizationId: 'org-1',
-          action: 'ADMIN_PASSWORD_RESET',
-          resourceId: 'user-2',
-          metadata: expect.objectContaining({
-            summary: 'Reset password for user User Two (user2@example.com)',
-          }),
-        }),
-      }),
-    );
+    // The audit row is written by AuditInterceptor from this attached
+    // context; the service must not write it manually anymore.
+    expect((result as { __auditContext?: unknown }).__auditContext).toEqual({
+      resource: 'User',
+      resourceId: 'user-2',
+      summary: 'Reset password for user User Two (user2@example.com)',
+      metadata: {
+        targetUserId: 'user-2',
+        targetUserEmail: 'user2@example.com',
+        targetUserName: 'User Two',
+      },
+    });
+    expect(prismaMock.auditLog.create).not.toHaveBeenCalled();
   });
 
   it('filters findAll by organizationId when provided', async () => {
