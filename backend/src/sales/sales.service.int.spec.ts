@@ -3,6 +3,7 @@ import { SalesService } from './sales.service';
 import { SequenceService } from '../common/sequences/sequence.service';
 import { CacheService } from '../common/services/cache.service';
 import { SettingsService } from '../settings/settings.service';
+import { ReceiptsService } from '../receipts/receipts.service';
 
 const prisma = new PrismaClient();
 
@@ -30,6 +31,7 @@ describe('SalesService — Integration (Numbering + Isolation)', () => {
       cacheService,
       settingsService,
       sequenceService,
+      new ReceiptsService(),
     );
 
     // Create org
