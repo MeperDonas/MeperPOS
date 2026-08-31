@@ -42,6 +42,10 @@ describe('SalesService', () => {
     find: jest.fn(),
   };
 
+  const receiptsServiceMock = {
+    generateSaleReceiptPdf: jest.fn(),
+  };
+
   const mockUser = (
     overrides: Partial<{
       userId: string;
@@ -65,6 +69,7 @@ describe('SalesService', () => {
       cacheMock as never,
       settingsServiceMock as never,
       sequenceServiceMock as never,
+      receiptsServiceMock as never,
     );
   });
 
@@ -1135,5 +1140,105 @@ describe('SalesService', () => {
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
+  });
+});
+
+describe('SalesService.generateReceipt delegation', () => {
+  const prismaMock = {
+    sale: {
+      findFirst: jest.fn(),
+    },
+  };
+
+  const cacheMock = { clear: jest.fn() };
+  const settingsServiceMock = { find: jest.fn() };
+  const sequenceServiceMock = { nextNumber: jest.fn() };
+  const receiptsServiceMock = { generateSaleReceiptPdf: jest.fn() };
+
+  const mockUser = () => ({
+    userId: 'user-1',
+    email: 'user@example.com',
+    organizationId: 'org-1',
+    role: 'MEMBER' as const,
+    tokenVersion: 1,
+    isSuperAdmin: false,
+  });
+
+  const service = new SalesService(
+    prismaMock as never,
+    cacheMock as never,
+    settingsServiceMock as never,
+    sequenceServiceMock as never,
+    receiptsServiceMock as never,
+  );
+
+  const receiptSale = {
+    id: 'sale-1',
+    saleNumber: 42,
+    userId: 'user-1',
+    customer: { name: 'Ana María Torres' },
+    items: [],
+    payments: [],
+  };
+
+  const receiptSettings = {
+    organization: { name: 'Tienda Test', logoUrl: null },
+    invoicing: { printHeader: '', printFooter: '' },
+    receipt: { prefix: 'REC' },
+  };
+
+  const stubResponse = () => {
+    const headers: Record<string, string> = {};
+    let sent: Buffer | undefined;
+    return {
+      headers,
+      get sent() {
+        return sent;
+      },
+      setHeader: (name: string, value: string) => {
+        headers[name] = value;
+      },
+      send: (body: Buffer) => {
+        sent = body;
+      },
+    };
+  };
+
+  it('delegates PDF generation to ReceiptsService with the sale and settings', async () => {
+    prismaMock.sale.findFirst.mockResolvedValue(receiptSale);
+    settingsServiceMock.find.mockResolvedValue(receiptSettings);
+    const pdf = Buffer.from('%PDF-delegate');
+    receiptsServiceMock.generateSaleReceiptPdf.mockReturnValue(pdf);
+    const response = stubResponse();
+
+    await service.generateReceipt('sale-1', response as never, mockUser());
+
+    expect(prismaMock.sale.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'sale-1', organizationId: 'org-1' },
+      }),
+    );
+    expect(settingsServiceMock.find).toHaveBeenCalledWith('org-1');
+    expect(receiptsServiceMock.generateSaleReceiptPdf).toHaveBeenCalledWith(
+      receiptSale,
+      receiptSettings,
+    );
+    expect(response.sent).toBe(pdf);
+  });
+
+  it('keeps the PDF download response headers', async () => {
+    prismaMock.sale.findFirst.mockResolvedValue(receiptSale);
+    settingsServiceMock.find.mockResolvedValue(receiptSettings);
+    receiptsServiceMock.generateSaleReceiptPdf.mockReturnValue(
+      Buffer.from('%PDF-headers'),
+    );
+    const response = stubResponse();
+
+    await service.generateReceipt('sale-1', response as never, mockUser());
+
+    expect(response.headers['Content-Type']).toBe('application/pdf');
+    expect(response.headers['Content-Disposition']).toBe(
+      'attachment; filename=comprobante_42.pdf',
+    );
   });
 });
