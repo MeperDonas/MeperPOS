@@ -9,7 +9,6 @@ import {
 import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSaleDto, UpdateSaleDto } from './dto/sales.dto';
-import { jsPDF } from 'jspdf';
 import type { Response } from 'express';
 import {
   parseBogotaEndOfDay,
@@ -19,18 +18,10 @@ import { CacheService } from '../common/services/cache.service';
 import { SettingsService } from '../settings/settings.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
 import { computeEffectiveSalePrice } from '../products/products.service';
-import { CURRENCY, LOCALE, TIMEZONE } from '../common/constants/locale.constants';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { SequenceService } from '../common/sequences/sequence.service';
 import { PLAN_LIMITS } from '../plan-limits/plan-limits.constants';
-
-interface SaleItem {
-  taxRate: unknown;
-}
-
-interface SaleWithItems {
-  items?: SaleItem[];
-}
+import { ReceiptsService } from '../receipts/receipts.service';
 
 @Injectable()
 export class SalesService {
@@ -44,6 +35,7 @@ export class SalesService {
     private cache: CacheService,
     private settingsService: SettingsService,
     private sequenceService: SequenceService,
+    private receiptsService: ReceiptsService,
   ) {}
 
   /**
@@ -587,284 +579,19 @@ export class SalesService {
     return this.findOne(id, organizationId);
   }
 
+  /**
+   * Generates the sale receipt PDF. Rendering lives in ReceiptsService
+   * (data-in/Buffer-out); this method keeps HTTP response handling.
+   */
   async generateReceipt(id: string, response: Response, user?: RequestUser) {
     const sale = await this.findOne(id, user?.organizationId, user);
     const settings = await this.settingsService.find(user?.organizationId);
-
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: [80, 300],
-    });
-    const companyName = settings.organization.name || 'Mi Negocio';
-    const printHeader = settings.invoicing.printHeader || '';
-    const printFooter = settings.invoicing.printFooter || '';
-    const logoUrl = settings.organization.logoUrl;
-    const receiptNumber = settings.receipt.prefix
-      ? `${settings.receipt.prefix}-${sale.saleNumber}`
-      : String(sale.saleNumber);
-
-    const margin = 4;
-    const maxWidth = 80 - margin * 2;
-    let y = 5;
-
-    if (logoUrl) {
-      try {
-        doc.addImage(logoUrl, 'PNG', 40 - 15, y, 30, 15, undefined, 'FAST');
-        y += 17;
-      } catch (error) {
-        console.error('Error loading logo:', error);
-      }
-    }
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    const companyNameLines = doc.splitTextToSize(
-      companyName.toUpperCase(),
-      maxWidth,
-    ) as string[];
-    companyNameLines.forEach((line: string) => {
-      doc.text(line, 40, y, { align: 'center' });
-      y += 5;
-    });
-    y += 2;
-
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    if (printHeader) {
-      const headerLines = doc.splitTextToSize(
-        printHeader,
-        maxWidth,
-      ) as string[];
-      headerLines.forEach((line: string) => {
-        doc.text(line, 40, y, { align: 'center' });
-        y += 3.5;
-      });
-    }
-
-    y += 3;
-    doc.line(margin, y, 80 - margin, y);
-    y += 4;
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    const receiptDate = new Date(sale.createdAt).toLocaleDateString(LOCALE, {
-      timeZone: TIMEZONE,
-    });
-    const receiptTime = new Date(sale.createdAt).toLocaleTimeString(LOCALE, {
-      timeZone: TIMEZONE,
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    doc.text(
-      `No. ${receiptNumber}    ${receiptDate} ${receiptTime}`,
-      margin,
-      y,
-    );
-    y += 5;
-
-    if (sale.customer) {
-      doc.text(`Cliente: ${sale.customer.name}`, margin, y);
-      y += 4;
-    }
-
-    if (sale.payments && sale.payments.length > 0) {
-      if (sale.payments.length === 1) {
-        doc.text(
-          `Pago: ${this.getPaymentMethodText(sale.payments[0].method)}`,
-          margin,
-          y,
-        );
-      } else {
-        doc.text(`Pago: Mixto (${sale.payments.length} métodos)`, margin, y);
-      }
-      y += 4;
-    }
-
-    doc.line(margin, y, 80 - margin, y);
-    y += 4;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('CANT  ITEM            $UNIT      $TOTAL', margin, y);
-    y += 3;
-    doc.line(margin, y, 80 - margin, y);
-    y += 3;
-
-    doc.setFont('helvetica', 'normal');
-    for (const item of sale.items) {
-      const productName = item.product?.name || 'Producto eliminado';
-      const itemName =
-        productName.length > 14
-          ? productName.substring(0, 14) + '..'
-          : productName;
-
-      doc.text(`${item.quantity}`, margin + 2, y);
-      doc.text(itemName, margin + 9, y);
-      doc.text(
-        this.formatCurrencyCompact(Number(item.unitPrice)),
-        margin + 33,
-        y,
-      );
-      doc.text(
-        this.formatCurrencyCompact(Number(item.total)),
-        80 - margin - 15,
-        y,
-      );
-      y += 4;
-    }
-
-    y += 2;
-    doc.line(margin, y, 80 - margin, y);
-    y += 4;
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('SUBTOTAL', margin, y);
-    doc.text(
-      this.formatCurrencyCompact(Number(sale.subtotal)),
-      80 - margin - 15,
-      y,
-    );
-    y += 4;
-
-    const taxAmount = Number(sale.taxAmount);
-    if (taxAmount > 0) {
-      doc.text(`IVA (${this.getTaxRate(sale)}%)`, margin, y);
-      doc.text(this.formatCurrencyCompact(taxAmount), 80 - margin - 15, y);
-      y += 4;
-    }
-
-    const discountAmount = Number(sale.discountAmount);
-    if (discountAmount > 0) {
-      doc.text('DESCUENTO', margin, y);
-      doc.text(
-        `-${this.formatCurrencyCompact(discountAmount)}`,
-        80 - margin - 15,
-        y,
-      );
-      y += 4;
-    }
-
-    doc.line(margin, y, 80 - margin, y);
-    y += 4;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL A PAGAR', margin, y);
-    doc.text(
-      this.formatCurrencyCompact(Number(sale.total)),
-      80 - margin - 18,
-      y,
-    );
-    y += 6;
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    if (sale.payments && sale.payments.length > 0) {
-      if (sale.payments.length > 1) {
-        y += 3;
-        doc.line(margin, y, 80 - margin, y);
-        y += 3;
-        doc.setFont('helvetica', 'bold');
-        doc.text('PAGOS:', margin, y);
-        y += 4;
-        doc.setFont('helvetica', 'normal');
-
-        for (const payment of sale.payments) {
-          const methodText = this.getPaymentMethodText(payment.method);
-          doc.text(`${methodText}:`, margin, y);
-          doc.text(
-            this.formatCurrencyCompact(Number(payment.amount)),
-            80 - margin - 15,
-            y,
-          );
-          y += 4;
-        }
-      } else {
-        const cashPayment = sale.payments.find((p) => p.method === 'CASH');
-        if (cashPayment) {
-          doc.text('RECIBIDO:', margin, y);
-          doc.text(
-            this.formatCurrencyCompact(Number(cashPayment.amount)),
-            80 - margin - 15,
-            y,
-          );
-          y += 4;
-
-          if (sale.change !== null && Number(sale.change) > 0) {
-            doc.text('CAMBIO:', margin, y);
-            doc.text(
-              this.formatCurrencyCompact(Number(sale.change)),
-              80 - margin - 15,
-              y,
-            );
-            y += 4;
-          }
-        }
-      }
-    }
-
-    y += 4;
-    doc.line(margin, y, 80 - margin, y);
-    y += 5;
-
-    doc.setFontSize(7);
-    if (printFooter) {
-      const footerLines = doc.splitTextToSize(
-        printFooter,
-        maxWidth,
-      ) as string[];
-      footerLines.forEach((line: string) => {
-        doc.text(line, 40, y, { align: 'center' });
-        y += 3.5;
-      });
-    }
-
-    y += 3;
-    doc.setFontSize(7);
-    doc.setTextColor(100, 100, 100);
-    doc.text('*** GRACIAS POR SU COMPRA ***', 40, y, { align: 'center' });
-    doc.setTextColor(0, 0, 0);
-
+    const pdf = this.receiptsService.generateSaleReceiptPdf(sale, settings);
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader(
       'Content-Disposition',
       `attachment; filename=comprobante_${sale.saleNumber}.pdf`,
     );
-    response.send(Buffer.from(doc.output('arraybuffer')));
-  }
-
-  private getTaxRate(sale: SaleWithItems): number {
-    if (sale.items && sale.items.length > 0) {
-      const firstItem = sale.items[0];
-      return Number(firstItem.taxRate) || 0;
-    }
-    return 0;
-  }
-
-  private formatCurrencyCompact(amount: number): string {
-    if (amount >= 1000000) {
-      return '$' + (amount / 1000000).toFixed(2) + 'M';
-    } else if (amount >= 1000) {
-      return '$' + (amount / 1000).toFixed(0) + 'K';
-    } else {
-      return '$' + amount.toFixed(0);
-    }
-  }
-
-  private getPaymentMethodText(method: string): string {
-    const methods: Record<string, string> = {
-      CASH: 'Efectivo',
-      CARD: 'Tarjeta',
-      TRANSFER: 'Transferencia',
-    };
-    return methods[method] || method;
-  }
-
-  private formatCurrency(amount: number): string {
-    return new Intl.NumberFormat(LOCALE, {
-      style: 'currency',
-      currency: CURRENCY,
-    }).format(amount);
+    response.send(pdf);
   }
 }
