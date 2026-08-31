@@ -1,11 +1,13 @@
 // Golden equality gate for the reports query tuning (S5 — perf-refactor #98).
 //
 // The committed JSON files under backend/test/fixtures/reports-golden/ were
-// captured from the UNMODIFIED ReportsService against the live seeded
-// database with FIXED date ranges (see capture-goldens.ts). This spec
-// re-runs the identical workload and asserts parsed-JSON equality per
-// endpoint, so it must keep passing while reports.service.ts is refactored;
-// any output difference is a semantics regression.
+// captured from the UNMODIFIED ReportsService against the deterministic
+// fixture organization seeded by seed-golden-fixtures.ts (see
+// capture-goldens.ts). This spec re-seeds that fixture org in beforeAll and
+// then re-runs the identical workload, so the gate is SELF-CONTAINED: it
+// passes on any freshly migrated database (CI included) with no local seed
+// data. It must keep passing while reports.service.ts is refactored; any
+// output difference is a semantics regression.
 //
 // Regeneration policy: goldens may only be regenerated from unmodified
 // reports.service.ts code (pre-refactor capture). Never regenerate goldens
@@ -23,6 +25,7 @@ import {
   runReportWorkload,
   type ReportWorkloadOutputs,
 } from './reports-golden-workload';
+import { seedGoldenFixtures } from '../../test/fixtures/reports-golden/seed-golden-fixtures';
 
 const GOLDEN_DIR = path.join(__dirname, '..', '..', 'test', 'fixtures', 'reports-golden');
 
@@ -94,13 +97,17 @@ describe('Reports golden equality (S5 perf-refactor #98)', () => {
 
   beforeAll(async () => {
     prisma = new PrismaService();
+    // Self-contained gate: seed the deterministic fixture org so the suite
+    // never depends on local seed data (CI runs against an empty-but-migrated
+    // database).
+    await seedGoldenFixtures(prisma);
     const cache = new CacheService();
     const expenses = new ExpensesService(
       prisma,
       new CloudinaryService(new ConfigService()),
     );
     service = new ReportsService(prisma, cache, expenses);
-  });
+  }, 30000);
 
   afterAll(async () => {
     await prisma.$disconnect();

@@ -2,9 +2,10 @@
  * Golden capture script for the report endpoints (S5 — perf-refactor #98).
  *
  * Boots the REAL dependency graph (PrismaService + CacheService +
- * ExpensesService) and calls every report endpoint of the CURRENT
- * ReportsService against the live seeded database, for each organization ×
- * each fixed date scenario, serializing outputs to committed JSON files:
+ * ExpensesService), seeds the deterministic fixture organization
+ * (seed-golden-fixtures.ts) and calls every report endpoint of the CURRENT
+ * ReportsService against it for each fixed date scenario, serializing outputs
+ * to committed JSON files:
  *
  *   orgs.json                              manifest of captured org slugs
  *   golden-<orgSlug>-<scenario>.json       all endpoint outputs per org/scenario
@@ -28,6 +29,10 @@ import {
   GOLDEN_SCENARIOS,
   runReportWorkload,
 } from '../../../src/reports/reports-golden-workload';
+import {
+  GOLDEN_ORG_SLUG,
+  seedGoldenFixtures,
+} from './seed-golden-fixtures';
 
 async function main(): Promise<void> {
   const prisma = new PrismaService();
@@ -38,13 +43,15 @@ async function main(): Promise<void> {
   );
   const service = new ReportsService(prisma, cache, expenses);
 
-  const orgs = await prisma.organization.findMany({
-    orderBy: { createdAt: 'asc' },
+  // Self-contained capture: seed the deterministic fixture org so the goldens
+  // never depend on local seed data (CI runs against an empty-but-migrated
+  // database).
+  const { orgId } = await seedGoldenFixtures(prisma);
+  const org = await prisma.organization.findUniqueOrThrow({
+    where: { id: orgId },
     select: { id: true, slug: true },
   });
-  if (orgs.length === 0) {
-    throw new Error('No organizations found in the database — seed it first.');
-  }
+  const orgs = [org];
 
   fs.mkdirSync(__dirname, { recursive: true });
 
