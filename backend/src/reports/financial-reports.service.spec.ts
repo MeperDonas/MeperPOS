@@ -6,7 +6,7 @@ const decimal = (value: string | number) => new Prisma.Decimal(value);
 describe('ReportsService financial read model', () => {
   const prismaMock = {
     sale: { findMany: jest.fn() },
-    payment: { findMany: jest.fn() },
+    payment: { findMany: jest.fn(), groupBy: jest.fn() },
     expensePayment: { findMany: jest.fn() },
     product: { findMany: jest.fn() },
     inventoryMovement: { findMany: jest.fn() },
@@ -199,9 +199,9 @@ describe('ReportsService financial read model', () => {
   });
 
   it('reports sale collections and expense payments by payment date and method', async () => {
-    prismaMock.payment.findMany.mockResolvedValue([
-      { amount: decimal('10.25'), method: 'CASH', createdAt: new Date('2026-03-11') },
-      { amount: decimal('5.75'), method: 'CARD', createdAt: new Date('2026-03-12') },
+    prismaMock.payment.groupBy.mockResolvedValue([
+      { method: 'CASH', _sum: { amount: decimal('10.25') }, _count: { method: 1 } },
+      { method: 'CARD', _sum: { amount: decimal('5.75') }, _count: { method: 1 } },
     ]);
     prismaMock.expensePayment.findMany.mockResolvedValue([
       { amount: decimal('3.50'), method: 'TRANSFER', date: new Date('2026-03-12') },
@@ -210,12 +210,15 @@ describe('ReportsService financial read model', () => {
 
     const result = await service.getCashFlow('org-a', '2026-03-10', '2026-03-12');
 
-    expect(prismaMock.payment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+    expect(prismaMock.payment.groupBy).toHaveBeenCalledWith(expect.objectContaining({
+      by: ['method'],
       where: expect.objectContaining({
         organizationId: 'org-a',
         createdAt: expect.any(Object),
         sale: { status: 'COMPLETED' },
       }),
+      // Deterministic-by-contract group order (maintainer decision obs #411).
+      orderBy: { method: 'asc' },
     }));
     expect(prismaMock.expensePayment.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { organizationId: 'org-a', date: expect.any(Object) },

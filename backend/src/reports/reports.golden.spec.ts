@@ -45,6 +45,49 @@ const manifest = JSON.parse(
   fs.readFileSync(path.join(GOLDEN_DIR, 'orgs.json'), 'utf-8'),
 ) as OrgsManifest;
 
+// ─── Scoped order-insensitivity (maintainer decision) ────────────────────────
+// The pre-refactor payment loops had NO orderBy, so the method-group array
+// order in the goldens was a DB physical-row artifact, never a code contract
+// (maintainer decision: Engram obs #411 / PR #103 — "Option 1: method-group
+// order is non-semantic"). ONLY the two method-group arrays —
+// getSalesByPaymentMethod `data` and getCashFlow `collections.byPaymentMethod`
+// (also embedded in economicExport.cash) — are sorted by paymentMethod on BOTH
+// sides before deep-equal; every OTHER assertion stays byte-strict (sorting
+// cannot mask a value difference) — a recorded relaxation, not a weakening.
+function isMethodGroupArray(value: unknown): value is Array<{ paymentMethod: string }> {
+  return Array.isArray(value) && value.every((row) => typeof row?.paymentMethod === 'string');
+}
+
+function sortMethodGroups(rows: Array<{ paymentMethod: string }>) {
+  return [...rows].sort((a, b) => a.paymentMethod.localeCompare(b.paymentMethod));
+}
+
+function withSortedMethodGroups(key: string, output: unknown): unknown {
+  if (typeof output !== 'object' || output === null) return output;
+  if (key === 'salesPaymentMethod') {
+    const sales = output as { data?: unknown };
+    return isMethodGroupArray(sales?.data)
+      ? { ...sales, data: sortMethodGroups(sales.data) }
+      : output;
+  }
+  const cashflow =
+    key === 'economicCash'
+      ? (output as { collections?: { byPaymentMethod?: unknown } })
+      : key === 'economicExport'
+        ? (output as { cash?: { collections?: { byPaymentMethod?: unknown } } }).cash
+        : undefined;
+  const byPaymentMethod = cashflow?.collections?.byPaymentMethod;
+  if (!isMethodGroupArray(byPaymentMethod)) return output;
+  const sorted = {
+    ...cashflow!,
+    collections: {
+      ...cashflow!.collections,
+      byPaymentMethod: sortMethodGroups(byPaymentMethod),
+    },
+  };
+  return key === 'economicExport' ? { ...output, cash: sorted } : sorted;
+}
+
 describe('Reports golden equality (S5 perf-refactor #98)', () => {
   let prisma: PrismaService;
   let service: ReportsService;
@@ -86,7 +129,10 @@ describe('Reports golden equality (S5 perf-refactor #98)', () => {
         for (const key of Object.keys(golden.outputs)) {
           it(`matches golden output: ${key}`, () => {
             const parsed = JSON.parse(JSON.stringify(actual[key]));
-            expect(parsed).toEqual(golden.outputs[key]);
+            const expected = JSON.parse(JSON.stringify(golden.outputs[key]));
+            expect(withSortedMethodGroups(key, parsed)).toEqual(
+              withSortedMethodGroups(key, expected),
+            );
           });
         }
       });
