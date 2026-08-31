@@ -26,7 +26,7 @@ export function QuickAmountButtons({ total, onAmountSelect, disabled = false }: 
               disabled={disabled}
               className="text-sm hover:scale-105 transition-transform"
             >
-              ${amount.toLocaleString()}
+              {formatCurrency(amount)}
             </Button>
           ))}
         </div>

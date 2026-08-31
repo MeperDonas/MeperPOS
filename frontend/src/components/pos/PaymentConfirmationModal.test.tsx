@@ -9,8 +9,8 @@ import type { CartItem, PaymentMethod } from "@/types";
  * formatCurrency (task 4.2). The summary rows already use formatCurrency, so
  * their assertions must stay IDENTICAL across 4.1 and 4.2 — any change there
  * is drift beyond the user-accepted quick-amount delta (amendment #404-3).
- * The quick-cash buttons render raw `${amount.toLocaleString()}` today;
- * this file documents the before-value ("$10.000" under the es-CO runtime).
+ * The quick-cash buttons used to render a raw, browser-locale dependent
+ * amount; this file documented the before-value ("$10.000" under es-CO).
  */
 
 const mockCartItem: CartItem = {
@@ -83,15 +83,22 @@ describe("PaymentConfirmationModal currency output", () => {
     expect(screen.queryByText("Cambio")).not.toBeInTheDocument();
   });
 
-  it("renders quick cash amounts with the current raw locale output", () => {
+  it("renders quick cash amounts through formatCurrency (deterministic es-CO)", () => {
     render(<PaymentConfirmationModal {...baseProps} />);
 
-    // Before-value (raw toLocaleString, runtime default locale): "$10.000"
-    expect(screen.getByRole("button", { name: "$10.000" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "$20.000" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "$50.000" })).toBeInTheDocument();
+    // After-value (formatCurrency, deterministic es-CO, amendment #404-3):
+    // "$ 10.000" with a no-break space between symbol and amount.
     expect(
-      screen.getByRole("button", { name: "$100.000" }),
+      screen.getByRole("button", { name: `$${NBSP}10.000` }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: `$${NBSP}20.000` }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: `$${NBSP}50.000` }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: `$${NBSP}100.000` }),
     ).toBeInTheDocument();
   });
 });
