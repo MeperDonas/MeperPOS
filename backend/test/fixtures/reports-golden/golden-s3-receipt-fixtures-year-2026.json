@@ -1,0 +1,613 @@
+{
+  "_comment": "Golden report outputs captured from the UNMODIFIED ReportsService (S5 perf-refactor #98). Regenerate ONLY from unmodified reports.service.ts via: npm run fixtures:reports-golden",
+  "orgSlug": "s3-receipt-fixtures",
+  "scenario": "year-2026",
+  "startDate": "2026-01-01",
+  "endDate": "2026-12-31",
+  "outputs": {
+    "dashboard": {
+      "totalSales": 5,
+      "totalRevenue": 56536,
+      "totalProducts": 7,
+      "totalCustomers": 3,
+      "lowStockProducts": 0,
+      "recentSales": [
+        {
+          "id": "4be9dd64-4ea9-4530-9cc5-002467418c30",
+          "saleNumber": 1001,
+          "total": "3570",
+          "status": "COMPLETED",
+          "createdAt": "2026-06-15T14:30:00.000Z",
+          "customer": {
+            "id": "c7de9023-561b-4e70-9350-c22a9354ba21",
+            "name": "Ana María Torres"
+          },
+          "items": [
+            {
+              "id": "53a5e598-5401-4963-bee5-16bb1483f5c0",
+              "quantity": 2,
+              "total": "3000",
+              "product": {
+                "id": "8f9fc37b-37a7-416d-a50b-ac8db5e20702",
+                "name": "Panela Molida Tradicional"
+              }
+            }
+          ]
+        },
+        {
+          "id": "50b981a5-88c7-4fa1-8f20-4b0a55e11c0f",
+          "saleNumber": 1002,
+          "total": "38280",
+          "status": "COMPLETED",
+          "createdAt": "2026-06-15T14:30:00.000Z",
+          "customer": {
+            "id": "bba950af-60d4-4c7f-9aa2-bb0110cb2eb4",
+            "name": "Carlos Andrés Gómez"
+          },
+          "items": [
+            {
+              "id": "dce88883-188c-42d7-ae15-4be3cdbc9de1",
+              "quantity": 1,
+              "total": "12000",
+              "product": {
+                "id": "b71c31f5-4d1c-4a41-9eb1-47d44af2a8a0",
+                "name": "Café Molido Especial"
+              }
+            },
+            {
+              "id": "021731c1-2626-4247-9baa-1bdf3f35d77c",
+              "quantity": 3,
+              "total": "24000",
+              "product": {
+                "id": "17a3999b-8399-4a9e-8b67-9530908215bc",
+                "name": "Taza Cerámica Artesanal"
+              }
+            }
+          ]
+        },
+        {
+          "id": "0c160db5-4538-4bef-9698-2a771f0c45d4",
+          "saleNumber": 1003,
+          "total": "5665",
+          "status": "COMPLETED",
+          "createdAt": "2026-06-15T14:30:00.000Z",
+          "customer": {
+            "id": "24447eea-93db-4f16-81a0-911f18c68e62",
+            "name": "José Muñoz Ñíguez \"Pepe\""
+          },
+          "items": [
+            {
+              "id": "d7dde0d0-28da-4ffa-880d-767d2a2539b1",
+              "quantity": 1,
+              "total": "3500",
+              "product": {
+                "id": "dd89647a-ca6c-4a59-bacb-829f51c6d2e2",
+                "name": "Café Árabe Íntenso Ñoño \"Premium\""
+              }
+            },
+            {
+              "id": "3c39ea25-82b1-420a-a263-f63ac27d7896",
+              "quantity": 1,
+              "total": "1500",
+              "product": {
+                "id": "806ab476-cc53-4f46-b680-234e04d15962",
+                "name": "Piñata \"Fiesta\" Ñandú"
+              }
+            }
+          ]
+        },
+        {
+          "id": "486bfe43-f269-43f9-9824-292d14bbef2a",
+          "saleNumber": 1004,
+          "total": "2000",
+          "status": "COMPLETED",
+          "createdAt": "2026-06-15T14:30:00.000Z",
+          "customer": {
+            "id": "c7de9023-561b-4e70-9350-c22a9354ba21",
+            "name": "Ana María Torres"
+          },
+          "items": [
+            {
+              "id": "4f9358e6-58b0-4f2b-8b7a-39ef2ae4cc4d",
+              "quantity": 1,
+              "total": "2500",
+              "product": {
+                "id": "e96f47b0-617d-4674-996d-bc26405e8e6f",
+                "name": "Añejo Ñoqué"
+              }
+            }
+          ]
+        },
+        {
+          "id": "4f2c08c0-373c-4749-bdb8-69e95d1ccfe9",
+          "saleNumber": 1005,
+          "total": "7021",
+          "status": "COMPLETED",
+          "createdAt": "2026-06-15T14:30:00.000Z",
+          "customer": null,
+          "items": [
+            {
+              "id": "235d387a-1caa-4665-b153-f3440fda2238",
+              "quantity": 1,
+              "total": "5900",
+              "product": {
+                "id": "31d69fb6-f4e5-4026-b298-5bdae7ee472b",
+                "name": "Arepa Rellena de Queso"
+              }
+            }
+          ]
+        }
+      ],
+      "trends": {
+        "totalSales": 100,
+        "totalRevenue": 100,
+        "totalCustomers": 100
+      },
+      "previousPeriod": {
+        "revenue": 0,
+        "sales": 0
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      },
+      "comparisonRange": {
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economic": {
+      "current": {
+        "netIncome": "51900.00",
+        "tax": "4636.00",
+        "cogs": "0.00",
+        "grossProfit": "0.00",
+        "grossMarginPercentage": null,
+        "operatingExpenses": "0.00",
+        "netProfit": "0.00",
+        "netMarginPercentage": null,
+        "products": [],
+        "dataQuality": {
+          "snapshotBackedItems": 0,
+          "excludedItems": 7,
+          "excludedQuantity": 10
+        }
+      },
+      "previous": {
+        "netIncome": "0.00",
+        "tax": "0.00",
+        "cogs": "0.00",
+        "grossProfit": "0.00",
+        "grossMarginPercentage": null,
+        "operatingExpenses": "0.00",
+        "netProfit": "0.00",
+        "netMarginPercentage": null,
+        "products": [],
+        "dataQuality": {
+          "snapshotBackedItems": 0,
+          "excludedItems": 0,
+          "excludedQuantity": 0
+        }
+      },
+      "deltas": {
+        "netIncome": {
+          "absolute": "51900.00",
+          "percentage": 100
+        },
+        "cogs": {
+          "absolute": "0.00",
+          "percentage": 0
+        },
+        "grossProfit": {
+          "absolute": "0.00",
+          "percentage": 0
+        },
+        "operatingExpenses": {
+          "absolute": "0.00",
+          "percentage": 0
+        },
+        "netProfit": {
+          "absolute": "0.00",
+          "percentage": 0
+        }
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      },
+      "comparisonRange": {
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economicCash": {
+      "accountingBasis": "CASH_BY_PAYMENT_DATE",
+      "collections": {
+        "total": "60945.00",
+        "byPaymentMethod": [
+          {
+            "paymentMethod": "CASH",
+            "total": "37000.00",
+            "count": 4
+          },
+          {
+            "paymentMethod": "CARD",
+            "total": "23945.00",
+            "count": 2
+          }
+        ]
+      },
+      "expensePayments": {
+        "total": "0.00",
+        "byPaymentMethod": []
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economicInventory": {
+      "isCurrentSnapshot": true,
+      "valuationBasis": "CURRENT_STOCK_AT_CURRENT_COST",
+      "current": {
+        "stockQuantity": 700,
+        "stockValue": "2094000.00",
+        "retailValue": "3490000.00",
+        "potentialProfit": "1396000.00"
+      },
+      "movements": {
+        "totalQuantity": 0,
+        "byType": {}
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economicExport": {
+      "financial": {
+        "current": {
+          "netIncome": "51900.00",
+          "tax": "4636.00",
+          "cogs": "0.00",
+          "grossProfit": "0.00",
+          "grossMarginPercentage": null,
+          "operatingExpenses": "0.00",
+          "netProfit": "0.00",
+          "netMarginPercentage": null,
+          "products": [],
+          "dataQuality": {
+            "snapshotBackedItems": 0,
+            "excludedItems": 7,
+            "excludedQuantity": 10
+          }
+        },
+        "previous": {
+          "netIncome": "0.00",
+          "tax": "0.00",
+          "cogs": "0.00",
+          "grossProfit": "0.00",
+          "grossMarginPercentage": null,
+          "operatingExpenses": "0.00",
+          "netProfit": "0.00",
+          "netMarginPercentage": null,
+          "products": [],
+          "dataQuality": {
+            "snapshotBackedItems": 0,
+            "excludedItems": 0,
+            "excludedQuantity": 0
+          }
+        },
+        "deltas": {
+          "netIncome": {
+            "absolute": "51900.00",
+            "percentage": 100
+          },
+          "cogs": {
+            "absolute": "0.00",
+            "percentage": 0
+          },
+          "grossProfit": {
+            "absolute": "0.00",
+            "percentage": 0
+          },
+          "operatingExpenses": {
+            "absolute": "0.00",
+            "percentage": 0
+          },
+          "netProfit": {
+            "absolute": "0.00",
+            "percentage": 0
+          }
+        },
+        "appliedRange": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "timezone": "America/Bogota"
+        },
+        "comparisonRange": {
+          "startDate": "2025-01-01",
+          "endDate": "2025-12-31",
+          "timezone": "America/Bogota"
+        }
+      },
+      "cash": {
+        "accountingBasis": "CASH_BY_PAYMENT_DATE",
+        "collections": {
+          "total": "60945.00",
+          "byPaymentMethod": [
+            {
+              "paymentMethod": "CASH",
+              "total": "37000.00",
+              "count": 4
+            },
+            {
+              "paymentMethod": "CARD",
+              "total": "23945.00",
+              "count": 2
+            }
+          ]
+        },
+        "expensePayments": {
+          "total": "0.00",
+          "byPaymentMethod": []
+        },
+        "appliedRange": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "timezone": "America/Bogota"
+        }
+      },
+      "inventory": {
+        "isCurrentSnapshot": true,
+        "valuationBasis": "CURRENT_STOCK_AT_CURRENT_COST",
+        "current": {
+          "stockQuantity": 700,
+          "stockValue": "2094000.00",
+          "retailValue": "3490000.00",
+          "potentialProfit": "1396000.00"
+        },
+        "movements": {
+          "totalQuantity": 0,
+          "byType": {}
+        },
+        "appliedRange": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "timezone": "America/Bogota"
+        }
+      }
+    },
+    "salesPaymentMethod": {
+      "data": [
+        {
+          "paymentMethod": "CASH",
+          "total": 37000,
+          "subtotal": 37000,
+          "count": 4
+        },
+        {
+          "paymentMethod": "CARD",
+          "total": 23945,
+          "subtotal": 23945,
+          "count": 2
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "salesCategory": {
+      "data": [
+        {
+          "category": "S3 Fixtures",
+          "total": 52400,
+          "quantity": 10
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "salesCategoryDaily": {
+      "data": [
+        {
+          "date": "2026-06-15",
+          "category": "S3 Fixtures",
+          "total": 52400,
+          "quantity": 10
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "topSellingProductsDefault": {
+      "data": [
+        {
+          "productId": "17a3999b-8399-4a9e-8b67-9530908215bc",
+          "productName": "Taza Cerámica Artesanal",
+          "quantity": 3,
+          "total": 24000,
+          "stock": 100
+        },
+        {
+          "productId": "b71c31f5-4d1c-4a41-9eb1-47d44af2a8a0",
+          "productName": "Café Molido Especial",
+          "quantity": 1,
+          "total": 12000,
+          "stock": 100
+        },
+        {
+          "productId": "31d69fb6-f4e5-4026-b298-5bdae7ee472b",
+          "productName": "Arepa Rellena de Queso",
+          "quantity": 1,
+          "total": 5900,
+          "stock": 100
+        },
+        {
+          "productId": "dd89647a-ca6c-4a59-bacb-829f51c6d2e2",
+          "productName": "Café Árabe Íntenso Ñoño \"Premium\"",
+          "quantity": 1,
+          "total": 3500,
+          "stock": 100
+        },
+        {
+          "productId": "8f9fc37b-37a7-416d-a50b-ac8db5e20702",
+          "productName": "Panela Molida Tradicional",
+          "quantity": 2,
+          "total": 3000,
+          "stock": 100
+        },
+        {
+          "productId": "e96f47b0-617d-4674-996d-bc26405e8e6f",
+          "productName": "Añejo Ñoqué",
+          "quantity": 1,
+          "total": 2500,
+          "stock": 100
+        },
+        {
+          "productId": "806ab476-cc53-4f46-b680-234e04d15962",
+          "productName": "Piñata \"Fiesta\" Ñandú",
+          "quantity": 1,
+          "total": 1500,
+          "stock": 100
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "topSellingProductsLimit2": {
+      "data": [
+        {
+          "productId": "17a3999b-8399-4a9e-8b67-9530908215bc",
+          "productName": "Taza Cerámica Artesanal",
+          "quantity": 3,
+          "total": 24000,
+          "stock": 100
+        },
+        {
+          "productId": "b71c31f5-4d1c-4a41-9eb1-47d44af2a8a0",
+          "productName": "Café Molido Especial",
+          "quantity": 1,
+          "total": 12000,
+          "stock": 100
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "customersStatistics": {
+      "totalCustomers": 3,
+      "activeCustomers": 4,
+      "topCustomers": [
+        {
+          "customerId": "bba950af-60d4-4c7f-9aa2-bb0110cb2eb4",
+          "customerName": "Carlos Andrés Gómez",
+          "totalSales": 1,
+          "totalRevenue": 38280
+        },
+        {
+          "customerId": null,
+          "customerName": "Guest",
+          "totalSales": 1,
+          "totalRevenue": 7021
+        },
+        {
+          "customerId": "24447eea-93db-4f16-81a0-911f18c68e62",
+          "customerName": "José Muñoz Ñíguez \"Pepe\"",
+          "totalSales": 1,
+          "totalRevenue": 5665
+        },
+        {
+          "customerId": "c7de9023-561b-4e70-9350-c22a9354ba21",
+          "customerName": "Ana María Torres",
+          "totalSales": 2,
+          "totalRevenue": 5570
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "usersPerformanceCompare": {
+      "data": [
+        {
+          "userId": "b9de341f-6783-4a16-a4a2-9427190736f2",
+          "userName": "S3 Fixture Admin",
+          "salesCount": 5,
+          "revenue": 56536,
+          "avgTicket": 11307.2,
+          "uniqueCustomers": 3,
+          "comparison": {
+            "revenuePct": 100,
+            "salesPct": 100
+          }
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      },
+      "comparisonRange": {
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "usersPerformanceNoCompare": {
+      "data": [
+        {
+          "userId": "b9de341f-6783-4a16-a4a2-9427190736f2",
+          "userName": "S3 Fixture Admin",
+          "salesCount": 5,
+          "revenue": 56536,
+          "avgTicket": 11307.2,
+          "uniqueCustomers": 3
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "salesDaily": {
+      "data": [
+        {
+          "date": "2026-06-15",
+          "total": 56536,
+          "subtotal": 52400,
+          "tax": 4636,
+          "count": 5
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "_comment": "Organizations covered by the report goldens (S5). Regenerate with: npm run fixtures:reports-golden",
+  "orgs": [
+    {
+      "slug": "cafeteria-demo"
+    },
+    {
+      "slug": "Org-test"
+    },
+    {
+      "slug": "s3-receipt-fixtures"
+    },
+    {
+      "slug": "s3-receipt-fixtures-b"
+    }
+  ]
+}

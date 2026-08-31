@@ -1,0 +1,1251 @@
+{
+  "_comment": "Golden report outputs captured from the UNMODIFIED ReportsService (S5 perf-refactor #98). Regenerate ONLY from unmodified reports.service.ts via: npm run fixtures:reports-golden",
+  "orgSlug": "Org-test",
+  "scenario": "year-2026",
+  "startDate": "2026-01-01",
+  "endDate": "2026-12-31",
+  "outputs": {
+    "dashboard": {
+      "totalSales": 5,
+      "totalRevenue": 1286985,
+      "totalProducts": 20,
+      "totalCustomers": 8,
+      "lowStockProducts": 0,
+      "recentSales": [
+        {
+          "id": "214a509d-4c90-4577-8abd-d84cde1101b5",
+          "saleNumber": 5,
+          "total": "235501",
+          "status": "COMPLETED",
+          "createdAt": "2026-08-26T01:59:47.284Z",
+          "customer": null,
+          "items": [
+            {
+              "id": "512f9182-7c11-4e39-af12-3fb629da4bb7",
+              "quantity": 2,
+              "total": "94962",
+              "product": {
+                "id": "02ce3ae7-76b2-4049-96c1-f6f163a17f8f",
+                "name": "Audífonos básicos"
+              }
+            },
+            {
+              "id": "4d6c75fb-1484-4933-b13e-e2ab29f85cc4",
+              "quantity": 2,
+              "total": "61642",
+              "product": {
+                "id": "8a9d692a-851f-4937-b403-74d3e17c79b6",
+                "name": "Cargador USB-C"
+              }
+            },
+            {
+              "id": "93ab628e-cab2-4a84-b5fb-354c030d152b",
+              "quantity": 3,
+              "total": "13923",
+              "product": {
+                "id": "be07703e-9742-4755-9c45-1eea611319dd",
+                "name": "Jabón de baño"
+              }
+            },
+            {
+              "id": "85588dc2-36da-4042-94bc-5c261fbf71c6",
+              "quantity": 3,
+              "total": "35343",
+              "product": {
+                "id": "e0f6f9f9-3a09-4a8c-a18a-b0bcc6e20142",
+                "name": "Detergente 1kg"
+              }
+            },
+            {
+              "id": "18f7a2eb-c54a-4240-9849-6456fcf6cb69",
+              "quantity": 2,
+              "total": "12376",
+              "product": {
+                "id": "12c5bf7a-2f58-4bdc-9cdb-4d77120d73f9",
+                "name": "Leche 1L"
+              }
+            },
+            {
+              "id": "d930e243-0635-470d-b49d-c93ebda7a567",
+              "quantity": 1,
+              "total": "17255",
+              "product": {
+                "id": "8f9022f4-f5c3-4b51-a430-5da7232295c8",
+                "name": "Aceite 1L"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2f261790-673d-4ee2-8537-ed405f136008",
+          "saleNumber": 4,
+          "total": "187901",
+          "status": "COMPLETED",
+          "createdAt": "2026-08-26T01:59:33.296Z",
+          "customer": null,
+          "items": [
+            {
+              "id": "8af127c3-ca06-4028-993f-446230e600c4",
+              "quantity": 2,
+              "total": "40222",
+              "product": {
+                "id": "03f1eb6f-e2e6-4a23-af36-d845a359966d",
+                "name": "Suavizante 3L"
+              }
+            },
+            {
+              "id": "71031048-b7d9-4fc9-bb57-ef6cafb04425",
+              "quantity": 1,
+              "total": "5712",
+              "product": {
+                "id": "d1a35046-3194-4279-852b-23ca5e5d7260",
+                "name": "Desinfectante 500ml"
+              }
+            },
+            {
+              "id": "aef16929-7c61-4554-a597-52596c5b6b5c",
+              "quantity": 1,
+              "total": "47481",
+              "product": {
+                "id": "02ce3ae7-76b2-4049-96c1-f6f163a17f8f",
+                "name": "Audífonos básicos"
+              }
+            },
+            {
+              "id": "b3900542-d8ba-4288-ab01-96fa0baa8d4b",
+              "quantity": 2,
+              "total": "61642",
+              "product": {
+                "id": "8a9d692a-851f-4937-b403-74d3e17c79b6",
+                "name": "Cargador USB-C"
+              }
+            },
+            {
+              "id": "ccb4fe0c-a814-45a2-aef5-a75bf026bd7e",
+              "quantity": 2,
+              "total": "9282",
+              "product": {
+                "id": "be07703e-9742-4755-9c45-1eea611319dd",
+                "name": "Jabón de baño"
+              }
+            },
+            {
+              "id": "0070441a-965d-47a7-8f68-932ee8245acc",
+              "quantity": 2,
+              "total": "23562",
+              "product": {
+                "id": "e0f6f9f9-3a09-4a8c-a18a-b0bcc6e20142",
+                "name": "Detergente 1kg"
+              }
+            }
+          ]
+        },
+        {
+          "id": "7b4992ae-d482-4ead-b4d5-0236bc0dc16d",
+          "saleNumber": 3,
+          "total": "84728",
+          "status": "COMPLETED",
+          "createdAt": "2026-08-26T01:59:16.040Z",
+          "customer": null,
+          "items": [
+            {
+              "id": "b694b725-fd33-4d58-b354-107f3ccf24ab",
+              "quantity": 2,
+              "total": "23562",
+              "product": {
+                "id": "e0f6f9f9-3a09-4a8c-a18a-b0bcc6e20142",
+                "name": "Detergente 1kg"
+              }
+            },
+            {
+              "id": "b42bfe4d-4fdc-4b0c-9f84-54c29daab59b",
+              "quantity": 2,
+              "total": "12376",
+              "product": {
+                "id": "12c5bf7a-2f58-4bdc-9cdb-4d77120d73f9",
+                "name": "Leche 1L"
+              }
+            },
+            {
+              "id": "d688aa58-cad5-4e6f-80a2-9ee11dc62d32",
+              "quantity": 1,
+              "total": "17255",
+              "product": {
+                "id": "8f9022f4-f5c3-4b51-a430-5da7232295c8",
+                "name": "Aceite 1L"
+              }
+            },
+            {
+              "id": "d2ae9d67-2dc6-4691-a9f0-9811f32b0c6e",
+              "quantity": 1,
+              "total": "20111",
+              "product": {
+                "id": "03f1eb6f-e2e6-4a23-af36-d845a359966d",
+                "name": "Suavizante 3L"
+              }
+            },
+            {
+              "id": "d74a675d-addf-44b0-9ac9-d0a3015ecdce",
+              "quantity": 2,
+              "total": "11424",
+              "product": {
+                "id": "d1a35046-3194-4279-852b-23ca5e5d7260",
+                "name": "Desinfectante 500ml"
+              }
+            }
+          ]
+        },
+        {
+          "id": "ba1f5fcc-a056-4387-ba5b-6132beb9c4d5",
+          "saleNumber": 2,
+          "total": "182427",
+          "status": "COMPLETED",
+          "createdAt": "2026-08-26T01:59:11.812Z",
+          "customer": null,
+          "items": [
+            {
+              "id": "8d4f38ed-b0fe-4007-86b4-f485e14d3607",
+              "quantity": 2,
+              "total": "94962",
+              "product": {
+                "id": "02ce3ae7-76b2-4049-96c1-f6f163a17f8f",
+                "name": "Audífonos básicos"
+              }
+            },
+            {
+              "id": "9492178d-02ee-4f4c-b5c8-502ea9de99c3",
+              "quantity": 2,
+              "total": "61642",
+              "product": {
+                "id": "8a9d692a-851f-4937-b403-74d3e17c79b6",
+                "name": "Cargador USB-C"
+              }
+            },
+            {
+              "id": "9df9e76e-00bc-4f8f-8fdf-8d7fc5f2be5e",
+              "quantity": 1,
+              "total": "5712",
+              "product": {
+                "id": "d1a35046-3194-4279-852b-23ca5e5d7260",
+                "name": "Desinfectante 500ml"
+              }
+            },
+            {
+              "id": "37cecbc9-6856-4568-8cea-3ddd27c22087",
+              "quantity": 1,
+              "total": "20111",
+              "product": {
+                "id": "03f1eb6f-e2e6-4a23-af36-d845a359966d",
+                "name": "Suavizante 3L"
+              }
+            }
+          ]
+        },
+        {
+          "id": "89518d5c-2c4a-4f2c-8ec1-3e1a13653865",
+          "saleNumber": 1,
+          "total": "596428",
+          "status": "COMPLETED",
+          "createdAt": "2026-08-26T01:59:06.627Z",
+          "customer": null,
+          "items": [
+            {
+              "id": "60db1b04-a5f4-404d-9320-a9c1abd904b5",
+              "quantity": 1,
+              "total": "14161",
+              "product": {
+                "id": "ccd592b3-4096-4336-857b-fadddc780c52",
+                "name": "Desodorante 150ml"
+              }
+            },
+            {
+              "id": "52b1cf08-7f87-4306-adbf-3d425d39bf3e",
+              "quantity": 1,
+              "total": "10591",
+              "product": {
+                "id": "146aebe0-536d-4a65-a443-3a2c5ab003d2",
+                "name": "Crema dental"
+              }
+            },
+            {
+              "id": "e9948a57-46da-4a92-aef8-781d6932ab54",
+              "quantity": 2,
+              "total": "44982",
+              "product": {
+                "id": "94145589-1c43-40a9-a028-8700c1cc3f0b",
+                "name": "Shampoo 750ml"
+              }
+            },
+            {
+              "id": "81cd41f8-b0ae-4dff-9f0d-44eb24de7fea",
+              "quantity": 3,
+              "total": "153153",
+              "product": {
+                "id": "03ab3b3b-7044-4800-8914-1f3f0219f367",
+                "name": "Mouse inalámbrico"
+              }
+            },
+            {
+              "id": "95114639-e921-40af-b736-a16adb067808",
+              "quantity": 2,
+              "total": "16422",
+              "product": {
+                "id": "216e2b4b-6396-4a32-8160-5b6f0e794ce6",
+                "name": "Cuaderno 100h"
+              }
+            },
+            {
+              "id": "ad2fdc1b-bd37-4620-8c9c-09ed0a780673",
+              "quantity": 1,
+              "total": "1785",
+              "product": {
+                "id": "38b04f39-b814-4ba4-b85e-d4a081ee42b8",
+                "name": "Bolígrafo azul"
+              }
+            },
+            {
+              "id": "d49f7c6b-4f51-4dba-b023-e7828460c24b",
+              "quantity": 1,
+              "total": "106981",
+              "product": {
+                "id": "ce2ba513-0559-4f32-9618-95e529b39e85",
+                "name": "Parlante Bluetooth"
+              }
+            },
+            {
+              "id": "6d04b99b-dd93-4f34-8321-8f04554b48b5",
+              "quantity": 1,
+              "total": "31535",
+              "product": {
+                "id": "3e5f3410-67ba-448b-b6b1-2a596ca0ea90",
+                "name": "Resma papel 75g"
+              }
+            },
+            {
+              "id": "de034016-5e0a-4d12-a8dc-d3d2c0b7d5dc",
+              "quantity": 1,
+              "total": "20111",
+              "product": {
+                "id": "03f1eb6f-e2e6-4a23-af36-d845a359966d",
+                "name": "Suavizante 3L"
+              }
+            },
+            {
+              "id": "bc3bbfe2-3247-49fd-a2ec-7a208a6ab9a2",
+              "quantity": 1,
+              "total": "5712",
+              "product": {
+                "id": "d1a35046-3194-4279-852b-23ca5e5d7260",
+                "name": "Desinfectante 500ml"
+              }
+            },
+            {
+              "id": "7d88fe77-9a89-4d2e-9023-58ca188d28ee",
+              "quantity": 2,
+              "total": "94962",
+              "product": {
+                "id": "02ce3ae7-76b2-4049-96c1-f6f163a17f8f",
+                "name": "Audífonos básicos"
+              }
+            },
+            {
+              "id": "566dbddf-1e64-48d9-af54-0ac4bd4a96a1",
+              "quantity": 2,
+              "total": "61642",
+              "product": {
+                "id": "8a9d692a-851f-4937-b403-74d3e17c79b6",
+                "name": "Cargador USB-C"
+              }
+            },
+            {
+              "id": "bdf7ea0b-203b-47ae-8402-e8e725928177",
+              "quantity": 2,
+              "total": "23562",
+              "product": {
+                "id": "e0f6f9f9-3a09-4a8c-a18a-b0bcc6e20142",
+                "name": "Detergente 1kg"
+              }
+            },
+            {
+              "id": "3786b265-16b5-45bf-854a-d5f33d63f887",
+              "quantity": 1,
+              "total": "4641",
+              "product": {
+                "id": "be07703e-9742-4755-9c45-1eea611319dd",
+                "name": "Jabón de baño"
+              }
+            },
+            {
+              "id": "a2245650-0522-45bf-aa28-a1292ced1fe9",
+              "quantity": 1,
+              "total": "6188",
+              "product": {
+                "id": "12c5bf7a-2f58-4bdc-9cdb-4d77120d73f9",
+                "name": "Leche 1L"
+              }
+            }
+          ]
+        }
+      ],
+      "trends": {
+        "totalSales": 100,
+        "totalRevenue": 100,
+        "totalCustomers": 100
+      },
+      "previousPeriod": {
+        "revenue": 0,
+        "sales": 0
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      },
+      "comparisonRange": {
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economic": {
+      "current": {
+        "netIncome": "1081500.00",
+        "tax": "205485.00",
+        "cogs": "636600.00",
+        "grossProfit": "444900.00",
+        "grossMarginPercentage": 41.1373092926491,
+        "operatingExpenses": "0.00",
+        "netProfit": "444900.00",
+        "netMarginPercentage": 41.1373092926491,
+        "products": [
+          {
+            "productId": "ccd592b3-4096-4336-857b-fadddc780c52",
+            "productName": "Desodorante 150ml",
+            "categoryName": "Aseo Personal",
+            "quantity": 1,
+            "netRevenue": "11900.00",
+            "cogs": "7800.00",
+            "grossProfit": "4100.00",
+            "marginPercentage": 34.45378151260504
+          },
+          {
+            "productId": "146aebe0-536d-4a65-a443-3a2c5ab003d2",
+            "productName": "Crema dental",
+            "categoryName": "Aseo Personal",
+            "quantity": 1,
+            "netRevenue": "8900.00",
+            "cogs": "5800.00",
+            "grossProfit": "3100.00",
+            "marginPercentage": 34.831460674157306
+          },
+          {
+            "productId": "94145589-1c43-40a9-a028-8700c1cc3f0b",
+            "productName": "Shampoo 750ml",
+            "categoryName": "Aseo Personal",
+            "quantity": 2,
+            "netRevenue": "37800.00",
+            "cogs": "25000.00",
+            "grossProfit": "12800.00",
+            "marginPercentage": 33.86243386243386
+          },
+          {
+            "productId": "03ab3b3b-7044-4800-8914-1f3f0219f367",
+            "productName": "Mouse inalámbrico",
+            "categoryName": "Electrónica",
+            "quantity": 3,
+            "netRevenue": "128700.00",
+            "cogs": "73500.00",
+            "grossProfit": "55200.00",
+            "marginPercentage": 42.89044289044289
+          },
+          {
+            "productId": "216e2b4b-6396-4a32-8160-5b6f0e794ce6",
+            "productName": "Cuaderno 100h",
+            "categoryName": "Papelería",
+            "quantity": 2,
+            "netRevenue": "13800.00",
+            "cogs": "8400.00",
+            "grossProfit": "5400.00",
+            "marginPercentage": 39.130434782608695
+          },
+          {
+            "productId": "38b04f39-b814-4ba4-b85e-d4a081ee42b8",
+            "productName": "Bolígrafo azul",
+            "categoryName": "Papelería",
+            "quantity": 1,
+            "netRevenue": "1500.00",
+            "cogs": "900.00",
+            "grossProfit": "600.00",
+            "marginPercentage": 40
+          },
+          {
+            "productId": "ce2ba513-0559-4f32-9618-95e529b39e85",
+            "productName": "Parlante Bluetooth",
+            "categoryName": "Electrónica",
+            "quantity": 1,
+            "netRevenue": "89900.00",
+            "cogs": "52000.00",
+            "grossProfit": "37900.00",
+            "marginPercentage": 42.1579532814238
+          },
+          {
+            "productId": "3e5f3410-67ba-448b-b6b1-2a596ca0ea90",
+            "productName": "Resma papel 75g",
+            "categoryName": "Papelería",
+            "quantity": 1,
+            "netRevenue": "26500.00",
+            "cogs": "17500.00",
+            "grossProfit": "9000.00",
+            "marginPercentage": 33.9622641509434
+          },
+          {
+            "productId": "03f1eb6f-e2e6-4a23-af36-d845a359966d",
+            "productName": "Suavizante 3L",
+            "categoryName": "Limpieza",
+            "quantity": 5,
+            "netRevenue": "84500.00",
+            "cogs": "52500.00",
+            "grossProfit": "32000.00",
+            "marginPercentage": 37.8698224852071
+          },
+          {
+            "productId": "d1a35046-3194-4279-852b-23ca5e5d7260",
+            "productName": "Desinfectante 500ml",
+            "categoryName": "Limpieza",
+            "quantity": 5,
+            "netRevenue": "24000.00",
+            "cogs": "16000.00",
+            "grossProfit": "8000.00",
+            "marginPercentage": 33.333333333333336
+          },
+          {
+            "productId": "02ce3ae7-76b2-4049-96c1-f6f163a17f8f",
+            "productName": "Audífonos básicos",
+            "categoryName": "Electrónica",
+            "quantity": 7,
+            "netRevenue": "279300.00",
+            "cogs": "147000.00",
+            "grossProfit": "132300.00",
+            "marginPercentage": 47.36842105263158
+          },
+          {
+            "productId": "8a9d692a-851f-4937-b403-74d3e17c79b6",
+            "productName": "Cargador USB-C",
+            "categoryName": "Electrónica",
+            "quantity": 8,
+            "netRevenue": "207200.00",
+            "cogs": "116000.00",
+            "grossProfit": "91200.00",
+            "marginPercentage": 44.01544401544402
+          },
+          {
+            "productId": "e0f6f9f9-3a09-4a8c-a18a-b0bcc6e20142",
+            "productName": "Detergente 1kg",
+            "categoryName": "Limpieza",
+            "quantity": 9,
+            "netRevenue": "89100.00",
+            "cogs": "61200.00",
+            "grossProfit": "27900.00",
+            "marginPercentage": 31.31313131313131
+          },
+          {
+            "productId": "be07703e-9742-4755-9c45-1eea611319dd",
+            "productName": "Jabón de baño",
+            "categoryName": "Limpieza",
+            "quantity": 6,
+            "netRevenue": "23400.00",
+            "cogs": "14400.00",
+            "grossProfit": "9000.00",
+            "marginPercentage": 38.46153846153846
+          },
+          {
+            "productId": "12c5bf7a-2f58-4bdc-9cdb-4d77120d73f9",
+            "productName": "Leche 1L",
+            "categoryName": "Alimentos",
+            "quantity": 5,
+            "netRevenue": "26000.00",
+            "cogs": "19000.00",
+            "grossProfit": "7000.00",
+            "marginPercentage": 26.923076923076923
+          },
+          {
+            "productId": "8f9022f4-f5c3-4b51-a430-5da7232295c8",
+            "productName": "Aceite 1L",
+            "categoryName": "Alimentos",
+            "quantity": 2,
+            "netRevenue": "29000.00",
+            "cogs": "19600.00",
+            "grossProfit": "9400.00",
+            "marginPercentage": 32.41379310344828
+          }
+        ],
+        "dataQuality": {
+          "snapshotBackedItems": 36,
+          "excludedItems": 0,
+          "excludedQuantity": 0
+        }
+      },
+      "previous": {
+        "netIncome": "0.00",
+        "tax": "0.00",
+        "cogs": "0.00",
+        "grossProfit": "0.00",
+        "grossMarginPercentage": null,
+        "operatingExpenses": "0.00",
+        "netProfit": "0.00",
+        "netMarginPercentage": null,
+        "products": [],
+        "dataQuality": {
+          "snapshotBackedItems": 0,
+          "excludedItems": 0,
+          "excludedQuantity": 0
+        }
+      },
+      "deltas": {
+        "netIncome": {
+          "absolute": "1081500.00",
+          "percentage": 100
+        },
+        "cogs": {
+          "absolute": "636600.00",
+          "percentage": 100
+        },
+        "grossProfit": {
+          "absolute": "444900.00",
+          "percentage": 100
+        },
+        "operatingExpenses": {
+          "absolute": "0.00",
+          "percentage": 0
+        },
+        "netProfit": {
+          "absolute": "444900.00",
+          "percentage": 100
+        }
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      },
+      "comparisonRange": {
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economicCash": {
+      "accountingBasis": "CASH_BY_PAYMENT_DATE",
+      "collections": {
+        "total": "1286985.00",
+        "byPaymentMethod": [
+          {
+            "paymentMethod": "CASH",
+            "total": "778855.00",
+            "count": 2
+          },
+          {
+            "paymentMethod": "CARD",
+            "total": "358130.00",
+            "count": 3
+          },
+          {
+            "paymentMethod": "TRANSFER",
+            "total": "150000.00",
+            "count": 1
+          }
+        ]
+      },
+      "expensePayments": {
+        "total": "0.00",
+        "byPaymentMethod": []
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economicInventory": {
+      "isCurrentSnapshot": true,
+      "valuationBasis": "CURRENT_STOCK_AT_CURRENT_COST",
+      "current": {
+        "stockQuantity": 1310,
+        "stockValue": "6561000.00",
+        "retailValue": "10492100.00",
+        "potentialProfit": "3931100.00"
+      },
+      "movements": {
+        "totalQuantity": -59,
+        "byType": {
+          "SALE": -59
+        }
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economicExport": {
+      "financial": {
+        "current": {
+          "netIncome": "1081500.00",
+          "tax": "205485.00",
+          "cogs": "636600.00",
+          "grossProfit": "444900.00",
+          "grossMarginPercentage": 41.1373092926491,
+          "operatingExpenses": "0.00",
+          "netProfit": "444900.00",
+          "netMarginPercentage": 41.1373092926491,
+          "products": [
+            {
+              "productId": "ccd592b3-4096-4336-857b-fadddc780c52",
+              "productName": "Desodorante 150ml",
+              "categoryName": "Aseo Personal",
+              "quantity": 1,
+              "netRevenue": "11900.00",
+              "cogs": "7800.00",
+              "grossProfit": "4100.00",
+              "marginPercentage": 34.45378151260504
+            },
+            {
+              "productId": "146aebe0-536d-4a65-a443-3a2c5ab003d2",
+              "productName": "Crema dental",
+              "categoryName": "Aseo Personal",
+              "quantity": 1,
+              "netRevenue": "8900.00",
+              "cogs": "5800.00",
+              "grossProfit": "3100.00",
+              "marginPercentage": 34.831460674157306
+            },
+            {
+              "productId": "94145589-1c43-40a9-a028-8700c1cc3f0b",
+              "productName": "Shampoo 750ml",
+              "categoryName": "Aseo Personal",
+              "quantity": 2,
+              "netRevenue": "37800.00",
+              "cogs": "25000.00",
+              "grossProfit": "12800.00",
+              "marginPercentage": 33.86243386243386
+            },
+            {
+              "productId": "03ab3b3b-7044-4800-8914-1f3f0219f367",
+              "productName": "Mouse inalámbrico",
+              "categoryName": "Electrónica",
+              "quantity": 3,
+              "netRevenue": "128700.00",
+              "cogs": "73500.00",
+              "grossProfit": "55200.00",
+              "marginPercentage": 42.89044289044289
+            },
+            {
+              "productId": "216e2b4b-6396-4a32-8160-5b6f0e794ce6",
+              "productName": "Cuaderno 100h",
+              "categoryName": "Papelería",
+              "quantity": 2,
+              "netRevenue": "13800.00",
+              "cogs": "8400.00",
+              "grossProfit": "5400.00",
+              "marginPercentage": 39.130434782608695
+            },
+            {
+              "productId": "38b04f39-b814-4ba4-b85e-d4a081ee42b8",
+              "productName": "Bolígrafo azul",
+              "categoryName": "Papelería",
+              "quantity": 1,
+              "netRevenue": "1500.00",
+              "cogs": "900.00",
+              "grossProfit": "600.00",
+              "marginPercentage": 40
+            },
+            {
+              "productId": "ce2ba513-0559-4f32-9618-95e529b39e85",
+              "productName": "Parlante Bluetooth",
+              "categoryName": "Electrónica",
+              "quantity": 1,
+              "netRevenue": "89900.00",
+              "cogs": "52000.00",
+              "grossProfit": "37900.00",
+              "marginPercentage": 42.1579532814238
+            },
+            {
+              "productId": "3e5f3410-67ba-448b-b6b1-2a596ca0ea90",
+              "productName": "Resma papel 75g",
+              "categoryName": "Papelería",
+              "quantity": 1,
+              "netRevenue": "26500.00",
+              "cogs": "17500.00",
+              "grossProfit": "9000.00",
+              "marginPercentage": 33.9622641509434
+            },
+            {
+              "productId": "03f1eb6f-e2e6-4a23-af36-d845a359966d",
+              "productName": "Suavizante 3L",
+              "categoryName": "Limpieza",
+              "quantity": 5,
+              "netRevenue": "84500.00",
+              "cogs": "52500.00",
+              "grossProfit": "32000.00",
+              "marginPercentage": 37.8698224852071
+            },
+            {
+              "productId": "d1a35046-3194-4279-852b-23ca5e5d7260",
+              "productName": "Desinfectante 500ml",
+              "categoryName": "Limpieza",
+              "quantity": 5,
+              "netRevenue": "24000.00",
+              "cogs": "16000.00",
+              "grossProfit": "8000.00",
+              "marginPercentage": 33.333333333333336
+            },
+            {
+              "productId": "02ce3ae7-76b2-4049-96c1-f6f163a17f8f",
+              "productName": "Audífonos básicos",
+              "categoryName": "Electrónica",
+              "quantity": 7,
+              "netRevenue": "279300.00",
+              "cogs": "147000.00",
+              "grossProfit": "132300.00",
+              "marginPercentage": 47.36842105263158
+            },
+            {
+              "productId": "8a9d692a-851f-4937-b403-74d3e17c79b6",
+              "productName": "Cargador USB-C",
+              "categoryName": "Electrónica",
+              "quantity": 8,
+              "netRevenue": "207200.00",
+              "cogs": "116000.00",
+              "grossProfit": "91200.00",
+              "marginPercentage": 44.01544401544402
+            },
+            {
+              "productId": "e0f6f9f9-3a09-4a8c-a18a-b0bcc6e20142",
+              "productName": "Detergente 1kg",
+              "categoryName": "Limpieza",
+              "quantity": 9,
+              "netRevenue": "89100.00",
+              "cogs": "61200.00",
+              "grossProfit": "27900.00",
+              "marginPercentage": 31.31313131313131
+            },
+            {
+              "productId": "be07703e-9742-4755-9c45-1eea611319dd",
+              "productName": "Jabón de baño",
+              "categoryName": "Limpieza",
+              "quantity": 6,
+              "netRevenue": "23400.00",
+              "cogs": "14400.00",
+              "grossProfit": "9000.00",
+              "marginPercentage": 38.46153846153846
+            },
+            {
+              "productId": "12c5bf7a-2f58-4bdc-9cdb-4d77120d73f9",
+              "productName": "Leche 1L",
+              "categoryName": "Alimentos",
+              "quantity": 5,
+              "netRevenue": "26000.00",
+              "cogs": "19000.00",
+              "grossProfit": "7000.00",
+              "marginPercentage": 26.923076923076923
+            },
+            {
+              "productId": "8f9022f4-f5c3-4b51-a430-5da7232295c8",
+              "productName": "Aceite 1L",
+              "categoryName": "Alimentos",
+              "quantity": 2,
+              "netRevenue": "29000.00",
+              "cogs": "19600.00",
+              "grossProfit": "9400.00",
+              "marginPercentage": 32.41379310344828
+            }
+          ],
+          "dataQuality": {
+            "snapshotBackedItems": 36,
+            "excludedItems": 0,
+            "excludedQuantity": 0
+          }
+        },
+        "previous": {
+          "netIncome": "0.00",
+          "tax": "0.00",
+          "cogs": "0.00",
+          "grossProfit": "0.00",
+          "grossMarginPercentage": null,
+          "operatingExpenses": "0.00",
+          "netProfit": "0.00",
+          "netMarginPercentage": null,
+          "products": [],
+          "dataQuality": {
+            "snapshotBackedItems": 0,
+            "excludedItems": 0,
+            "excludedQuantity": 0
+          }
+        },
+        "deltas": {
+          "netIncome": {
+            "absolute": "1081500.00",
+            "percentage": 100
+          },
+          "cogs": {
+            "absolute": "636600.00",
+            "percentage": 100
+          },
+          "grossProfit": {
+            "absolute": "444900.00",
+            "percentage": 100
+          },
+          "operatingExpenses": {
+            "absolute": "0.00",
+            "percentage": 0
+          },
+          "netProfit": {
+            "absolute": "444900.00",
+            "percentage": 100
+          }
+        },
+        "appliedRange": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "timezone": "America/Bogota"
+        },
+        "comparisonRange": {
+          "startDate": "2025-01-01",
+          "endDate": "2025-12-31",
+          "timezone": "America/Bogota"
+        }
+      },
+      "cash": {
+        "accountingBasis": "CASH_BY_PAYMENT_DATE",
+        "collections": {
+          "total": "1286985.00",
+          "byPaymentMethod": [
+            {
+              "paymentMethod": "CASH",
+              "total": "778855.00",
+              "count": 2
+            },
+            {
+              "paymentMethod": "CARD",
+              "total": "358130.00",
+              "count": 3
+            },
+            {
+              "paymentMethod": "TRANSFER",
+              "total": "150000.00",
+              "count": 1
+            }
+          ]
+        },
+        "expensePayments": {
+          "total": "0.00",
+          "byPaymentMethod": []
+        },
+        "appliedRange": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "timezone": "America/Bogota"
+        }
+      },
+      "inventory": {
+        "isCurrentSnapshot": true,
+        "valuationBasis": "CURRENT_STOCK_AT_CURRENT_COST",
+        "current": {
+          "stockQuantity": 1310,
+          "stockValue": "6561000.00",
+          "retailValue": "10492100.00",
+          "potentialProfit": "3931100.00"
+        },
+        "movements": {
+          "totalQuantity": -59,
+          "byType": {
+            "SALE": -59
+          }
+        },
+        "appliedRange": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "timezone": "America/Bogota"
+        }
+      }
+    },
+    "salesPaymentMethod": {
+      "data": [
+        {
+          "paymentMethod": "CASH",
+          "total": 778855,
+          "subtotal": 778855,
+          "count": 2
+        },
+        {
+          "paymentMethod": "CARD",
+          "total": 358130,
+          "subtotal": 358130,
+          "count": 3
+        },
+        {
+          "paymentMethod": "TRANSFER",
+          "total": 150000,
+          "subtotal": 150000,
+          "count": 1
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "salesCategory": {
+      "data": [
+        {
+          "category": "Electrónica",
+          "total": 839069,
+          "quantity": 19
+        },
+        {
+          "category": "Papelería",
+          "total": 49742,
+          "quantity": 4
+        },
+        {
+          "category": "Aseo Personal",
+          "total": 69734,
+          "quantity": 4
+        },
+        {
+          "category": "Limpieza",
+          "total": 262990,
+          "quantity": 25
+        },
+        {
+          "category": "Alimentos",
+          "total": 65450,
+          "quantity": 7
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "salesCategoryDaily": {
+      "data": [
+        {
+          "date": "2026-08-25",
+          "category": "Aseo Personal",
+          "total": 69734,
+          "quantity": 4
+        },
+        {
+          "date": "2026-08-25",
+          "category": "Electrónica",
+          "total": 839069,
+          "quantity": 19
+        },
+        {
+          "date": "2026-08-25",
+          "category": "Papelería",
+          "total": 49742,
+          "quantity": 4
+        },
+        {
+          "date": "2026-08-25",
+          "category": "Limpieza",
+          "total": 262990,
+          "quantity": 25
+        },
+        {
+          "date": "2026-08-25",
+          "category": "Alimentos",
+          "total": 65450,
+          "quantity": 7
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "topSellingProductsDefault": {
+      "data": [
+        {
+          "productId": "02ce3ae7-76b2-4049-96c1-f6f163a17f8f",
+          "productName": "Audífonos básicos",
+          "quantity": 7,
+          "total": 332367,
+          "stock": 11
+        },
+        {
+          "productId": "8a9d692a-851f-4937-b403-74d3e17c79b6",
+          "productName": "Cargador USB-C",
+          "quantity": 8,
+          "total": 246568,
+          "stock": 14
+        },
+        {
+          "productId": "03ab3b3b-7044-4800-8914-1f3f0219f367",
+          "productName": "Mouse inalámbrico",
+          "quantity": 3,
+          "total": 153153,
+          "stock": 12
+        },
+        {
+          "productId": "ce2ba513-0559-4f32-9618-95e529b39e85",
+          "productName": "Parlante Bluetooth",
+          "quantity": 1,
+          "total": 106981,
+          "stock": 8
+        },
+        {
+          "productId": "e0f6f9f9-3a09-4a8c-a18a-b0bcc6e20142",
+          "productName": "Detergente 1kg",
+          "quantity": 9,
+          "total": 106029,
+          "stock": 31
+        },
+        {
+          "productId": "03f1eb6f-e2e6-4a23-af36-d845a359966d",
+          "productName": "Suavizante 3L",
+          "quantity": 5,
+          "total": 100555,
+          "stock": 20
+        },
+        {
+          "productId": "94145589-1c43-40a9-a028-8700c1cc3f0b",
+          "productName": "Shampoo 750ml",
+          "quantity": 2,
+          "total": 44982,
+          "stock": 46
+        },
+        {
+          "productId": "8f9022f4-f5c3-4b51-a430-5da7232295c8",
+          "productName": "Aceite 1L",
+          "quantity": 2,
+          "total": 34510,
+          "stock": 33
+        },
+        {
+          "productId": "3e5f3410-67ba-448b-b6b1-2a596ca0ea90",
+          "productName": "Resma papel 75g",
+          "quantity": 1,
+          "total": 31535,
+          "stock": 29
+        },
+        {
+          "productId": "12c5bf7a-2f58-4bdc-9cdb-4d77120d73f9",
+          "productName": "Leche 1L",
+          "quantity": 5,
+          "total": 30940,
+          "stock": 85
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "topSellingProductsLimit2": {
+      "data": [
+        {
+          "productId": "02ce3ae7-76b2-4049-96c1-f6f163a17f8f",
+          "productName": "Audífonos básicos",
+          "quantity": 7,
+          "total": 332367,
+          "stock": 11
+        },
+        {
+          "productId": "8a9d692a-851f-4937-b403-74d3e17c79b6",
+          "productName": "Cargador USB-C",
+          "quantity": 8,
+          "total": 246568,
+          "stock": 14
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "customersStatistics": {
+      "totalCustomers": 8,
+      "activeCustomers": 1,
+      "topCustomers": [
+        {
+          "customerId": null,
+          "customerName": "Guest",
+          "totalSales": 5,
+          "totalRevenue": 1286985
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "usersPerformanceCompare": {
+      "data": [
+        {
+          "userId": "3a142b47-6855-4005-9ef4-d3d0a5ae6b95",
+          "userName": "Santiago Villabona",
+          "salesCount": 5,
+          "revenue": 1286985,
+          "avgTicket": 257397,
+          "uniqueCustomers": 0,
+          "comparison": {
+            "revenuePct": 100,
+            "salesPct": 100
+          }
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      },
+      "comparisonRange": {
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "usersPerformanceNoCompare": {
+      "data": [
+        {
+          "userId": "3a142b47-6855-4005-9ef4-d3d0a5ae6b95",
+          "userName": "Santiago Villabona",
+          "salesCount": 5,
+          "revenue": 1286985,
+          "avgTicket": 257397,
+          "uniqueCustomers": 0
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "salesDaily": {
+      "data": [
+        {
+          "date": "2026-08-25",
+          "total": 1286985,
+          "subtotal": 1081500,
+          "tax": 205485,
+          "count": 5
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    }
+  }
+}
