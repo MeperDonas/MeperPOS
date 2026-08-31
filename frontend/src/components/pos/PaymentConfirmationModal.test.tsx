@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ComponentProps } from "react";
 import { render, screen } from "@testing-library/react";
 import { PaymentConfirmationModal } from "./PaymentConfirmationModal";
-import type { CartItem, PaymentMethod } from "@/types";
+import type { CartItem } from "@/types";
+
+// PaymentMethod is defined locally (unexported) inside the component; derive it
+// from the component's props so this test's type always matches its contract.
+type PaymentMethod = ComponentProps<typeof PaymentConfirmationModal>["paymentMethods"][number];
 
 /**
  * S4 task 4.1 characterization baseline: locks the CURRENT currency output of
