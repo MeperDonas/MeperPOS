@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Build-size harness for the MeperPOS frontend.
 //
 // Usage:
