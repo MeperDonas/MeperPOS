@@ -23,6 +23,9 @@ describe('ReportsService', () => {
     saleItem: {
       findMany: jest.fn(),
     },
+    payment: {
+      groupBy: jest.fn(),
+    },
     inventoryMovement: {
       findMany: jest.fn(),
     },
@@ -72,16 +75,9 @@ describe('ReportsService', () => {
   });
 
   it('returns appliedRange metadata with the queried date range', async () => {
-    prismaMock.sale.findMany.mockResolvedValue([
-      {
-        payments: [
-          { method: 'CASH', amount: 100000 },
-          { method: 'CARD', amount: 50000 },
-        ],
-      },
-      {
-        payments: [{ method: 'CASH', amount: 20000 }],
-      },
+    prismaMock.payment.groupBy.mockResolvedValue([
+      { method: 'CASH', _sum: { amount: 120000 }, _count: { method: 2 } },
+      { method: 'CARD', _sum: { amount: 50000 }, _count: { method: 1 } },
     ]);
 
     const result = await service.getSalesByPaymentMethod(
@@ -90,6 +86,23 @@ describe('ReportsService', () => {
       '2026-03-31',
     );
 
+    expect(prismaMock.payment.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        by: ['method'],
+        where: expect.objectContaining({
+          sale: expect.objectContaining({
+            organizationId: 'org-1',
+            status: 'COMPLETED',
+            createdAt: expect.objectContaining({
+              gte: expect.any(Date),
+              lte: expect.any(Date),
+            }),
+          }),
+        }),
+        // Deterministic-by-contract group order (maintainer decision obs #411).
+        orderBy: { method: 'asc' },
+      }),
+    );
     expect(result.appliedRange).toEqual({
       startDate: '2026-03-01',
       endDate: '2026-03-31',
@@ -97,14 +110,14 @@ describe('ReportsService', () => {
     });
     expect(result.data).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ paymentMethod: 'CASH', total: 120000 }),
-        expect.objectContaining({ paymentMethod: 'CARD', total: 50000 }),
+        expect.objectContaining({ paymentMethod: 'CASH', total: 120000, count: 2 }),
+        expect.objectContaining({ paymentMethod: 'CARD', total: 50000, count: 1 }),
       ]),
     );
   });
 
   it('[#16] returns empty-safe metrics for zero-data ranges', async () => {
-    prismaMock.sale.findMany.mockResolvedValue([]);
+    prismaMock.payment.groupBy.mockResolvedValue([]);
 
     const result = await service.getSalesByPaymentMethod(
       'org-1',
@@ -120,17 +133,7 @@ describe('ReportsService', () => {
         timezone: 'America/Bogota',
       },
     });
-    expect(prismaMock.sale.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          status: 'COMPLETED',
-          createdAt: expect.objectContaining({
-            gte: expect.any(Date),
-            lte: expect.any(Date),
-          }),
-        }),
-      }),
-    );
+    expect(prismaMock.payment.groupBy).toHaveBeenCalledTimes(1);
   });
 
   it('keeps a selected user subset and shared comparison ranges in user performance analytics', async () => {
