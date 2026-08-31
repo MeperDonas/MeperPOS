@@ -1,0 +1,726 @@
+{
+  "_comment": "Golden report outputs captured from the UNMODIFIED ReportsService (S5 perf-refactor #98). Regenerate ONLY from unmodified reports.service.ts via: npm run fixtures:reports-golden",
+  "orgSlug": "reports-golden",
+  "scenario": "year-2026",
+  "startDate": "2026-01-01",
+  "endDate": "2026-12-31",
+  "outputs": {
+    "dashboard": {
+      "totalSales": 3,
+      "totalRevenue": 29520,
+      "totalProducts": 4,
+      "totalCustomers": 3,
+      "lowStockProducts": 1,
+      "recentSales": [
+        {
+          "id": "a5f01d00-0000-4000-8000-000000000016",
+          "saleNumber": 3,
+          "total": "9000",
+          "status": "COMPLETED",
+          "createdAt": "2026-08-26T16:45:00.000Z",
+          "customer": null,
+          "items": [
+            {
+              "id": "a5f01d00-0000-4000-8000-000000000021",
+              "quantity": 3,
+              "total": "9000",
+              "product": {
+                "id": "a5f01d00-0000-4000-8000-000000000008",
+                "name": "Golden Cafe"
+              }
+            }
+          ]
+        },
+        {
+          "id": "a5f01d00-0000-4000-8000-000000000015",
+          "saleNumber": 2,
+          "total": "9520",
+          "status": "COMPLETED",
+          "createdAt": "2026-07-05T15:00:00.000Z",
+          "customer": {
+            "id": "a5f01d00-0000-4000-8000-000000000012",
+            "name": "Golden Cliente Dos"
+          },
+          "items": [
+            {
+              "id": "a5f01d00-0000-4000-8000-000000000020",
+              "quantity": 1,
+              "total": "9520",
+              "product": {
+                "id": "a5f01d00-0000-4000-8000-000000000010",
+                "name": "Golden Combo"
+              }
+            }
+          ]
+        },
+        {
+          "id": "a5f01d00-0000-4000-8000-000000000014",
+          "saleNumber": 1,
+          "total": "11000",
+          "status": "COMPLETED",
+          "createdAt": "2026-06-15T14:30:00.000Z",
+          "customer": {
+            "id": "a5f01d00-0000-4000-8000-000000000011",
+            "name": "Golden Cliente Uno"
+          },
+          "items": [
+            {
+              "id": "a5f01d00-0000-4000-8000-000000000018",
+              "quantity": 2,
+              "total": "6500",
+              "product": {
+                "id": "a5f01d00-0000-4000-8000-000000000007",
+                "name": "Golden Dona Clasica"
+              }
+            },
+            {
+              "id": "a5f01d00-0000-4000-8000-000000000019",
+              "quantity": 1,
+              "total": "4500",
+              "product": {
+                "id": "a5f01d00-0000-4000-8000-000000000009",
+                "name": "Golden Chocolate"
+              }
+            }
+          ]
+        }
+      ],
+      "trends": {
+        "totalSales": 100,
+        "totalRevenue": 100,
+        "totalCustomers": 100
+      },
+      "previousPeriod": {
+        "revenue": 0,
+        "sales": 0
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      },
+      "comparisonRange": {
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economic": {
+      "current": {
+        "netIncome": "25000.00",
+        "tax": "1520.00",
+        "cogs": "14500.00",
+        "grossProfit": "10500.00",
+        "grossMarginPercentage": 42,
+        "operatingExpenses": "250000.00",
+        "netProfit": "-239500.00",
+        "netMarginPercentage": -958,
+        "products": [
+          {
+            "productId": "a5f01d00-0000-4000-8000-000000000007",
+            "productName": "Golden Dona Clasica",
+            "categoryName": "Golden Snacks",
+            "quantity": 2,
+            "netRevenue": "6695.65",
+            "cogs": "4000.00",
+            "grossProfit": "2695.65",
+            "marginPercentage": 40.25974025974026
+          },
+          {
+            "productId": "a5f01d00-0000-4000-8000-000000000009",
+            "productName": "Golden Chocolate",
+            "categoryName": "Golden Bebidas",
+            "quantity": 1,
+            "netRevenue": "4304.35",
+            "cogs": "2500.00",
+            "grossProfit": "1804.35",
+            "marginPercentage": 41.91919191919192
+          },
+          {
+            "productId": "a5f01d00-0000-4000-8000-000000000010",
+            "productName": "Golden Combo",
+            "categoryName": "Golden Snacks",
+            "quantity": 1,
+            "netRevenue": "8000.00",
+            "cogs": "5000.00",
+            "grossProfit": "3000.00",
+            "marginPercentage": 37.5
+          },
+          {
+            "productId": "a5f01d00-0000-4000-8000-000000000008",
+            "productName": "Golden Cafe",
+            "categoryName": "Golden Bebidas",
+            "quantity": 2,
+            "netRevenue": "6000.00",
+            "cogs": "3000.00",
+            "grossProfit": "3000.00",
+            "marginPercentage": 50
+          }
+        ],
+        "dataQuality": {
+          "snapshotBackedItems": 7,
+          "excludedItems": 0,
+          "excludedQuantity": 0
+        }
+      },
+      "previous": {
+        "netIncome": "0.00",
+        "tax": "0.00",
+        "cogs": "0.00",
+        "grossProfit": "0.00",
+        "grossMarginPercentage": null,
+        "operatingExpenses": "0.00",
+        "netProfit": "0.00",
+        "netMarginPercentage": null,
+        "products": [],
+        "dataQuality": {
+          "snapshotBackedItems": 0,
+          "excludedItems": 0,
+          "excludedQuantity": 0
+        }
+      },
+      "deltas": {
+        "netIncome": {
+          "absolute": "25000.00",
+          "percentage": 100
+        },
+        "cogs": {
+          "absolute": "14500.00",
+          "percentage": 100
+        },
+        "grossProfit": {
+          "absolute": "10500.00",
+          "percentage": 100
+        },
+        "operatingExpenses": {
+          "absolute": "250000.00",
+          "percentage": 100
+        },
+        "netProfit": {
+          "absolute": "-239500.00",
+          "percentage": 100
+        }
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      },
+      "comparisonRange": {
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economicCash": {
+      "accountingBasis": "CASH_BY_PAYMENT_DATE",
+      "collections": {
+        "total": "29520.00",
+        "byPaymentMethod": [
+          {
+            "paymentMethod": "CASH",
+            "total": "16000.00",
+            "count": 2
+          },
+          {
+            "paymentMethod": "CARD",
+            "total": "4520.00",
+            "count": 1
+          },
+          {
+            "paymentMethod": "TRANSFER",
+            "total": "9000.00",
+            "count": 1
+          }
+        ]
+      },
+      "expensePayments": {
+        "total": "250000.00",
+        "byPaymentMethod": [
+          {
+            "paymentMethod": "TRANSFER",
+            "total": "200000.00",
+            "count": 1
+          },
+          {
+            "paymentMethod": "CASH",
+            "total": "30000.00",
+            "count": 1
+          },
+          {
+            "paymentMethod": "CARD",
+            "total": "20000.00",
+            "count": 1
+          }
+        ]
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economicInventory": {
+      "isCurrentSnapshot": true,
+      "valuationBasis": "CURRENT_STOCK_AT_CURRENT_COST",
+      "current": {
+        "stockQuantity": 100,
+        "stockValue": "247000.00",
+        "retailValue": "430000.00",
+        "potentialProfit": "183000.00"
+      },
+      "movements": {
+        "totalQuantity": -6,
+        "byType": {
+          "SALE": -7,
+          "RETURN": 1
+        }
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economicExport": {
+      "financial": {
+        "current": {
+          "netIncome": "25000.00",
+          "tax": "1520.00",
+          "cogs": "14500.00",
+          "grossProfit": "10500.00",
+          "grossMarginPercentage": 42,
+          "operatingExpenses": "250000.00",
+          "netProfit": "-239500.00",
+          "netMarginPercentage": -958,
+          "products": [
+            {
+              "productId": "a5f01d00-0000-4000-8000-000000000007",
+              "productName": "Golden Dona Clasica",
+              "categoryName": "Golden Snacks",
+              "quantity": 2,
+              "netRevenue": "6695.65",
+              "cogs": "4000.00",
+              "grossProfit": "2695.65",
+              "marginPercentage": 40.25974025974026
+            },
+            {
+              "productId": "a5f01d00-0000-4000-8000-000000000009",
+              "productName": "Golden Chocolate",
+              "categoryName": "Golden Bebidas",
+              "quantity": 1,
+              "netRevenue": "4304.35",
+              "cogs": "2500.00",
+              "grossProfit": "1804.35",
+              "marginPercentage": 41.91919191919192
+            },
+            {
+              "productId": "a5f01d00-0000-4000-8000-000000000010",
+              "productName": "Golden Combo",
+              "categoryName": "Golden Snacks",
+              "quantity": 1,
+              "netRevenue": "8000.00",
+              "cogs": "5000.00",
+              "grossProfit": "3000.00",
+              "marginPercentage": 37.5
+            },
+            {
+              "productId": "a5f01d00-0000-4000-8000-000000000008",
+              "productName": "Golden Cafe",
+              "categoryName": "Golden Bebidas",
+              "quantity": 2,
+              "netRevenue": "6000.00",
+              "cogs": "3000.00",
+              "grossProfit": "3000.00",
+              "marginPercentage": 50
+            }
+          ],
+          "dataQuality": {
+            "snapshotBackedItems": 7,
+            "excludedItems": 0,
+            "excludedQuantity": 0
+          }
+        },
+        "previous": {
+          "netIncome": "0.00",
+          "tax": "0.00",
+          "cogs": "0.00",
+          "grossProfit": "0.00",
+          "grossMarginPercentage": null,
+          "operatingExpenses": "0.00",
+          "netProfit": "0.00",
+          "netMarginPercentage": null,
+          "products": [],
+          "dataQuality": {
+            "snapshotBackedItems": 0,
+            "excludedItems": 0,
+            "excludedQuantity": 0
+          }
+        },
+        "deltas": {
+          "netIncome": {
+            "absolute": "25000.00",
+            "percentage": 100
+          },
+          "cogs": {
+            "absolute": "14500.00",
+            "percentage": 100
+          },
+          "grossProfit": {
+            "absolute": "10500.00",
+            "percentage": 100
+          },
+          "operatingExpenses": {
+            "absolute": "250000.00",
+            "percentage": 100
+          },
+          "netProfit": {
+            "absolute": "-239500.00",
+            "percentage": 100
+          }
+        },
+        "appliedRange": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "timezone": "America/Bogota"
+        },
+        "comparisonRange": {
+          "startDate": "2025-01-01",
+          "endDate": "2025-12-31",
+          "timezone": "America/Bogota"
+        }
+      },
+      "cash": {
+        "accountingBasis": "CASH_BY_PAYMENT_DATE",
+        "collections": {
+          "total": "29520.00",
+          "byPaymentMethod": [
+            {
+              "paymentMethod": "CASH",
+              "total": "16000.00",
+              "count": 2
+            },
+            {
+              "paymentMethod": "CARD",
+              "total": "4520.00",
+              "count": 1
+            },
+            {
+              "paymentMethod": "TRANSFER",
+              "total": "9000.00",
+              "count": 1
+            }
+          ]
+        },
+        "expensePayments": {
+          "total": "250000.00",
+          "byPaymentMethod": [
+            {
+              "paymentMethod": "TRANSFER",
+              "total": "200000.00",
+              "count": 1
+            },
+            {
+              "paymentMethod": "CASH",
+              "total": "30000.00",
+              "count": 1
+            },
+            {
+              "paymentMethod": "CARD",
+              "total": "20000.00",
+              "count": 1
+            }
+          ]
+        },
+        "appliedRange": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "timezone": "America/Bogota"
+        }
+      },
+      "inventory": {
+        "isCurrentSnapshot": true,
+        "valuationBasis": "CURRENT_STOCK_AT_CURRENT_COST",
+        "current": {
+          "stockQuantity": 100,
+          "stockValue": "247000.00",
+          "retailValue": "430000.00",
+          "potentialProfit": "183000.00"
+        },
+        "movements": {
+          "totalQuantity": -6,
+          "byType": {
+            "SALE": -7,
+            "RETURN": 1
+          }
+        },
+        "appliedRange": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "timezone": "America/Bogota"
+        }
+      }
+    },
+    "salesPaymentMethod": {
+      "data": [
+        {
+          "paymentMethod": "CASH",
+          "total": 16000,
+          "subtotal": 16000,
+          "count": 2
+        },
+        {
+          "paymentMethod": "CARD",
+          "total": 4520,
+          "subtotal": 4520,
+          "count": 1
+        },
+        {
+          "paymentMethod": "TRANSFER",
+          "total": 9000,
+          "subtotal": 9000,
+          "count": 1
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "salesCategory": {
+      "data": [
+        {
+          "category": "Golden Snacks",
+          "total": 16020,
+          "quantity": 3
+        },
+        {
+          "category": "Golden Bebidas",
+          "total": 13500,
+          "quantity": 4
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "salesCategoryDaily": {
+      "data": [
+        {
+          "date": "2026-06-15",
+          "category": "Golden Snacks",
+          "total": 6500,
+          "quantity": 2
+        },
+        {
+          "date": "2026-06-15",
+          "category": "Golden Bebidas",
+          "total": 4500,
+          "quantity": 1
+        },
+        {
+          "date": "2026-07-05",
+          "category": "Golden Snacks",
+          "total": 9520,
+          "quantity": 1
+        },
+        {
+          "date": "2026-08-26",
+          "category": "Golden Bebidas",
+          "total": 9000,
+          "quantity": 3
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "topSellingProductsDefault": {
+      "data": [
+        {
+          "productId": "a5f01d00-0000-4000-8000-000000000010",
+          "productName": "Golden Combo",
+          "quantity": 1,
+          "total": 9520,
+          "stock": 12
+        },
+        {
+          "productId": "a5f01d00-0000-4000-8000-000000000008",
+          "productName": "Golden Cafe",
+          "quantity": 3,
+          "total": 9000,
+          "stock": 8
+        },
+        {
+          "productId": "a5f01d00-0000-4000-8000-000000000007",
+          "productName": "Golden Dona Clasica",
+          "quantity": 2,
+          "total": 6500,
+          "stock": 50
+        },
+        {
+          "productId": "a5f01d00-0000-4000-8000-000000000009",
+          "productName": "Golden Chocolate",
+          "quantity": 1,
+          "total": 4500,
+          "stock": 30
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "topSellingProductsLimit2": {
+      "data": [
+        {
+          "productId": "a5f01d00-0000-4000-8000-000000000010",
+          "productName": "Golden Combo",
+          "quantity": 1,
+          "total": 9520,
+          "stock": 12
+        },
+        {
+          "productId": "a5f01d00-0000-4000-8000-000000000008",
+          "productName": "Golden Cafe",
+          "quantity": 3,
+          "total": 9000,
+          "stock": 8
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "customersStatistics": {
+      "totalCustomers": 3,
+      "activeCustomers": 3,
+      "topCustomers": [
+        {
+          "customerId": "a5f01d00-0000-4000-8000-000000000011",
+          "customerName": "Golden Cliente Uno",
+          "totalSales": 2,
+          "totalRevenue": 14500
+        },
+        {
+          "customerId": "a5f01d00-0000-4000-8000-000000000012",
+          "customerName": "Golden Cliente Dos",
+          "totalSales": 1,
+          "totalRevenue": 9520
+        },
+        {
+          "customerId": null,
+          "customerName": "Guest",
+          "totalSales": 1,
+          "totalRevenue": 9000
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "usersPerformanceCompare": {
+      "data": [
+        {
+          "userId": "a5f01d00-0000-4000-8000-000000000001",
+          "userName": "Golden Admin",
+          "salesCount": 2,
+          "revenue": 20000,
+          "avgTicket": 10000,
+          "uniqueCustomers": 1,
+          "comparison": {
+            "revenuePct": 100,
+            "salesPct": 100
+          }
+        },
+        {
+          "userId": "a5f01d00-0000-4000-8000-000000000002",
+          "userName": "Golden Cashier",
+          "salesCount": 1,
+          "revenue": 9520,
+          "avgTicket": 9520,
+          "uniqueCustomers": 1,
+          "comparison": {
+            "revenuePct": 100,
+            "salesPct": 100
+          }
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      },
+      "comparisonRange": {
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "usersPerformanceNoCompare": {
+      "data": [
+        {
+          "userId": "a5f01d00-0000-4000-8000-000000000001",
+          "userName": "Golden Admin",
+          "salesCount": 2,
+          "revenue": 20000,
+          "avgTicket": 10000,
+          "uniqueCustomers": 1
+        },
+        {
+          "userId": "a5f01d00-0000-4000-8000-000000000002",
+          "userName": "Golden Cashier",
+          "salesCount": 1,
+          "revenue": 9520,
+          "avgTicket": 9520,
+          "uniqueCustomers": 1
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "salesDaily": {
+      "data": [
+        {
+          "date": "2026-06-15",
+          "total": 11000,
+          "subtotal": 11500,
+          "tax": 0,
+          "count": 1
+        },
+        {
+          "date": "2026-07-05",
+          "total": 9520,
+          "subtotal": 8000,
+          "tax": 1520,
+          "count": 1
+        },
+        {
+          "date": "2026-08-26",
+          "total": 9000,
+          "subtotal": 9000,
+          "tax": 0,
+          "count": 1
+        }
+      ],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    }
+  }
+}

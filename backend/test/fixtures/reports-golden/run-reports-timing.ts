@@ -1,11 +1,13 @@
 /**
  * Report workload timing runner (S5 — perf-refactor #98).
  *
- * Runs the exact report golden workload against the live database, then a
- * focused loop over the two payment-aggregation endpoints, while aggregating
- * per-statement query timings through the S1 harness helpers. Writes
+ * Seeds the deterministic fixture organization (seed-golden-fixtures.ts),
+ * runs the exact report golden workload against it, then a focused loop over
+ * the two payment-aggregation endpoints, while aggregating per-statement
+ * query timings through the S1 harness helpers. Writes
  * backend/query-timing-<label>.json for before/after evidence of the
- * reports query tuning.
+ * reports query tuning. Measuring the SAME deterministic dataset before and
+ * after keeps the comparison honest (no local-seed-data dependence).
  *
  * Usage (from /backend):
  *   $env:PRISMA_QUERY_DUMP = 'reports-before'; npm run fixtures:reports-timing
@@ -27,6 +29,10 @@ import {
   writeQueryTimingDump,
   type QueryTimingStats,
 } from '../../../src/prisma/query-timing';
+import {
+  GOLDEN_ORG_SLUG,
+  seedGoldenFixtures,
+} from './seed-golden-fixtures';
 
 const FOCUSED_ITERATIONS = 20;
 
@@ -59,31 +65,26 @@ async function main(): Promise<void> {
   );
   const service = new ReportsService(prisma, cache, expenses);
 
-  const orgs = await prisma.organization.findMany({
-    orderBy: { createdAt: 'asc' },
+  // Same deterministic dataset as the golden capture (self-contained).
+  const { orgId } = await seedGoldenFixtures(prisma);
+  const org = await prisma.organization.findUniqueOrThrow({
+    where: { id: orgId },
     select: { id: true, slug: true },
   });
-  if (orgs.length === 0) {
-    throw new Error('No organizations found in the database — seed it first.');
-  }
+  const orgs = [org];
 
   // Full workload: identical endpoint set as the golden capture.
-  for (const org of orgs) {
+  for (const o of orgs) {
     for (const scenario of GOLDEN_SCENARIOS) {
-      await runReportWorkload(service, org.id, scenario);
+      await runReportWorkload(service, o.id, scenario);
     }
   }
   console.log(`[reports-timing] full workload done (${orgs.length} orgs)`);
 
   // Focused loop on the two payment-aggregation endpoints (both uncached)
-  // for stable per-statement milliseconds. Focus on an org that has sales so
-  // the measured path is the populated one, not the empty early-exit.
-  const firstSale = await prisma.sale.findFirst({
-    orderBy: { createdAt: 'asc' },
-    select: { organizationId: true },
-  });
-  const focus =
-    orgs.find((org) => org.id === firstSale?.organizationId) ?? orgs[0];
+  // for stable per-statement milliseconds. The fixture org has sales, so the
+  // measured path is the populated one, not the empty early-exit.
+  const focus = orgs.find((o) => o.id === orgId) ?? orgs[0];
   for (let i = 0; i < FOCUSED_ITERATIONS; i++) {
     for (const scenario of GOLDEN_SCENARIOS) {
       await service.getSalesByPaymentMethod(focus.id, scenario.startDate, scenario.endDate);

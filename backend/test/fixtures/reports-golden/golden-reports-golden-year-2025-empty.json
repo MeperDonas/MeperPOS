@@ -1,6 +1,6 @@
 {
   "_comment": "Golden report outputs captured from the UNMODIFIED ReportsService (S5 perf-refactor #98). Regenerate ONLY from unmodified reports.service.ts via: npm run fixtures:reports-golden",
-  "orgSlug": "s3-receipt-fixtures",
+  "orgSlug": "reports-golden",
   "scenario": "year-2025-empty",
   "startDate": "2025-01-01",
   "endDate": "2025-12-31",
@@ -8,9 +8,9 @@
     "dashboard": {
       "totalSales": 0,
       "totalRevenue": 0,
-      "totalProducts": 7,
+      "totalProducts": 4,
       "totalCustomers": 3,
-      "lowStockProducts": 0,
+      "lowStockProducts": 1,
       "recentSales": [],
       "trends": {
         "totalSales": 0,
@@ -118,10 +118,10 @@
       "isCurrentSnapshot": true,
       "valuationBasis": "CURRENT_STOCK_AT_CURRENT_COST",
       "current": {
-        "stockQuantity": 700,
-        "stockValue": "2094000.00",
-        "retailValue": "3490000.00",
-        "potentialProfit": "1396000.00"
+        "stockQuantity": 100,
+        "stockValue": "247000.00",
+        "retailValue": "430000.00",
+        "potentialProfit": "183000.00"
       },
       "movements": {
         "totalQuantity": 0,
@@ -220,10 +220,10 @@
         "isCurrentSnapshot": true,
         "valuationBasis": "CURRENT_STOCK_AT_CURRENT_COST",
         "current": {
-          "stockQuantity": 700,
-          "stockValue": "2094000.00",
-          "retailValue": "3490000.00",
-          "potentialProfit": "1396000.00"
+          "stockQuantity": 100,
+          "stockValue": "247000.00",
+          "retailValue": "430000.00",
+          "potentialProfit": "183000.00"
         },
         "movements": {
           "totalQuantity": 0,
