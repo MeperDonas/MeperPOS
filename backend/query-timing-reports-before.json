@@ -1,57 +1,182 @@
 {
   "sale.select": {
-    "count": 172,
-    "totalMs": 192,
-    "maxMs": 8
+    "count": 73,
+    "totalMs": 100,
+    "maxMs": 11
   },
   "product.select": {
-    "count": 65,
-    "totalMs": 63,
+    "count": 17,
+    "totalMs": 28,
     "maxMs": 4
   },
   "customer.select": {
-    "count": 42,
-    "totalMs": 60,
+    "count": 11,
+    "totalMs": 24,
     "maxMs": 4
   },
   "saleitem.select": {
-    "count": 38,
-    "totalMs": 40,
-    "maxMs": 3
-  },
-  "payment.select": {
-    "count": 79,
-    "totalMs": 29,
-    "maxMs": 4
-  },
-  "inventorymovement.select": {
-    "count": 19,
-    "totalMs": 16,
-    "maxMs": 2
-  },
-  "expense.select": {
-    "count": 16,
+    "count": 10,
     "totalMs": 15,
     "maxMs": 2
   },
-  "expensepayment.select": {
-    "count": 56,
-    "totalMs": 14,
+  "payment.select": {
+    "count": 65,
+    "totalMs": 15,
+    "maxMs": 3
+  },
+  "user.delete": {
+    "count": 1,
+    "totalMs": 8,
+    "maxMs": 8
+  },
+  "expense.select": {
+    "count": 4,
+    "totalMs": 8,
     "maxMs": 2
   },
-  "organization.select": {
+  "inventorymovement.select": {
+    "count": 5,
+    "totalMs": 7,
+    "maxMs": 2
+  },
+  "other.raw": {
+    "count": 12,
+    "totalMs": 6,
+    "maxMs": 1
+  },
+  "organization.insert": {
+    "count": 1,
+    "totalMs": 5,
+    "maxMs": 5
+  },
+  "product.insert": {
+    "count": 4,
+    "totalMs": 5,
+    "maxMs": 2
+  },
+  "expensepayment.select": {
+    "count": 44,
+    "totalMs": 5,
+    "maxMs": 1
+  },
+  "product.delete": {
+    "count": 1,
+    "totalMs": 4,
+    "maxMs": 4
+  },
+  "customer.insert": {
+    "count": 3,
+    "totalMs": 4,
+    "maxMs": 2
+  },
+  "sale.delete": {
     "count": 1,
     "totalMs": 3,
     "maxMs": 3
   },
-  "category.select": {
-    "count": 9,
+  "customer.delete": {
+    "count": 1,
     "totalMs": 3,
+    "maxMs": 3
+  },
+  "category.delete": {
+    "count": 1,
+    "totalMs": 3,
+    "maxMs": 3
+  },
+  "user.insert": {
+    "count": 2,
+    "totalMs": 3,
+    "maxMs": 2
+  },
+  "category.insert": {
+    "count": 2,
+    "totalMs": 3,
+    "maxMs": 2
+  },
+  "expense.insert": {
+    "count": 2,
+    "totalMs": 3,
+    "maxMs": 2
+  },
+  "payment.delete": {
+    "count": 1,
+    "totalMs": 2,
+    "maxMs": 2
+  },
+  "saleitem.delete": {
+    "count": 1,
+    "totalMs": 2,
+    "maxMs": 2
+  },
+  "inventorymovement.delete": {
+    "count": 1,
+    "totalMs": 2,
+    "maxMs": 2
+  },
+  "expensepayment.delete": {
+    "count": 1,
+    "totalMs": 2,
+    "maxMs": 2
+  },
+  "expense.delete": {
+    "count": 1,
+    "totalMs": 2,
+    "maxMs": 2
+  },
+  "expensecategory.delete": {
+    "count": 1,
+    "totalMs": 2,
+    "maxMs": 2
+  },
+  "sale.insert": {
+    "count": 1,
+    "totalMs": 2,
+    "maxMs": 2
+  },
+  "inventorymovement.insert": {
+    "count": 1,
+    "totalMs": 2,
+    "maxMs": 2
+  },
+  "category.select": {
+    "count": 3,
+    "totalMs": 2,
+    "maxMs": 1
+  },
+  "organizationuser.insert": {
+    "count": 1,
+    "totalMs": 1,
+    "maxMs": 1
+  },
+  "saleitem.insert": {
+    "count": 1,
+    "totalMs": 1,
+    "maxMs": 1
+  },
+  "payment.insert": {
+    "count": 1,
+    "totalMs": 1,
+    "maxMs": 1
+  },
+  "expensecategory.insert": {
+    "count": 1,
+    "totalMs": 1,
+    "maxMs": 1
+  },
+  "expensepayment.insert": {
+    "count": 1,
+    "totalMs": 1,
+    "maxMs": 1
+  },
+  "organization.select": {
+    "count": 1,
+    "totalMs": 1,
     "maxMs": 1
   },
   "user.select": {
-    "count": 6,
-    "totalMs": 3,
+    "count": 2,
+    "totalMs": 1,
     "maxMs": 1
   }
 }
