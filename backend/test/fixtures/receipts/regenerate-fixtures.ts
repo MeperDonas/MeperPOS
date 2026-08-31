@@ -24,6 +24,7 @@ import { CacheService } from '../../../src/common/services/cache.service';
 import { SettingsService } from '../../../src/settings/settings.service';
 import { CloudinaryService } from '../../../src/cloudinary/cloudinary.service';
 import { SequenceService } from '../../../src/common/sequences/sequence.service';
+import { ReceiptsService } from '../../../src/receipts/receipts.service';
 import { SalesService } from '../../../src/sales/sales.service';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -256,7 +257,13 @@ async function main(): Promise<void> {
   const cache = new CacheService();
   const cloudinary = new CloudinaryService(new ConfigService());
   const settingsService = new SettingsService(prisma, cloudinary);
-  const salesService = new SalesService(prisma, cache, settingsService, new SequenceService());
+  const salesService = new SalesService(
+    prisma,
+    cache,
+    settingsService,
+    new SequenceService(),
+    new ReceiptsService(),
+  );
 
   const userId = await ensureUser(prisma);
 
