@@ -1,0 +1,8 @@
+{
+  "_comment": "Organizations covered by the report goldens (S5). Regenerate with: npm run fixtures:reports-golden",
+  "orgs": [
+    {
+      "slug": "reports-golden"
+    }
+  ]
+}

@@ -302,6 +302,29 @@ function aggregateCashPayments(
   };
 }
 
+// Maps payment.groupBy rows (D7 — S5 perf-refactor #98) to the aggregateCashPayments
+// shape; group order is the query's explicit `orderBy: { method: 'asc' }` (decision obs #411).
+function aggregatePaymentGroups(
+  groups: Array<{
+    method: string;
+    _sum: { amount: Prisma.Decimal | null };
+    _count: { method: number };
+  }>,
+) {
+  let total = new Prisma.Decimal(0);
+  const byPaymentMethod = groups.map((group) => {
+    const amount = group._sum.amount ?? new Prisma.Decimal(0);
+    total = total.add(amount);
+    return {
+      paymentMethod: group.method,
+      total: amount.toFixed(2),
+      count: group._count.method,
+    };
+  });
+
+  return { total: total.toFixed(2), byPaymentMethod };
+}
+
 function isInDateFilter(date: Date | null | undefined, filter: DateFilter): boolean {
   return Boolean(
     date &&
@@ -437,14 +460,17 @@ export class ReportsService {
     const orgId = this.requireOrganizationId(organizationId);
     validateDateRange(startDate, endDate);
     const period = buildFinancialComparisonPeriod(startDate, endDate);
-    const [collections, expensePayments] = await Promise.all([
-      this.prisma.payment.findMany({
+    const [paymentGroups, expensePayments] = await Promise.all([
+      this.prisma.payment.groupBy({
+        by: ['method'],
         where: {
           organizationId: orgId,
           createdAt: period.current,
           sale: { status: 'COMPLETED' },
         },
-        select: { amount: true, method: true },
+        _sum: { amount: true },
+        _count: { method: true },
+        orderBy: { method: 'asc' },
       }),
       this.prisma.expensePayment.findMany({
         where: { organizationId: orgId, date: period.current },
@@ -454,7 +480,7 @@ export class ReportsService {
 
     return {
       accountingBasis: 'CASH_BY_PAYMENT_DATE',
-      collections: aggregateCashPayments(collections),
+      collections: aggregatePaymentGroups(paymentGroups),
       expensePayments: aggregateCashPayments(expensePayments),
       appliedRange: buildFinancialRangeMeta(period.current),
     };
@@ -785,47 +811,28 @@ export class ReportsService {
     validateDateRange(startDate, endDate);
 
     const dateFilter = buildDateFilter(startDate, endDate);
-    const where: SaleWhereInput = {
-      ...(organizationId ? { organizationId } : ({} as any)),
-      status: 'COMPLETED',
-      ...(dateFilter && { createdAt: dateFilter }),
-    };
 
-    const sales = await this.prisma.sale.findMany({
-      where: where as never,
-      include: {
-        payments: true,
+    const paymentGroups = await this.prisma.payment.groupBy({
+      by: ['method'],
+      where: {
+        sale: {
+          status: 'COMPLETED',
+          ...(organizationId ? { organizationId } : ({} as any)),
+          ...(dateFilter && { createdAt: dateFilter }),
+        },
       },
+      _sum: { amount: true },
+      _count: { method: true },
+      orderBy: { method: 'asc' },
     });
 
-    const paymentMethodTotals = new Map<
-      'CASH' | 'CARD' | 'TRANSFER',
-      { total: number; subtotal: number; count: number }
-    >();
-
-    for (const sale of sales) {
-      for (const payment of sale.payments) {
-        const current = paymentMethodTotals.get(payment.method) || {
-          total: 0,
-          subtotal: 0,
-          count: 0,
-        };
-        current.total += Number(payment.amount);
-        current.subtotal += Number(payment.amount);
-        current.count += 1;
-        paymentMethodTotals.set(payment.method, current);
-      }
-    }
-
     return {
-      data: Array.from(paymentMethodTotals.entries()).map(
-        ([method, totals]) => ({
-          paymentMethod: method,
-          total: totals.total,
-          subtotal: totals.subtotal,
-          count: totals.count,
-        }),
-      ),
+      data: paymentGroups.map((group) => ({
+        paymentMethod: group.method,
+        total: Number(group._sum.amount ?? 0),
+        subtotal: Number(group._sum.amount ?? 0),
+        count: group._count.method,
+      })),
       appliedRange: buildAppliedRange(startDate, endDate),
     };
   }
