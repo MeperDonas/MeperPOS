@@ -17,6 +17,7 @@ import {
 import { CacheService } from '../common/services/cache.service';
 import { SettingsService } from '../settings/settings.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
+import { computeSkipTake } from '../common/utils/pagination';
 import { computeEffectiveSalePrice } from '../products/products.service';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { SequenceService } from '../common/sequences/sequence.service';
@@ -299,7 +300,7 @@ export class SalesService {
     customerId?: string,
     user?: RequestUser,
   ) {
-    const skip = (page - 1) * limit;
+    const { skip, take } = computeSkipTake(page, limit);
 
     const where: Record<string, unknown> = {
       ...(organizationId ? { organizationId } : {}),
@@ -357,7 +358,7 @@ export class SalesService {
       this.prisma.sale.findMany({
         where: where as never,
         skip,
-        take: limit,
+        take,
         include: {
           customer: true,
           items: {

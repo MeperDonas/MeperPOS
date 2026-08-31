@@ -88,6 +88,8 @@ export class UsersController {
   }
 
   @Post(':id/reset-password')
+  @UseInterceptors(AuditInterceptor)
+  @AuditAction('ADMIN_PASSWORD_RESET')
   @ApiOperation({ summary: 'Reset a user password (Admin only)' })
   resetPassword(
     @Param('id') id: string,

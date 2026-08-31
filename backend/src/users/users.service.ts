@@ -218,24 +218,22 @@ export class UsersService {
       data: { password: hashedPassword },
     });
 
-    await this.prisma.auditLog.create({
-      data: {
-        userId: adminUserId,
-        organizationId,
-        action: 'ADMIN_PASSWORD_RESET',
+    // The audit row is written by AuditInterceptor (wired on the
+    // reset-password route) from the attached context, reproducing the
+    // pre-migration manual auditLog.create contract exactly.
+    return attachAuditContext(
+      { message: 'Contraseña restablecida exitosamente' },
+      {
         resource: 'User',
         resourceId: userId,
+        summary: `Reset password for user ${targetUser.name} (${targetUser.email})`,
         metadata: {
-          summary: `Reset password for user ${targetUser.name} (${targetUser.email})`,
           targetUserId: userId,
           targetUserEmail: targetUser.email,
           targetUserName: targetUser.name,
-          timestamp: new Date().toISOString(),
         },
       },
-    });
-
-    return { message: 'Contraseña restablecida exitosamente' };
+    );
   }
 
   async remove(adminUserId: string, userId: string, organizationId?: string) {

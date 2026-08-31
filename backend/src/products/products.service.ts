@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
+import { computeSkipTake } from '../common/utils/pagination';
 import { PlanLimitService } from '../plan-limits/plan-limits.service';
 
 export interface PromoPricingProduct {
@@ -214,7 +215,7 @@ export class ProductsService {
     lowStock?: boolean,
     orderBy: 'name' | 'createdAt' = 'createdAt',
   ) {
-    const skip = (page - 1) * limit;
+    const { skip, take } = computeSkipTake(page, limit);
 
     const where: Record<string, unknown> = { ...(organizationId ? { organizationId } : {}) };
 
@@ -255,7 +256,7 @@ export class ProductsService {
       this.prisma.product.findMany({
         where,
         skip,
-        take: limit,
+        take,
         include: { category: true },
         orderBy: orderByClause,
       }),
