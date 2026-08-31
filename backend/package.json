@@ -21,6 +21,8 @@
     "test:e2e": "dotenv -e .env.development -- jest --config ./test/jest-e2e.json",
     "seed": "dotenv -e .env.development -- ts-node prisma/seed.ts",
     "fixtures:receipts": "dotenv -e .env.development -- ts-node test/fixtures/receipts/regenerate-fixtures.ts",
+    "fixtures:reports-golden": "dotenv -e .env.development -- ts-node test/fixtures/reports-golden/capture-goldens.ts",
+    "fixtures:reports-timing": "dotenv -e .env.development -- ts-node test/fixtures/reports-golden/run-reports-timing.ts",
     "seed:org": "dotenv -e .env.development -- ts-node prisma/seed-org.ts",
     "seed:org:prod": "set SEED_ALLOW_NON_DEV=true&&dotenv -e .env.production -- ts-node prisma/seed-org.ts",
     "migrate:dev": "dotenv -e .env.development -- npx prisma migrate dev",

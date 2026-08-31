@@ -1,0 +1,57 @@
+{
+  "sale.select": {
+    "count": 172,
+    "totalMs": 192,
+    "maxMs": 8
+  },
+  "product.select": {
+    "count": 65,
+    "totalMs": 63,
+    "maxMs": 4
+  },
+  "customer.select": {
+    "count": 42,
+    "totalMs": 60,
+    "maxMs": 4
+  },
+  "saleitem.select": {
+    "count": 38,
+    "totalMs": 40,
+    "maxMs": 3
+  },
+  "payment.select": {
+    "count": 79,
+    "totalMs": 29,
+    "maxMs": 4
+  },
+  "inventorymovement.select": {
+    "count": 19,
+    "totalMs": 16,
+    "maxMs": 2
+  },
+  "expense.select": {
+    "count": 16,
+    "totalMs": 15,
+    "maxMs": 2
+  },
+  "expensepayment.select": {
+    "count": 56,
+    "totalMs": 14,
+    "maxMs": 2
+  },
+  "organization.select": {
+    "count": 1,
+    "totalMs": 3,
+    "maxMs": 3
+  },
+  "category.select": {
+    "count": 9,
+    "totalMs": 3,
+    "maxMs": 1
+  },
+  "user.select": {
+    "count": 6,
+    "totalMs": 3,
+    "maxMs": 1
+  }
+}

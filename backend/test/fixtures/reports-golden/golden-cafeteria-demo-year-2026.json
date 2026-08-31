@@ -1,0 +1,319 @@
+{
+  "_comment": "Golden report outputs captured from the UNMODIFIED ReportsService (S5 perf-refactor #98). Regenerate ONLY from unmodified reports.service.ts via: npm run fixtures:reports-golden",
+  "orgSlug": "cafeteria-demo",
+  "scenario": "year-2026",
+  "startDate": "2026-01-01",
+  "endDate": "2026-12-31",
+  "outputs": {
+    "dashboard": {
+      "totalSales": 0,
+      "totalRevenue": 0,
+      "totalProducts": 0,
+      "totalCustomers": 0,
+      "lowStockProducts": 0,
+      "recentSales": [],
+      "trends": {
+        "totalSales": 0,
+        "totalRevenue": 0,
+        "totalCustomers": 0
+      },
+      "previousPeriod": {
+        "revenue": 0,
+        "sales": 0
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      },
+      "comparisonRange": {
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economic": {
+      "current": {
+        "netIncome": "0.00",
+        "tax": "0.00",
+        "cogs": "0.00",
+        "grossProfit": "0.00",
+        "grossMarginPercentage": null,
+        "operatingExpenses": "0.00",
+        "netProfit": "0.00",
+        "netMarginPercentage": null,
+        "products": [],
+        "dataQuality": {
+          "snapshotBackedItems": 0,
+          "excludedItems": 0,
+          "excludedQuantity": 0
+        }
+      },
+      "previous": {
+        "netIncome": "0.00",
+        "tax": "0.00",
+        "cogs": "0.00",
+        "grossProfit": "0.00",
+        "grossMarginPercentage": null,
+        "operatingExpenses": "0.00",
+        "netProfit": "0.00",
+        "netMarginPercentage": null,
+        "products": [],
+        "dataQuality": {
+          "snapshotBackedItems": 0,
+          "excludedItems": 0,
+          "excludedQuantity": 0
+        }
+      },
+      "deltas": {
+        "netIncome": {
+          "absolute": "0.00",
+          "percentage": 0
+        },
+        "cogs": {
+          "absolute": "0.00",
+          "percentage": 0
+        },
+        "grossProfit": {
+          "absolute": "0.00",
+          "percentage": 0
+        },
+        "operatingExpenses": {
+          "absolute": "0.00",
+          "percentage": 0
+        },
+        "netProfit": {
+          "absolute": "0.00",
+          "percentage": 0
+        }
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      },
+      "comparisonRange": {
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economicCash": {
+      "accountingBasis": "CASH_BY_PAYMENT_DATE",
+      "collections": {
+        "total": "0.00",
+        "byPaymentMethod": []
+      },
+      "expensePayments": {
+        "total": "0.00",
+        "byPaymentMethod": []
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economicInventory": {
+      "isCurrentSnapshot": true,
+      "valuationBasis": "CURRENT_STOCK_AT_CURRENT_COST",
+      "current": {
+        "stockQuantity": 0,
+        "stockValue": "0.00",
+        "retailValue": "0.00",
+        "potentialProfit": "0.00"
+      },
+      "movements": {
+        "totalQuantity": 0,
+        "byType": {}
+      },
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "economicExport": {
+      "financial": {
+        "current": {
+          "netIncome": "0.00",
+          "tax": "0.00",
+          "cogs": "0.00",
+          "grossProfit": "0.00",
+          "grossMarginPercentage": null,
+          "operatingExpenses": "0.00",
+          "netProfit": "0.00",
+          "netMarginPercentage": null,
+          "products": [],
+          "dataQuality": {
+            "snapshotBackedItems": 0,
+            "excludedItems": 0,
+            "excludedQuantity": 0
+          }
+        },
+        "previous": {
+          "netIncome": "0.00",
+          "tax": "0.00",
+          "cogs": "0.00",
+          "grossProfit": "0.00",
+          "grossMarginPercentage": null,
+          "operatingExpenses": "0.00",
+          "netProfit": "0.00",
+          "netMarginPercentage": null,
+          "products": [],
+          "dataQuality": {
+            "snapshotBackedItems": 0,
+            "excludedItems": 0,
+            "excludedQuantity": 0
+          }
+        },
+        "deltas": {
+          "netIncome": {
+            "absolute": "0.00",
+            "percentage": 0
+          },
+          "cogs": {
+            "absolute": "0.00",
+            "percentage": 0
+          },
+          "grossProfit": {
+            "absolute": "0.00",
+            "percentage": 0
+          },
+          "operatingExpenses": {
+            "absolute": "0.00",
+            "percentage": 0
+          },
+          "netProfit": {
+            "absolute": "0.00",
+            "percentage": 0
+          }
+        },
+        "appliedRange": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "timezone": "America/Bogota"
+        },
+        "comparisonRange": {
+          "startDate": "2025-01-01",
+          "endDate": "2025-12-31",
+          "timezone": "America/Bogota"
+        }
+      },
+      "cash": {
+        "accountingBasis": "CASH_BY_PAYMENT_DATE",
+        "collections": {
+          "total": "0.00",
+          "byPaymentMethod": []
+        },
+        "expensePayments": {
+          "total": "0.00",
+          "byPaymentMethod": []
+        },
+        "appliedRange": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "timezone": "America/Bogota"
+        }
+      },
+      "inventory": {
+        "isCurrentSnapshot": true,
+        "valuationBasis": "CURRENT_STOCK_AT_CURRENT_COST",
+        "current": {
+          "stockQuantity": 0,
+          "stockValue": "0.00",
+          "retailValue": "0.00",
+          "potentialProfit": "0.00"
+        },
+        "movements": {
+          "totalQuantity": 0,
+          "byType": {}
+        },
+        "appliedRange": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "timezone": "America/Bogota"
+        }
+      }
+    },
+    "salesPaymentMethod": {
+      "data": [],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "salesCategory": {
+      "data": [],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "salesCategoryDaily": {
+      "data": [],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "topSellingProductsDefault": {
+      "data": [],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "topSellingProductsLimit2": {
+      "data": [],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "customersStatistics": {
+      "totalCustomers": 0,
+      "activeCustomers": 0,
+      "topCustomers": [],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "usersPerformanceCompare": {
+      "data": [],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      },
+      "comparisonRange": {
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "usersPerformanceNoCompare": {
+      "data": [],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    },
+    "salesDaily": {
+      "data": [],
+      "appliedRange": {
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31",
+        "timezone": "America/Bogota"
+      }
+    }
+  }
+}
