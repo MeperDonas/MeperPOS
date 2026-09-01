@@ -1,24 +1,39 @@
-import { PrismaClient, Prisma, PlanType } from '@prisma/client';
+import { Prisma, PlanType } from '@prisma/client';
+import { NotFoundException } from '@nestjs/common';
 import { SalesService } from './sales.service';
 import { SequenceService } from '../common/sequences/sequence.service';
 import { CacheService } from '../common/services/cache.service';
 import { SettingsService } from '../settings/settings.service';
 import { ReceiptsService } from '../receipts/receipts.service';
-
-const prisma = new PrismaClient();
+import {
+  setupTwoOrgFixture,
+  type TwoOrgFixture,
+} from '../testing/two-org-fixture';
 
 const cloudinaryServiceMock = {
   uploadImage: jest.fn(),
 };
 
 describe('SalesService — Integration (Numbering + Isolation)', () => {
+  let prisma: TwoOrgFixture['prisma'];
+  let fixture: TwoOrgFixture;
   let salesService: SalesService;
-  let orgId: string;
-  let userId: string;
   let productId: string;
   let customerId: string;
+  let productBOrgId: string;
+  let customerBOrgId: string;
+  let saleBOrgId: string;
+
+  const buildSaleDto = (productId: string, customerId: string) => ({
+    customerId,
+    items: [{ productId, quantity: 1 }],
+    payments: [{ method: 'CASH' as const, amount: 1190 }],
+  });
 
   beforeAll(async () => {
+    fixture = await setupTwoOrgFixture('sales-int');
+    prisma = fixture.prisma;
+
     const settingsService = new SettingsService(
       prisma as never,
       cloudinaryServiceMock as never,
@@ -34,115 +49,193 @@ describe('SalesService — Integration (Numbering + Isolation)', () => {
       new ReceiptsService(),
     );
 
-    // Create org
-    const org = await prisma.organization.create({
-      data: {
-        name: 'Sales INT Org',
-        slug: 'sales-int-' + Date.now(),
-        plan: PlanType.BASIC,
-        active: true,
-      },
-    });
-    orgId = org.id;
-
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email: 'sales-int-user@example.com',
-        password: 'hash',
-        name: 'Test User',
-        tokenVersion: 0,
-      },
-    });
-    userId = user.id;
-
-    // Create category + product
-    const category = await prisma.category.create({
-      data: { name: 'Sales INT Cat', organizationId: orgId, active: true },
-    });
-    const product = await prisma.product.create({
-      data: {
-        name: 'Sales INT Product',
-        sku: 'SALES-SKU-' + Date.now(),
-        salePrice: new Prisma.Decimal(1000),
-        costPrice: new Prisma.Decimal(500),
-        taxRate: new Prisma.Decimal(19),
-        stock: 100,
-        minStock: 1,
-        active: true,
-        categoryId: category.id,
-        organizationId: orgId,
-      },
-    });
-    productId = product.id;
-
-    // Create customer
-    const customer = await prisma.customer.create({
-      data: {
-        name: 'Sales INT Customer',
-        documentType: 'CC',
-        documentNumber: '12345678',
-        organizationId: orgId,
-        active: true,
-      },
-    });
-    customerId = customer.id;
-
-    // Ensure sequence exists
     const year = new Date().getFullYear();
-    await prisma.organizationSequence.create({
-      data: {
-        organizationId: orgId,
-        type: 'SALE',
-        prefix: 'REC',
-        currentNumber: 0,
-        year,
-      },
+    const [categoryA, categoryB] = await Promise.all([
+      prisma.category.create({
+        data: { name: 'Sales INT Cat', organizationId: fixture.orgAId, active: true },
+      }),
+      prisma.category.create({
+        data: { name: 'Sales INT Cat B', organizationId: fixture.orgBId, active: true },
+      }),
+    ]);
+
+    const [productA, productB] = await Promise.all([
+      prisma.product.create({
+        data: {
+          name: 'Sales INT Product',
+          sku: 'SALES-SKU-' + Date.now(),
+          salePrice: new Prisma.Decimal(1000),
+          costPrice: new Prisma.Decimal(500),
+          taxRate: new Prisma.Decimal(19),
+          stock: 100,
+          minStock: 1,
+          active: true,
+          categoryId: categoryA.id,
+          organizationId: fixture.orgAId,
+        },
+      }),
+      prisma.product.create({
+        data: {
+          name: 'Sales INT Product B',
+          sku: 'SALES-SKU-B-' + Date.now(),
+          salePrice: new Prisma.Decimal(1000),
+          costPrice: new Prisma.Decimal(500),
+          taxRate: new Prisma.Decimal(19),
+          stock: 100,
+          minStock: 1,
+          active: true,
+          categoryId: categoryB.id,
+          organizationId: fixture.orgBId,
+        },
+      }),
+    ]);
+    productId = productA.id;
+    productBOrgId = productB.id;
+
+    const [customerA, customerB] = await Promise.all([
+      prisma.customer.create({
+        data: {
+          name: 'Sales INT Customer',
+          documentType: 'CC',
+          documentNumber: '12345678',
+          organizationId: fixture.orgAId,
+          active: true,
+        },
+      }),
+      prisma.customer.create({
+        data: {
+          name: 'Sales INT Customer B',
+          documentType: 'CC',
+          documentNumber: '87654321',
+          organizationId: fixture.orgBId,
+          active: true,
+        },
+      }),
+    ]);
+    customerId = customerA.id;
+    customerBOrgId = customerB.id;
+
+    await prisma.organizationSequence.createMany({
+      data: [
+        {
+          organizationId: fixture.orgAId,
+          type: 'SALE',
+          prefix: 'REC',
+          currentNumber: 0,
+          year,
+        },
+        {
+          organizationId: fixture.orgBId,
+          type: 'SALE',
+          prefix: 'RECB',
+          currentNumber: 0,
+          year,
+        },
+      ],
     });
+
+    const saleB = await salesService.create(
+      buildSaleDto(productBOrgId, customerBOrgId),
+      fixture.userBId,
+      fixture.orgBId,
+    );
+    saleBOrgId = saleB.id;
   });
 
-  afterAll(async () => {
-    await prisma.saleItem.deleteMany({
-      where: { sale: { organizationId: orgId } },
-    });
-    await prisma.payment.deleteMany({
-      where: { sale: { organizationId: orgId } },
-    });
-    await prisma.sale.deleteMany({ where: { organizationId: orgId } });
-    await prisma.inventoryMovement.deleteMany({
-      where: { organizationId: orgId },
-    });
-    await prisma.product.deleteMany({ where: { organizationId: orgId } });
-    await prisma.category.deleteMany({ where: { organizationId: orgId } });
-    await prisma.customer.deleteMany({ where: { organizationId: orgId } });
-    await prisma.organizationSequence.deleteMany({
-      where: { organizationId: orgId },
-    });
-    await prisma.organizationUser.deleteMany({
-      where: { organizationId: orgId },
-    });
-    await prisma.user.deleteMany({ where: { id: userId } });
-    await prisma.organization.deleteMany({ where: { id: orgId } });
-    await prisma.$disconnect();
-  });
+  afterAll(() =>
+    fixture.teardown(async () => {
+      await prisma.saleItem.deleteMany({
+        where: { sale: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } } },
+      });
+      await prisma.payment.deleteMany({
+        where: { sale: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } } },
+      });
+      await prisma.sale.deleteMany({
+        where: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } },
+      });
+      await prisma.inventoryMovement.deleteMany({
+        where: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } },
+      });
+      await prisma.product.deleteMany({
+        where: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } },
+      });
+      await prisma.category.deleteMany({
+        where: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } },
+      });
+      await prisma.customer.deleteMany({
+        where: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } },
+      });
+      await prisma.organizationSequence.deleteMany({
+        where: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } },
+      });
+    }),
+  );
 
   it('should assign consecutive saleNumbers for two sales in the same org', async () => {
-    const dto1 = {
-      customerId,
-      items: [{ productId, quantity: 1 }],
-      payments: [{ method: 'CASH' as const, amount: 1190 }],
-    };
+    const dto1 = buildSaleDto(productId, customerId);
+    const dto2 = buildSaleDto(productId, customerId);
 
-    const dto2 = {
-      customerId,
-      items: [{ productId, quantity: 1 }],
-      payments: [{ method: 'CASH' as const, amount: 1190 }],
-    };
-
-    const sale1 = await salesService.create(dto1, userId, orgId);
-    const sale2 = await salesService.create(dto2, userId, orgId);
+    const sale1 = await salesService.create(dto1, fixture.userAId, fixture.orgAId);
+    const sale2 = await salesService.create(dto2, fixture.userAId, fixture.orgAId);
 
     expect(sale1.saleNumber).toBe(1);
     expect(sale2.saleNumber).toBe(2);
+  });
+
+  it('cross-org detail read returns 404 and leaks no foreign data', async () => {
+    await expect(
+      salesService.findOne(saleBOrgId, fixture.orgAId),
+    ).rejects.toThrow(NotFoundException);
+    await expect(
+      salesService.findOne(saleBOrgId, fixture.orgAId),
+    ).rejects.toThrow('Sale not found');
+  });
+
+  it('list returns zero foreign-org rows under filters and pagination', async () => {
+    const listA = await salesService.findAll(fixture.orgAId, 1, 10);
+    expect(
+      listA.data.every((sale) => sale.organizationId === fixture.orgAId),
+    ).toBe(true);
+    expect(listA.data.some((sale) => sale.id === saleBOrgId)).toBe(false);
+
+    const listB = await salesService.findAll(fixture.orgBId, 1, 10);
+    expect(listB.data.map((sale) => sale.id)).toEqual([saleBOrgId]);
+
+    const searched = await salesService.findAll(
+      fixture.orgAId,
+      1,
+      10,
+      undefined,
+      undefined,
+      undefined,
+      'Sales INT Customer B',
+    );
+    expect(searched.data).toHaveLength(0);
+    expect(searched.meta.total).toBe(0);
+
+    const paged = await salesService.findAll(fixture.orgBId, 2, 10);
+    expect(paged.data).toHaveLength(0);
+  });
+
+  it('cross-org update is denied and the foreign row stays unchanged', async () => {
+    const before = await prisma.sale.findUniqueOrThrow({
+      where: { id: saleBOrgId },
+    });
+
+    await expect(
+      salesService.update(
+        saleBOrgId,
+        { status: 'CANCELLED', cancelReason: 'cross-org try' },
+        fixture.userAId,
+        fixture.orgAId,
+      ),
+    ).rejects.toThrow(NotFoundException);
+
+    const after = await prisma.sale.findUniqueOrThrow({
+      where: { id: saleBOrgId },
+    });
+    expect(after.status).toBe('COMPLETED');
+    expect(after.cancelReason).toBeNull();
+    expect(after.updatedAt.getTime()).toBe(before.updatedAt.getTime());
   });
 });
