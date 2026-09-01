@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { OrgRole, OrgStatus, PlanType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { AuthService } from './auth.service';
+import { ACCESS_TOKEN_TTL_SECONDS } from './auth.constants';
 import { PrismaService } from '../prisma/prisma.service';
 
 jest.mock('bcryptjs');
@@ -235,7 +236,7 @@ describe('AuthService', () => {
           role: OrgRole.ADMIN,
           tokenVersion: 1,
         }),
-        { expiresIn: '8h' },
+        { expiresIn: ACCESS_TOKEN_TTL_SECONDS },
       );
     });
 
@@ -605,7 +606,7 @@ describe('AuthService', () => {
           sub: 'user-1',
           tokenVersion: 2,
         }),
-        { expiresIn: '8h' },
+        { expiresIn: ACCESS_TOKEN_TTL_SECONDS },
       );
     });
   });

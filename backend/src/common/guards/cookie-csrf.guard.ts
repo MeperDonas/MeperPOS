@@ -27,10 +27,12 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  * Double-submit CSRF protection for cookie sessions.
  *
  * Requests carrying an Authorization Bearer header are token-authenticated
- * and therefore immune to cookie riding, so they are skipped entirely — this
- * keeps the current frontend (Bearer from localStorage) unaffected. Once a
- * frontend slice drops Bearer, every cross-site mutation without a matching
- * x-csrf-token header/cookie pair is rejected here.
+ * and therefore immune to cookie riding, so they are skipped entirely. The
+ * web frontend is a memory-token client that sends Bearer + cookies together
+ * on every request, so the skip is what keeps it unaffected; a cross-site
+ * attacker cannot set the Authorization header. Same-origin XSS bypasses CSRF
+ * anyway, so dropping this skip would add no real protection while coupling
+ * backend 403s to frontend header hygiene.
  */
 @Injectable()
 export class CookieCsrfGuard implements CanActivate {
