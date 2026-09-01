@@ -83,18 +83,83 @@ jobs:
         working-directory: frontend
         run: npx tsc --noEmit
 
-      # TEMPORARY QUARANTINE: 4 pre-existing baseline test files are excluded
-      # via vitest.config.ts (sales page behavior, admin organizations page,
-      # AuthContext switch, CategoryStackedChart tooltip projection). The
-      # continue-on-error flag is defense-in-depth: it keeps the job green if a
-      # new baseline failure appears. Keep this comment in sync with the
-      # quarantinedBaselineProjects list in frontend/vitest.config.ts and
-      # REMOVE this flag once that list is empty.
+      # BLOCKING (issue #48, spec 2.R3): a failing frontend test fails the
+      # pipeline and blocks merge. Known-broken baseline files are quarantined
+      # in vitest.config.ts (quarantinedBaselineProjects) — keep that list in
+      # sync and shrink it as the underlying causes get fixed.
       - name: Test (Vitest)
         working-directory: frontend
-        continue-on-error: true
         run: npm run test
 
       - name: Build
         working-directory: frontend
         run: npm run build
+
+      # Served-route security-header check (issue #48, spec 2.R3): boots the
+      # built app with `next start` and asserts the six header families from
+      # next.config.ts headers() on a real response, guarding against
+      # build/deploy-time header loss that a config-level unit test misses.
+      - name: Verify security headers on a served route
+        working-directory: frontend
+        run: |
+          NEXT_TELEMETRY_DISABLED=1 npx next start -p 3100 > next-start.log 2>&1 &
+          SERVER_PID=$!
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:3100/login; then
+              break
+            fi
+            sleep 1
+          done
+          if ! curl -sf -o /dev/null http://localhost:3100/login; then
+            echo "Frontend server did not come up in time"
+            cat next-start.log
+            kill $SERVER_PID || true
+            exit 1
+          fi
+          CHECK_URL=http://localhost:3100/login node --input-type=module <<'EOF'
+          const url = process.env.CHECK_URL;
+
+          // Exact-value families (must match next.config.ts securityHeaders).
+          const exact = {
+            "strict-transport-security": "max-age=63072000; includeSubDomains",
+            "x-content-type-options": "nosniff",
+            "x-frame-options": "DENY",
+            "referrer-policy": "strict-origin-when-cross-origin",
+            "permissions-policy": "camera=(), microphone=(), geolocation=()",
+          };
+          // Presence-only families (CSP value is long; asserting it stays
+          // present and non-empty is the contract of spec 2.R2).
+          const required = ["content-security-policy"];
+
+          let res;
+          try {
+            res = await fetch(url);
+          } catch (err) {
+            console.error(`Could not reach ${url}: ${err}`);
+            process.exit(1);
+          }
+
+          const failures = [];
+          for (const [header, expected] of Object.entries(exact)) {
+            const actual = res.headers.get(header);
+            if (actual !== expected) {
+              failures.push(`${header}: expected "${expected}", got "${actual}"`);
+            }
+          }
+          for (const header of required) {
+            const actual = res.headers.get(header);
+            if (!actual) {
+              failures.push(`${header}: missing`);
+            }
+          }
+
+          if (failures.length > 0) {
+            console.error(`Security header check FAILED for ${url}:`);
+            for (const failure of failures) console.error(`  - ${failure}`);
+            process.exit(1);
+          }
+          console.log(`All security header families present on ${url}`);
+          EOF
+          HEADER_CHECK_STATUS=$?
+          kill $SERVER_PID || true
+          exit $HEADER_CHECK_STATUS

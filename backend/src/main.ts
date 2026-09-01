@@ -1,9 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import cookieParser from 'cookie-parser';
-import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { configureApp } from './app-configuration';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { validateJwtSecretOrExit } from './config/runtime-env';
 
@@ -13,11 +12,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  // CSP is disabled because Swagger UI assets conflict with strict policies and this API serves no HTML to end users.
-  app.use(helmet({ contentSecurityPolicy: false }));
-
-  // Required for auth cookies: parses Cookie headers into req.cookies.
-  app.use(cookieParser());
+  configureApp(app);
 
   const corsOrigins = (process.env.CORS_ORIGIN ?? '')
     .split(',')
@@ -37,7 +32,6 @@ async function bootstrap() {
     origin: corsOrigins.length > 0 ? corsOrigins : defaultOrigins,
     credentials: true,
   });
-  app.setGlobalPrefix('api');
 
   app.useGlobalPipes(
     new ValidationPipe({
