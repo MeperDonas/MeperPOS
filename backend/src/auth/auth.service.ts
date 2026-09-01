@@ -16,8 +16,11 @@ import {
   UpdateProfileDto,
   ChangePasswordDto,
 } from './dto/auth.dto';
-import { OrgRole, OrgStatus } from '@prisma/client';
-import { ACCESS_TOKEN_TTL_SECONDS } from './auth.constants';
+import { OrgRole, OrgStatus, Prisma } from '@prisma/client';
+import {
+  ACCESS_TOKEN_TTL_SECONDS,
+  REFRESH_REUSE_GRACE_MS,
+} from './auth.constants';
 
 @Injectable()
 export class AuthService {
@@ -284,13 +287,48 @@ export class AuthService {
     }
 
     if (refreshToken.revokedAt) {
-      throw new UnauthorizedException('Refresh token revoked');
+      // Concurrent-tab reuse grace (design D3.2): tabs sharing a session may
+      // present a token another tab's rotation just revoked. While a NEWER
+      // active row for the same user was created within the grace window,
+      // rotate from that row instead of killing the tab with 401. Beyond the
+      // window this is a genuine reuse signal.
+      const replacement = await this.prisma.refreshToken.findFirst({
+        where: {
+          userId: refreshToken.userId,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+          createdAt: { gte: new Date(Date.now() - REFRESH_REUSE_GRACE_MS) },
+        },
+        include: { user: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!replacement) {
+        throw new UnauthorizedException('Refresh token revoked');
+      }
+
+      return this.rotateActiveRow(replacement);
     }
 
     if (refreshToken.expiresAt < new Date()) {
       throw new UnauthorizedException('Refresh token expired');
     }
 
+    if (!refreshToken.user.active) {
+      throw new UnauthorizedException('User inactive');
+    }
+
+    return this.rotateActiveRow(refreshToken);
+  }
+
+  /**
+   * Revokes the given (active) refresh-token row and issues a fresh pair from
+   * it — the shared rotation path for both a normally presented token and a
+   * grace-window replacement row.
+   */
+  private async rotateActiveRow(
+    refreshToken: Prisma.RefreshTokenGetPayload<{ include: { user: true } }>,
+  ) {
     if (!refreshToken.user.active) {
       throw new UnauthorizedException('User inactive');
     }

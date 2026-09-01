@@ -108,3 +108,127 @@ describe('AuthService.refresh — org preservation (spec 3.R1, amendment 1)', ()
     expect(decodeOrg(refreshed.accessToken)).toBe(orgAId);
   });
 });
+
+describe('AuthService.refresh — 60s concurrent-tab reuse grace (spec 3.R1, amendment 2)', () => {
+  let fixture: TwoOrgFixture;
+  let prisma: TwoOrgFixture['prisma'];
+  let service: AuthService;
+  let jwtService: JwtService;
+  let orgAId: string;
+  let orgBId: string;
+  let multiOrgUserId: string;
+  let multiOrgEmail: string;
+
+  const password = 'Refresh-Grace-Pass-123!';
+
+  function sha256(raw: string): string {
+    return crypto.createHash('sha256').update(raw).digest('hex');
+  }
+
+  /** Revokes every active row for the member so each test starts isolated. */
+  async function revokeAllActiveRows(): Promise<void> {
+    await prisma.refreshToken.updateMany({
+      where: { userId: multiOrgUserId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  beforeAll(async () => {
+    fixture = await setupTwoOrgFixture('refresh-grace');
+    prisma = fixture.prisma;
+    orgAId = fixture.orgAId;
+    orgBId = fixture.orgBId;
+
+    jwtService = new JwtService({ secret: 'refresh-int-test-secret' });
+    service = new AuthService(prisma as never, jwtService);
+
+    const hashed = await bcrypt.hash(password, 4);
+    const user = await prisma.user.create({
+      data: {
+        email: `refresh-grace-multi-${Date.now()}@example.com`,
+        password: hashed,
+        name: 'Multi Org Tab Sharer',
+        tokenVersion: 0,
+        organizationUsers: {
+          create: [
+            { organizationId: orgAId, role: 'MEMBER', joinedAt: new Date(Date.now() - 60000) },
+            { organizationId: orgBId, role: 'MEMBER', joinedAt: new Date() },
+          ],
+        },
+      },
+    });
+    multiOrgUserId = user.id;
+    multiOrgEmail = user.email;
+  }, 30000);
+
+  afterAll(async () => {
+    await fixture.teardown(async () => {
+      await prisma.refreshToken.deleteMany({
+        where: { userId: multiOrgUserId },
+      });
+    });
+  });
+
+  function decodeOrg(accessToken: string): string | null {
+    const payload = jwtService.verify(accessToken) as {
+      organizationId: string | null;
+    };
+    return payload.organizationId;
+  }
+
+  it('keeps the losing tab alive: a just-revoked token within 60s of a newer active row issues a fresh pair bound to that row org', async () => {
+    await revokeAllActiveRows();
+
+    // Both tabs share the session cookie holding this raw refresh token.
+    const shared = await service.login({
+      email: multiOrgEmail,
+      password,
+      organizationId: orgBId,
+    });
+
+    // Tab A wins the rotation: the shared row is revoked and replaced by a
+    // newer active row for the same user (created seconds ago).
+    await service.refresh(shared.refreshToken);
+
+    // Tab B presents the same (now revoked) raw token moments later.
+    const tabB = await service.refresh(shared.refreshToken);
+
+    expect(decodeOrg(tabB.accessToken)).toBe(orgBId);
+  });
+
+  it('rejects a revoked token with 401 when the newest active row is older than the 60s grace window', async () => {
+    await revokeAllActiveRows();
+
+    const rawRevoked = crypto.randomBytes(40).toString('hex');
+    const rawNewer = crypto.randomBytes(40).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+    const sixtyOneSecondsAgo = new Date(Date.now() - 61_000);
+
+    // The replacement row exists and is active, but was created 61s ago —
+    // outside the grace window. Presenting the revoked token is a genuine
+    // reuse signal and must stay a 401.
+    await prisma.refreshToken.create({
+      data: {
+        userId: multiOrgUserId,
+        token: sha256(rawRevoked),
+        organizationId: orgBId,
+        expiresAt,
+        revokedAt: sixtyOneSecondsAgo,
+      },
+    });
+    await prisma.refreshToken.create({
+      data: {
+        userId: multiOrgUserId,
+        token: sha256(rawNewer),
+        organizationId: orgBId,
+        expiresAt,
+        createdAt: sixtyOneSecondsAgo,
+      },
+    });
+
+    await expect(service.refresh(rawRevoked)).rejects.toThrow(
+      'Refresh token revoked',
+    );
+  });
+});
