@@ -18,7 +18,9 @@ export class CashRegistersService {
 
   async create(dto: CreateCashRegisterDto, organizationId: string | undefined) {
     if (!organizationId) {
-      throw new BadRequestException('Organization ID is required for this operation');
+      throw new BadRequestException(
+        'Organization ID is required for this operation',
+      );
     }
     const existing = await this.prisma.cashRegister.findFirst({
       where: { organizationId, name: dto.name },
@@ -81,9 +83,15 @@ export class CashRegistersService {
     return register;
   }
 
-  async update(id: string, dto: UpdateCashRegisterDto, organizationId: string | undefined) {
+  async update(
+    id: string,
+    dto: UpdateCashRegisterDto,
+    organizationId: string | undefined,
+  ) {
     if (!organizationId) {
-      throw new BadRequestException('Organization ID is required for this operation');
+      throw new BadRequestException(
+        'Organization ID is required for this operation',
+      );
     }
     await this.findOne(id, organizationId);
 
@@ -118,7 +126,9 @@ export class CashRegistersService {
 
   async remove(id: string, organizationId: string | undefined) {
     if (!organizationId) {
-      throw new BadRequestException('Organization ID is required for this operation');
+      throw new BadRequestException(
+        'Organization ID is required for this operation',
+      );
     }
     await this.findOne(id, organizationId);
 

@@ -1,4 +1,4 @@
-import { Prisma, PlanType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { NotFoundException } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import {
@@ -31,10 +31,18 @@ describe('ProductsService — Integration (Query Isolation)', () => {
     // Create category per org
     const [catA, catB] = await Promise.all([
       prisma.category.create({
-        data: { name: 'Cat INT A', organizationId: fixture.orgAId, active: true },
+        data: {
+          name: 'Cat INT A',
+          organizationId: fixture.orgAId,
+          active: true,
+        },
       }),
       prisma.category.create({
-        data: { name: 'Cat INT B', organizationId: fixture.orgBId, active: true },
+        data: {
+          name: 'Cat INT B',
+          organizationId: fixture.orgBId,
+          active: true,
+        },
       }),
     ]);
     catBOrgId = catB.id;
@@ -153,9 +161,9 @@ describe('ProductsService — Integration (Query Isolation)', () => {
     await expect(
       service.deactivate(productBOrgId, fixture.orgAId),
     ).rejects.toThrow(NotFoundException);
-    await expect(
-      service.remove(productBOrgId, fixture.orgAId),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.remove(productBOrgId, fixture.orgAId)).rejects.toThrow(
+      NotFoundException,
+    );
 
     const intact = await prisma.product.findUniqueOrThrow({
       where: { id: productBOrgId },

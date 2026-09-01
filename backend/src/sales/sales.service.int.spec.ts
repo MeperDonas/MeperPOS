@@ -1,4 +1,4 @@
-import { Prisma, PlanType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { NotFoundException } from '@nestjs/common';
 import { SalesService } from './sales.service';
 import { SequenceService } from '../common/sequences/sequence.service';
@@ -52,10 +52,18 @@ describe('SalesService — Integration (Numbering + Isolation)', () => {
     const year = new Date().getFullYear();
     const [categoryA, categoryB] = await Promise.all([
       prisma.category.create({
-        data: { name: 'Sales INT Cat', organizationId: fixture.orgAId, active: true },
+        data: {
+          name: 'Sales INT Cat',
+          organizationId: fixture.orgAId,
+          active: true,
+        },
       }),
       prisma.category.create({
-        data: { name: 'Sales INT Cat B', organizationId: fixture.orgBId, active: true },
+        data: {
+          name: 'Sales INT Cat B',
+          organizationId: fixture.orgBId,
+          active: true,
+        },
       }),
     ]);
 
@@ -145,10 +153,14 @@ describe('SalesService — Integration (Numbering + Isolation)', () => {
   afterAll(() =>
     fixture.teardown(async () => {
       await prisma.saleItem.deleteMany({
-        where: { sale: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } } },
+        where: {
+          sale: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } },
+        },
       });
       await prisma.payment.deleteMany({
-        where: { sale: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } } },
+        where: {
+          sale: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } },
+        },
       });
       await prisma.sale.deleteMany({
         where: { organizationId: { in: [fixture.orgAId, fixture.orgBId] } },
@@ -175,8 +187,16 @@ describe('SalesService — Integration (Numbering + Isolation)', () => {
     const dto1 = buildSaleDto(productId, customerId);
     const dto2 = buildSaleDto(productId, customerId);
 
-    const sale1 = await salesService.create(dto1, fixture.userAId, fixture.orgAId);
-    const sale2 = await salesService.create(dto2, fixture.userAId, fixture.orgAId);
+    const sale1 = await salesService.create(
+      dto1,
+      fixture.userAId,
+      fixture.orgAId,
+    );
+    const sale2 = await salesService.create(
+      dto2,
+      fixture.userAId,
+      fixture.orgAId,
+    );
 
     expect(sale1.saleNumber).toBe(1);
     expect(sale2.saleNumber).toBe(2);
