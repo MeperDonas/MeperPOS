@@ -248,6 +248,7 @@ export class AuthService {
       data: {
         userId: user.id,
         token: refreshTokenHash,
+        organizationId: orgUser.organizationId,
         expiresAt,
         ipAddress: ipAddress ?? null,
         userAgent: userAgent ?? null,
@@ -308,16 +309,32 @@ export class AuthService {
       });
     }
 
-    const orgUser = await this.prisma.organizationUser.findFirst({
-      where: { userId: refreshToken.user.id },
-      orderBy: { joinedAt: 'asc' },
-    });
+    // Resolve the org context from the token row (design D3.1): rows issued
+    // after the org-binding migration carry the session's selected org, so a
+    // refresh cannot silently flip a multi-org user back to their first-joined
+    // organization. Legacy/null rows fall back to first-joined membership.
+    let orgUser =
+      refreshToken.organizationId !== null
+        ? await this.prisma.organizationUser.findFirst({
+            where: {
+              userId: refreshToken.user.id,
+              organizationId: refreshToken.organizationId,
+            },
+          })
+        : await this.prisma.organizationUser.findFirst({
+            where: { userId: refreshToken.user.id },
+            orderBy: { joinedAt: 'asc' },
+          });
 
     if (!orgUser) {
-      throw new UnauthorizedException('User has no organizations');
+      throw new UnauthorizedException(
+        refreshToken.organizationId !== null
+          ? 'Organization membership not found'
+          : 'User has no organizations',
+      );
     }
 
-    // Check organization status
+    // Revalidate organization status for the resolved org
     const org = await this.prisma.organization.findUnique({
       where: { id: orgUser.organizationId },
       select: { status: true },
