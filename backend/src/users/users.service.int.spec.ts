@@ -102,9 +102,13 @@ describe('UsersService.resetPassword — Integration (audit parity)', () => {
 
   beforeAll(async () => {
     const planLimitServiceStub = { invalidateCache: jest.fn() };
+    const authServiceStub = {
+      revokeUserTokens: jest.fn().mockResolvedValue({ id: 'stub' }),
+    };
     usersService = new UsersService(
       prisma as never,
       planLimitServiceStub as never,
+      authServiceStub as never,
     );
     auditInterceptor = new AuditInterceptor(
       prisma as never,
