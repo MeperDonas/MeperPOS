@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
   OnModuleDestroy,
@@ -629,7 +628,9 @@ export class MultiSheetImportService implements OnModuleDestroy {
       throw new NotFoundException('No se encontro la importacion solicitada');
     }
     if (job.userId !== userId) {
-      throw new ForbiddenException('No tienes acceso a esta importacion');
+      // Same response as a nonexistent job: a foreign id must not confirm
+      // existence (url-identifier-policy §5).
+      throw new NotFoundException('No se encontro la importacion solicitada');
     }
     return job;
   }
