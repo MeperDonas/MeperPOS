@@ -8,6 +8,7 @@ import {
   clearAuthCookies,
   generateCsrfToken,
 } from './cookies.helper';
+import { ACCESS_TOKEN_TTL_MS } from './auth.constants';
 
 describe('cookies.helper', () => {
   const originalNodeEnv = process.env.NODE_ENV;
@@ -45,7 +46,7 @@ describe('cookies.helper', () => {
       }
     });
 
-    it('configures access_token httpOnly, site-wide, 8h maxAge', () => {
+    it('configures access_token httpOnly, site-wide, maxAge mirroring the JWT TTL', () => {
       const access = buildAuthCookies(tokens).find(
         (c) => c.name === ACCESS_TOKEN_COOKIE,
       );
@@ -55,7 +56,7 @@ describe('cookies.helper', () => {
         options: {
           httpOnly: true,
           path: '/',
-          maxAge: 8 * 60 * 60 * 1000,
+          maxAge: ACCESS_TOKEN_TTL_MS,
         },
       });
     });

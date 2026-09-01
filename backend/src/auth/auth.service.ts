@@ -17,6 +17,7 @@ import {
   ChangePasswordDto,
 } from './dto/auth.dto';
 import { OrgRole, OrgStatus } from '@prisma/client';
+import { ACCESS_TOKEN_TTL_SECONDS } from './auth.constants';
 
 @Injectable()
 export class AuthService {
@@ -231,7 +232,7 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: '8h',
+      expiresIn: ACCESS_TOKEN_TTL_SECONDS,
     });
 
     const rawRefreshToken = crypto.randomBytes(40).toString('hex');
