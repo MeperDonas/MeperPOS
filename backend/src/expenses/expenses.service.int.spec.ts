@@ -1,7 +1,9 @@
-import { Prisma } from '@prisma/client';
 import { formatDateInBogota } from '../common/utils/bogota-date';
 import { ExpensesService } from './expenses.service';
-import { setupTwoOrgFixture, type TwoOrgFixture } from '../testing/two-org-fixture';
+import {
+  setupTwoOrgFixture,
+  type TwoOrgFixture,
+} from '../testing/two-org-fixture';
 
 const cloudinaryServiceMock = {
   uploadImage: jest.fn(),

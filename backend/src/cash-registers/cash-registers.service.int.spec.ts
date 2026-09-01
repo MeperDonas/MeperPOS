@@ -41,12 +41,12 @@ describe('CashRegistersService — Integration (Two-Org Isolation)', () => {
   );
 
   it('cross-org detail read returns 404 and leaks no foreign data', async () => {
-    await expect(
-      service.findOne(registerBId, fixture.orgAId),
-    ).rejects.toThrow(NotFoundException);
-    await expect(
-      service.findOne(registerBId, fixture.orgAId),
-    ).rejects.toThrow('Cash register not found');
+    await expect(service.findOne(registerBId, fixture.orgAId)).rejects.toThrow(
+      NotFoundException,
+    );
+    await expect(service.findOne(registerBId, fixture.orgAId)).rejects.toThrow(
+      'Cash register not found',
+    );
   });
 
   it('list returns zero foreign-org rows', async () => {
@@ -66,9 +66,9 @@ describe('CashRegistersService — Integration (Two-Org Isolation)', () => {
   });
 
   it('cross-org delete is denied and the foreign row stays intact', async () => {
-    await expect(
-      service.remove(registerBId, fixture.orgAId),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.remove(registerBId, fixture.orgAId)).rejects.toThrow(
+      NotFoundException,
+    );
 
     const stillThere = await fixture.prisma.cashRegister.findUniqueOrThrow({
       where: { id: registerBId },
@@ -83,8 +83,8 @@ describe('CashRegistersService — Integration (Two-Org Isolation)', () => {
     await expect(service.findAll(undefined)).rejects.toThrow(
       BadRequestException,
     );
-    await expect(
-      service.findOne(registerBId, undefined),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.findOne(registerBId, undefined)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 });
