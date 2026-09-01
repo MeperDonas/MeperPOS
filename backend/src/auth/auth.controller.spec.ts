@@ -122,7 +122,11 @@ describe('AuthController after users boundary centralization', () => {
         'pre-auth-token',
         'org-1',
       );
-      expect(result).toEqual(expected);
+      // Refresh token is cookie-only: never present in the response body.
+      expect(result).toEqual({
+        accessToken: 'new-token',
+        user: { id: 'user-1', organizationId: 'org-1', role: OrgRole.ADMIN },
+      });
     });
   });
 
@@ -142,7 +146,11 @@ describe('AuthController after users boundary centralization', () => {
       const result = await controller.selectOrg(dto, req, mockRes());
 
       expect(authServiceMock.selectOrg).toHaveBeenCalledWith('user-1', 'org-1');
-      expect(result).toEqual(expected);
+      // Refresh token is cookie-only: never present in the response body.
+      expect(result).toEqual({
+        accessToken: 'new-token',
+        user: { id: 'user-1', organizationId: 'org-1', role: OrgRole.ADMIN },
+      });
     });
   });
 
@@ -241,7 +249,12 @@ describe('AuthController after users boundary centralization', () => {
       expect(authServiceMock.refresh).toHaveBeenCalledWith(
         'cookie-refresh-token',
       );
-      expect(result).toEqual(tokenPair);
+      // Rotated refresh token is cookie-only: never in the response body.
+      expect(result).toEqual({
+        accessToken: tokenPair.accessToken,
+        user: tokenPair.user,
+      });
+      expect(result).not.toHaveProperty('refreshToken');
       // Rotated pair is written back into cookies.
       expect(res.cookie).toHaveBeenCalledWith(
         ACCESS_TOKEN_COOKIE,
