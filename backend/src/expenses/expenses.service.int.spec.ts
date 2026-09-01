@@ -1,8 +1,7 @@
-import { PrismaClient, Prisma, PlanType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { formatDateInBogota } from '../common/utils/bogota-date';
 import { ExpensesService } from './expenses.service';
-
-const prisma = new PrismaClient();
+import { setupTwoOrgFixture, type TwoOrgFixture } from '../testing/two-org-fixture';
 
 const cloudinaryServiceMock = {
   uploadImage: jest.fn(),
@@ -10,11 +9,13 @@ const cloudinaryServiceMock = {
 };
 
 describe('ExpensesService — Integration (Isolation + Payments + Summary)', () => {
-  let service: ExpensesService;
+  let prisma: TwoOrgFixture['prisma'];
   let orgAId: string;
   let orgBId: string;
   let userAId: string;
   let userBId: string;
+  let service: ExpensesService;
+  let fixture: TwoOrgFixture;
   let catArriendoId: string;
   let catCajaMenorId: string;
   let catOrgBId: string;
@@ -46,52 +47,17 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
   });
 
   beforeAll(async () => {
+    fixture = await setupTwoOrgFixture('expenses-int');
+    prisma = fixture.prisma;
+    orgAId = fixture.orgAId;
+    orgBId = fixture.orgBId;
+    userAId = fixture.userAId;
+    userBId = fixture.userBId;
+
     service = new ExpensesService(
       prisma as never,
       cloudinaryServiceMock as never,
     );
-
-    const [orgA, orgB] = await Promise.all([
-      prisma.organization.create({
-        data: {
-          name: 'Expenses INT Org A',
-          slug: 'expenses-int-a-' + Date.now(),
-          plan: PlanType.BASIC,
-          active: true,
-        },
-      }),
-      prisma.organization.create({
-        data: {
-          name: 'Expenses INT Org B',
-          slug: 'expenses-int-b-' + Date.now(),
-          plan: PlanType.BASIC,
-          active: true,
-        },
-      }),
-    ]);
-    orgAId = orgA.id;
-    orgBId = orgB.id;
-
-    const [userA, userB] = await Promise.all([
-      prisma.user.create({
-        data: {
-          email: 'expenses-int-user-a@example.com',
-          password: 'hash',
-          name: 'Test User A',
-          tokenVersion: 0,
-        },
-      }),
-      prisma.user.create({
-        data: {
-          email: 'expenses-int-user-b@example.com',
-          password: 'hash',
-          name: 'Test User B',
-          tokenVersion: 0,
-        },
-      }),
-    ]);
-    userAId = userA.id;
-    userBId = userB.id;
 
     const [catArriendo, catCajaMenor, catOrgB] = await Promise.all([
       prisma.expenseCategory.create({
@@ -109,27 +75,22 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
     catOrgBId = catOrgB.id;
   });
 
-  afterAll(async () => {
-    await prisma.expensePayment.deleteMany({
-      where: { organizationId: { in: [orgAId, orgBId] } },
-    });
-    await prisma.auditLog.deleteMany({
-      where: { organizationId: { in: [orgAId, orgBId] } },
-    });
-    await prisma.expense.deleteMany({
-      where: { organizationId: { in: [orgAId, orgBId] } },
-    });
-    await prisma.expenseCategory.deleteMany({
-      where: { organizationId: { in: [orgAId, orgBId] } },
-    });
-    await prisma.user.deleteMany({
-      where: { id: { in: [userAId, userBId] } },
-    });
-    await prisma.organization.deleteMany({
-      where: { id: { in: [orgAId, orgBId] } },
-    });
-    await prisma.$disconnect();
-  });
+  afterAll(() =>
+    fixture.teardown(async () => {
+      await prisma.expensePayment.deleteMany({
+        where: { organizationId: { in: [orgAId, orgBId] } },
+      });
+      await prisma.auditLog.deleteMany({
+        where: { organizationId: { in: [orgAId, orgBId] } },
+      });
+      await prisma.expense.deleteMany({
+        where: { organizationId: { in: [orgAId, orgBId] } },
+      });
+      await prisma.expenseCategory.deleteMany({
+        where: { organizationId: { in: [orgAId, orgBId] } },
+      });
+    }),
+  );
 
   it('isolates organizations: cross-org reads 404 and lists never leak', async () => {
     const created = await service.create(
