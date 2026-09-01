@@ -2,6 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
+import { getBogotaDateInputValue } from "@/lib/utils";
+
+// The page derives its default month filter from the real current date
+// (Bogotá timezone), so the expected month must be computed the same way.
+// Hard-coding it here made these tests fail at every month rollover.
+const CURRENT_MONTH = getBogotaDateInputValue().slice(0, 7);
 
 const { exportDataMock } = vi.hoisted(() => ({ exportDataMock: vi.fn() }));
 
@@ -178,7 +184,7 @@ describe("Expenses page evidence", () => {
     expect(screen.getByText(/800\.000/)).toBeTruthy();
     expect(screen.getAllByText("Arriendo").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Caja menor")).toBeTruthy();
-    expect(useExpenseSummaryMock).toHaveBeenCalledWith("2026-08");
+    expect(useExpenseSummaryMock).toHaveBeenCalledWith(CURRENT_MONTH);
   });
 
   it("renders the expense list with status badge and COP totals", () => {
@@ -193,7 +199,7 @@ describe("Expenses page evidence", () => {
     render(<ExpensesPage />);
 
     expect(useExpensesMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ month: "2026-08" }),
+      expect.objectContaining({ month: CURRENT_MONTH }),
     );
 
     fireEvent.change(screen.getByLabelText("Mes"), {
