@@ -13,6 +13,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { PlanLimitService } from '../plan-limits/plan-limits.service';
+import { AuthService } from '../auth/auth.service';
 
 type AuditContext = {
   resource?: string;
@@ -48,6 +49,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly planLimitService: PlanLimitService,
+    private readonly authService: AuthService,
   ) {}
 
   async create(createUserDto: CreateUserDto, organizationId?: string) {
@@ -117,6 +119,7 @@ export class UsersService {
     organizationId?: string,
   ) {
     const previousUser = await this.findUserOrThrow(userId, organizationId);
+    await this.assertSingleOrgTarget(userId);
 
     if (updateUserDto.email) {
       await this.ensureEmailAvailable(updateUserDto.email, userId);
@@ -184,6 +187,7 @@ export class UsersService {
     }
 
     const user = await this.findUserOrThrow(userId, organizationId);
+    await this.assertSingleOrgTarget(userId);
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
@@ -211,12 +215,18 @@ export class UsersService {
     organizationId: string,
   ) {
     const targetUser = await this.findUserOrThrow(userId, organizationId);
+    await this.assertSingleOrgTarget(userId);
     const hashedPassword = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
 
     await this.prisma.user.update({
       where: { id: userId },
       data: { password: hashedPassword },
     });
+
+    // Credential hygiene: the reset invalidates the target's active sessions
+    // (tokenVersion bump + refresh-token revocation). Revocation is global,
+    // which is exactly why it only runs behind the single-org rule above.
+    await this.authService.revokeUserTokens(userId);
 
     // The audit row is written by AuditInterceptor (wired on the
     // reset-password route) from the attached context, reproducing the
@@ -319,6 +329,25 @@ export class UsersService {
         },
       },
     );
+  }
+
+  /**
+   * Multi-org privacy guard (spec 4.R1, design D4): the User row is a single
+   * global identity (email is the unique login key, password/active are
+   * shared by every organization the user belongs to). An org admin may only
+   * mutate users whose membership is exclusive to their organization; users
+   * shared across organizations can only be managed by a SUPER_ADMIN.
+   */
+  private async assertSingleOrgTarget(userId: string) {
+    const membershipCount = await this.prisma.organizationUser.count({
+      where: { userId },
+    });
+
+    if (membershipCount > 1) {
+      throw new ForbiddenException(
+        'This user belongs to multiple organizations, so their profile and credentials can only be managed by a SUPER_ADMIN',
+      );
+    }
   }
 
   private async ensureEmailAvailable(email: string, excludeUserId?: string) {

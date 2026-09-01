@@ -31,11 +31,16 @@ describe('UsersService', () => {
     invalidateCache: jest.fn(),
   };
 
+  const authServiceMock = {
+    revokeUserTokens: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     service = new UsersService(
       prismaMock as never,
       planLimitServiceMock as never,
+      authServiceMock as never,
     );
   });
 
@@ -206,6 +211,7 @@ describe('UsersService', () => {
       userId: 'user-2',
       organizationId: 'org-1',
     });
+    prismaMock.organizationUser.count.mockResolvedValue(1);
     prismaMock.user.update.mockResolvedValue({ id: 'user-2' });
 
     const result = await service.resetPassword(
@@ -222,6 +228,8 @@ describe('UsersService', () => {
       where: { id: 'user-2' },
       data: { password: expect.any(String) },
     });
+    // Credential hygiene: the reset revokes the target's active sessions.
+    expect(authServiceMock.revokeUserTokens).toHaveBeenCalledWith('user-2');
     // The audit row is written by AuditInterceptor from this attached
     // context; the service must not write it manually anymore.
     expect((result as { __auditContext?: unknown }).__auditContext).toEqual({
@@ -265,6 +273,74 @@ describe('UsersService', () => {
     await expect(
       service.update('admin-1', 'user-2', { name: 'Hacked' }, 'org-1'),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('refuses to update a multi-org user and leaves the global row untouched', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'shared-user',
+      email: 'shared@example.com',
+      name: 'Shared User',
+      active: true,
+    });
+    prismaMock.organizationUser.findFirst.mockResolvedValue({
+      id: 'ou-1',
+      userId: 'shared-user',
+      organizationId: 'org-1',
+    });
+    // The target belongs to two organizations: org admins must not mutate
+    // the global identity other organizations share.
+    prismaMock.organizationUser.count.mockResolvedValue(2);
+
+    await expect(
+      service.update('admin-1', 'shared-user', { name: 'Mutated' }, 'org-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses to reset the password of a multi-org user without revoking anything', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'shared-user',
+      email: 'shared@example.com',
+      name: 'Shared User',
+      active: true,
+    });
+    prismaMock.organizationUser.findFirst.mockResolvedValue({
+      id: 'ou-1',
+      userId: 'shared-user',
+      organizationId: 'org-1',
+    });
+    prismaMock.organizationUser.count.mockResolvedValue(2);
+
+    await expect(
+      service.resetPassword(
+        'admin-1',
+        'shared-user',
+        { newPassword: 'NuevaClaveSegura123' },
+        'org-1',
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(authServiceMock.revokeUserTokens).not.toHaveBeenCalled();
+  });
+
+  it('refuses to toggle a multi-org user active flag', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'shared-user',
+      email: 'shared@example.com',
+      name: 'Shared User',
+      active: true,
+    });
+    prismaMock.organizationUser.findFirst.mockResolvedValue({
+      id: 'ou-1',
+      userId: 'shared-user',
+      organizationId: 'org-1',
+    });
+    prismaMock.organizationUser.count.mockResolvedValue(2);
+
+    await expect(
+      service.toggleActive('admin-1', 'shared-user', 'org-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
   });
 
   it('prevents removing the primary owner', async () => {
