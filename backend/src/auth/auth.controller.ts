@@ -45,9 +45,11 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   /**
-   * Dual-mode sessions: token pairs keep returning in JSON bodies (legacy
-   * Bearer frontend) while httpOnly cookies are set in addition. Cookies are
-   * only written when the service actually issued a token pair — a
+   * Session responses keep accessToken in the JSON body (the documented
+   * controlled path that seeds the frontend memory store and future native
+   * clients) while both tokens ride httpOnly cookies. The refresh token is
+   * cookie-ONLY: it is stripped from every response body. Cookies are only
+   * written when the service actually issued a token pair — a
    * requiresOrganizationSelection response has no session yet.
    */
   private setSessionCookies(
@@ -64,6 +66,20 @@ export class AuthController {
       const tokens = result as { accessToken: string; refreshToken: string };
       applyAuthCookies(res, tokens, this.existingCsrfToken(req));
     }
+  }
+
+  /** Removes the refresh token from a response body (cookie-only transport). */
+  private toResponseBody(result: unknown): unknown {
+    if (
+      typeof result === 'object' &&
+      result !== null &&
+      'refreshToken' in result
+    ) {
+      const { refreshToken: _omitted, ...body } =
+        result as Record<string, unknown>;
+      return body;
+    }
+    return result;
   }
 
   private existingCsrfToken(req: AuthRequest): string | null {
@@ -91,7 +107,7 @@ export class AuthController {
 
     this.setSessionCookies(res, req, result);
 
-    return result;
+    return this.toResponseBody(result);
   }
 
   @Post('select-organization')
@@ -108,7 +124,7 @@ export class AuthController {
 
     this.setSessionCookies(res, req, result);
 
-    return result;
+    return this.toResponseBody(result);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -151,8 +167,9 @@ export class AuthController {
 
   /**
    * Accepts the refresh token from the refresh_token cookie first and falls
-   * back to the legacy body field. The rotated pair is returned in the body
-   * AND refreshed into cookies.
+   * back to the body field for native clients. The rotated refresh token is
+   * delivered ONLY via the httpOnly cookie — the response body carries the
+   * new accessToken (plus user), never the refresh token.
    */
   @Post('refresh')
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
@@ -175,7 +192,7 @@ export class AuthController {
 
     applyAuthCookies(res, result, this.existingCsrfToken(req));
 
-    return result;
+    return this.toResponseBody(result);
   }
 
   /**
@@ -219,6 +236,6 @@ export class AuthController {
 
     this.setSessionCookies(res, req, result);
 
-    return result;
+    return this.toResponseBody(result);
   }
 }

@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto';
 import { Response } from 'express';
+import { ACCESS_TOKEN_TTL_MS } from './auth.constants';
 
 export const ACCESS_TOKEN_COOKIE = 'access_token';
 export const REFRESH_TOKEN_COOKIE = 'refresh_token';
@@ -7,9 +8,11 @@ export const CSRF_TOKEN_COOKIE = 'csrf_token';
 
 /**
  * TTLs mirror AuthService.generateTokenPair(): access JWTs are signed with
- * expiresIn '8h' and refresh-token rows expire 7 days after issuance.
+ * expiresIn ACCESS_TOKEN_TTL_SECONDS (the cookie maxAge reuses the shared
+ * ACCESS_TOKEN_TTL_MS constant from auth.constants.ts so the JWT and its
+ * cookie can never drift) and refresh-token rows expire 7 days after
+ * issuance.
  */
-const ACCESS_TOKEN_TTL_MS = 8 * 60 * 60 * 1000;
 const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface AuthCookieOptions {
