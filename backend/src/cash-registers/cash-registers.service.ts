@@ -50,16 +50,28 @@ export class CashRegistersService {
     return cashRegister;
   }
 
+  private requireOrganizationId(organizationId: string | undefined): string {
+    if (!organizationId) {
+      throw new BadRequestException(
+        'Organization ID is required for this operation',
+      );
+    }
+    return organizationId;
+  }
+
   async findAll(organizationId: string | undefined) {
     return this.prisma.cashRegister.findMany({
-      where: { ...(organizationId ? { organizationId } : {}) },
+      where: { organizationId: this.requireOrganizationId(organizationId) },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async findOne(id: string, organizationId: string | undefined) {
     const register = await this.prisma.cashRegister.findFirst({
-      where: { id, ...(organizationId ? { organizationId } : {}) },
+      where: {
+        id,
+        organizationId: this.requireOrganizationId(organizationId),
+      },
     });
 
     if (!register) {
