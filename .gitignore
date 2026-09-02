@@ -27,3 +27,5 @@ npm-debug.log*
 
 # Prisma generated
 generated/
+# Local Pi runtime state
+.atl/
