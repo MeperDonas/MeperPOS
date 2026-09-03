@@ -405,6 +405,163 @@ describe('ProductsService — Opt-in tax resolution', () => {
     });
   });
 
+  describe('Search promotion parity (live service path)', () => {
+    // Every search payload carries exactly these keys: all prior flat fields,
+    // the two additive promotion fields, and the derived effective price.
+    const FLAT_PAYLOAD_KEYS = [
+      'id',
+      'name',
+      'sku',
+      'barcode',
+      'salePrice',
+      'stock',
+      'taxable',
+      'taxRate',
+      'effectiveTaxRate',
+      'minStock',
+      'isLowStock',
+      'category',
+      'imageUrl',
+      'promotionType',
+      'promotionValue',
+      'effectiveSalePrice',
+    ];
+
+    // Exact-key-set assertion: proves every prior field is retained, the promo
+    // keys are additive, and no envelope key (success/data) leaks in — without
+    // comparing Date instances inside the category fixture.
+    const expectExactFlatPayload = (result: Record<string, unknown>) => {
+      expect(Object.keys(result).sort()).toEqual([...FLAT_PAYLOAD_KEYS].sort());
+      expect(result).not.toHaveProperty('success');
+      expect(result).not.toHaveProperty('data');
+    };
+
+    it('searchProducts returns promo keys + effectiveSalePrice and keeps every prior field', async () => {
+      const promoRow = buildProduct({
+        salePrice: 19900,
+        promotionType: 'PERCENTAGE',
+        promotionValue: 15,
+      });
+      prismaMock.product.findMany.mockResolvedValue([promoRow]);
+
+      const [result] = await service.searchProducts('donut', 20, ORG_ID);
+
+      expectExactFlatPayload(result as Record<string, unknown>);
+      expect(result).toMatchObject({
+        id: 'prod-1',
+        name: 'Test Product',
+        sku: 'SKU-001',
+        barcode: null,
+        salePrice: 19900,
+        stock: 10,
+        taxable: false,
+        taxRate: 0,
+        effectiveTaxRate: 0,
+        minStock: 5,
+        isLowStock: false,
+        imageUrl: null,
+      });
+      // category passes through by reference (service does not clone it)
+      expect(result?.category).toBe(promoRow.category);
+      expect(result?.promotionType).toBe('PERCENTAGE');
+      expect(result?.promotionValue).toBe(15);
+      expect(result?.effectiveSalePrice).toBe(16915);
+    });
+
+    it('searchProducts keeps fields intact and nulls effectiveSalePrice without a promotion', async () => {
+      const plainRow = buildProduct({
+        promotionType: null,
+        promotionValue: null,
+      });
+      prismaMock.product.findMany.mockResolvedValue([plainRow]);
+
+      const [result] = await service.searchProducts('donut', 20, ORG_ID);
+
+      expectExactFlatPayload(result as Record<string, unknown>);
+      expect(result).toMatchObject({
+        id: 'prod-1',
+        name: 'Test Product',
+        sku: 'SKU-001',
+        barcode: null,
+        salePrice: 150,
+        stock: 10,
+        taxable: false,
+        taxRate: 0,
+        effectiveTaxRate: 0,
+        minStock: 5,
+        isLowStock: false,
+        imageUrl: null,
+      });
+      expect(result?.category).toBe(plainRow.category);
+      expect(result?.promotionType).toBeNull();
+      expect(result?.promotionValue).toBeNull();
+      expect(result?.effectiveSalePrice).toBeNull();
+    });
+
+    it('quickSearch returns promo keys + effectiveSalePrice (FIXED_PRICE branch) and keeps every prior field', async () => {
+      const promoRow = buildProduct({
+        barcode: '7701234567890',
+        salePrice: 19900,
+        promotionType: 'FIXED_PRICE',
+        promotionValue: 15000,
+      });
+      prismaMock.product.findFirst.mockResolvedValue(promoRow);
+
+      const result = await service.quickSearch('7701234567890', ORG_ID);
+
+      expectExactFlatPayload(result as Record<string, unknown>);
+      expect(result).toMatchObject({
+        id: 'prod-1',
+        name: 'Test Product',
+        sku: 'SKU-001',
+        barcode: '7701234567890',
+        salePrice: 19900,
+        stock: 10,
+        taxable: false,
+        taxRate: 0,
+        effectiveTaxRate: 0,
+        minStock: 5,
+        isLowStock: false,
+        imageUrl: null,
+      });
+      expect(result?.category).toBe(promoRow.category);
+      expect(result?.promotionType).toBe('FIXED_PRICE');
+      expect(result?.promotionValue).toBe(15000);
+      expect(result?.effectiveSalePrice).toBe(15000);
+    });
+
+    it('quickSearch keeps fields intact and nulls effectiveSalePrice without a promotion', async () => {
+      const plainRow = buildProduct({
+        barcode: '7701234567890',
+        promotionType: null,
+        promotionValue: null,
+      });
+      prismaMock.product.findFirst.mockResolvedValue(plainRow);
+
+      const result = await service.quickSearch('7701234567890', ORG_ID);
+
+      expectExactFlatPayload(result as Record<string, unknown>);
+      expect(result).toMatchObject({
+        id: 'prod-1',
+        name: 'Test Product',
+        sku: 'SKU-001',
+        barcode: '7701234567890',
+        salePrice: 150,
+        stock: 10,
+        taxable: false,
+        taxRate: 0,
+        effectiveTaxRate: 0,
+        minStock: 5,
+        isLowStock: false,
+        imageUrl: null,
+      });
+      expect(result?.category).toBe(plainRow.category);
+      expect(result?.promotionType).toBeNull();
+      expect(result?.promotionValue).toBeNull();
+      expect(result?.effectiveSalePrice).toBeNull();
+    });
+  });
+
   describe('Organization-scoped queries', () => {
     it('findAll filters by organizationId', async () => {
       prismaMock.product.findMany.mockResolvedValue([]);
