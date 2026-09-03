@@ -12,7 +12,7 @@
 
 # testing
 /coverage
-/quarantine-report.json
+/.quarantine-report.json
 
 # next.js
 /.next/
