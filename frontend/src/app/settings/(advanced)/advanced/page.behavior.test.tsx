@@ -2,8 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-const { updateSettingsMutateAsyncMock, settingsData } = vi.hoisted(() => ({
-  updateSettingsMutateAsyncMock: vi.fn(),
+const { settingsData, useSettingsMock } = vi.hoisted(() => ({
   settingsData: {
     organization: { name: "Mi Empresa", logoUrl: null },
     invoicing: { printHeader: "", printFooter: "" },
@@ -11,10 +10,14 @@ const { updateSettingsMutateAsyncMock, settingsData } = vi.hoisted(() => ({
     locale: { currency: "COP", locale: "es-CO", timezone: "America/Bogota" },
     custom: { theme: "dark" },
   },
+  useSettingsMock: vi.fn(),
 }));
 
+const updateSettingsMutateAsyncMock = vi.fn();
+const useSettingsRefetchMock = vi.fn();
+
 vi.mock("@/hooks/useSettings", () => ({
-  useSettings: () => ({ data: settingsData, isLoading: false }),
+  useSettings: () => useSettingsMock(),
   useUpdateSettings: () => ({
     mutateAsync: updateSettingsMutateAsyncMock,
     isPending: false,
@@ -31,6 +34,22 @@ vi.mock("@/contexts/ToastContext", () => ({
 
 import AdvancedSettingsPage from "./page";
 
+function mockQueryState(overrides: {
+  data?: typeof settingsData | undefined;
+  isLoading?: boolean;
+  isError?: boolean;
+  error?: Error | null;
+}) {
+  useSettingsRefetchMock.mockReset();
+  useSettingsMock.mockReturnValue({
+    data: overrides.data ?? undefined,
+    isLoading: overrides.isLoading ?? false,
+    isError: overrides.isError ?? false,
+    error: overrides.error ?? null,
+    refetch: useSettingsRefetchMock,
+  });
+}
+
 describe("Advanced settings page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -42,6 +61,7 @@ describe("Advanced settings page", () => {
   });
 
   it("renders existing custom key/value entries", () => {
+    mockQueryState({ data: settingsData, isError: false, error: null });
     render(<AdvancedSettingsPage />);
 
     expect(screen.getByDisplayValue("theme")).toBeInTheDocument();
@@ -49,6 +69,7 @@ describe("Advanced settings page", () => {
   });
 
   it("adds a key/value row and saves the merged custom object", async () => {
+    mockQueryState({ data: settingsData, isError: false, error: null });
     const user = userEvent.setup();
     render(<AdvancedSettingsPage />);
 
@@ -64,5 +85,50 @@ describe("Advanced settings page", () => {
     expect(updateSettingsMutateAsyncMock).toHaveBeenCalledWith({
       custom: { theme: "dark", color: "rojo" },
     });
+  });
+
+  it("shows the error state with retry when the query failed, without loading or the editor", async () => {
+    mockQueryState({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error("Network error"),
+    });
+    render(<AdvancedSettingsPage />);
+
+    expect(
+      screen.getByText("No se pudo cargar la configuración."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reintentar" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Cargando configuración...")).toBeNull();
+    expect(screen.queryByDisplayValue("theme")).toBeNull();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    expect(useSettingsRefetchMock).toHaveBeenCalled();
+  });
+
+  it("recovers the editor when the retry query succeeds", () => {
+    mockQueryState({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error("Network error"),
+    });
+    const { rerender } = render(<AdvancedSettingsPage />);
+
+    expect(
+      screen.getByText("No se pudo cargar la configuración."),
+    ).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("theme")).toBeNull();
+
+    mockQueryState({ data: settingsData, isError: false, error: null });
+    rerender(<AdvancedSettingsPage />);
+
+    expect(screen.queryByText("No se pudo cargar la configuración.")).toBeNull();
+    expect(screen.getByDisplayValue("theme")).toBeInTheDocument();
   });
 });
