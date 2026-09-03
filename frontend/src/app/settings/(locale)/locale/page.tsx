@@ -2,11 +2,22 @@
 
 import { useSettings } from "@/hooks/useSettings";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { SettingsCard } from "../../_components/SettingsCard";
 import { Globe2 } from "lucide-react";
 
 export default function LocaleSettingsPage() {
-  const { data: settings, isLoading } = useSettings();
+  const { data: settings, isLoading, isError, refetch } = useSettings();
+
+  if (isError && !settings) {
+    return (
+      <ErrorState
+        message="No se pudo cargar la configuración."
+        retryLabel="Reintentar"
+        onRetry={refetch}
+      />
+    );
+  }
 
   if (isLoading || !settings) {
     return (
