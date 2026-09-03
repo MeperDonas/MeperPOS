@@ -1,90 +1,68 @@
-# Known Test Failures (Baseline) — Kinetic Bento
+# Known Test Failures & Quarantine Policy — MeperPOS Frontend
 
-> **Scope note**: This document records pre-existing **baseline** test failures that
-> were present before the `kinetic-bento-spec-alignment` change and are **NOT**
-> caused by the Kinetic Bento redesign. The change does not fix them; they are
-> documented here so anyone running the full suite understands why these tests
-> stay red and does not confuse them with redesign regressions.
->
-> These are **not** a test artifact and **not** fixed by this change. Each entry
-> lists the failing test, its cause, and the note that it is out of scope.
+> **Scope**: This document records how the frontend governs test files that are
+> excluded from the default Vitest run (`npm run test`, the blocking CI step),
+> and the policy for restoring them. It replaces the earlier "baseline
+> failures" ledger, whose entries were resolved by the
+> `frontend-quarantine` change (issue #121).
 
-## Count
+## Status: no quarantined suites
 
-6 baseline failures, all present at HEAD before this change:
+The quarantine registry (`frontend/quarantine.ts`) is **currently EMPTY**. All
+four suites that were previously excluded from the default run have been
+restored to the blocking surface and their assertions pass:
 
-| # | File | Failures |
-|---|------|----------|
-| 1 | `frontend/src/app/pos/page.behavior.test.tsx` | 2 |
-| 2 | `frontend/src/app/sales/page.behavior.test.tsx` | 2 |
-| 3 | `frontend/src/app/admin/organizations/[id]/page.test.tsx` | 1 |
-| 4 | `frontend/src/contexts/AuthContext.switch.test.tsx` | 1 |
+| Suite | Prior defect (classification) | Fix |
+|---|---|---|
+| `src/app/sales/page.behavior.test.tsx` | `vi.mock("@/lib/utils")` omitted the `cn` export (`test-defect`) | reworked mock to `vi.importActual` spread + stubs |
+| `src/app/admin/organizations/[id]/page.test.tsx` | asserted `.animate-spin`, but the real `LoadingState` renders `.animate-pulse` (`brittle-presentation`) | assert `"Cargando organización..."` text + `.animate-pulse` |
+| `src/components/dashboard/CategoryStackedChart.test.tsx` | tooltip projection expectation/comment drifted 12px → 20px (`brittle-presentation`) | expectation + comment aligned to `calc(100%+20px)` |
+| `src/contexts/AuthContext.switch.test.tsx` | obsolete `localStorage` token contract (`obsolete-contract`) | distinct coverage merged into `AuthContext.session.test.tsx`; file deleted |
 
-## 1. POS scanner feedback (`src/app/pos/page.behavior.test.tsx`)
+The POS scanner-feedback entries that previously appeared in this document are
+gone because those tests were already passing; the auth-switch entry is gone
+because its TypeScript errors were resolved by the merge.
 
-- **Failing tests (2)**:
-  - `adds a product to the cart from the dedicated scanner input` — expects to
-    find the feedback text `Producto Escaneado agregado al carrito.`.
-  - `shows scanner feedback when the scanned code is not found` — expects to
-    find the feedback text `No encontramos un producto con ese código.`.
+## Quarantine registry policy
 
-- **Cause**: The POS scanner UX was reworked; the scanner feedback toast/text no
-  longer renders the exact strings these assertions look for. This drift predates
-  the Kinetic Bento change and is unrelated to the redesign task.
+A test file MUST NOT be excluded from the default run without a typed entry in
+`frontend/quarantine.ts`. The registry is the **single source of truth**:
 
-- **Status**: **OUT OF SCOPE** — do not treat as a redesign regression.
+- `frontend/vitest.config.ts` derives its `exclude` additions from
+  `quarantineRegistry` file paths, so config and registry cannot drift.
+- `frontend/vitest.quarantine.config.ts` derives its `include` list from the
+  same registry, so the watchdog runs exactly the quarantined set.
 
-## 2. Sales deep-link filter (`src/app/sales/page.behavior.test.tsx`)
+Each entry exposes governance metadata:
 
-- **Failing tests (2)**:
-  - `shows the customer filter badge and requests sales with customerId`.
-  - `clears the customer deep-link filter back to /sales`.
+| Field | Meaning |
+|---|---|
+| `file` | `frontend/`-relative path of the excluded suite |
+| `owner` | accountable for revalidation |
+| `reason` | why the suite is excluded |
+| `classification` | `product-defect` · `test-defect` · `brittle-presentation` · `obsolete-contract` |
+| `issue?` | tracking issue URL (optional) |
+| `revalidatedAt` | ISO date of the last manual re-run |
 
-- **Cause**: The test mocks `@/lib/utils` and omits the `cn` export. Vitest throws
-  `[vitest] No "cn" export is defined on the "@/lib/utils" mock. Did you forget to
-  return it from "vi.mock"?` at render time. This is a **test-setup** error (the
-  partial mock must re-expose `cn`), not a business-logic or redesign defect.
+A suite belongs in the registry only while it is genuinely broken or its
+assertions are obsolete (`tsc --noEmit` must stay green for quarantined files).
+When a quarantined suite starts passing again, remove its entry and let the
+default run execute it — the registry is meant to stay empty.
 
-- **Status**: **OUT OF SCOPE** — the mock needs a partial-mock fix, unrelated to
-  the Kinetic Bento redesign. Not touched by this change.
+## CI watchdog
 
-## 3. Admin org detail loading spinner (`src/app/admin/organizations/[id]/page.test.tsx`)
-
-- **Failing test (1)**: `OrganizationDetailPage > loading state > renders a loading
-  spinner` — `document.querySelector(".animate-spin")` returns `null`; the spinner
-  assertion fails because `getByText(...).toBeInTheDocument()` receives `null`.
-
-- **Cause**: The loading-state markup no longer yields an element with the
-  `.animate-spin` class in the rendered loading branch. The spinner visual was
-  updated; the test still queries the old class. Unrelated to the redesign task
-  and the admin module is out of this change's audit scope.
-
-- **Status**: **OUT OF SCOPE** — do not treat as a redesign regression.
-
-## 4. AuthContext org switch (`src/contexts/AuthContext.switch.test.tsx`)
-
-- **Failing test (1)**: `AuthContext - switchOrganization > calls POST /auth/select-org,
-  stores tokens/user, invalidates non-admin queries, and redirects to /dashboard`.
-
-- **Cause**: This test triggers two pre-existing TypeScript errors
-  (`TS2532` / `TS2352`), e.g. accessing a possibly-undefined `result` member in the
-  test's own mock. It was failing before the redesign and is independent of it.
-
-- **Status**: **OUT OF SCOPE** — baseline TypeScript/test-fixture issue. The two
-  `tsc --noEmit` errors in this file are also the only remaining `tsc` errors in the
-  frontend; unrelated to the Kinetic Bento change.
-
----
+CI runs a **non-blocking** watchdog step (`npm run check:quarantine` →
+`scripts/check-quarantine.mjs`) right after the blocking `Test (Vitest)` step.
+It runs every quarantined suite through `vitest.quarantine.config.ts` and emits
+a GitHub Actions `::warning::` naming any suite that **passes**, so it can be
+restored to the blocking surface. Suite outcomes never fail the step; only an
+infrastructure crash (missing config, spawn failure, unreadable report) emits a
+`::error::` and exits non-zero. With an empty registry the step is a silent
+no-op (`passWithNoTests: true`).
 
 ## Verification
 
-As of the `kinetic-bento-spec-alignment` change, the full frontend suite reports
-exactly **these 6 baseline failures** (no redesign tests stay red):
-
-- POS scanner feedback (2)
-- Sales deep-link `cn` mock (2)
-- Admin org loading spinner (1)
-- AuthContext.switch (1)
-
-Redesign test alignment (settings, expense-detail-modal, dashboard,
-expenses-page, tasks-page) is **green**.
+As of the `frontend-quarantine` change: `npm run test` executes **67 test files
+/ 378 tests** green (including the four restored suites and the watchdog parser
+tests), `npx tsc --noEmit` is green, and `npm run check:quarantine` exits 0
+silently against the empty registry.
