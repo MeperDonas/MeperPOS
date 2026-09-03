@@ -405,6 +405,128 @@ describe('ProductsService — Opt-in tax resolution', () => {
     });
   });
 
+  describe('Search promotion parity (live service path)', () => {
+    it('searchProducts returns promo keys + effectiveSalePrice and keeps every prior field', async () => {
+      const promoRow = buildProduct({
+        salePrice: 19900,
+        promotionType: 'PERCENTAGE',
+        promotionValue: 15,
+      });
+      prismaMock.product.findMany.mockResolvedValue([promoRow]);
+
+      const [result] = await service.searchProducts('donut', 20, ORG_ID);
+
+      expect(result).toEqual({
+        id: 'prod-1',
+        name: 'Test Product',
+        sku: 'SKU-001',
+        barcode: null,
+        salePrice: 19900,
+        stock: 10,
+        taxable: false,
+        taxRate: 0,
+        effectiveTaxRate: 0,
+        minStock: 5,
+        isLowStock: false,
+        category: categoryWithDefault(null, false),
+        imageUrl: null,
+        promotionType: 'PERCENTAGE',
+        promotionValue: 15,
+        effectiveSalePrice: 16915,
+      });
+    });
+
+    it('searchProducts keeps fields intact and nulls effectiveSalePrice without a promotion', async () => {
+      const plainRow = buildProduct({
+        promotionType: null,
+        promotionValue: null,
+      });
+      prismaMock.product.findMany.mockResolvedValue([plainRow]);
+
+      const [result] = await service.searchProducts('donut', 20, ORG_ID);
+
+      expect(result).toEqual({
+        id: 'prod-1',
+        name: 'Test Product',
+        sku: 'SKU-001',
+        barcode: null,
+        salePrice: 150,
+        stock: 10,
+        taxable: false,
+        taxRate: 0,
+        effectiveTaxRate: 0,
+        minStock: 5,
+        isLowStock: false,
+        category: categoryWithDefault(null, false),
+        imageUrl: null,
+        promotionType: null,
+        promotionValue: null,
+        effectiveSalePrice: null,
+      });
+    });
+
+    it('quickSearch returns promo keys + effectiveSalePrice (FIXED_PRICE branch) and keeps every prior field', async () => {
+      const promoRow = buildProduct({
+        barcode: '7701234567890',
+        salePrice: 19900,
+        promotionType: 'FIXED_PRICE',
+        promotionValue: 15000,
+      });
+      prismaMock.product.findFirst.mockResolvedValue(promoRow);
+
+      const result = await service.quickSearch('7701234567890', ORG_ID);
+
+      expect(result).toEqual({
+        id: 'prod-1',
+        name: 'Test Product',
+        sku: 'SKU-001',
+        barcode: '7701234567890',
+        salePrice: 19900,
+        stock: 10,
+        taxable: false,
+        taxRate: 0,
+        effectiveTaxRate: 0,
+        minStock: 5,
+        isLowStock: false,
+        category: categoryWithDefault(null, false),
+        imageUrl: null,
+        promotionType: 'FIXED_PRICE',
+        promotionValue: 15000,
+        effectiveSalePrice: 15000,
+      });
+    });
+
+    it('quickSearch keeps fields intact and nulls effectiveSalePrice without a promotion', async () => {
+      const plainRow = buildProduct({
+        barcode: '7701234567890',
+        promotionType: null,
+        promotionValue: null,
+      });
+      prismaMock.product.findFirst.mockResolvedValue(plainRow);
+
+      const result = await service.quickSearch('7701234567890', ORG_ID);
+
+      expect(result).toEqual({
+        id: 'prod-1',
+        name: 'Test Product',
+        sku: 'SKU-001',
+        barcode: '7701234567890',
+        salePrice: 150,
+        stock: 10,
+        taxable: false,
+        taxRate: 0,
+        effectiveTaxRate: 0,
+        minStock: 5,
+        isLowStock: false,
+        category: categoryWithDefault(null, false),
+        imageUrl: null,
+        promotionType: null,
+        promotionValue: null,
+        effectiveSalePrice: null,
+      });
+    });
+  });
+
   describe('Organization-scoped queries', () => {
     it('findAll filters by organizationId', async () => {
       prismaMock.product.findMany.mockResolvedValue([]);
