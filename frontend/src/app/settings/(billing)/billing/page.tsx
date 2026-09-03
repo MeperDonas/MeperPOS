@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage } from "@/lib/api";
@@ -63,9 +64,23 @@ const planConfig: Record<string, { label: string; color: string }> = {
 export default function BillingSettingsPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const { data: planLimits, isLoading: limitsLoading } = usePlanLimits();
-  const { data: billingStatus, isLoading: statusLoading } = useBillingStatus();
-  const { data: payments, isLoading: paymentsLoading } = useBillingPayments();
+  const {
+    data: planLimits,
+    isLoading: limitsLoading,
+    isError: isLimitsError,
+    refetch: refetchLimits,
+  } = usePlanLimits();
+  const {
+    data: billingStatus,
+    isLoading: statusLoading,
+    refetch: refetchStatus,
+  } = useBillingStatus();
+  const {
+    data: payments,
+    isLoading: paymentsLoading,
+    isError: isPaymentsError,
+    refetch: refetchPayments,
+  } = useBillingPayments();
   const registerPayment = useRegisterPayment();
 
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -112,6 +127,16 @@ export default function BillingSettingsPage() {
     );
   }
 
+  if (!billingStatus) {
+    return (
+      <ErrorState
+        message="No se pudo cargar la información de facturación."
+        retryLabel="Reintentar"
+        onRetry={refetchStatus}
+      />
+    );
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3 mb-5">
@@ -131,16 +156,16 @@ export default function BillingSettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Plan</p>
-              <p className={cn("text-xl font-bold", planConfig[billingStatus?.plan ?? "BASIC"]?.color)}>
-                {planConfig[billingStatus?.plan ?? "BASIC"]?.label ?? billingStatus?.plan}
+              <p className={cn("text-xl font-bold", planConfig[billingStatus.plan]?.color)}>
+                {planConfig[billingStatus.plan]?.label ?? billingStatus.plan}
               </p>
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Estado</p>
-              <Badge variant={statusConfig[billingStatus?.status ?? "ACTIVE"].variant} className="mt-1">
+              <Badge variant={statusConfig[billingStatus.status].variant} className="mt-1">
                 <span className="flex items-center gap-1">
-                  {statusConfig[billingStatus?.status ?? "ACTIVE"].icon}
-                  {statusConfig[billingStatus?.status ?? "ACTIVE"].label}
+                  {statusConfig[billingStatus.status].icon}
+                  {statusConfig[billingStatus.status].label}
                 </span>
               </Badge>
             </div>
@@ -199,52 +224,61 @@ export default function BillingSettingsPage() {
           <h3 className="text-sm font-semibold text-foreground">Uso y Límites</h3>
         </div>
         <div className="p-5 space-y-3">
-          {planLimits?.limits.map((limit) => {
-            const pct = limit.limit > 0 ? (limit.current / limit.limit) * 100 : 0;
-            const isUnlimited = limit.limit === -1;
-            const isWarning = !limit.exceeded && limit.current >= limit.warningAt && !isUnlimited;
-            const isExceeded = limit.exceeded && !isUnlimited;
+          {isLimitsError && !planLimits ? (
+            <ErrorState
+              message="No se pudo cargar los límites del plan."
+              retryLabel="Reintentar"
+              onRetry={refetchLimits}
+              className="min-h-0"
+            />
+          ) : (
+            planLimits?.limits.map((limit) => {
+              const pct = limit.limit > 0 ? (limit.current / limit.limit) * 100 : 0;
+              const isUnlimited = limit.limit === -1;
+              const isWarning = !limit.exceeded && limit.current >= limit.warningAt && !isUnlimited;
+              const isExceeded = limit.exceeded && !isUnlimited;
 
-            return (
-              <div key={limit.type} className="space-y-1.5">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-1.5 text-foreground">
-                    {typeIcons[limit.type]}
-                    {typeLabels[limit.type]}
-                  </span>
-                  <span className="font-mono text-xs">
-                    {isUnlimited ? (
-                      <span className="text-accent">Ilimitado</span>
-                    ) : (
-                      <span
-                        className={cn(
-                          isExceeded && "text-red-600 dark:text-red-400 font-semibold",
-                          isWarning && "text-amber-700 dark:text-amber-400 font-semibold"
-                        )}
-                      >
-                        {limit.current} / {limit.limit}
-                      </span>
-                    )}
-                  </span>
-                </div>
-                {!isUnlimited && (
-                  <div className="h-2 rounded-full bg-background/60 overflow-hidden">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all",
-                        isExceeded
-                          ? "bg-red-500"
-                          : isWarning
-                          ? "bg-amber-500"
-                          : "bg-accent"
+              return (
+                <div key={limit.type} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-1.5 text-foreground">
+                      {typeIcons[limit.type]}
+                      {typeLabels[limit.type]}
+                    </span>
+                    <span className="font-mono text-xs">
+                      {isUnlimited ? (
+                        <span className="text-accent">Ilimitado</span>
+                      ) : (
+                        <span
+                          className={cn(
+                            isExceeded && "text-red-600 dark:text-red-400 font-semibold",
+                            isWarning && "text-amber-700 dark:text-amber-400 font-semibold"
+                          )}
+                        >
+                          {limit.current} / {limit.limit}
+                        </span>
                       )}
-                      style={{ width: `${Math.min(pct, 100)}%` }}
-                    />
+                    </span>
                   </div>
-                )}
-              </div>
-            );
-          })}
+                  {!isUnlimited && (
+                    <div className="h-2 rounded-full bg-background/60 overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          isExceeded
+                            ? "bg-red-500"
+                            : isWarning
+                            ? "bg-amber-500"
+                            : "bg-accent"
+                        )}
+                        style={{ width: `${Math.min(pct, 100)}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -322,7 +356,18 @@ export default function BillingSettingsPage() {
         <div className="p-5">
           {paymentsLoading ? (
             <p className="text-sm text-muted-foreground">Cargando pagos...</p>
-          ) : payments && payments.length > 0 ? (
+          ) : isPaymentsError && !payments ? (
+            <ErrorState
+              message="No se pudo cargar el historial de pagos."
+              retryLabel="Reintentar"
+              onRetry={refetchPayments}
+              className="min-h-0"
+            />
+          ) : !payments ? null : payments.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No hay pagos registrados.
+            </p>
+          ) : (
             <div className="space-y-2">
               {payments.map((payment) => (
                 <div
@@ -360,10 +405,6 @@ export default function BillingSettingsPage() {
                 </div>
               ))}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No hay pagos registrados.
-            </p>
           )}
         </div>
       </div>
