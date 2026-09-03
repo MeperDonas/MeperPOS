@@ -39,7 +39,7 @@ describe('UsersService.resetPassword — Integration (audit parity)', () => {
       params: { id: targetUserId },
       body: dto,
       user: {
-        sub: adminId,
+        userId: adminId,
         email: 'admin-audit@example.com',
         role: 'ADMIN',
         organizationId: orgId,
