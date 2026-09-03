@@ -85,11 +85,21 @@ jobs:
 
       # BLOCKING (issue #48, spec 2.R3): a failing frontend test fails the
       # pipeline and blocks merge. Known-broken baseline files are quarantined
-      # in vitest.config.ts (quarantinedBaselineProjects) — keep that list in
-      # sync and shrink it as the underlying causes get fixed.
+      # via frontend/quarantine.ts — the default config derives its exclude
+      # list from that typed registry. Keep the registry in sync and shrink it
+      # as the underlying causes get fixed.
       - name: Test (Vitest)
         working-directory: frontend
         run: npm run test
+
+      # NON-BLOCKING watchdog (issue #121, spec R4): re-runs any quarantined
+      # suite under vitest.quarantine.config.ts and emits a ::warning:: when a
+      # quarantined suite starts PASSING, so it can be restored to the blocking
+      # surface above. Always exits 0 for suite outcomes; only an infra crash
+      # fails the step. Empty registry => silent no-op.
+      - name: Quarantine watchdog (non-blocking)
+        working-directory: frontend
+        run: npm run check:quarantine
 
       - name: Build
         working-directory: frontend

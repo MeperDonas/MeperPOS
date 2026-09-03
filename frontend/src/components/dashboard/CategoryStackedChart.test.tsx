@@ -72,9 +72,9 @@ describe("CategoryStackedChart (daily stacked by category)", () => {
     fireEvent.mouseEnter(bars[0]);
     expect(screen.getByTestId("category-tooltip").className).toContain("translate-x-3");
 
-    // Last day (right side) → projects to the left with gap (-translate-x-[calc(100%+12px)]).
+    // Last day (right side) → projects to the left with gap (-translate-x-[calc(100%+20px)]).
     fireEvent.mouseEnter(bars[bars.length - 1]);
-    expect(screen.getByTestId("category-tooltip").className).toContain("-translate-x-[calc(100%+12px)]");
+    expect(screen.getByTestId("category-tooltip").className).toContain("-translate-x-[calc(100%+20px)]");
   });
 });
 
