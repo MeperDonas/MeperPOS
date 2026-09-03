@@ -501,6 +501,9 @@ export class ProductsService {
       isLowStock: p.stock <= p.minStock,
       category: p.category,
       imageUrl: p.imageUrl,
+      promotionType: p.promotionType,
+      promotionValue: p.promotionValue,
+      effectiveSalePrice: computeEffectiveSalePrice(p),
     }));
   }
 
@@ -543,6 +546,9 @@ export class ProductsService {
       isLowStock: product.stock <= product.minStock,
       category: product.category,
       imageUrl: product.imageUrl,
+      promotionType: product.promotionType,
+      promotionValue: product.promotionValue,
+      effectiveSalePrice: computeEffectiveSalePrice(product),
     };
   }
 
