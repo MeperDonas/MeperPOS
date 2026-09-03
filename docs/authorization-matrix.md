@@ -163,8 +163,8 @@ Roles: `OWNER`, `ADMIN`, `MEMBER`, `CASHIER`, `INVENTORY_USER` (org roles), `SUP
 | /api/products | POST | ADMIN, MEMBER | org-scoped | backend/src/products/products.service.int.spec.ts |
 | /api/products | GET | any org role | org-scoped | backend/src/products/products.service.int.spec.ts |
 | /api/products/low-stock | GET | ADMIN, MEMBER | org-scoped | backend/src/products/products.service.int.spec.ts |
-| /api/products/search | GET | ADMIN, MEMBER, CASHIER | org-scoped | backend/src/products/products-search.controller.spec.ts |
-| /api/products/quick-search | GET | ADMIN, MEMBER, CASHIER | org-scoped | backend/src/products/products-search.controller.spec.ts |
+| /api/products/search | GET | ADMIN, MEMBER, CASHIER | org-scoped | backend/src/products/products.controller.spec.ts |
+| /api/products/quick-search | GET | ADMIN, MEMBER, CASHIER | org-scoped | backend/src/products/products.controller.spec.ts |
 | /api/products/:id | GET | any org role | org-scoped | backend/src/products/products.service.int.spec.ts |
 | /api/products/:id | PUT | ADMIN, MEMBER | org-scoped | backend/src/products/products.service.int.spec.ts |
 | /api/products/:id/deactivate | PUT | ADMIN, MEMBER | org-scoped | backend/src/products/products.service.int.spec.ts |
@@ -173,8 +173,9 @@ Roles: `OWNER`, `ADMIN`, `MEMBER`, `CASHIER`, `INVENTORY_USER` (org roles), `SUP
 | /api/products/upload | POST | ADMIN, MEMBER | org-scoped | backend/src/products/products.controller.spec.ts |
 | /api/products/:id/upload | POST | ADMIN, MEMBER | org-scoped | backend/src/products/products.service.int.spec.ts |
 
-Note: `GET /api/products/search` and `GET /api/products/quick-search` are declared in both
-`products-search.controller.ts` and `products.controller.ts`; one row covers the shared path×method.
+Note: `GET /api/products/search` and `GET /api/products/quick-search` are served by the registered
+`products.controller.ts`; the retired unregistered `products-search.controller.ts` was deleted
+(see change `pos-cashier-search`).
 
 ## purchase-orders
 
