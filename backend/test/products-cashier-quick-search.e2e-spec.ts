@@ -235,7 +235,14 @@ describe('CASHIER quick-search on the registered products contract (e2e)', () =>
   });
 
   describe('no-match and blank-code paths', () => {
-    it('returns a 200 with a null body when no product matches', async () => {
+    // The registered `quickSearch` returns the flat `Product | null` service
+    // contract. When the controller returns `null`, Nest's express adapter
+    // serves it via `res.send(String(null))` (no JSON content-type), which
+    // supertest's parser reads back as an empty `{}` body — a transport
+    // artifact, not the API contract. The real consumers (POS frontend via
+    // Axios JSON) receive `null`. What the route MUST guarantee is: 200 and
+    // NO `{success,data}` envelope on the no-match path.
+    it('returns 200 with no envelope when no product matches', async () => {
       prismaMock.product.findFirst.mockResolvedValue(null);
 
       const res = await requestAs(
@@ -243,16 +250,18 @@ describe('CASHIER quick-search on the registered products contract (e2e)', () =>
         '0000000000000',
       ).expect(200);
 
-      expect(res.body).toBeNull();
+      expect(res.body).not.toHaveProperty('success');
+      expect(res.body).not.toHaveProperty('data');
     });
 
-    it('returns a 200 with a null body for a blank/whitespace code', async () => {
+    it('returns 200 with no envelope and does not query for a blank code', async () => {
       const res = await requestAs(
         { sub: 'cashier-1', organizationId: 'org-1', role: 'CASHIER' },
         '%20%20%20',
       ).expect(200);
 
-      expect(res.body).toBeNull();
+      expect(res.body).not.toHaveProperty('success');
+      expect(res.body).not.toHaveProperty('data');
       expect(prismaMock.product.findFirst).not.toHaveBeenCalled();
     });
   });

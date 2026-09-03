@@ -105,7 +105,7 @@ export class ProductsController {
   }
 
   @Get('search')
-  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Search products by name, SKU or barcode' })
   @ApiQuery({ name: 'q', required: true })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
@@ -122,7 +122,7 @@ export class ProductsController {
   }
 
   @Get('quick-search')
-  @Roles(OrgRole.ADMIN, OrgRole.MEMBER)
+  @Roles(OrgRole.ADMIN, OrgRole.MEMBER, OrgRole.CASHIER)
   @ApiOperation({ summary: 'Quick search product by barcode or SKU' })
   @ApiQuery({ name: 'code', required: true })
   quickSearch(@CurrentUser() user: RequestUser, @Query('code') code: string) {
