@@ -132,3 +132,132 @@ describe('ProductsController — findAll additive params (D5)', () => {
     );
   });
 });
+
+describe('ProductsController — CASHIER search access (registered contract)', () => {
+  const serviceMock = {
+    searchProducts: jest.fn(),
+    quickSearch: jest.fn(),
+  };
+
+  const createContext = (
+    handler: (...args: unknown[]) => unknown,
+    role: OrgRole,
+  ): ExecutionContext =>
+    ({
+      getHandler: () => handler,
+      getClass: () => ProductsController,
+      switchToHttp: () => ({
+        getRequest: () => ({ user: { role } }),
+      }),
+    }) as unknown as ExecutionContext;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('marks search with roles [ADMIN, MEMBER, CASHIER] on the registered controller', () => {
+    const controller = new ProductsController(serviceMock as never);
+
+    expect(Reflect.getMetadata(ROLES_KEY, controller.search)).toEqual([
+      OrgRole.ADMIN,
+      OrgRole.MEMBER,
+      OrgRole.CASHIER,
+    ]);
+  });
+
+  it('marks quick-search with roles [ADMIN, MEMBER, CASHIER] on the registered controller', () => {
+    const controller = new ProductsController(serviceMock as never);
+
+    expect(Reflect.getMetadata(ROLES_KEY, controller.quickSearch)).toEqual([
+      OrgRole.ADMIN,
+      OrgRole.MEMBER,
+      OrgRole.CASHIER,
+    ]);
+  });
+
+  it('lets a CASHIER through RolesGuard on search', () => {
+    const controller = new ProductsController(serviceMock as never);
+    const guard = new RolesGuard(new Reflector());
+
+    expect(guard.canActivate(createContext(controller.search, OrgRole.CASHIER))).toBe(
+      true,
+    );
+  });
+
+  it('lets a CASHIER through RolesGuard on quick-search', () => {
+    const controller = new ProductsController(serviceMock as never);
+    const guard = new RolesGuard(new Reflector());
+
+    expect(
+      guard.canActivate(createContext(controller.quickSearch, OrgRole.CASHIER)),
+    ).toBe(true);
+  });
+
+  it('denies INVENTORY_USER through RolesGuard on quick-search (403)', () => {
+    const controller = new ProductsController(serviceMock as never);
+    const guard = new RolesGuard(new Reflector());
+
+    expect(() =>
+      guard.canActivate(
+        createContext(controller.quickSearch, OrgRole.INVENTORY_USER),
+      ),
+    ).toThrow(ForbiddenException);
+  });
+
+  it('returns the service result unwrapped for quick-search (flat, no success/data)', async () => {
+    const controller = new ProductsController(serviceMock as never);
+    const user = {
+      userId: 'u1',
+      organizationId: 'org-1',
+      role: OrgRole.CASHIER,
+    };
+    const enriched = {
+      id: 'prod-1',
+      name: 'Promo Donut',
+      promotionType: 'PERCENTAGE',
+      promotionValue: 20,
+      effectiveSalePrice: 8000,
+    };
+    serviceMock.quickSearch.mockResolvedValue(enriched);
+
+    const result = await controller.quickSearch(user as never, '7701234567890');
+
+    expect(serviceMock.quickSearch).toHaveBeenCalledWith(
+      '7701234567890',
+      'org-1',
+    );
+    expect(result).toEqual(enriched);
+    expect((result as Record<string, unknown>).success).toBeUndefined();
+    expect((result as Record<string, unknown>).data).toBeUndefined();
+  });
+
+  it('returns the service array unwrapped for search (flat, no success/data)', async () => {
+    const controller = new ProductsController(serviceMock as never);
+    const user = {
+      userId: 'u1',
+      organizationId: 'org-1',
+      role: OrgRole.CASHIER,
+    };
+    const enriched = [
+      {
+        id: 'prod-1',
+        name: 'Promo Donut',
+        promotionType: 'PERCENTAGE',
+        promotionValue: 20,
+        effectiveSalePrice: 8000,
+      },
+    ];
+    serviceMock.searchProducts.mockResolvedValue(enriched);
+
+    const result = await controller.search(user as never, 'donut', 20);
+
+    expect(serviceMock.searchProducts).toHaveBeenCalledWith(
+      'donut',
+      20,
+      'org-1',
+    );
+    expect(result).toEqual(enriched);
+    expect(Array.isArray(result)).toBe(true);
+    expect((result as Record<string, unknown>).success).toBeUndefined();
+  });
+});
