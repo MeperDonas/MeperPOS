@@ -5,6 +5,7 @@ import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { SettingsCard } from "../../_components/SettingsCard";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage } from "@/lib/api";
@@ -17,7 +18,7 @@ interface CustomEntry {
 
 export default function AdvancedSettingsPage() {
   const toast = useToast();
-  const { data: settings, isLoading } = useSettings();
+  const { data: settings, isLoading, isError, refetch } = useSettings();
   const updateSettings = useUpdateSettings();
   const [entries, setEntries] = useState<CustomEntry[]>([]);
 
@@ -31,6 +32,16 @@ export default function AdvancedSettingsPage() {
       );
     }
   }, [settings]);
+
+  if (isError && !settings) {
+    return (
+      <ErrorState
+        message="No se pudo cargar la configuración."
+        retryLabel="Reintentar"
+        onRetry={refetch}
+      />
+    );
+  }
 
   if (isLoading || !settings) {
     return (
