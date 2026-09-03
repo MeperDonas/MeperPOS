@@ -67,12 +67,18 @@ vi.mock("@/lib/api", () => ({
   getApiErrorMessage: () => "Error",
 }));
 
-vi.mock("@/lib/utils", () => ({
-  formatCurrency: (value: number) => `$${value}`,
-  formatDateTime: (value: string) => value,
-  getBogotaDateInputValue: () => "2026-03-24",
-  shiftDateInputValue: () => "2026-03-18",
-}));
+vi.mock("@/lib/utils", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/utils")>(
+    "@/lib/utils",
+  );
+  return {
+    ...actual,
+    formatCurrency: (value: number) => `$${value}`,
+    formatDateTime: (value: string) => value,
+    getBogotaDateInputValue: () => "2026-03-24",
+    shiftDateInputValue: () => "2026-03-18",
+  };
+});
 
 vi.mock("@/lib/chipStyles", () => ({
   chipStyles: { primary: "chip-primary" },
