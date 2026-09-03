@@ -287,6 +287,7 @@ describe("AuthContext - in-memory session migration (issue #48 slice C2)", () =>
       expect(predicate).toBeDefined();
       expect(predicate?.({ queryKey: ["products"] })).toBe(true);
       expect(predicate?.({ queryKey: ["sales"] })).toBe(true);
+      expect(predicate?.({ queryKey: ["customers"] })).toBe(true);
       expect(predicate?.({ queryKey: ["admin", "organizations"] })).toBe(false);
 
       expect(pushMock).toHaveBeenCalledWith("/dashboard");

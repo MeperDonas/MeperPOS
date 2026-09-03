@@ -203,9 +203,13 @@ describe("OrganizationDetailPage", () => {
       render(<OrganizationDetailPage params={resolvedParams} />, { wrapper });
     });
 
-    it("renders a loading spinner", () => {
-      const spinner = document.querySelector(".animate-spin");
-      expect(spinner).toBeInTheDocument();
+    it("renders the loading state with the organization message", () => {
+      // Real LoadingState renders an animate-pulse container, not a spinner.
+      const pulse = document.querySelector(".animate-pulse");
+      expect(pulse).toBeInTheDocument();
+      expect(
+        screen.getByText("Cargando organizaci\u00f3n...")
+      ).toBeInTheDocument();
     });
   });
 
