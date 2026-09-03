@@ -111,6 +111,8 @@ export class AuthController {
   }
 
   @Post('select-organization')
+  @UseInterceptors(AuditInterceptor)
+  @AuditAction('AUTH_ORG_SELECTED')
   @ApiOperation({ summary: 'Select organization and complete login' })
   async selectOrganization(
     @Body() dto: SelectOrganizationDto,
