@@ -618,20 +618,31 @@ export interface ExpensePayment {
   createdAt: string;
 }
 
-export interface ExpenseCategory {
+export interface ExpenseLabel {
   id: string;
   organizationId: string;
+  groupId: string;
   name: string;
   active: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface ExpenseGroup {
+  id: string;
+  organizationId: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  labels?: ExpenseLabel[];
+}
+
 export interface Expense {
   id: string;
   organizationId: string;
-  categoryId: string;
-  category?: ExpenseCategory;
+  labelId: string;
+  label?: ExpenseLabel & { group?: ExpenseGroup };
   supplierId: string | null;
   supplier?: Supplier | null;
   purchaseOrderId: string | null;
@@ -651,10 +662,11 @@ export interface Expense {
 export interface ExpenseMonthlySummary {
   month: string;
   total: number;
-  categories: Array<{
-    categoryId: string;
+  groups: Array<{
+    groupId: string;
     name: string;
     total: number;
+    labels: Array<{ labelId: string; name: string; total: number }>;
   }>;
 }
 
@@ -674,7 +686,7 @@ export type ExpenseQueryParams = {
   page?: number;
   limit?: number;
   month?: string;
-  categoryId?: string;
+  labelId?: string;
   supplierId?: string;
   status?: ExpenseStatus;
   search?: string;
