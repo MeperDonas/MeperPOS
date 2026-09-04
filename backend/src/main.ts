@@ -1,7 +1,9 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { configureApp, configureErrorHandling } from './app-configuration';
+import { configureApp } from './app-configuration';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { validateJwtSecretOrExit } from './config/runtime-env';
 
 async function bootstrap() {
@@ -11,10 +13,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   configureApp(app);
-  // Request-ID correlation + canonical { code, message, requestId } envelope
-  // + validation factory (issue #120). Kept in app-configuration so the
-  // integration specs exercise the exact wiring the server uses.
-  configureErrorHandling(app);
 
   const corsOrigins = (process.env.CORS_ORIGIN ?? '')
     .split(',')
@@ -34,6 +32,19 @@ async function bootstrap() {
     origin: corsOrigins.length > 0 ? corsOrigins : defaultOrigins,
     credentials: true,
   });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
+
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // Swagger is a development tool only; never expose the schema in production.
   const swaggerEnabled = process.env.NODE_ENV !== 'production';
