@@ -118,15 +118,6 @@ Roles: `OWNER`, `ADMIN`, `MEMBER`, `CASHIER`, `INVENTORY_USER` (org roles), `SUP
 | /api/expenses/:id/upload | POST | ADMIN | org-scoped | backend/src/expenses/expenses.service.int.spec.ts |
 | /api/expenses/:id | DELETE | ADMIN | org-scoped | backend/src/expenses/expenses.service.int.spec.ts |
 
-## expense-categories
-
-| Route | Method | Role(s) | Org-scope | Test reference |
-|---|---|---|---|---|
-| /api/expense-categories | GET | ADMIN | org-scoped | backend/src/expenses/expense-categories.service.spec.ts |
-| /api/expense-categories | POST | ADMIN | org-scoped | backend/src/expenses/expense-categories.service.spec.ts |
-| /api/expense-categories/:id | PATCH | ADMIN | org-scoped | backend/src/expenses/expense-categories.service.spec.ts |
-| /api/expense-categories/:id | DELETE | ADMIN | org-scoped | backend/src/expenses/expense-categories.service.spec.ts |
-
 ## exports
 
 | Route | Method | Role(s) | Org-scope | Test reference |

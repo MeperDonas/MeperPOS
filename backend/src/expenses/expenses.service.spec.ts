@@ -32,7 +32,7 @@ describe('ExpensesService', () => {
       count: jest.fn(),
       groupBy: jest.fn(),
     },
-    expenseCategory: {
+    expenseLabel: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
     },
@@ -48,13 +48,13 @@ describe('ExpensesService', () => {
   };
 
   const buildValidCreateDto = () => ({
-    categoryId: 'cat-1',
+    labelId: 'label-1',
     supplierId: 'sup-1',
     purchaseOrderId: 'po-1',
     description: 'Arriendo agosto',
     date: '2026-08-15',
     total: 500000,
-    payments: [{ amount: 500000, method: 'CASH', date: '2026-08-15' }],
+    payments: [{ amount: 500000, method: 'CASH' as const, date: '2026-08-15' }],
   });
 
   const cloudinaryServiceMock = {
@@ -111,7 +111,7 @@ describe('ExpensesService', () => {
 
   describe('create', () => {
     it('creates a PAID expense when the first payment equals the total', async () => {
-      prismaMock.expenseCategory.findFirst.mockResolvedValue({ id: 'cat-1' });
+      prismaMock.expenseLabel.findFirst.mockResolvedValue({ id: 'label-1', active: true, group: { organizationId: orgId, active: true } });
       prismaMock.supplier.findFirst.mockResolvedValue({ id: 'sup-1' });
       prismaMock.purchaseOrder.findFirst.mockResolvedValue({ id: 'po-1' });
       txMock.expense.create.mockResolvedValue({ id: 'exp-1', status: 'PAID' });
@@ -127,7 +127,7 @@ describe('ExpensesService', () => {
       expect(createArgs.data.payments.create).toHaveLength(1);
       expect(createArgs.data.payments.create[0]).toMatchObject({
         amount: new Prisma.Decimal(500000),
-        method: 'CASH',
+      method: 'CASH' as const,
         date: new Date('2026-08-15'),
         organizationId: orgId,
       });
@@ -144,7 +144,7 @@ describe('ExpensesService', () => {
     });
 
     it('creates a PARTIAL expense when the first payment is lower than the total', async () => {
-      prismaMock.expenseCategory.findFirst.mockResolvedValue({ id: 'cat-1' });
+      prismaMock.expenseLabel.findFirst.mockResolvedValue({ id: 'label-1', active: true, group: { organizationId: orgId, active: true } });
       prismaMock.supplier.findFirst.mockResolvedValue(null);
       prismaMock.purchaseOrder.findFirst.mockResolvedValue(null);
       txMock.expense.create.mockResolvedValue({
@@ -172,7 +172,7 @@ describe('ExpensesService', () => {
     });
 
     it('rejects zero payments with 400 and never opens a transaction', async () => {
-      prismaMock.expenseCategory.findFirst.mockResolvedValue({ id: 'cat-1' });
+      prismaMock.expenseLabel.findFirst.mockResolvedValue({ id: 'label-1', active: true, group: { organizationId: orgId, active: true } });
       prismaMock.supplier.findFirst.mockResolvedValue({ id: 'sup-1' });
       prismaMock.purchaseOrder.findFirst.mockResolvedValue({ id: 'po-1' });
 
@@ -188,7 +188,7 @@ describe('ExpensesService', () => {
     });
 
     it('rejects a payment that exceeds the total with 400', async () => {
-      prismaMock.expenseCategory.findFirst.mockResolvedValue({ id: 'cat-1' });
+      prismaMock.expenseLabel.findFirst.mockResolvedValue({ id: 'label-1', active: true, group: { organizationId: orgId, active: true } });
       prismaMock.supplier.findFirst.mockResolvedValue({ id: 'sup-1' });
       prismaMock.purchaseOrder.findFirst.mockResolvedValue({ id: 'po-1' });
 
@@ -207,7 +207,7 @@ describe('ExpensesService', () => {
     });
 
     it('rejects a category that does not belong to the organization with 404', async () => {
-      prismaMock.expenseCategory.findFirst.mockResolvedValue(null);
+      prismaMock.expenseLabel.findFirst.mockResolvedValue(null);
 
       await expect(
         service.create(buildValidCreateDto(), userId, orgId),
@@ -215,7 +215,7 @@ describe('ExpensesService', () => {
     });
 
     it('rejects a supplier that does not belong to the organization with 404', async () => {
-      prismaMock.expenseCategory.findFirst.mockResolvedValue({ id: 'cat-1' });
+      prismaMock.expenseLabel.findFirst.mockResolvedValue({ id: 'label-1', active: true, group: { organizationId: orgId, active: true } });
       prismaMock.supplier.findFirst.mockResolvedValue(null);
 
       await expect(
@@ -224,7 +224,7 @@ describe('ExpensesService', () => {
     });
 
     it('rejects a purchase order that does not belong to the organization with 404', async () => {
-      prismaMock.expenseCategory.findFirst.mockResolvedValue({ id: 'cat-1' });
+      prismaMock.expenseLabel.findFirst.mockResolvedValue({ id: 'label-1', active: true, group: { organizationId: orgId, active: true } });
       prismaMock.supplier.findFirst.mockResolvedValue({ id: 'sup-1' });
       prismaMock.purchaseOrder.findFirst.mockResolvedValue(null);
 
@@ -256,7 +256,7 @@ describe('ExpensesService', () => {
           active: true,
           date: { gte: start, lte: end },
         },
-        select: { total: true, purchaseOrderId: true },
+        select: { total: true, purchaseOrderId: true, label: { select: { name: true, group: { select: { name: true } } } } },
       });
       expect(result).toEqual([
         { total: new Prisma.Decimal('25.00'), purchaseOrderId: null },
@@ -272,7 +272,7 @@ describe('ExpensesService', () => {
           page: 2,
           limit: 10,
           month: '2026-08',
-          categoryId: 'cat-1',
+          labelId: 'label-1',
           supplierId: 'sup-1',
           status: 'PARTIAL',
           search: 'arriendo',
@@ -288,7 +288,7 @@ describe('ExpensesService', () => {
             gte: new Date('2026-08-01T05:00:00.000Z'),
             lte: new Date('2026-09-01T04:59:59.999Z'),
           },
-          categoryId: 'cat-1',
+          labelId: 'label-1',
           supplierId: 'sup-1',
           status: 'PARTIAL',
           description: { contains: 'arriendo', mode: 'insensitive' },
@@ -296,7 +296,7 @@ describe('ExpensesService', () => {
         skip: 10,
         take: 10,
         orderBy: { date: 'desc' },
-        include: { category: true, supplier: true, payments: true },
+        include: { label: { include: { group: true } }, supplier: true, payments: true },
       });
       expect(prismaMock.expense.count).toHaveBeenCalledWith({
         where: expect.objectContaining({ organizationId: orgId, active: true }),
@@ -326,7 +326,7 @@ describe('ExpensesService', () => {
       expect(prismaMock.expense.findFirst).toHaveBeenCalledWith({
         where: { id: 'exp-1', organizationId: orgId },
         include: {
-          category: true,
+          label: { include: { group: true } },
           supplier: true,
           purchaseOrder: true,
           payments: { orderBy: { date: 'asc' } },
@@ -375,7 +375,7 @@ describe('ExpensesService', () => {
       expect(txMock.expense.update).toHaveBeenCalledWith({
         where: { id: 'exp-1' },
         data: expect.objectContaining({ status: 'PARTIAL' }),
-        include: { category: true, supplier: true, payments: true },
+        include: { label: { include: { group: true } }, supplier: true, payments: true },
       });
       expect(txMock.auditLog.create).toHaveBeenCalledTimes(1);
       expect(txMock.auditLog.create.mock.calls[0][0].data).toMatchObject({
@@ -427,10 +427,10 @@ describe('ExpensesService', () => {
 
     it('rejects a category that does not belong to the organization with 404', async () => {
       prismaMock.expense.findFirst.mockResolvedValue(buildExisting());
-      prismaMock.expenseCategory.findFirst.mockResolvedValue(null);
+      prismaMock.expenseLabel.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.update('exp-1', { categoryId: 'cat-x' }, userId, orgId),
+        service.update('exp-1', { labelId: 'label-x' }, userId, orgId),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -472,7 +472,7 @@ describe('ExpensesService', () => {
           purchaseOrderId: null,
           description: null,
         }),
-        include: { category: true, supplier: true, payments: true },
+        include: { label: { include: { group: true } }, supplier: true, payments: true },
       });
       expect(result).toMatchObject({
         supplierId: null,
@@ -496,7 +496,7 @@ describe('ExpensesService', () => {
     });
     const buildPaymentDto = () => ({
       amount: 100000,
-      method: 'CASH',
+      method: 'CASH' as const,
       date: '2026-08-20',
     });
 
@@ -525,7 +525,7 @@ describe('ExpensesService', () => {
       expect(txMock.expense.update).toHaveBeenCalledWith({
         where: { id: 'exp-1' },
         data: { status: 'PAID' },
-        include: { category: true, supplier: true, payments: true },
+        include: { label: { include: { group: true } }, supplier: true, payments: true },
       });
       expect(txMock.auditLog.create).toHaveBeenCalledTimes(1);
       expect(txMock.auditLog.create.mock.calls[0][0].data).toMatchObject({
@@ -605,20 +605,20 @@ describe('ExpensesService', () => {
   });
 
   describe('getMonthlySummary', () => {
-    it('returns the month total and per-category breakdown sorted by total desc', async () => {
+    it('returns the month total and nested group/label breakdown sorted by total desc', async () => {
       prismaMock.expense.groupBy.mockResolvedValue([
-        { categoryId: 'cat-2', _sum: { total: new Prisma.Decimal(500000) } },
-        { categoryId: 'cat-1', _sum: { total: new Prisma.Decimal(1000000) } },
+        { labelId: 'label-2', _sum: { total: new Prisma.Decimal(500000) } },
+        { labelId: 'label-1', _sum: { total: new Prisma.Decimal(1000000) } },
       ]);
-      prismaMock.expenseCategory.findMany.mockResolvedValue([
-        { id: 'cat-1', name: 'Arriendo' },
-        { id: 'cat-2', name: 'Caja menor' },
+      prismaMock.expenseLabel.findMany.mockResolvedValue([
+        { id: 'label-1', name: 'Arriendo', groupId: 'group-1', group: { id: 'group-1', name: 'Gastos del local' } },
+        { id: 'label-2', name: 'Caja menor', groupId: 'group-2', group: { id: 'group-2', name: 'Caja menor' } },
       ]);
 
       const result = await service.getMonthlySummary('2026-08', orgId);
 
       expect(prismaMock.expense.groupBy).toHaveBeenCalledWith({
-        by: ['categoryId'],
+        by: ['labelId'],
         where: {
           organizationId: orgId,
           active: true,
@@ -629,38 +629,30 @@ describe('ExpensesService', () => {
         },
         _sum: { total: true },
       });
-      expect(prismaMock.expenseCategory.findMany).toHaveBeenCalledWith({
-        where: { id: { in: ['cat-2', 'cat-1'] } },
-        select: { id: true, name: true },
+      expect(prismaMock.expenseLabel.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['label-2', 'label-1'] } },
+        select: { id: true, name: true, groupId: true, group: { select: { id: true, name: true } } },
       });
       expect(result).toEqual({
         month: '2026-08',
         total: new Prisma.Decimal(1500000),
-        categories: [
-          {
-            categoryId: 'cat-1',
-            name: 'Arriendo',
-            total: new Prisma.Decimal(1000000),
-          },
-          {
-            categoryId: 'cat-2',
-            name: 'Caja menor',
-            total: new Prisma.Decimal(500000),
-          },
+        groups: [
+          { groupId: 'group-1', name: 'Gastos del local', total: new Prisma.Decimal(1000000), labels: [{ labelId: 'label-1', name: 'Arriendo', total: new Prisma.Decimal(1000000) }] },
+          { groupId: 'group-2', name: 'Caja menor', total: new Prisma.Decimal(500000), labels: [{ labelId: 'label-2', name: 'Caja menor', total: new Prisma.Decimal(500000) }] },
         ],
       });
     });
 
     it('returns zeros for a month without expenses', async () => {
       prismaMock.expense.groupBy.mockResolvedValue([]);
-      prismaMock.expenseCategory.findMany.mockResolvedValue([]);
+      prismaMock.expenseLabel.findMany.mockResolvedValue([]);
 
       const result = await service.getMonthlySummary('2026-08', orgId);
 
       expect(result).toEqual({
         month: '2026-08',
         total: new Prisma.Decimal(0),
-        categories: [],
+        groups: [],
       });
     });
 
@@ -684,7 +676,7 @@ describe('ExpensesService', () => {
       id: 'exp-1',
       organizationId: orgId,
       active: true,
-      categoryId: 'cat-1',
+       labelId: 'label-1',
       supplierId: 'sup-1',
       purchaseOrderId: 'po-1',
       description: 'Arriendo agosto',
@@ -719,7 +711,7 @@ describe('ExpensesService', () => {
       const createArgs = txMock.expense.create.mock.calls[0][0];
       expect(createArgs.data).toMatchObject({
         organizationId: orgId,
-        categoryId: 'cat-1',
+        labelId: 'label-1',
         supplierId: 'sup-1',
         purchaseOrderId: 'po-1',
         description: 'Arriendo agosto',
@@ -874,7 +866,7 @@ describe('ExpensesService', () => {
       expect(txMock.expense.update).toHaveBeenCalledWith({
         where: { id: 'exp-1' },
         data: { receiptUrl: 'https://cloud.example/expense-receipts/r1.jpg' },
-        include: { category: true, supplier: true, payments: true },
+        include: { label: { include: { group: true } }, supplier: true, payments: true },
       });
       expect(txMock.auditLog.create).toHaveBeenCalledTimes(1);
       expect(txMock.auditLog.create.mock.calls[0][0].data).toMatchObject({

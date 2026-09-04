@@ -27,7 +27,6 @@ import { OrganizationStatusGuard } from './common/guards/organization-status.gua
 import { CookieCsrfGuard } from './common/guards/cookie-csrf.guard';
 import { CashRegistersModule } from './cash-registers/cash-registers.module';
 import { BillingModule } from './billing/billing.module';
-import { ExpenseCategoriesModule } from './expenses/expense-categories.module';
 import { ExpensesModule } from './expenses/expenses.module';
 
 @Module({
@@ -62,7 +61,6 @@ import { ExpensesModule } from './expenses/expenses.module';
     PlanLimitsModule,
     CashRegistersModule,
     BillingModule,
-    ExpenseCategoriesModule,
     ExpensesModule,
   ],
   controllers: [AppController],

@@ -85,7 +85,12 @@ describe('ExpensesController', () => {
 
   it('delegates CRUD with organizationId and userId from the token only', async () => {
     const controller = new ExpensesController(serviceMock as never);
-    const body = { categoryId: 'cat-1', date: '2026-08-15', total: 500 };
+    const body = {
+      labelId: 'label-1',
+      date: '2026-08-15',
+      total: 500,
+      payments: [{ amount: 500, method: 'CASH' as const, date: '2026-08-15' }],
+    };
     const expense = { id: 'exp-1', organizationId: 'org-1' };
 
     serviceMock.create.mockResolvedValue(expense);
@@ -196,7 +201,7 @@ describe('ExpensesController', () => {
 
   it('delegates addPayment with expense id, payment body, userId and organizationId from the token only', async () => {
     const controller = new ExpensesController(serviceMock as never);
-    const payment = { amount: 100000, method: 'CASH', date: '2026-08-20' };
+    const payment = { amount: 100000, method: 'CASH' as const, date: '2026-08-20' };
     const expense = { id: 'exp-1', organizationId: 'org-1', status: 'PAID' };
 
     serviceMock.addPayment.mockResolvedValue(expense);
