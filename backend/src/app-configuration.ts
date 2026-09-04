@@ -1,16 +1,6 @@
-import {
-  BadRequestException,
-  INestApplication,
-  ValidationPipe,
-} from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { requestIdMiddleware } from './common/middleware/request-id.middleware';
-import {
-  normalizeValidationMessage,
-  PUBLIC_ERROR_CODES,
-} from './common/errors/public-error.model';
 
 /**
  * Transport/security wiring shared by the production bootstrap (main.ts) and
@@ -27,39 +17,4 @@ export function configureApp(app: INestApplication): void {
   app.use(cookieParser());
 
   app.setGlobalPrefix('api');
-}
-
-/**
- * Canonical public error boundary (issue #120), shared by main.ts and the
- * envelope integration specs so the running server and the tests exercise the
- * exact same wiring:
- *  1. request-ID middleware resolves a bounded correlation id before any
- *     pipe/guard/controller runs and echoes it as the `x-request-id` header;
- *  2. the ValidationPipe keeps its safe defaults and a deterministic
- *     single-string validation exception factory;
- *  3. the global HttpExceptionFilter serializes every failure as the
- *     canonical `{ code, message, requestId }` envelope.
- */
-export function configureErrorHandling(app: INestApplication): void {
-  app.use(requestIdMiddleware);
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-      // Deterministic, string-safe public validation message (issue #120).
-      exceptionFactory: (errors) =>
-        new BadRequestException({
-          code: PUBLIC_ERROR_CODES.VALIDATION_ERROR,
-          message: normalizeValidationMessage(errors),
-          error: 'Bad Request',
-        }),
-    }),
-  );
-
-  app.useGlobalFilters(new HttpExceptionFilter());
 }
