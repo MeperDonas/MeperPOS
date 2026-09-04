@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/Card";
 import { formatCurrency } from "@/lib/utils";
 import { Wallet, TrendingDown } from "lucide-react";
 import type { ExpenseMonthlySummary } from "@/types";
@@ -31,24 +30,29 @@ export function ExpenseSummaryCards({ month, summary }: Props) {
         )}
       </div>
 
-      {(summary?.categories ?? []).slice(0, 2).map((category) => (
+      {(summary?.groups ?? []).slice(0, 2).map((group) => (
         <div
-          key={category.categoryId}
+          key={group.groupId}
           className="rounded-3xl border border-border/80 bg-card p-5 shadow-xs flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground truncate">
-              {category.name}
+              {group.name}
             </p>
             <div className="w-8 h-8 rounded-xl bg-muted text-muted-foreground flex items-center justify-center">
               <TrendingDown className="w-4 h-4 text-primary" />
             </div>
           </div>
           <p className="mt-3 text-2xl lg:text-3xl font-extrabold font-mono text-foreground tracking-tight">
-            {formatCurrency(Number(category.total ?? 0))}
+            {formatCurrency(Number(group.total ?? 0))}
           </p>
           <p className="mt-1 text-[11px] text-muted-foreground font-mono">
-            Gasto acumulado
+            <span>Gasto acumulado</span>
+            {(group.labels ?? []).slice(0, 3).map((label) => (
+              <span key={label.labelId} className="block truncate">
+                {label.name}: {formatCurrency(Number(label.total ?? 0))}
+              </span>
+            ))}
           </p>
         </div>
       ))}

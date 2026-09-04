@@ -32,14 +32,23 @@ import { ExpenseDetailModal } from "./ExpenseDetailModal";
 const expense = {
   id: "exp-1",
   organizationId: "org-1",
-  categoryId: "cat-1",
-  category: {
-    id: "cat-1",
+  labelId: "label-1",
+  label: {
+    id: "label-1",
     organizationId: "org-1",
+    groupId: "group-1",
     name: "Arriendo",
     active: true,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
+    group: {
+      id: "group-1",
+      organizationId: "org-1",
+      name: "Gastos del local",
+      active: true,
+      createdAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-08-01T00:00:00.000Z",
+    },
   },
   supplierId: "sup-1",
   supplier: {
@@ -132,13 +141,13 @@ describe("ExpenseDetailModal", () => {
     cleanup();
   });
 
-  it("renders total, status, category, supplier, purchase order and description", () => {
+  it("renders total, status, group and label, supplier, purchase order and description", () => {
     render(<ExpenseDetailModal expense={expense} isOpen onClose={vi.fn()} />);
 
     expect(screen.getByText("Detalle del Gasto")).toBeInTheDocument();
     expect(screen.getByText(/500\.000/)).toBeInTheDocument();
     expect(screen.getByText("Parcial")).toBeInTheDocument();
-    expect(screen.getByText("Arriendo")).toBeInTheDocument();
+    expect(screen.getByText("Gastos del local / Arriendo")).toBeInTheDocument();
     expect(screen.getByText("Proveedor Uno")).toBeInTheDocument();
     expect(screen.getByText("OC-101")).toBeInTheDocument();
     expect(screen.getByText("Renta agosto")).toBeInTheDocument();
