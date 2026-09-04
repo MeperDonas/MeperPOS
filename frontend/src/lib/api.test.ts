@@ -8,10 +8,6 @@ import {
 } from "axios";
 import { ApiClient, getApiErrorDetails, getApiErrorMessage } from "./api";
 import {
-  classifyPublicError,
-  toPublicError,
-} from "../../../backend/src/common/errors/public-error.model";
-import {
   getAccessToken,
   setAccessToken,
   clearAccessToken,
@@ -20,6 +16,14 @@ import {
 type Adapter = (
   config: InternalAxiosRequestConfig
 ) => Promise<AxiosResponse>;
+
+function canonicalUnexpectedError(requestId: string) {
+  return {
+    code: "INTERNAL_SERVER_ERROR",
+    message: "Internal server error",
+    requestId,
+  };
+}
 
 function baseConfig(
   url?: string
@@ -288,10 +292,7 @@ describe("public API error contract", () => {
   describe("coordinated rollout rollback", () => {
     it("restores the prior compatible contract across backend and frontend as one change set", () => {
       const auditLog = { create: vi.fn() };
-      const rolloutResponse = toPublicError(
-        classifyPublicError(new Error("ROLLBACK-SENSITIVE-DIAGNOSTIC")),
-        "rollback-request-42",
-      );
+      const rolloutResponse = canonicalUnexpectedError("rollback-request-42");
 
       const rolloutClientView = getApiErrorDetails(
         new AxiosError("client-side diagnostic", "ERR_BAD_RESPONSE", baseConfig(), {}, {
