@@ -15,9 +15,9 @@ import {
 import { CreateExpensePaymentDto } from './create-expense-payment.dto';
 
 export class CreateExpenseDto {
-  @ApiProperty({ example: 'uuid-category-id' })
+  @ApiProperty({ example: 'uuid-label-id' })
   @IsUUID()
-  categoryId: string;
+  labelId: string;
 
   @ApiPropertyOptional({ example: 'uuid-supplier-id' })
   @IsOptional()

@@ -18,12 +18,12 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
   let userBId: string;
   let service: ExpensesService;
   let fixture: TwoOrgFixture;
-  let catArriendoId: string;
-  let catCajaMenorId: string;
-  let catOrgBId: string;
+  let labelArriendoId: string;
+  let labelCajaMenorId: string;
+  let labelOrgBId: string;
 
   const buildCreateDto = (
-    categoryId: string,
+    labelId: string,
     overrides: Partial<{
       date: string | Date;
       total: number;
@@ -35,7 +35,7 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
       description: string;
     }> = {},
   ) => ({
-    categoryId,
+    labelId,
     description: overrides.description ?? 'Gasto de integración',
     date: (overrides.date ?? '2026-08-15') as string,
     total: overrides.total ?? 500000,
@@ -61,20 +61,18 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
       cloudinaryServiceMock as never,
     );
 
-    const [catArriendo, catCajaMenor, catOrgB] = await Promise.all([
-      prisma.expenseCategory.create({
-        data: { name: 'Arriendo INT', organizationId: orgAId },
-      }),
-      prisma.expenseCategory.create({
-        data: { name: 'Caja menor INT', organizationId: orgAId },
-      }),
-      prisma.expenseCategory.create({
-        data: { name: 'Categoría org B', organizationId: orgBId },
-      }),
+    const [groupA, groupB] = await Promise.all([
+      prisma.expenseGroup.create({ data: { name: 'Integration A', organizationId: orgAId } }),
+      prisma.expenseGroup.create({ data: { name: 'Integration B', organizationId: orgBId } }),
     ]);
-    catArriendoId = catArriendo.id;
-    catCajaMenorId = catCajaMenor.id;
-    catOrgBId = catOrgB.id;
+    const [labelArriendo, labelCajaMenor, labelOrgB] = await Promise.all([
+      prisma.expenseLabel.create({ data: { name: 'Arriendo INT', organizationId: orgAId, groupId: groupA.id } }),
+      prisma.expenseLabel.create({ data: { name: 'Caja menor INT', organizationId: orgAId, groupId: groupA.id } }),
+      prisma.expenseLabel.create({ data: { name: 'Categoría org B', organizationId: orgBId, groupId: groupB.id } }),
+    ]);
+    labelArriendoId = labelArriendo.id;
+    labelCajaMenorId = labelCajaMenor.id;
+    labelOrgBId = labelOrgB.id;
   });
 
   afterAll(() =>
@@ -88,7 +86,7 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
       await prisma.expense.deleteMany({
         where: { organizationId: { in: [orgAId, orgBId] } },
       });
-      await prisma.expenseCategory.deleteMany({
+      await prisma.expenseLabel.deleteMany({
         where: { organizationId: { in: [orgAId, orgBId] } },
       });
     }),
@@ -96,7 +94,7 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
 
   it('isolates organizations: cross-org reads 404 and lists never leak', async () => {
     const created = await service.create(
-      buildCreateDto(catArriendoId),
+    buildCreateDto(labelArriendoId),
       userAId,
       orgAId,
     );
@@ -121,7 +119,7 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
 
   it('supports the partial to paid payment flow and rejects overpayment', async () => {
     const created = await service.create(
-      buildCreateDto(catArriendoId, {
+      buildCreateDto(labelArriendoId, {
         total: 500000,
         payments: [{ amount: 200000, method: 'TRANSFER', date: '2026-08-15' }],
       }),
@@ -158,7 +156,7 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
 
   it('summarizes the Bogota month per category, honoring month boundaries and org scope', async () => {
     await service.create(
-      buildCreateDto(catArriendoId, {
+      buildCreateDto(labelArriendoId, {
         description: 'Arriendo junio',
         date: '2026-06-15',
         total: 500000,
@@ -168,7 +166,7 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
       orgAId,
     );
     await service.create(
-      buildCreateDto(catArriendoId, {
+      buildCreateDto(labelArriendoId, {
         description: 'Inicio de mes (00:00 Bogota)',
         date: new Date('2026-06-01T05:00:00.000Z'),
         total: 200000,
@@ -180,7 +178,7 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
       orgAId,
     );
     await service.create(
-      buildCreateDto(catCajaMenorId, {
+      buildCreateDto(labelCajaMenorId, {
         description: 'Caja menor junio',
         date: '2026-06-20',
         total: 300000,
@@ -190,7 +188,7 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
       orgAId,
     );
     await service.create(
-      buildCreateDto(catArriendoId, {
+      buildCreateDto(labelArriendoId, {
         description: 'Mayo 31 23:59 Bogota — fuera del mes',
         date: new Date('2026-06-01T04:59:59.000Z'),
         total: 999999,
@@ -206,7 +204,7 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
       orgAId,
     );
     await service.create(
-      buildCreateDto(catOrgBId, {
+      buildCreateDto(labelOrgBId, {
         description: 'Gasto de la organización B',
         date: '2026-06-18',
         total: 777777,
@@ -221,20 +219,20 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
     expect(summary.month).toBe('2026-06');
     expect(summary.total.toString()).toBe('1000000');
     expect(
-      summary.categories.map((row) => ({
-        categoryId: row.categoryId,
+      summary.groups.flatMap((group) => group.labels.map((row) => ({
+        labelId: row.labelId,
         name: row.name,
         total: row.total.toString(),
-      })),
+      }))),
     ).toEqual([
-      { categoryId: catArriendoId, name: 'Arriendo INT', total: '700000' },
-      { categoryId: catCajaMenorId, name: 'Caja menor INT', total: '300000' },
+      { labelId: labelArriendoId, name: 'Arriendo INT', total: '700000' },
+      { labelId: labelCajaMenorId, name: 'Caja menor INT', total: '300000' },
     ]);
   });
 
   it('duplicates an expense with today Bogota date, copied payments and derived status', async () => {
     const created = await service.create(
-      buildCreateDto(catArriendoId, {
+      buildCreateDto(labelArriendoId, {
         description: 'Original a duplicar',
         date: '2026-08-10',
         total: 500000,
@@ -251,7 +249,7 @@ describe('ExpensesService — Integration (Isolation + Payments + Summary)', () 
     const duplicated = await service.duplicate(created.id, userAId, orgAId);
 
     expect(duplicated.id).not.toBe(created.id);
-    expect(duplicated.categoryId).toBe(catArriendoId);
+    expect(duplicated.labelId).toBe(labelArriendoId);
     expect(duplicated.description).toBe('Original a duplicar');
     expect(duplicated.total.toString()).toBe('500000');
     expect(duplicated.status).toBe('PAID');

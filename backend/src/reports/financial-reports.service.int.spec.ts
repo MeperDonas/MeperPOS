@@ -14,7 +14,7 @@ describe('ReportsService financial integration', () => {
   let productAId: string;
   let saleAId: string;
   let saleBId: string;
-  let expenseCategoryAId: string;
+  let expenseLabelAId: string;
   let expenseAId: string;
   let purchaseExpenseId: string;
   let supplierId: string;
@@ -105,10 +105,13 @@ describe('ReportsService financial integration', () => {
         organizationId: orgAId,
       },
     });
-    const expenseCategory = await prisma.expenseCategory.create({
-      data: { name: 'Reports expense', organizationId: orgAId },
+    const expenseGroup = await prisma.expenseGroup.create({
+      data: { name: 'Reports group', organizationId: orgAId },
     });
-    expenseCategoryAId = expenseCategory.id;
+    const expenseLabel = await prisma.expenseLabel.create({
+      data: { name: 'Reports expense', organizationId: orgAId, groupId: expenseGroup.id },
+    });
+    expenseLabelAId = expenseLabel.id;
     const supplier = await prisma.supplier.create({
       data: {
         name: 'Reports supplier',
@@ -130,7 +133,7 @@ describe('ReportsService financial integration', () => {
       prisma.expense.create({
         data: {
           organizationId: orgAId,
-          categoryId: expenseCategoryAId,
+          labelId: expenseLabelAId,
           date: new Date('2026-08-15T15:00:00.000Z'),
           total: 15,
           status: 'PAID',
@@ -140,7 +143,7 @@ describe('ReportsService financial integration', () => {
       prisma.expense.create({
         data: {
           organizationId: orgAId,
-          categoryId: expenseCategoryAId,
+          labelId: expenseLabelAId,
           date: new Date('2026-08-15T15:00:00.000Z'),
           total: 999,
           status: 'PAID',
@@ -161,7 +164,7 @@ describe('ReportsService financial integration', () => {
     await prisma.expense.deleteMany({ where: { id: { in: [expenseAId, purchaseExpenseId] } } });
     await prisma.purchaseOrder.delete({ where: { id: purchaseOrderId } });
     await prisma.supplier.delete({ where: { id: supplierId } });
-    await prisma.expenseCategory.delete({ where: { id: expenseCategoryAId } });
+    await prisma.expenseLabel.delete({ where: { id: expenseLabelAId } });
     await prisma.saleItem.deleteMany({ where: { saleId: { in: [saleAId, saleBId] } } });
     await prisma.sale.deleteMany({ where: { id: { in: [saleAId, saleBId] } } });
     await prisma.product.delete({ where: { id: productAId } });
