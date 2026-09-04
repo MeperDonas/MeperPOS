@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { BentoSelect } from "@/components/ui/BentoSelect";
@@ -64,15 +64,10 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
   const { data: ordersData } = usePurchaseOrders({ limit: 200 });
 
   const groups = groupsData ?? [];
-  const labelOptions = groups.flatMap((group) => [
-    { value: `group-${group.id}`, label: `— ${group.name} —` },
-    ...(group.labels ?? [])
-      .filter((label) => label.active)
-      .map((label) => ({ value: label.id, label: `${group.name} / ${label.name}` })),
-  ]);
   const suppliers = suppliersData?.data ?? [];
   const orders = ordersData?.data ?? [];
 
+  const [groupId, setGroupId] = useState(expense?.label?.groupId ?? "");
   const [labelId, setLabelId] = useState(expense?.labelId ?? "");
   const [supplierId, setSupplierId] = useState(expense?.supplierId ?? "");
   const [purchaseOrderId, setPurchaseOrderId] = useState(
@@ -89,6 +84,26 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
   const [pendingReceiptFile, setPendingReceiptFile] = useState<File | null>(
     null,
   );
+
+  useEffect(() => {
+    if (!groups.length) return;
+
+    const currentLabel = groups
+      .flatMap((group) => group.labels ?? [])
+      .find((label) => label.id === labelId);
+
+    if (!groupId && currentLabel) {
+      setGroupId(currentLabel.groupId);
+    } else if (labelId && currentLabel && currentLabel.groupId !== groupId) {
+      setLabelId("");
+    }
+  }, [groupId, groups, labelId]);
+
+  const labelOptions = groupId
+    ? (groups.find((group) => group.id === groupId)?.labels ?? [])
+        .filter((label) => label.active)
+        .map((label) => ({ value: label.id, label: label.name }))
+    : [];
 
   const numericTotal = Number(total) || 0;
   const paymentsSum = rows.reduce(
@@ -191,12 +206,40 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
         {/* Left column: expense data */}
         <div className="space-y-3">
           <BentoSelect
-            label="Grupo y etiqueta"
-            value={labelId}
+            label="Grupo"
+            value={groupId}
             disabled={isGroupsLoading}
-            onChange={(value) => setLabelId(value.startsWith("group-") ? "" : value)}
+            onChange={(value) => {
+              setGroupId(value);
+              setLabelId("");
+            }}
             options={[
-              { value: "", label: isGroupsLoading ? "Cargando etiquetas..." : "Selecciona un gasto" },
+              { value: "", label: isGroupsLoading ? "Cargando grupos..." : "Selecciona un grupo" },
+              ...groups
+                .filter((group) => group.active)
+                .map((group) => ({ value: group.id, label: group.name })),
+            ]}
+          />
+
+          <BentoSelect
+            label="Etiqueta"
+            value={labelId}
+            disabled={isGroupsLoading || !groupId}
+            onChange={(value) => {
+              const belongsToGroup = labelOptions.some((label) => label.value === value);
+              setLabelId(belongsToGroup ? value : "");
+            }}
+            options={[
+              {
+                value: "",
+                label: isGroupsLoading
+                  ? "Cargando etiquetas..."
+                  : !groupId
+                    ? "Selecciona un grupo primero"
+                    : labelOptions.length
+                      ? "Selecciona una etiqueta"
+                      : "No hay etiquetas disponibles",
+              },
               ...labelOptions,
             ]}
           />
