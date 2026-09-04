@@ -302,6 +302,6 @@ describe("ImportDataSettingsPage", () => {
     fireEvent.click(within(productsTile).getByRole("button", { name: /Exportar/ }));
 
     await waitFor(() => expect(exportDataMock).toHaveBeenCalledOnce());
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith("El servidor falló"));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("No se pudo generar la exportación"));
   });
 });

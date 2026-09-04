@@ -5,14 +5,15 @@ import type { ImportSheetRowError } from "@/types";
 
 function makeError(overrides: Partial<ImportSheetRowError> = {}): ImportSheetRowError {
   return {
-    rowIndex: 5,
+    row: 5,
     sheetId: "clientes",
-    errorCode: "DUPLICATE_DOCUMENT",
+    code: "DUPLICATE_DOCUMENT",
     message: "Documento duplicado",
-    mappedData: { name: "Ana Perez", documentNumber: "1010101" },
-    editableFields: ["name", "documentNumber"],
+    field: "documentNumber",
+    editableFields: ["documentNumber"],
     retried: false,
     retriedSuccess: false,
+    correlationId: "request-123",
     ...overrides,
   };
 }
@@ -28,7 +29,7 @@ describe("ImportSheetErrors", () => {
       <ImportSheetErrors
         errors={[
           makeError({ sheetId: "clientes" }),
-          makeError({ rowIndex: 9, sheetId: "productos", errorCode: "INVALID_PRICE" }),
+          makeError({ row: 9, sheetId: "productos", code: "INVALID_PRICE" }),
         ]}
         onRetry={vi.fn()}
       />,
@@ -45,7 +46,6 @@ describe("ImportSheetErrors", () => {
 
     expect(screen.getByText("Documento duplicado")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
-    expect(screen.getByLabelText("Nombre")).toBeInTheDocument();
     expect(screen.getByLabelText("N° documento")).toBeInTheDocument();
   });
 
@@ -54,8 +54,8 @@ describe("ImportSheetErrors", () => {
     render(<ImportSheetErrors errors={[makeError()]} onRetry={onRetry} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
-    fireEvent.change(screen.getByLabelText("Nombre"), {
-      target: { value: "Ana Maria Perez" },
+    fireEvent.change(screen.getByLabelText("N° documento"), {
+      target: { value: "2020202" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Reintentar fila/i }));
 
@@ -64,8 +64,19 @@ describe("ImportSheetErrors", () => {
       ImportSheetRowError,
       Record<string, unknown>,
     ];
-    expect(error.rowIndex).toBe(5);
+    expect(error.row).toBe(5);
     expect(error.sheetId).toBe("clientes");
-    expect(correctedData.name).toBe("Ana Maria Perez");
+    expect(correctedData).toEqual({ documentNumber: "2020202" });
+  });
+
+  it("does not offer retry for a sanitized issue without a field", () => {
+    render(
+      <ImportSheetErrors
+        errors={[makeError({ field: undefined, editableFields: [] })]}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /Editar/i })).not.toBeInTheDocument();
   });
 });
