@@ -10,14 +10,6 @@ import type { ImportSheetId, ImportSheetRowError } from "@/types";
 
 type EditableValues = Record<string, string>;
 
-function toStringValue(value: unknown) {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  return String(value);
-}
-
 function mapErrorVariant(errorCode: string) {
   if (errorCode.startsWith("DUPLICATE")) {
     return "danger" as const;
@@ -66,19 +58,17 @@ export function ImportSheetErrors({
   const sheetOrder = groupBySheet(errors);
 
   const startEditing = (error: ImportSheetRowError) => {
-    setEditingRow(error.rowIndex);
+    setEditingRow(error.row ?? error.rowIndex ?? null);
     const values: EditableValues = {};
-    error.editableFields.forEach((field) => {
-      values[field] = toStringValue(error.mappedData?.[field]);
-    });
+    if (error.field) values[error.field] = "";
     setEditValues(values);
   };
 
   const handleRetry = (error: ImportSheetRowError) => {
-    const correctedData: Record<string, unknown> = {};
-    error.editableFields.forEach((field) => {
-      correctedData[field] = editValues[field] ?? "";
-    });
+    if (!error.field) return;
+    const correctedData: Record<string, unknown> = {
+      [error.field]: editValues[error.field] ?? "",
+    };
     onRetry(error, correctedData);
   };
 
@@ -101,46 +91,45 @@ export function ImportSheetErrors({
               .filter((error) => error.sheetId === sheetId)
               .map((error) => (
                 <div
-                  key={`${error.sheetId}-${error.rowIndex}-${error.errorCode}`}
-                  data-testid={`import-error-row-${error.rowIndex}`}
+                  key={`${error.sheetId}-${error.row ?? error.rowIndex}-${error.code ?? error.errorCode}`}
+                  data-testid={`import-error-row-${error.row ?? error.rowIndex}`}
                   className="rounded-xl border border-rose-500/20 bg-background/40 p-3 space-y-2"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <Badge variant={mapErrorVariant(error.errorCode)}>
-                        {error.errorCode}
+                      <Badge variant={mapErrorVariant(error.code ?? error.errorCode ?? "UNKNOWN_ERROR")}>
+                        {error.code ?? error.errorCode}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        Fila {error.rowIndex}
+                        Fila {error.row ?? error.rowIndex}
                       </span>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => startEditing(error)}
-                    >
-                      <Pencil className="w-3.5 h-3.5" /> Editar
-                    </Button>
+                    {error.field && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => startEditing(error)}
+                      >
+                        <Pencil className="w-3.5 h-3.5" /> Editar
+                      </Button>
+                    )}
                   </div>
 
                   <p className="text-sm text-foreground">{error.message}</p>
 
-                  {editingRow === error.rowIndex && (
+                  {editingRow === (error.row ?? error.rowIndex) && error.field && (
                     <div className="rounded-xl border border-accent/20 bg-background/40 p-3 space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {error.editableFields.map((field) => (
-                          <Input
-                            key={field}
-                            label={fieldLabel(field)}
-                            value={editValues[field] ?? ""}
-                            onChange={(event) =>
-                              setEditValues((previous) => ({
-                                ...previous,
-                                [field]: event.target.value,
-                              }))
-                            }
-                          />
-                        ))}
+                        <Input
+                          label={fieldLabel(error.field)}
+                          value={editValues[error.field] ?? ""}
+                          onChange={(event) =>
+                            setEditValues((previous) => ({
+                              ...previous,
+                              [error.field as string]: event.target.value,
+                            }))
+                          }
+                        />
                       </div>
 
                       <div className="flex flex-wrap gap-2">

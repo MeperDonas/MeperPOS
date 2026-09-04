@@ -369,12 +369,12 @@ export type ImportSheetSubStatus =
   | "FAILED";
 
 export interface ImportRowError {
-  rowIndex: number;
+  row?: number;
+  rowIndex?: number;
   /** Originating sheet for the failed row. Present on multi-sheet imports. */
   sheetId?: ImportSheetId;
-  rawData: Record<string, string>;
-  mappedData: Record<string, unknown>;
-  errorCode: string;
+  code?: string;
+  errorCode?: string;
   message: string;
   field?: string;
   retried: boolean;
@@ -384,15 +384,18 @@ export interface ImportRowError {
 
 /** A row error from a multi-sheet import, always carrying its sheetId. */
 export interface ImportSheetRowError {
-  rowIndex: number;
+  row?: number;
+  rowIndex?: number;
   sheetId: ImportSheetId;
-  errorCode: string;
+  code?: string;
+  errorCode?: string;
   message: string;
   field?: string;
   mappedData?: Record<string, unknown>;
   editableFields: string[];
   retried: boolean;
   retriedSuccess?: boolean;
+  correlationId?: string;
 }
 
 /** Per-sheet counters and sub-status returned in a job's per-sheet breakdown. */
@@ -415,7 +418,7 @@ export interface ImportSheetStatus {
 export interface ImportFullJobStatus {
   jobId: string;
   status: "PARSING" | "PROCESSING" | "COMPLETED" | "FAILED";
-  fileName: string;
+  fileName?: string;
   totalRows: number;
   processedRows: number;
   importedCount: number;
@@ -429,7 +432,7 @@ export interface ImportFullJobStatus {
 export interface ImportJobStatus {
   jobId: string;
   status: "PARSING" | "PROCESSING" | "COMPLETED" | "FAILED";
-  fileName: string;
+  fileName?: string;
   totalRows: number;
   processedRows: number;
   importedCount: number;

@@ -6,7 +6,11 @@ import {
   type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from "axios";
-import { ApiClient } from "./api";
+import { ApiClient, getApiErrorDetails, getApiErrorMessage } from "./api";
+import {
+  classifyPublicError,
+  toPublicError,
+} from "../../../backend/src/common/errors/public-error.model";
 import {
   getAccessToken,
   setAccessToken,
@@ -219,6 +223,142 @@ describe("ApiClient interceptors - in-memory session + refresh flow (issue #48 s
       const urls = adapter.mock.calls.map((call) => call[0]?.url);
       expect(urls).toEqual(["/orders", "/auth/refresh", "/orders"]);
       expect(onSessionExpired).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe("public API error contract", () => {
+  it("prefers the canonical safe message and retains its requestId", () => {
+    const error = new AxiosError("client diagnostic");
+    error.response = {
+      status: 400,
+      statusText: "Bad Request",
+      data: {
+        code: "VALIDATION_ERROR",
+        message: "El precio no es válido",
+        requestId: "request-123",
+        details: "must not be shown",
+      },
+      headers: {},
+      config: baseConfig(),
+    };
+
+    expect(getApiErrorDetails(error, "Fallback")).toEqual({
+      code: "VALIDATION_ERROR",
+      message: "El precio no es válido",
+      requestId: "request-123",
+    });
+    expect(getApiErrorMessage(error, "Fallback")).toBe("El precio no es válido");
+  });
+
+  it("supports only bounded legacy safe messages and never promotes nested diagnostics", () => {
+    const legacy = new AxiosError("client diagnostic");
+    legacy.response = {
+      status: 400,
+      statusText: "Bad Request",
+      data: { message: ["Nombre requerido", "SKU requerido"] },
+      headers: {},
+      config: baseConfig(),
+    };
+    expect(getApiErrorDetails(legacy, "Fallback").message).toBe(
+      "Nombre requerido, SKU requerido",
+    );
+
+    const nested = new AxiosError("client diagnostic");
+    nested.response = {
+      status: 500,
+      statusText: "Internal Server Error",
+      data: { error: { message: "database password=secret" } },
+      headers: {},
+      config: baseConfig(),
+    };
+    expect(getApiErrorMessage(nested, "Safe fallback")).toBe("Safe fallback");
+  });
+
+  it("does not use arbitrary client Error text when the response has no safe message", () => {
+    const error = new Error("internal stack marker");
+
+    expect(getApiErrorDetails(error, "Safe fallback")).toEqual({
+      code: "UNKNOWN_ERROR",
+      message: "Safe fallback",
+      requestId: undefined,
+    });
+  });
+
+  describe("coordinated rollout rollback", () => {
+    it("restores the prior compatible contract across backend and frontend as one change set", () => {
+      const auditLog = { create: vi.fn() };
+      const rolloutResponse = toPublicError(
+        classifyPublicError(new Error("ROLLBACK-SENSITIVE-DIAGNOSTIC")),
+        "rollback-request-42",
+      );
+
+      const rolloutClientView = getApiErrorDetails(
+        new AxiosError("client-side diagnostic", "ERR_BAD_RESPONSE", baseConfig(), {}, {
+          status: 500,
+          statusText: "Internal Server Error",
+          data: rolloutResponse,
+          headers: {},
+          config: baseConfig(),
+        }),
+        "Safe fallback",
+      );
+      expect(rolloutClientView).toEqual({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Internal server error",
+        requestId: "rollback-request-42",
+      });
+      expect(JSON.stringify(rolloutClientView)).not.toContain(
+        "ROLLBACK-SENSITIVE-DIAGNOSTIC",
+      );
+
+      const priorCompatibleResponse = {
+        statusCode: 500,
+        message: "The server could not complete the request",
+        error: "Internal Server Error",
+      };
+      const rolledBackClientView = getApiErrorDetails(
+        new AxiosError("client-side diagnostic", "ERR_BAD_RESPONSE", baseConfig(), {}, {
+          status: 500,
+          statusText: "Internal Server Error",
+          data: priorCompatibleResponse,
+          headers: {},
+          config: baseConfig(),
+        }),
+        "Safe fallback",
+      );
+
+      expect(rolledBackClientView).toEqual({
+        code: "UNKNOWN_ERROR",
+        message: "The server could not complete the request",
+        requestId: undefined,
+      });
+      expect(auditLog.create).not.toHaveBeenCalled();
+    });
+
+    it("keeps the prior client fallback safe when rollback receives legacy diagnostic fields", () => {
+      const rolledBackClientView = getApiErrorDetails(
+        new AxiosError("client-side diagnostic", "ERR_BAD_RESPONSE", baseConfig(), {}, {
+          status: 500,
+          statusText: "Internal Server Error",
+          data: {
+            statusCode: 500,
+            message: "The server could not complete the request",
+            error: { message: "ROLLBACK-SENSITIVE-DIAGNOSTIC", stack: "private stack" },
+            details: "ROLLBACK-SENSITIVE-DIAGNOSTIC",
+          },
+          headers: {},
+          config: baseConfig(),
+        }),
+        "Safe fallback",
+      );
+
+      expect(rolledBackClientView.message).toBe(
+        "The server could not complete the request",
+      );
+      expect(JSON.stringify(rolledBackClientView)).not.toContain(
+        "ROLLBACK-SENSITIVE-DIAGNOSTIC",
+      );
     });
   });
 });
