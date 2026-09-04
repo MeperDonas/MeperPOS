@@ -1,7 +1,7 @@
 import { PrismaClient, Prisma, OrgRole, PlanType, OrgStatus, BillingStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { faker } from '@faker-js/faker';
-import { DEFAULT_EXPENSE_CATEGORY_NAMES } from '../src/expenses/default-expense-categories';
+import { DEFAULT_EXPENSE_TAXONOMY } from '../src/expenses/default-expense-categories';
 
 const prisma = new PrismaClient();
 
@@ -353,17 +353,24 @@ async function createDemoSales(
   });
 }
 
-async function createDemoExpenseCategories(orgId: string): Promise<number> {
-  const result = await prisma.expenseCategory.createMany({
-    data: DEFAULT_EXPENSE_CATEGORY_NAMES.map((name) => ({
-      name,
-      organizationId: orgId,
-    })),
-    skipDuplicates: true,
-  });
+async function createDemoExpenseTaxonomy(orgId: string): Promise<void> {
+  for (const [groupName, labelNames] of Object.entries(DEFAULT_EXPENSE_TAXONOMY)) {
+    const group = await prisma.expenseGroup.upsert({
+      where: { organizationId_name: { organizationId: orgId, name: groupName } },
+      update: { active: true },
+      create: { name: groupName, organizationId: orgId },
+    });
 
-  console.log(`  🏷️  ${result.count} categorías de salidas creadas`);
-  return result.count;
+    for (const labelName of labelNames) {
+      await prisma.expenseLabel.upsert({
+        where: { groupId_name: { groupId: group.id, name: labelName } },
+        update: { active: true, organizationId: orgId },
+        create: { name: labelName, groupId: group.id, organizationId: orgId },
+      });
+    }
+  }
+
+  console.log('  🏷️  Taxonomía de salidas creada');
 }
 
 async function seedDemoOrganization(
@@ -385,7 +392,7 @@ async function seedDemoOrganization(
   const categoryIds = await createDemoCategories(orgId, categoryCount);
 
   // Categorías de salidas
-  await createDemoExpenseCategories(orgId);
+  await createDemoExpenseTaxonomy(orgId);
 
   // Productos
   const productCount = plan === PlanType.PRO ? 30 : 20;

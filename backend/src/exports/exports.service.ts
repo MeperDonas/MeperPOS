@@ -238,7 +238,7 @@ export class ExportsService {
       where,
       take: query.limit || undefined,
       orderBy: { date: 'desc' },
-      include: { category: { select: { name: true } } },
+      include: { label: { select: { name: true, group: { select: { name: true } } } } },
     });
   }
 
@@ -384,7 +384,7 @@ export class ExportsService {
         'New Stock',
         'User',
       ],
-      expenses: ['Date', 'Category', 'Description', 'Total', 'Status'],
+      expenses: ['Date', 'Group', 'Label', 'Description', 'Total', 'Status'],
       economic: ['Section', 'Metric', 'Value'],
     };
     return headers[type] || [];
@@ -404,7 +404,8 @@ export class ExportsService {
       products: (item) => [
         item.name,
         item.sku,
-        item.category?.name || 'N/A',
+        item.label?.group?.name || 'N/A',
+        item.label?.name || 'N/A',
         Number(item.salePrice).toFixed(2),
         Number(item.costPrice).toFixed(2),
         item.stock,
@@ -431,7 +432,8 @@ export class ExportsService {
       ],
       expenses: (item) => [
         new Date(item.date).toLocaleDateString(),
-        item.category?.name || 'N/A',
+        item.label?.group?.name || 'N/A',
+        item.label?.name || 'N/A',
         item.description || 'N/A',
         Number(item.total).toFixed(2),
         item.status,
@@ -447,7 +449,7 @@ export class ExportsService {
       products: [50, 25, 25, 20, 20, 15, 15],
       customers: [35, 25, 25, 30, 25, 20, 30, 28],
       inventory: [25, 40, 25, 15, 20, 20, 25],
-      expenses: [25, 40, 40, 20, 20],
+      expenses: [25, 30, 30, 40, 20, 20],
       economic: [30, 40, 30],
     };
     return widths[type] || [];

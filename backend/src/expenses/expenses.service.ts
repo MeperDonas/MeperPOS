@@ -38,15 +38,16 @@ export class ExpensesService {
     return organizationId;
   }
 
-  private async assertCategoryInOrganization(
-    categoryId: string,
+  private async assertLabelInOrganization(
+    labelId: string,
     organizationId: string,
   ): Promise<void> {
-    const category = await this.prisma.expenseCategory.findFirst({
-      where: { id: categoryId, organizationId },
+    const label = await this.prisma.expenseLabel.findFirst({
+      where: { id: labelId, organizationId, active: true },
+      include: { group: { select: { organizationId: true, active: true } } },
     });
-    if (!category) {
-      throw new NotFoundException('Categoría de salidas no encontrada');
+    if (!label || !label.active || !label.group.active || label.group.organizationId !== organizationId) {
+      throw new NotFoundException('Expense label not found');
     }
   }
 
@@ -88,7 +89,7 @@ export class ExpensesService {
   ) {
     const orgId = this.requireOrganizationId(organizationId);
 
-    await this.assertCategoryInOrganization(dto.categoryId, orgId);
+    await this.assertLabelInOrganization(dto.labelId, orgId);
     if (dto.supplierId) {
       await this.assertSupplierInOrganization(dto.supplierId, orgId);
     }
@@ -121,7 +122,7 @@ export class ExpensesService {
       const expense = await tx.expense.create({
         data: {
           organizationId: orgId,
-          categoryId: dto.categoryId,
+          labelId: dto.labelId,
           supplierId: dto.supplierId ?? null,
           purchaseOrderId: dto.purchaseOrderId ?? null,
           description: dto.description ?? null,
@@ -138,7 +139,7 @@ export class ExpensesService {
             })),
           },
         },
-        include: { payments: true, category: true, supplier: true },
+        include: { payments: true, label: { include: { group: true } }, supplier: true },
       });
 
       await tx.auditLog.create({
@@ -182,8 +183,8 @@ export class ExpensesService {
       const { start, end } = parseBogotaMonthRange(query.month);
       where.date = { gte: start, lte: end };
     }
-    if (query.categoryId) {
-      where.categoryId = query.categoryId;
+    if (query.labelId) {
+      where.labelId = query.labelId;
     }
     if (query.supplierId) {
       where.supplierId = query.supplierId;
@@ -203,7 +204,7 @@ export class ExpensesService {
         skip,
         take: limit,
         orderBy: { date: 'desc' },
-        include: { category: true, supplier: true, payments: true },
+        include: { label: { include: { group: true } }, supplier: true, payments: true },
       }),
       this.prisma.expense.count({ where }),
     ]);
@@ -224,7 +225,7 @@ export class ExpensesService {
     const { start, end } = parseBogotaMonthRange(month);
 
     const grouped = await this.prisma.expense.groupBy({
-      by: ['categoryId'],
+      by: ['labelId'],
       where: {
         organizationId: orgId,
         active: true,
@@ -233,29 +234,33 @@ export class ExpensesService {
       _sum: { total: true },
     });
 
-    const categories = await this.prisma.expenseCategory.findMany({
-      where: { id: { in: grouped.map((row) => row.categoryId) } },
-      select: { id: true, name: true },
+    const categories = await this.prisma.expenseLabel.findMany({
+      where: { id: { in: grouped.map((row) => row.labelId) } },
+      select: { id: true, name: true, groupId: true, group: { select: { id: true, name: true } } },
     });
 
-    const namesById = new Map(
-      categories.map((category) => [category.id, category.name]),
+    const labelsById = new Map(
+      categories.map((label) => [label.id, label]),
     );
 
-    const rows = grouped
-      .map((row) => ({
-        categoryId: row.categoryId,
-        name: namesById.get(row.categoryId) ?? 'Sin categoría',
-        total: row._sum.total ?? new Prisma.Decimal(0),
-      }))
-      .sort((a, b) => b.total.comparedTo(a.total));
+    const groups = new Map<string, { groupId: string; name: string; total: Prisma.Decimal; labels: Array<{ labelId: string; name: string; total: Prisma.Decimal }> }>();
+    for (const row of grouped) {
+      const label = labelsById.get(row.labelId);
+      if (!label) continue;
+      const amount = row._sum.total ?? new Prisma.Decimal(0);
+      const current = groups.get(label.group.id) ?? { groupId: label.group.id, name: label.group.name, total: new Prisma.Decimal(0), labels: [] };
+      current.total = current.total.add(amount);
+      current.labels.push({ labelId: label.id, name: label.name, total: amount });
+      groups.set(label.group.id, current);
+    }
+    const rows = [...groups.values()].map((group) => ({ ...group, labels: group.labels.sort((a, b) => b.total.comparedTo(a.total) || a.name.localeCompare(b.name) || a.labelId.localeCompare(b.labelId)) })).sort((a, b) => b.total.comparedTo(a.total) || a.name.localeCompare(b.name) || a.groupId.localeCompare(b.groupId));
 
     const total = rows.reduce(
       (sum, row) => sum.add(row.total),
       new Prisma.Decimal(0),
     );
 
-    return { month, total, categories: rows };
+    return { month, total, groups: rows };
   }
 
   async findForReports(
@@ -269,7 +274,7 @@ export class ExpensesService {
         active: true,
         date: { gte: start, lte: end },
       },
-      select: { total: true, purchaseOrderId: true },
+      select: { total: true, purchaseOrderId: true, label: { select: { name: true, group: { select: { name: true } } } } },
     });
   }
 
@@ -279,7 +284,7 @@ export class ExpensesService {
     const expense = await this.prisma.expense.findFirst({
       where: { id, organizationId: orgId },
       include: {
-        category: true,
+        label: { include: { group: true } },
         supplier: true,
         purchaseOrder: true,
         payments: { orderBy: { date: 'asc' } },
@@ -310,8 +315,8 @@ export class ExpensesService {
       throw new NotFoundException('Salida no encontrada');
     }
 
-    if (dto.categoryId) {
-      await this.assertCategoryInOrganization(dto.categoryId, orgId);
+    if (dto.labelId) {
+      await this.assertLabelInOrganization(dto.labelId, orgId);
     }
     if (dto.supplierId) {
       await this.assertSupplierInOrganization(dto.supplierId, orgId);
@@ -336,7 +341,7 @@ export class ExpensesService {
       const updated = await tx.expense.update({
         where: { id },
         data: {
-          ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
+          ...(dto.labelId !== undefined && { labelId: dto.labelId }),
           ...(dto.supplierId !== undefined && { supplierId: dto.supplierId }),
           ...(dto.purchaseOrderId !== undefined && {
             purchaseOrderId: dto.purchaseOrderId,
@@ -348,7 +353,7 @@ export class ExpensesService {
           ...(dto.total !== undefined && { total: newTotal }),
           status,
         },
-        include: { category: true, supplier: true, payments: true },
+        include: { label: { include: { group: true } }, supplier: true, payments: true },
       });
 
       await tx.auditLog.create({
@@ -429,7 +434,7 @@ export class ExpensesService {
       const updated = await tx.expense.update({
         where: { id },
         data: { status },
-        include: { category: true, supplier: true, payments: true },
+        include: { label: { include: { group: true } }, supplier: true, payments: true },
       });
 
       await tx.auditLog.create({
@@ -498,7 +503,7 @@ export class ExpensesService {
       const duplicated = await tx.expense.create({
         data: {
           organizationId: orgId,
-          categoryId: existing.categoryId,
+          labelId: existing.labelId,
           supplierId: existing.supplierId,
           purchaseOrderId: existing.purchaseOrderId,
           description: existing.description,
@@ -515,7 +520,7 @@ export class ExpensesService {
             })),
           },
         },
-        include: { payments: true, category: true, supplier: true },
+        include: { payments: true, label: { include: { group: true } }, supplier: true },
       });
 
       await tx.auditLog.create({
@@ -591,7 +596,7 @@ export class ExpensesService {
       const updated = await tx.expense.update({
         where: { id },
         data: { receiptUrl },
-        include: { category: true, supplier: true, payments: true },
+        include: { label: { include: { group: true } }, supplier: true, payments: true },
       });
 
       await tx.auditLog.create({

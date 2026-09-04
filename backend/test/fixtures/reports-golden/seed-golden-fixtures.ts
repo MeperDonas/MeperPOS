@@ -90,7 +90,8 @@ export async function seedGoldenFixtures(
   await prisma.product.deleteMany({ where: { organizationId: orgId } });
   await prisma.customer.deleteMany({ where: { organizationId: orgId } });
   await prisma.category.deleteMany({ where: { organizationId: orgId } });
-  await prisma.expenseCategory.deleteMany({ where: { organizationId: orgId } });
+  await prisma.expenseLabel.deleteMany({ where: { organizationId: orgId } });
+  await prisma.expenseGroup.deleteMany({ where: { organizationId: orgId } });
   // Fixture users are namespaced by email; sales/expenses referencing them
   // were just deleted (remaining references are SetNull/cascade).
   await prisma.user.deleteMany({
@@ -429,11 +430,15 @@ export async function seedGoldenFixtures(
   });
 
   // ── Expenses + payments (cash-flow expense side) ───────────────────────────
-  const expenseCategory = await prisma.expenseCategory.create({
+  const expenseGroup = await prisma.expenseGroup.create({
+    data: { id: id(33), organizationId: orgId, name: 'Golden Servicios', active: true },
+  });
+  const expenseLabel = await prisma.expenseLabel.create({
     data: {
-      id: id(33),
+      id: id(39),
       organizationId: orgId,
-      name: 'Golden Servicios',
+      groupId: expenseGroup.id,
+      name: 'Servicios',
       active: true,
     },
   });
@@ -442,7 +447,7 @@ export async function seedGoldenFixtures(
     data: {
       id: id(34),
       organizationId: orgId,
-      categoryId: expenseCategory.id,
+      labelId: expenseLabel.id,
       description: 'Golden fixture expense one',
       date: T_E1,
       total: 200000,
@@ -454,7 +459,7 @@ export async function seedGoldenFixtures(
     data: {
       id: id(35),
       organizationId: orgId,
-      categoryId: expenseCategory.id,
+      labelId: expenseLabel.id,
       description: 'Golden fixture expense two',
       date: T_E2,
       total: 50000,

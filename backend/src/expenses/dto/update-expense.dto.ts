@@ -10,10 +10,10 @@ import {
 } from 'class-validator';
 
 export class UpdateExpenseDto {
-  @ApiPropertyOptional({ example: 'uuid-category-id' })
+  @ApiPropertyOptional({ example: 'uuid-label-id' })
   @IsOptional()
   @IsUUID()
-  categoryId?: string;
+  labelId?: string;
 
   @ApiPropertyOptional({ example: 'uuid-supplier-id', nullable: true })
   @IsOptional()
