@@ -13,11 +13,14 @@ const { exportDataMock } = vi.hoisted(() => ({ exportDataMock: vi.fn() }));
 
 const useExpensesMock = vi.fn();
 const useExpenseSummaryMock = vi.fn();
-const useExpenseCategoriesMock = vi.fn();
+const useExpenseGroupsMock = vi.fn();
 const useSuppliersMock = vi.fn();
 const deleteMutateAsyncMock = vi.fn();
 const duplicateMutateAsyncMock = vi.fn();
 const uploadReceiptMutateAsyncMock = vi.fn();
+const { taxonomyMutationMock } = vi.hoisted(() => ({
+  taxonomyMutationMock: () => ({ mutateAsync: vi.fn() }),
+}));
 const toastSuccessMock = vi.fn();
 const toastErrorMock = vi.fn();
 
@@ -28,7 +31,13 @@ vi.mock("@/components/layout/DashboardLayout", () => ({
 vi.mock("@/hooks/useExpenses", () => ({
   useExpenses: (params?: unknown) => useExpensesMock(params),
   useExpenseSummary: (month?: string) => useExpenseSummaryMock(month),
-  useExpenseCategories: () => useExpenseCategoriesMock(),
+  useExpenseGroups: () => useExpenseGroupsMock(),
+  useCreateExpenseGroup: taxonomyMutationMock,
+  useUpdateExpenseGroup: taxonomyMutationMock,
+  useDeleteExpenseGroup: taxonomyMutationMock,
+  useCreateExpenseLabel: taxonomyMutationMock,
+  useUpdateExpenseLabel: taxonomyMutationMock,
+  useDeleteExpenseLabel: taxonomyMutationMock,
   useDeleteExpense: () => ({ mutateAsync: deleteMutateAsyncMock }),
   useDuplicateExpense: () => ({ mutateAsync: duplicateMutateAsyncMock }),
   useUploadExpenseReceipt: () => ({ mutateAsync: uploadReceiptMutateAsyncMock }),
@@ -62,6 +71,10 @@ vi.mock("@/contexts/ToastContext", () => ({
   }),
 }));
 
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ user: { role: "CASHIER" } }),
+}));
+
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
   return {
@@ -77,14 +90,23 @@ import ExpensesPage from "./page";
 const expenseFixture = {
   id: "exp-1",
   organizationId: "org-1",
-  categoryId: "cat-1",
-  category: {
-    id: "cat-1",
+  labelId: "label-1",
+  label: {
+    id: "label-1",
     organizationId: "org-1",
+    groupId: "group-1",
     name: "Arriendo",
     active: true,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
+    group: {
+      id: "group-1",
+      organizationId: "org-1",
+      name: "Gastos del local",
+      active: true,
+      createdAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-08-01T00:00:00.000Z",
+    },
   },
   supplierId: null,
   purchaseOrderId: null,
@@ -140,9 +162,9 @@ describe("Expenses page evidence", () => {
       data: {
         month: "2026-08",
         total: "800000",
-        categories: [
-          { categoryId: "cat-1", name: "Arriendo", total: "500000" },
-          { categoryId: "cat-2", name: "Caja menor", total: "300000" },
+        groups: [
+          { groupId: "group-1", name: "Gastos del local", total: "500000", labels: [{ labelId: "label-1", name: "Arriendo", total: "500000" }] },
+          { groupId: "group-2", name: "Caja menor", total: "300000", labels: [{ labelId: "label-2", name: "Compras menores", total: "300000" }] },
         ],
       },
       isLoading: false,
@@ -156,15 +178,16 @@ describe("Expenses page evidence", () => {
       isLoading: false,
     });
 
-    useExpenseCategoriesMock.mockReturnValue({
+    useExpenseGroupsMock.mockReturnValue({
       data: [
         {
-          id: "cat-1",
+          id: "group-1",
           organizationId: "org-1",
-          name: "Arriendo",
+          name: "Gastos del local",
           active: true,
           createdAt: "2026-08-01T00:00:00.000Z",
           updatedAt: "2026-08-01T00:00:00.000Z",
+          labels: [{ id: "label-1", organizationId: "org-1", groupId: "group-1", name: "Arriendo", active: true, createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z" }],
         },
       ],
       isLoading: false,
@@ -182,7 +205,7 @@ describe("Expenses page evidence", () => {
 
     expect(screen.getByText("Total del Mes")).toBeTruthy();
     expect(screen.getByText(/800\.000/)).toBeTruthy();
-    expect(screen.getAllByText("Arriendo").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Arriendo/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Caja menor")).toBeTruthy();
     expect(useExpenseSummaryMock).toHaveBeenCalledWith(CURRENT_MONTH);
   });

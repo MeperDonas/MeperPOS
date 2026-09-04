@@ -5,7 +5,8 @@ import { api } from "@/lib/api";
 import type {
   Expense,
   ExpenseAuditEntry,
-  ExpenseCategory,
+  ExpenseGroup,
+  ExpenseLabel,
   ExpenseMonthlySummary,
   ExpenseQueryParams,
   PaginatedResponse,
@@ -18,7 +19,7 @@ export interface ExpensePaymentPayload {
 }
 
 export interface CreateExpensePayload {
-  categoryId: string;
+  labelId: string;
   supplierId?: string;
   purchaseOrderId?: string;
   description?: string;
@@ -28,7 +29,7 @@ export interface CreateExpensePayload {
 }
 
 export interface UpdateExpensePayload {
-  categoryId?: string;
+  labelId?: string;
   supplierId?: string | null;
   purchaseOrderId?: string | null;
   description?: string | null;
@@ -36,8 +37,14 @@ export interface UpdateExpensePayload {
   total?: number;
 }
 
-export interface ExpenseCategoryPayload {
+export interface ExpenseTaxonomyPayload {
   name: string;
+}
+
+function invalidateExpenseData(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: ["expense-groups"] });
+  void queryClient.invalidateQueries({ queryKey: ["expenses"] });
+  void queryClient.invalidateQueries({ queryKey: ["expenses", "summary"] });
 }
 
 export function useExpenses(params?: ExpenseQueryParams) {
@@ -80,13 +87,11 @@ export function useExpenseHistory(id: string) {
   });
 }
 
-export function useExpenseCategories() {
+export function useExpenseGroups() {
   return useQuery({
-    queryKey: ["expense-categories"],
+    queryKey: ["expense-groups"],
     queryFn: () =>
-      api
-        .get<ExpenseCategory[]>("/expense-categories")
-        .then((res) => res.data),
+      api.get<ExpenseGroup[]>("/expense-groups").then((res) => res.data),
   });
 }
 
@@ -96,7 +101,7 @@ export function useCreateExpense() {
     mutationFn: (data: CreateExpensePayload) =>
       api.post<Expense>("/expenses", data).then((res) => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      invalidateExpenseData(queryClient);
     },
   });
 }
@@ -107,7 +112,7 @@ export function useUpdateExpense() {
     mutationFn: ({ id, data }: { id: string; data: UpdateExpensePayload }) =>
       api.patch<Expense>(`/expenses/${id}`, data).then((res) => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      invalidateExpenseData(queryClient);
     },
   });
 }
@@ -118,7 +123,7 @@ export function useDeleteExpense() {
     mutationFn: (id: string) =>
       api.delete<Expense>(`/expenses/${id}`).then((res) => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      invalidateExpenseData(queryClient);
     },
   });
 }
@@ -135,7 +140,7 @@ export function useAddExpensePayment() {
     }) =>
       api.post<Expense>(`/expenses/${id}/payments`, data).then((res) => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      invalidateExpenseData(queryClient);
     },
   });
 }
@@ -146,7 +151,7 @@ export function useDuplicateExpense() {
     mutationFn: (id: string) =>
       api.post<Expense>(`/expenses/${id}/duplicate`).then((res) => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      invalidateExpenseData(queryClient);
     },
   });
 }
@@ -157,46 +162,67 @@ export function useUploadExpenseReceipt() {
     mutationFn: ({ id, file }: { id: string; file: File }) =>
       api.upload<Expense>(`/expenses/${id}/upload`, file).then((res) => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      invalidateExpenseData(queryClient);
     },
   });
 }
 
-export function useCreateExpenseCategory() {
+export function useCreateExpenseGroup() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: ExpenseCategoryPayload) =>
-      api
-        .post<ExpenseCategory>("/expense-categories", data)
-        .then((res) => res.data),
+    mutationFn: (data: ExpenseTaxonomyPayload) =>
+      api.post<ExpenseGroup>("/expense-groups", data).then((res) => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
+      invalidateExpenseData(queryClient);
     },
   });
 }
 
-export function useUpdateExpenseCategory() {
+export function useUpdateExpenseGroup() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ExpenseCategoryPayload }) =>
-      api
-        .patch<ExpenseCategory>(`/expense-categories/${id}`, data)
-        .then((res) => res.data),
+    mutationFn: ({ id, data }: { id: string; data: ExpenseTaxonomyPayload }) =>
+      api.patch<ExpenseGroup>(`/expense-groups/${id}`, data).then((res) => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
+      invalidateExpenseData(queryClient);
     },
   });
 }
 
-export function useDeleteExpenseCategory() {
+export function useDeleteExpenseGroup() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      api
-        .delete<ExpenseCategory>(`/expense-categories/${id}`)
-        .then((res) => res.data),
+      api.delete<ExpenseGroup>(`/expense-groups/${id}`).then((res) => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
+      invalidateExpenseData(queryClient);
     },
+  });
+}
+
+export function useCreateExpenseLabel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, data }: { groupId: string; data: ExpenseTaxonomyPayload }) =>
+      api.post<ExpenseLabel>(`/expense-groups/${groupId}/labels`, data).then((res) => res.data),
+    onSuccess: () => invalidateExpenseData(queryClient),
+  });
+}
+
+export function useUpdateExpenseLabel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, id, data }: { groupId: string; id: string; data: ExpenseTaxonomyPayload }) =>
+      api.patch<ExpenseLabel>(`/expense-groups/${groupId}/labels/${id}`, data).then((res) => res.data),
+    onSuccess: () => invalidateExpenseData(queryClient),
+  });
+}
+
+export function useDeleteExpenseLabel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, id }: { groupId: string; id: string }) =>
+      api.delete<ExpenseLabel>(`/expense-groups/${groupId}/labels/${id}`).then((res) => res.data),
+    onSuccess: () => invalidateExpenseData(queryClient),
   });
 }

@@ -118,6 +118,19 @@ Roles: `OWNER`, `ADMIN`, `MEMBER`, `CASHIER`, `INVENTORY_USER` (org roles), `SUP
 | /api/expenses/:id/upload | POST | ADMIN | org-scoped | backend/src/expenses/expenses.service.int.spec.ts |
 | /api/expenses/:id | DELETE | ADMIN | org-scoped | backend/src/expenses/expenses.service.int.spec.ts |
 
+## expense-groups
+
+| Route | Method | Role(s) | Org-scope | Test reference |
+|---|---|---|---|---|
+| /api/expense-groups | GET | ADMIN | org-scoped | backend/src/expenses/expense-taxonomy.controller.spec.ts |
+| /api/expense-groups | POST | ADMIN | org-scoped | backend/src/expenses/expense-taxonomy.controller.spec.ts |
+| /api/expense-groups/:id | PATCH | ADMIN | org-scoped | backend/src/expenses/expense-taxonomy.controller.spec.ts |
+| /api/expense-groups/:id | DELETE | ADMIN | org-scoped | backend/src/expenses/expense-taxonomy.controller.spec.ts |
+| /api/expense-groups/:groupId/labels | GET | ADMIN | org-scoped | backend/src/expenses/expense-taxonomy.controller.spec.ts |
+| /api/expense-groups/:groupId/labels | POST | ADMIN | org-scoped | backend/src/expenses/expense-taxonomy.controller.spec.ts |
+| /api/expense-groups/:groupId/labels/:id | PATCH | ADMIN | org-scoped | backend/src/expenses/expense-taxonomy.controller.spec.ts |
+| /api/expense-groups/:groupId/labels/:id | DELETE | ADMIN | org-scoped | backend/src/expenses/expense-taxonomy.controller.spec.ts |
+
 ## exports
 
 | Route | Method | Role(s) | Org-scope | Test reference |
@@ -268,3 +281,12 @@ guarantees the header, so residual exposure is the superadmin-without-header pat
 
 Routed to the design owner for a follow-up inside the auth work (issue #48 slice C) or a dedicated
 micro-PR (issue #47).
+
+## Issue #134 final regression evidence
+
+- Backend: 88 suites and 859 tests passed.
+- Frontend: 71 files and 398 tests passed.
+- Database migration status was up to date.
+- Rollback is performed by restoring a database snapshot; no reverse migration is provided.
+- The earlier timeout in `frontend/src/app/tasks/page.evidence.test.tsx` was pre-existing and passed
+  when run in isolation.
