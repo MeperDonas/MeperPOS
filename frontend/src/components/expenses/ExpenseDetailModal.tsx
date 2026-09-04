@@ -75,7 +75,10 @@ export function ExpenseDetailModal({ expense, isOpen, onClose }: Props) {
 
             {/* Grid Details */}
             <div className="grid grid-cols-2 gap-2.5">
-              <InfoItem label="Categoría" value={expense.category?.name ?? "—"} />
+              <InfoItem
+                label="Grupo / etiqueta"
+                value={expense.label?.group?.name ? `${expense.label.group.name} / ${expense.label.name}` : expense.label?.name ?? "—"}
+              />
               <InfoItem label="Proveedor" value={expense.supplier?.name ?? "—"} />
               <InfoItem
                 label="Orden de Compra"
