@@ -64,6 +64,18 @@ describe('ExportsService', () => {
     );
   });
 
+  it('exports expense group and label columns', async () => {
+    prismaMock.expense.findMany.mockResolvedValue([{
+      date: '2026-08-15', label: { name: 'Arriendo', group: { name: 'Gastos del local' } },
+      description: 'Office', total: new Prisma.Decimal(100), status: 'PAID',
+    }]);
+    await service.exportExpenses(ORG_ID, { format: 'csv', type: 'expenses' } as ExportQueryDto, buildResMock());
+    expect(csv.write).toHaveBeenCalledWith(expect.arrayContaining([
+      ['Date', 'Group', 'Label', 'Description', 'Total', 'Status'],
+      expect.arrayContaining(['Gastos del local', 'Arriendo', 'Office', '100.00', 'PAID']),
+    ]), { headers: false });
+  });
+
   it('exportSales filters by organizationId', async () => {
     prismaMock.sale.findMany.mockResolvedValue([]);
     const res = {
@@ -278,17 +290,17 @@ describe('ExportsService', () => {
           },
         },
         orderBy: { date: 'desc' },
-        include: { category: { select: { name: true } } },
+        include: { label: { select: { name: true, group: { select: { name: true } } } } },
       }),
     );
   });
 
-  it('exportExpenses writes CSV headers and rows with date, category, description, total and status', async () => {
+  it('exportExpenses writes CSV headers and rows with date, group, label, description, total and status', async () => {
     const expenseDate = new Date('2026-08-15T00:00:00.000Z');
     prismaMock.expense.findMany.mockResolvedValue([
       {
         date: expenseDate,
-        category: { name: 'Arriendo' },
+        label: { name: 'Arriendo', group: { name: 'Gastos del local' } },
         description: 'Arriendo agosto',
         total: new Prisma.Decimal(500000),
         status: 'PAID',
@@ -303,10 +315,11 @@ describe('ExportsService', () => {
 
     expect(csv.write).toHaveBeenCalledWith(
       [
-        ['Date', 'Category', 'Description', 'Total', 'Status'],
+          ['Date', 'Group', 'Label', 'Description', 'Total', 'Status'],
         [
           expenseDate.toLocaleDateString(),
-          'Arriendo',
+            'Gastos del local',
+            'Arriendo',
           'Arriendo agosto',
           '500000.00',
           'PAID',
@@ -326,7 +339,7 @@ describe('ExportsService', () => {
     );
 
     expect(csv.write).toHaveBeenCalledWith(
-      [['Date', 'Category', 'Description', 'Total', 'Status']],
+      [['Date', 'Group', 'Label', 'Description', 'Total', 'Status']],
       { headers: false },
     );
   });

@@ -16,7 +16,7 @@ import { UpdateOrganizationPlanDto } from './dto/update-organization-plan.dto';
 import { OrgRole, OrgStatus, PlanType, Prisma } from '@prisma/client';
 import { PlanLimitService } from '../plan-limits/plan-limits.service';
 import { PLAN_LIMITS, LimitType } from '../plan-limits/plan-limits.constants';
-import { DEFAULT_EXPENSE_CATEGORY_NAMES } from '../expenses/default-expense-categories';
+import { DEFAULT_EXPENSE_TAXONOMY } from '../expenses/default-expense-categories';
 import { applySystemKeys } from '../settings/settings.service';
 
 @Injectable()
@@ -108,12 +108,14 @@ export class AdminService {
         },
       });
 
-      await tx.expenseCategory.createMany({
-        data: DEFAULT_EXPENSE_CATEGORY_NAMES.map((name) => ({
-          name,
-          organizationId: organization.id,
-        })),
-      });
+      for (const [groupName, labels] of Object.entries(DEFAULT_EXPENSE_TAXONOMY)) {
+        const group = await tx.expenseGroup.create({
+          data: { name: groupName, organizationId: organization.id },
+        });
+        await tx.expenseLabel.createMany({
+          data: labels.map((name) => ({ name, groupId: group.id, organizationId: organization.id })),
+        });
+      }
 
       return {
         organization,
