@@ -4,12 +4,15 @@ import {
   Injectable,
   NotFoundException,
   OnModuleDestroy,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { Prisma, type Category } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProductsService } from '../products/products.service';
+import { PUBLIC_IMPORT_MESSAGES } from '../common/errors/public-error.model';
+import { recordProtectedDiagnostic } from '../common/errors/protected-diagnostics';
 import type { RetryImportRowDto } from './dto/import.dto';
 import type {
   SheetId,
@@ -93,6 +96,7 @@ interface ImportJobInternal {
   seenSkusInFileLower: Set<string>;
   seenBarcodesInFileLower: Set<string>;
   categoriesByNormalizedName: Map<string, Category>;
+  correlationId: string;
 }
 
 const MAX_FILE_ROWS = 5000;
@@ -138,6 +142,7 @@ export class ImportsService implements OnModuleDestroy {
     file: Express.Multer.File,
     userId: string,
     organizationId: string | undefined,
+    correlationId: string = randomUUID(),
   ) {
     if (!organizationId) {
       throw new BadRequestException(
@@ -146,7 +151,16 @@ export class ImportsService implements OnModuleDestroy {
     }
     this.validateIncomingFile(file);
 
-    const parsedFile = await this.parseFile(file);
+    let parsedFile: ParsedFilePayload;
+    try {
+      parsedFile = await this.parseFile(file);
+    } catch (error) {
+      recordProtectedDiagnostic(
+        { boundary: 'product-import-parser', requestId: correlationId },
+        error,
+      );
+      throw new UnprocessableEntityException(PUBLIC_IMPORT_MESSAGES.PARSE_FAILED);
+    }
 
     if (parsedFile.rows.length === 0) {
       throw new BadRequestException(
@@ -211,6 +225,7 @@ export class ImportsService implements OnModuleDestroy {
           category,
         ]),
       ),
+      correlationId,
     };
 
     this.jobs.set(job.id, job);
@@ -221,8 +236,6 @@ export class ImportsService implements OnModuleDestroy {
     return {
       jobId: job.id,
       totalRows: job.totalRows,
-      detectedColumns: detection.detectedColumns,
-      columnMapping: detection.mapping,
     };
   }
 
@@ -321,6 +334,10 @@ export class ImportsService implements OnModuleDestroy {
       );
       return this.buildStatusResponse(job);
     } catch (error) {
+      recordProtectedDiagnostic(
+        { boundary: 'product-import-retry', jobId: job.id, row: dto.rowIndex },
+        error,
+      );
       const mappedError = this.mapProductCreationError(
         error,
         dto.rowIndex,
@@ -431,13 +448,18 @@ export class ImportsService implements OnModuleDestroy {
       job.completedAt = new Date();
       this.addEvent(job, 'INFO', 'Importacion finalizada', rows.length + 1);
     } catch (error) {
+      recordProtectedDiagnostic(
+        { boundary: 'product-import-job', jobId: job.id },
+        error,
+      );
       job.status = 'FAILED';
       job.completedAt = new Date();
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Error inesperado durante la importacion';
-      this.addEvent(job, 'ERROR', message, rows.length + 1);
+      this.addEvent(
+        job,
+        'ERROR',
+        PUBLIC_IMPORT_MESSAGES.JOB_FAILED,
+        rows.length + 1,
+      );
     }
   }
 
@@ -547,6 +569,10 @@ export class ImportsService implements OnModuleDestroy {
         });
       }
     } catch (error) {
+      recordProtectedDiagnostic(
+        { boundary: 'product-import-row', jobId: job.id, row: row.rowIndex },
+        error,
+      );
       const mappedError = this.mapProductCreationError(
         error,
         row.rowIndex,
@@ -858,14 +884,9 @@ export class ImportsService implements OnModuleDestroy {
       }
     }
 
-    const defaultMessage =
-      error instanceof Error
-        ? error.message
-        : `Error inesperado al importar la fila ${rowIndex}`;
-
     return {
-      code: 'IMPORT_FAILURE',
-      message: defaultMessage,
+      code: 'IMPORT_ROW_FAILED',
+      message: PUBLIC_IMPORT_MESSAGES.ROW_FAILED,
       mappedData,
     };
   }
@@ -953,31 +974,73 @@ export class ImportsService implements OnModuleDestroy {
       skipped: job.skippedCount,
       errors: job.errorCount,
       warnings: job.warningCount,
+      rowErrors: job.errors.map((error) => this.toPublicRowError(job, error)),
     };
 
     return {
       jobId: job.id,
       status: job.status,
-      fileName: job.fileName,
       totalRows: job.totalRows,
       processedRows: job.processedRows,
       importedCount: job.importedCount,
       skippedCount: job.skippedCount,
       errorCount: job.errorCount,
       warningCount: job.warningCount,
-      columnMapping: job.columnMapping,
-      detectedColumns: job.detectedColumns,
       sheets: [productSheet],
-      errors: job.errors,
-      warnings: job.warnings,
-      recentEvents: job.recentEvents,
-      createdCategories: job.createdCategories,
-      startedAt: job.startedAt,
-      completedAt: job.completedAt,
+      errors: job.errors.map((error) => ({
+        row: error.rowIndex,
+        sheetId: error.sheetId,
+        code: error.errorCode,
+        message: error.message,
+        ...(error.field ? { field: error.field } : {}),
+        correlationId: job.correlationId,
+        retried: error.retried,
+        ...(error.retriedSuccess !== undefined
+          ? { retriedSuccess: error.retriedSuccess }
+          : {}),
+      })),
+      warnings: job.warnings.map((warning) => ({
+        row: warning.rowIndex,
+        code: warning.warningCode,
+        message: warning.message,
+        correlationId: job.correlationId,
+      })),
+      recentEvents: job.recentEvents.map((event) => ({
+        type: event.type,
+        row: event.rowIndex,
+        code: event.type === 'ERROR' ? 'IMPORT_ROW_FAILED' : event.type,
+        message:
+          event.type === 'ERROR'
+            ? event.message
+            : event.type === 'SUCCESS'
+              ? 'Import row processed'
+              : event.type === 'WARNING'
+                ? 'Import warning'
+                : event.message === 'Importacion finalizada'
+                  ? 'Import completed'
+                  : 'Import processing started',
+        correlationId: job.correlationId,
+      })),
+      correlationId: job.correlationId,
       progress:
         job.totalRows > 0
           ? Math.min(100, Math.round((job.processedRows / job.totalRows) * 100))
           : 0,
+    };
+  }
+
+  private toPublicRowError(job: ImportJobInternal, error: ImportRowError) {
+    return {
+      row: error.rowIndex,
+      sheetId: error.sheetId,
+      code: error.errorCode,
+      message: error.message,
+      ...(error.field ? { field: error.field } : {}),
+      correlationId: job.correlationId,
+      retried: error.retried,
+      ...(error.retriedSuccess !== undefined
+        ? { retriedSuccess: error.retriedSuccess }
+        : {}),
     };
   }
 

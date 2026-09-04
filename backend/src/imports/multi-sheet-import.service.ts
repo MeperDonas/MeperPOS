@@ -21,6 +21,8 @@ import { ProductHandler } from './engine/handlers/product.handler';
 import { CustomerHandler } from './engine/handlers/customer.handler';
 import { SupplierHandler } from './engine/handlers/supplier.handler';
 import { UserHandler } from './engine/handlers/user.handler';
+import { PUBLIC_IMPORT_MESSAGES } from '../common/errors/public-error.model';
+import { recordProtectedDiagnostic } from '../common/errors/protected-diagnostics';
 import type {
   ImportRowError,
   ImportSheetHandler,
@@ -98,6 +100,7 @@ interface MultiSheetJob {
   error?: string;
   handlers: SheetRegistry;
   parsedSheets: ParsedWorkbookSheet[];
+  correlationId: string;
 }
 
 const SHEET_ORDER: SheetId[] = [
@@ -145,6 +148,7 @@ export class MultiSheetImportService implements OnModuleDestroy {
     file: Express.Multer.File,
     userId: string,
     organizationId: string | undefined,
+    correlationId: string = randomUUID(),
   ) {
     if (!organizationId) {
       throw new BadRequestException(
@@ -154,7 +158,16 @@ export class MultiSheetImportService implements OnModuleDestroy {
 
     this.validateIncomingFile(file);
 
-    const parsedSheets = await this.parseWorkbook(file.buffer);
+    let parsedSheets: ParsedWorkbookSheet[];
+    try {
+      parsedSheets = await this.parseWorkbook(file.buffer);
+    } catch (error) {
+      recordProtectedDiagnostic(
+        { boundary: 'multi-sheet-import-parser', requestId: correlationId },
+        error,
+      );
+      throw new UnprocessableEntityException(PUBLIC_IMPORT_MESSAGES.PARSE_FAILED);
+    }
     const recognized = parsedSheets.filter(
       (sheet): sheet is ParsedWorkbookSheet & { sheetId: SheetId } =>
         !!sheet.sheetId,
@@ -185,7 +198,13 @@ export class MultiSheetImportService implements OnModuleDestroy {
       );
     }
 
-    const job = this.createJob(file, userId, organizationId, parsedSheets);
+    const job = this.createJob(
+      file,
+      userId,
+      organizationId,
+      parsedSheets,
+      correlationId,
+    );
 
     void this.processJob(job.id);
 
@@ -280,6 +299,10 @@ export class MultiSheetImportService implements OnModuleDestroy {
       );
       return this.buildStatusResponse(job);
     } catch (error) {
+      recordProtectedDiagnostic(
+        { boundary: 'multi-sheet-import-retry', jobId: job.id, row: dto.rowIndex },
+        error,
+      );
       const mapped = this.mapCreationError(error, dto.rowIndex, result.data);
       this.applyRetryFailure(unresolved, mapped);
       this.addEvent(job, 'ERROR', mapped.message, dto.rowIndex);
@@ -292,6 +315,7 @@ export class MultiSheetImportService implements OnModuleDestroy {
     userId: string,
     organizationId: string,
     parsedSheets: ParsedWorkbookSheet[],
+    correlationId: string,
   ): MultiSheetJob {
     const sheets: SheetJobState[] = SHEET_ORDER.filter((sheetId) =>
       parsedSheets.some((sheet) => sheet.sheetId === sheetId),
@@ -330,6 +354,7 @@ export class MultiSheetImportService implements OnModuleDestroy {
       startedAt: new Date(),
       handlers: this.buildRegistry(),
       parsedSheets,
+      correlationId,
     };
 
     this.jobs.set(job.id, job);
@@ -360,14 +385,14 @@ export class MultiSheetImportService implements OnModuleDestroy {
       job.completedAt = new Date();
       this.addEvent(job, 'INFO', 'Importacion finalizada', 1);
     } catch (error) {
+      recordProtectedDiagnostic(
+        { boundary: 'multi-sheet-import-job', jobId: job.id },
+        error,
+      );
       job.status = 'FAILED';
       job.completedAt = new Date();
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Error inesperado durante la importacion';
-      job.error = message;
-      this.addEvent(job, 'ERROR', message, 1);
+      job.error = PUBLIC_IMPORT_MESSAGES.JOB_FAILED;
+      this.addEvent(job, 'ERROR', PUBLIC_IMPORT_MESSAGES.JOB_FAILED, 1);
     }
   }
 
@@ -472,6 +497,10 @@ export class MultiSheetImportService implements OnModuleDestroy {
         row.rowIndex,
       );
     } catch (error) {
+      recordProtectedDiagnostic(
+        { boundary: 'multi-sheet-import-row', jobId: job.id, row: row.rowIndex },
+        error,
+      );
       const mapped = this.mapCreationError(error, row.rowIndex, result.data);
       this.addRowError(job, sheet, handler, row, mapped);
     }
@@ -552,11 +581,8 @@ export class MultiSheetImportService implements OnModuleDestroy {
     }
 
     return {
-      errorCode: 'IMPORT_FAILURE',
-      message:
-        error instanceof Error
-          ? error.message
-          : `Error inesperado al importar la fila ${rowIndex}`,
+      errorCode: 'IMPORT_ROW_FAILED',
+      message: PUBLIC_IMPORT_MESSAGES.ROW_FAILED,
       mappedData,
     };
   }
@@ -588,7 +614,6 @@ export class MultiSheetImportService implements OnModuleDestroy {
     return {
       jobId: job.id,
       status: job.status,
-      fileName: job.fileName,
       totalRows: job.totalRows,
       processedRows: job.processedRows,
       importedCount: job.importedCount,
@@ -607,18 +632,52 @@ export class MultiSheetImportService implements OnModuleDestroy {
         missingRequiredFields: sheet.missingRequiredFields,
         planLimitRejected: sheet.planLimitRejected,
         planLimitMessage: sheet.planLimitMessage,
-        rowErrors: sheet.rowErrors,
+        rowErrors: sheet.rowErrors.map((error) => this.toPublicRowError(job, error)),
       })),
-      errors: job.rowErrors,
-      warnings: job.warnings,
-      recentEvents: job.recentEvents,
-      startedAt: job.startedAt,
-      completedAt: job.completedAt,
-      error: job.error,
+      errors: job.rowErrors.map((error) => this.toPublicRowError(job, error)),
+      warnings: job.warnings.map((warning) => ({
+        row: warning.rowIndex,
+        code: warning.warningCode,
+        message: warning.message,
+        correlationId: job.correlationId,
+      })),
+      recentEvents: job.recentEvents.map((event) => ({
+        type: event.type,
+        row: event.rowIndex,
+        code: event.type === 'ERROR' ? 'IMPORT_ROW_FAILED' : event.type,
+        message:
+          event.type === 'ERROR'
+            ? event.message
+            : event.type === 'SUCCESS'
+              ? 'Import row processed'
+              : event.type === 'WARNING'
+                ? 'Import warning'
+                : event.message === 'Importacion finalizada'
+                  ? 'Import completed'
+                  : 'Import processing started',
+        correlationId: job.correlationId,
+      })),
+      correlationId: job.correlationId,
       progress:
         job.totalRows > 0
           ? Math.min(100, Math.round((job.processedRows / job.totalRows) * 100))
           : 0,
+    };
+  }
+
+  private toPublicRowError(job: MultiSheetJob, error: ImportRowError) {
+    return {
+      row: error.rowIndex,
+      sheetId: error.sheetId,
+      code: error.errorCode,
+      message: error.message,
+      ...(error.field ? { field: error.field } : {}),
+      correlationId: job.correlationId,
+      editableFields: error.editableFields,
+      retried: error.retried,
+      ...(error.retriedSuccess !== undefined
+        ? { retriedSuccess: error.retriedSuccess }
+        : {}),
     };
   }
 
