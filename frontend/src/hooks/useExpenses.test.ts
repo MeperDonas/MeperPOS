@@ -6,7 +6,8 @@ import { api } from "@/lib/api";
 import type {
   Expense,
   ExpenseAuditEntry,
-  ExpenseCategory,
+  ExpenseGroup,
+  ExpenseLabel,
   ExpenseMonthlySummary,
   ExpensePayment,
   PaginatedResponse,
@@ -14,17 +15,20 @@ import type {
 import {
   useAddExpensePayment,
   useCreateExpense,
-  useCreateExpenseCategory,
+  useCreateExpenseGroup,
+  useCreateExpenseLabel,
   useDeleteExpense,
-  useDeleteExpenseCategory,
+  useDeleteExpenseGroup,
+  useDeleteExpenseLabel,
   useDuplicateExpense,
   useExpense,
-  useExpenseCategories,
+  useExpenseGroups,
   useExpenseHistory,
   useExpenses,
   useExpenseSummary,
   useUpdateExpense,
-  useUpdateExpenseCategory,
+  useUpdateExpenseGroup,
+  useUpdateExpenseLabel,
   useUploadExpenseReceipt,
 } from "./useExpenses";
 import type { CreateExpensePayload, ExpensePaymentPayload } from "./useExpenses";
@@ -49,10 +53,23 @@ type MockApi = {
 
 const apiMock = api as unknown as MockApi;
 
-function makeCategory(overrides: Partial<ExpenseCategory> = {}): ExpenseCategory {
+function makeGroup(overrides: Partial<ExpenseGroup> = {}): ExpenseGroup {
   return {
-    id: "cat-1",
+    id: "group-1",
     organizationId: "org-a",
+    name: "Gastos del local",
+    active: true,
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function makeLabel(overrides: Partial<ExpenseLabel> = {}): ExpenseLabel {
+  return {
+    id: "label-1",
+    organizationId: "org-a",
+    groupId: "group-1",
     name: "Arriendo",
     active: true,
     createdAt: "2026-08-01T00:00:00.000Z",
@@ -78,8 +95,8 @@ function makeExpense(overrides: Partial<Expense> = {}): Expense {
   return {
     id: "exp-1",
     organizationId: "org-a",
-    categoryId: "cat-1",
-    category: makeCategory(),
+    labelId: "label-1",
+    label: makeLabel(),
     supplierId: null,
     purchaseOrderId: null,
     description: "Arriendo agosto",
@@ -107,7 +124,7 @@ function makeSummary(): ExpenseMonthlySummary {
   return {
     month: "2026-08",
     total: 500000,
-    categories: [{ categoryId: "cat-1", name: "Arriendo", total: 500000 }],
+    groups: [{ groupId: "group-1", name: "Gastos del local", total: 500000, labels: [{ labelId: "label-1", name: "Arriendo", total: 500000 }] }],
   };
 }
 
@@ -210,17 +227,17 @@ describe("useExpenses", () => {
       expect(result.current.data).toEqual(entries);
     });
 
-    it("fetches the expense categories", async () => {
-      const categories = [makeCategory()];
-      apiMock.get.mockResolvedValue({ data: categories });
+    it("fetches groups with nested labels", async () => {
+      const groups = [makeGroup({ labels: [makeLabel()] })];
+      apiMock.get.mockResolvedValue({ data: groups });
 
-      const { result } = renderHook(() => useExpenseCategories(), {
+      const { result } = renderHook(() => useExpenseGroups(), {
         wrapper: wrapperWith(makeQueryClient()),
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
-      expect(apiMock.get).toHaveBeenCalledWith("/expense-categories");
-      expect(result.current.data).toEqual(categories);
+      expect(apiMock.get).toHaveBeenCalledWith("/expense-groups");
+      expect(result.current.data).toEqual(groups);
     });
   });
 
@@ -236,7 +253,7 @@ describe("useExpenses", () => {
       });
 
       const payload: CreateExpensePayload = {
-        categoryId: "cat-1",
+        labelId: "label-1",
         description: "Arriendo agosto",
         date: "2026-08-01",
         total: 500000,
@@ -335,59 +352,55 @@ describe("useExpenses", () => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["expenses"] });
     });
 
-    it("creates a category and invalidates category queries", async () => {
+    it("creates a group and invalidates taxonomy, expenses, and summary queries", async () => {
       const queryClient = makeQueryClient();
       const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
-      apiMock.post.mockResolvedValue({ data: makeCategory() });
+      apiMock.post.mockResolvedValue({ data: makeGroup() });
 
-      const { result } = renderHook(() => useCreateExpenseCategory(), {
+      const { result } = renderHook(() => useCreateExpenseGroup(), {
         wrapper: wrapperWith(queryClient),
       });
 
       await result.current.mutateAsync({ name: "Impuestos" });
 
-      expect(apiMock.post).toHaveBeenCalledWith("/expense-categories", {
+      expect(apiMock.post).toHaveBeenCalledWith("/expense-groups", {
         name: "Impuestos",
       });
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ["expense-categories"],
-      });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["expense-groups"] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["expenses"] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["expenses", "summary"] });
     });
 
-    it("updates a category and invalidates category queries", async () => {
+    it("updates a label through its group endpoint", async () => {
       const queryClient = makeQueryClient();
       const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
-      apiMock.patch.mockResolvedValue({ data: makeCategory() });
+      apiMock.patch.mockResolvedValue({ data: makeLabel() });
 
-      const { result } = renderHook(() => useUpdateExpenseCategory(), {
+      const { result } = renderHook(() => useUpdateExpenseLabel(), {
         wrapper: wrapperWith(queryClient),
       });
 
-      await result.current.mutateAsync({ id: "cat-1", data: { name: "Seguros" } });
+      await result.current.mutateAsync({ groupId: "group-1", id: "label-1", data: { name: "Servicios" } });
 
-      expect(apiMock.patch).toHaveBeenCalledWith("/expense-categories/cat-1", {
-        name: "Seguros",
+      expect(apiMock.patch).toHaveBeenCalledWith("/expense-groups/group-1/labels/label-1", {
+        name: "Servicios",
       });
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ["expense-categories"],
-      });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["expense-groups"] });
     });
 
-    it("deletes a category and invalidates category queries", async () => {
+    it("deletes a label and invalidates taxonomy queries", async () => {
       const queryClient = makeQueryClient();
       const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
-      apiMock.delete.mockResolvedValue({ data: makeCategory() });
+      apiMock.delete.mockResolvedValue({ data: makeLabel() });
 
-      const { result } = renderHook(() => useDeleteExpenseCategory(), {
+      const { result } = renderHook(() => useDeleteExpenseLabel(), {
         wrapper: wrapperWith(queryClient),
       });
 
-      await result.current.mutateAsync("cat-1");
+      await result.current.mutateAsync({ groupId: "group-1", id: "label-1" });
 
-      expect(apiMock.delete).toHaveBeenCalledWith("/expense-categories/cat-1");
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ["expense-categories"],
-      });
+      expect(apiMock.delete).toHaveBeenCalledWith("/expense-groups/group-1/labels/label-1");
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["expense-groups"] });
     });
   });
 });

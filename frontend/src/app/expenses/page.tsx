@@ -7,12 +7,13 @@ import { useSuppliers } from "@/hooks/useSuppliers";
 import {
   useDeleteExpense,
   useDuplicateExpense,
-  useExpenseCategories,
+  useExpenseGroups,
   useExpenses,
   useExpenseSummary,
   useUploadExpenseReceipt,
 } from "@/hooks/useExpenses";
 import { useToast } from "@/contexts/ToastContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { formatCurrency, formatDate, getBogotaDateInputValue } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -40,6 +41,7 @@ import {
 } from "lucide-react";
 import { chipStyles } from "@/lib/chipStyles";
 import type { Expense, ExpenseStatus } from "@/types";
+import { ExpenseTaxonomyModal } from "@/components/expenses/ExpenseTaxonomyModal";
 
 // S1 code splitting (#98): the four expense modals are heavy components used
 // only on this page; they load as separate chunks on first open and are
@@ -82,6 +84,7 @@ const STATUS_OPTIONS: Array<{ value: "" | ExpenseStatus; label: string }> = [
 
 export default function ExpensesPage() {
   const toast = useToast();
+  const { user } = useAuth();
 
   // Warm the lazily loaded modal chunks once idle (S1 code splitting).
   useEffect(
@@ -98,7 +101,7 @@ export default function ExpensesPage() {
   const [month, setMonth] = useState(() =>
     getBogotaDateInputValue().slice(0, 7),
   );
-  const [categoryId, setCategoryId] = useState("");
+  const [labelId, setLabelId] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const [status, setStatus] = useState<"" | ExpenseStatus>("");
   const [search, setSearch] = useState("");
@@ -113,15 +116,16 @@ export default function ExpensesPage() {
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [duplicateTarget, setDuplicateTarget] = useState<Expense | null>(null);
+  const [taxonomyOpen, setTaxonomyOpen] = useState(false);
 
   const { data: summary } = useExpenseSummary(month);
-  const { data: categoriesData } = useExpenseCategories();
+  const { data: groupsData } = useExpenseGroups();
   const { data: suppliersData } = useSuppliers({ limit: 200, status: "active" });
   const { data, isLoading } = useExpenses({
     page,
     limit: 15,
     month,
-    categoryId: categoryId || undefined,
+    labelId: labelId || undefined,
     supplierId: supplierId || undefined,
     status: status || undefined,
     search: search.trim() || undefined,
@@ -133,14 +137,15 @@ export default function ExpensesPage() {
 
   const expenses = data?.data ?? [];
   const meta = data?.meta;
-  const categories = categoriesData ?? [];
+  const groups = groupsData ?? [];
+  const labels = groups.flatMap((group) => (group.labels ?? []).filter((label) => label.active));
   const suppliers = suppliersData?.data ?? [];
 
-  const hasFilters = !!categoryId || !!supplierId || !!status || !!search;
+  const hasFilters = !!labelId || !!supplierId || !!status || !!search;
 
   const clearFilters = () => {
     setPage(1);
-    setCategoryId("");
+    setLabelId("");
     setSupplierId("");
     setStatus("");
     setSearch("");
@@ -245,6 +250,7 @@ export default function ExpensesPage() {
             <Button type="button" onClick={openCreate} className="shrink-0">
               <Plus className="w-4 h-4" /> Nuevo gasto
             </Button>
+            {user?.role === "ADMIN" && <Button type="button" variant="secondary" onClick={() => setTaxonomyOpen(true)} className="shrink-0">Gestionar categorías</Button>}
           </div>
         </div>
 
@@ -297,18 +303,18 @@ export default function ExpensesPage() {
                 className="h-8 px-2 rounded-lg text-xs font-semibold bg-muted/40 border border-border/60 text-foreground focus:outline-none focus:border-primary/50 w-full sm:w-auto"
               />
               <BentoSelect
-                value={categoryId}
+                value={labelId}
                 onChange={(value) => {
                   setPage(1);
-                  setCategoryId(value);
+                  setLabelId(value);
                 }}
                 className="w-full sm:w-52"
-                placeholder="Todas las categorías"
+                placeholder="Todas las etiquetas"
                 options={[
-                  { value: "", label: "Todas las categorías" },
-                  ...categories.map((category) => ({
-                    value: category.id,
-                    label: category.name,
+                  { value: "", label: "Todas las etiquetas" },
+                  ...labels.map((label) => ({
+                    value: label.id,
+                    label: label.name,
                   })),
                 ]}
               />
@@ -383,7 +389,7 @@ export default function ExpensesPage() {
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-sm text-foreground truncate max-w-[200px]">
-                          {expense.category?.name ?? "Salida general"}
+                          {expense.label?.group?.name ? `${expense.label.group.name} / ` : ""}{expense.label?.name ?? "Salida general"}
                         </span>
                         <ExpenseStatusBadge status={expense.status} />
                       </div>
@@ -493,7 +499,7 @@ export default function ExpensesPage() {
                         as="th"
                         className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
                       >
-                        Categoría
+                         Grupo / etiqueta
                       </TableCell>
                       <TableCell
                         as="th"
@@ -553,7 +559,7 @@ export default function ExpensesPage() {
                           </TableCell>
                           <TableCell>
                             <span className="text-xs font-semibold text-foreground">
-                              {expense.category?.name ?? "—"}
+                              {expense.label?.group?.name ? `${expense.label.group.name} / ` : ""}{expense.label?.name ?? "—"}
                             </span>
                           </TableCell>
                           <TableCell className="max-w-[220px] truncate">
@@ -729,6 +735,8 @@ export default function ExpensesPage() {
         message="El gasto se ocultará de los listados y el resumen del mes. Esta acción no se puede deshacer."
         confirmText="Sí, eliminar"
       />
+
+      <ExpenseTaxonomyModal isOpen={taxonomyOpen} onClose={() => setTaxonomyOpen(false)} />
 
       <ConfirmDialog
         isOpen={!!duplicateTarget}
