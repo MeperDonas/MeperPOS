@@ -78,7 +78,7 @@ export class RetryImportRowDto {
 export class ImportRowErrorDto {
   @ApiProperty({ example: 5 })
   @IsInt()
-  rowIndex: number;
+  row: number;
 
   @ApiProperty({ enum: IMPORT_SHEET_IDS })
   @IsIn(IMPORT_SHEET_IDS)
@@ -86,7 +86,7 @@ export class ImportRowErrorDto {
 
   @ApiProperty({ example: 'INVALID_PRICE' })
   @IsString()
-  errorCode: string;
+  code: string;
 
   @ApiProperty({ example: 'Precio de venta invalido' })
   @IsString()
@@ -96,11 +96,6 @@ export class ImportRowErrorDto {
   @IsOptional()
   @IsString()
   field?: string;
-
-  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
-  @IsOptional()
-  @IsObject()
-  mappedData?: Record<string, unknown>;
 
   @ApiProperty({ type: [String] })
   @IsArray()
@@ -116,6 +111,10 @@ export class ImportRowErrorDto {
   @IsOptional()
   @IsBoolean()
   retriedSuccess?: boolean;
+
+  @ApiProperty({ example: 'request-id' })
+  @IsString()
+  correlationId: string;
 }
 
 /** Per-sheet counters and sub-status returned in a job's per-sheet breakdown. */
@@ -183,10 +182,6 @@ export class ImportJobStatusResponseDto {
   @ApiProperty({ enum: IMPORT_JOB_STATUSES })
   @IsIn(IMPORT_JOB_STATUSES)
   status: ImportJobStatus;
-
-  @ApiProperty({ example: 'import.xlsx' })
-  @IsString()
-  fileName: string;
 
   @ApiProperty({ example: 10 })
   @IsNumber()
