@@ -49,21 +49,23 @@ vi.mock("@/components/ui/ImageUpload", () => ({
 }));
 
 vi.mock("@/hooks/useExpenses", () => ({
-  useExpenseCategories: () => ({
+  useExpenseGroups: () => ({
     data: [
       {
-        id: "cat-1",
+        id: "group-1",
         organizationId: "org-1",
-        name: "Arriendo",
+        name: "Gastos del local",
         active: true,
+        labels: [{ id: "label-1", groupId: "group-1", name: "Arriendo", active: true }],
         createdAt: "2026-08-01T00:00:00.000Z",
         updatedAt: "2026-08-01T00:00:00.000Z",
       },
       {
-        id: "cat-2",
+        id: "group-2",
         organizationId: "org-1",
         name: "Caja menor",
         active: true,
+        labels: [{ id: "label-2", groupId: "group-2", name: "Compras menores", active: true }],
         createdAt: "2026-08-01T00:00:00.000Z",
         updatedAt: "2026-08-01T00:00:00.000Z",
       },
@@ -111,23 +113,24 @@ import { ExpenseFormModal } from "./ExpenseFormModal";
  * BentoSelect renders as a trigger <button> (not a native <select>), so the
  * option is picked by opening the popover and clicking the option label.
  */
-async function pickCategory(
+async function pickLabel(
   user: ReturnType<typeof userEvent.setup>,
-  categoryLabel: string,
+  label: string,
 ) {
   await user.click(
-    screen.getByRole("button", { name: /selecciona una categor\u00eda/i }),
+    screen.getByRole("button", { name: /selecciona un gasto/i }),
   );
-  await user.click(screen.getByText(categoryLabel));
+  await user.click(screen.getByText(new RegExp(`\\/ ${label}$`)));
 }
 
 function makeExpense(): Expense {
   return {
     id: "exp-1",
     organizationId: "org-1",
-    categoryId: "cat-1",
-    category: {
-      id: "cat-1",
+    labelId: "label-1",
+    label: {
+      id: "label-1",
+      groupId: "group-1",
       organizationId: "org-1",
       name: "Arriendo",
       active: true,
@@ -177,7 +180,7 @@ describe("ExpenseFormModal", () => {
 
     render(<ExpenseFormModal isOpen onClose={vi.fn()} />);
 
-    await pickCategory(user, "Arriendo");
+    await pickLabel(user, "Arriendo");
     fireEvent.change(screen.getByLabelText("Fecha"), {
       target: { value: "2026-08-10" },
     });
@@ -191,7 +194,7 @@ describe("ExpenseFormModal", () => {
 
     expect(createMutateAsyncMock).toHaveBeenCalledTimes(1);
     expect(createMutateAsyncMock).toHaveBeenCalledWith({
-      categoryId: "cat-1",
+      labelId: "label-1",
       supplierId: undefined,
       purchaseOrderId: undefined,
       description: undefined,
@@ -209,7 +212,7 @@ describe("ExpenseFormModal", () => {
 
     render(<ExpenseFormModal isOpen onClose={vi.fn()} />);
 
-    await pickCategory(user, "Arriendo");
+    await pickLabel(user, "Arriendo");
     fireEvent.change(screen.getByLabelText("Fecha"), {
       target: { value: "2026-08-10" },
     });
@@ -229,7 +232,7 @@ describe("ExpenseFormModal", () => {
 
     render(<ExpenseFormModal isOpen onClose={vi.fn()} />);
 
-    await pickCategory(user, "Arriendo");
+    await pickLabel(user, "Arriendo");
     fireEvent.change(screen.getByLabelText("Fecha"), {
       target: { value: "2026-08-10" },
     });
@@ -268,7 +271,7 @@ describe("ExpenseFormModal", () => {
     expect(updateMutateAsyncMock).toHaveBeenCalledWith({
       id: "exp-1",
       data: {
-        categoryId: "cat-1",
+        labelId: "label-1",
         supplierId: null,
         purchaseOrderId: null,
         description: "Renta septiembre",
