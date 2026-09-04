@@ -1,6 +1,7 @@
 import { UnprocessableEntityException } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { MultiSheetImportService } from './multi-sheet-import.service';
+import * as protectedDiagnostics from '../common/errors/protected-diagnostics';
 
 type PlanLimitResult = {
   current: number;
@@ -302,7 +303,7 @@ describe('MultiSheetImportService', () => {
       expect(sheet?.imported).toBe(1);
       expect(sheet?.errors).toBe(1);
       expect(sheet?.rowErrors).toHaveLength(1);
-      expect(sheet?.rowErrors[0].errorCode).toBe('INVALID_PRICE');
+      expect(sheet?.rowErrors[0].code).toBe('INVALID_PRICE');
     });
   });
 
@@ -484,5 +485,62 @@ describe('MultiSheetImportService', () => {
       expect(status.sheets).toHaveLength(4);
       expect(status.sheets.every((sheet) => sheet.imported === 1)).toBe(true);
     });
+  });
+
+  it('sanitizes unexpected row, event, and job diagnostics in multi-sheet status', async () => {
+    const marker = 'sensitive-multi-sheet-db-marker';
+    productsService.create.mockRejectedValueOnce(new Error(marker));
+    const recordDiagnostic = jest.spyOn(
+      protectedDiagnostics,
+      'recordProtectedDiagnostic',
+    );
+    const buffer = await buildWorkbookBuffer([
+      {
+        name: 'Productos',
+        headers: ['Nombre', 'Precio Venta', 'Stock'],
+        rows: [['Producto Uno', 5000, 10]],
+      },
+    ]);
+
+    const started = await service.startFullImport(
+      makeFile(buffer),
+      'user-1',
+      'org-1',
+      'request-multi-1',
+    );
+    await flush();
+
+    const status = service.getImportStatus(started.jobId, 'user-1');
+    const serialized = JSON.stringify(status);
+    expect(serialized).not.toContain(marker);
+    expect(status.errors[0]).toMatchObject({
+      code: 'IMPORT_ROW_FAILED',
+      message: 'The row could not be imported',
+      row: 2,
+    });
+    expect(status.errors[0]).not.toHaveProperty('mappedData');
+    expect(status).not.toHaveProperty('fileName');
+    expect(status.recentEvents.every((event) => !event.message.includes(marker))).toBe(true);
+    expect(recordDiagnostic).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId: started.jobId, row: 2 }),
+      expect.any(Error),
+    );
+  });
+
+  it('turns multi-sheet parser failures into a safe import exception', async () => {
+    const marker = 'sensitive-workbook-parser-marker';
+    const recordDiagnostic = jest.spyOn(
+      protectedDiagnostics,
+      'recordProtectedDiagnostic',
+    );
+    (service as any).parseWorkbook = jest.fn().mockRejectedValue(new Error(marker));
+
+    await expect(
+      service.startFullImport(makeFile(Buffer.from('invalid')), 'user-1', 'org-1', 'request-multi-2'),
+    ).rejects.toMatchObject({ message: 'The import file could not be processed' });
+    expect(recordDiagnostic).toHaveBeenCalledWith(
+      expect.objectContaining({ boundary: 'multi-sheet-import-parser', requestId: 'request-multi-2' }),
+      expect.any(Error),
+    );
   });
 });
