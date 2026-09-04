@@ -113,14 +113,20 @@ import { ExpenseFormModal } from "./ExpenseFormModal";
  * BentoSelect renders as a trigger <button> (not a native <select>), so the
  * option is picked by opening the popover and clicking the option label.
  */
+async function pickGroup(
+  user: ReturnType<typeof userEvent.setup>,
+  group: string,
+) {
+  await user.click(screen.getByRole("button", { name: "Selecciona un grupo" }));
+  await user.click(screen.getByText(group));
+}
+
 async function pickLabel(
   user: ReturnType<typeof userEvent.setup>,
   label: string,
 ) {
-  await user.click(
-    screen.getByRole("button", { name: /selecciona un gasto/i }),
-  );
-  await user.click(screen.getByText(new RegExp(`\\/ ${label}$`)));
+  await user.click(screen.getByRole("button", { name: /selecciona una etiqueta/i }));
+  await user.click(screen.getByText(label));
 }
 
 function makeExpense(): Expense {
@@ -180,6 +186,7 @@ describe("ExpenseFormModal", () => {
 
     render(<ExpenseFormModal isOpen onClose={vi.fn()} />);
 
+    await pickGroup(user, "Gastos del local");
     await pickLabel(user, "Arriendo");
     fireEvent.change(screen.getByLabelText("Fecha"), {
       target: { value: "2026-08-10" },
@@ -204,6 +211,7 @@ describe("ExpenseFormModal", () => {
         { amount: 500000, method: "CASH", date: expect.any(String) },
       ],
     });
+    expect(createMutateAsyncMock.mock.calls[0][0]).not.toHaveProperty("categoryId");
     expect(toastSuccessMock).toHaveBeenCalledWith("Gasto registrado");
   });
 
@@ -212,6 +220,7 @@ describe("ExpenseFormModal", () => {
 
     render(<ExpenseFormModal isOpen onClose={vi.fn()} />);
 
+    await pickGroup(user, "Gastos del local");
     await pickLabel(user, "Arriendo");
     fireEvent.change(screen.getByLabelText("Fecha"), {
       target: { value: "2026-08-10" },
@@ -232,6 +241,7 @@ describe("ExpenseFormModal", () => {
 
     render(<ExpenseFormModal isOpen onClose={vi.fn()} />);
 
+    await pickGroup(user, "Gastos del local");
     await pickLabel(user, "Arriendo");
     fireEvent.change(screen.getByLabelText("Fecha"), {
       target: { value: "2026-08-10" },
@@ -250,6 +260,30 @@ describe("ExpenseFormModal", () => {
     expect(createMutateAsyncMock).not.toHaveBeenCalled();
   });
 
+  it("starts with the label select disabled until a group is selected", async () => {
+    render(<ExpenseFormModal isOpen onClose={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Selecciona un grupo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /selecciona un grupo primero/i })).toBeDisabled();
+  });
+
+  it("filters labels by group and clears the label when the group changes", async () => {
+    const user = userEvent.setup();
+    render(<ExpenseFormModal isOpen onClose={vi.fn()} />);
+
+    await pickGroup(user, "Gastos del local");
+    await user.click(screen.getByRole("button", { name: /selecciona una etiqueta/i }));
+    expect(screen.getByText("Arriendo")).toBeInTheDocument();
+    expect(screen.queryByText("Compras menores")).not.toBeInTheDocument();
+    await user.click(screen.getByText("Arriendo"));
+
+    await user.click(screen.getByRole("button", { name: "Gastos del local" }));
+    await user.click(screen.getByText("Caja menor"));
+
+    expect(screen.getByRole("button", { name: /selecciona una etiqueta/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Arriendo" })).not.toBeInTheDocument();
+  });
+
   it("boots edit mode from the expense snapshot and submits an update", async () => {
     const user = userEvent.setup();
 
@@ -261,6 +295,8 @@ describe("ExpenseFormModal", () => {
       />,
     );
 
+    expect(screen.getByRole("button", { name: "Gastos del local" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Arriendo" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("Renta agosto")).toBeTruthy();
 
     fireEvent.change(screen.getByPlaceholderText("Descripción (opcional)"), {
