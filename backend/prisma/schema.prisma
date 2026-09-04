@@ -29,7 +29,8 @@ model Organization {
   cashRegisters      CashRegister[]
   categories         Category[]
   customers          Customer[]
-  expenseCategories  ExpenseCategory[]
+  expenseGroups      ExpenseGroup[]
+  expenseLabels      ExpenseLabel[]
   expensePayments    ExpensePayment[]
   expenses           Expense[]
   inventoryMovements InventoryMovement[]
@@ -437,24 +438,40 @@ model PaymentRecord {
   @@index([organizationId, date])
 }
 
-model ExpenseCategory {
+model ExpenseGroup {
+  id             String         @id @default(uuid())
+  organizationId String
+  name           String
+  active         Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  labels         ExpenseLabel[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, active])
+}
+
+model ExpenseLabel {
   id             String       @id @default(uuid())
   organizationId String
+  groupId        String
   name           String
   active         Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  group          ExpenseGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   expenses       Expense[]
 
-  @@unique([organizationId, name])
+  @@unique([groupId, name])
   @@index([organizationId, active])
 }
 
 model Expense {
   id              String              @id @default(uuid())
   organizationId  String
-  categoryId      String
+  labelId         String
   supplierId      String?
   purchaseOrderId String?
   description     String?
@@ -467,14 +484,14 @@ model Expense {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  category        ExpenseCategory     @relation(fields: [categoryId], references: [id])
+  label           ExpenseLabel        @relation(fields: [labelId], references: [id])
   supplier        Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   purchaseOrder   PurchaseOrder?      @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   createdBy       User                @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
   payments        ExpensePayment[]
 
   @@index([organizationId, date])
-  @@index([organizationId, categoryId])
+  @@index([organizationId, labelId])
 }
 
 model ExpensePayment {
