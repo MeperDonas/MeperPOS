@@ -66,6 +66,19 @@ describe('ImportsController', () => {
       );
     });
 
+    it('passes the request correlation identifier to the import service', async () => {
+      const file = { originalname: 'a.xlsx' } as Express.Multer.File;
+      await controller.startFullImport(file, cashierUser, {
+        requestId: 'request-full-1',
+      } as never);
+      expect(multiSheetImportServiceMock.startFullImport).toHaveBeenCalledWith(
+        file,
+        'cashier-1',
+        'org-1',
+        'request-full-1',
+      );
+    });
+
     it('is restricted to ADMIN and CASHIER', () => {
       const requiredRoles = Reflect.getMetadata(
         ROLES_KEY,

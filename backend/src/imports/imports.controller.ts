@@ -85,11 +85,13 @@ export class ImportsController {
     )
     file: Express.Multer.File,
     @CurrentUser() user: RequestUser,
+    @Request() req: { requestId?: string } = {},
   ): Promise<any> {
     return this.importsService.startProductsImport(
       file,
       user.userId,
       user.organizationId,
+      ...(req.requestId ? [req.requestId] : []),
     );
   }
 
@@ -128,11 +130,13 @@ export class ImportsController {
     )
     file: Express.Multer.File,
     @CurrentUser() user: RequestUser,
+    @Request() req: { requestId?: string } = {},
   ): Promise<any> {
     return this.multiSheetImportService.startFullImport(
       file,
       user.userId,
       user.organizationId,
+      ...(req.requestId ? [req.requestId] : []),
     );
   }
 

@@ -60,6 +60,7 @@ export interface ImportSheetStatus {
   warnings: number;
   missingRequiredFields?: string[];
   planLimitRejected?: boolean;
+  rowErrors?: Array<Record<string, unknown>>;
 }
 
 /** Runtime context handed to a handler while processing a sheet row. */

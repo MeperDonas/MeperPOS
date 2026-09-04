@@ -1,5 +1,6 @@
 import { ImportsService } from './imports.service';
 import * as ExcelJS from 'exceljs';
+import * as protectedDiagnostics from '../common/errors/protected-diagnostics';
 
 async function buildXlsxBuffer(
   rows: Array<Array<string | number>>,
@@ -85,9 +86,7 @@ describe('ImportsService', () => {
     expect(status.sheets).toHaveLength(1);
     expect(status.sheets[0].sheetId).toBe('productos');
     expect(status.sheets[0].imported).toBe(1);
-    expect(status.detectedColumns).toEqual(
-      expect.arrayContaining(['Nombre', 'Precio Venta', 'Stock']),
-    );
+    expect(status.correlationId).toEqual(expect.any(String));
   });
 
   it('skips rows without a product name instead of failing them', async () => {
@@ -120,7 +119,7 @@ describe('ImportsService', () => {
 
     const status = service.getImportStatus(started.jobId, 'user-1');
     expect(status.errorCount).toBe(1);
-    expect(status.errors[0].errorCode).toBe('DUPLICATE_SKU_FILE');
+    expect(status.errors[0].code).toBe('DUPLICATE_SKU_FILE');
     expect(status.errors[0].sheetId).toBe('productos');
     expect(status.sheets[0].sheetId).toBe('productos');
   });
@@ -135,10 +134,10 @@ describe('ImportsService', () => {
     await flush();
 
     let status = service.getImportStatus(started.jobId, 'user-1');
-    expect(status.errors[0].errorCode).toBe('INVALID_PRICE');
+    expect(status.errors[0].code).toBe('INVALID_PRICE');
 
     status = await service.retryImportRow(started.jobId, 'user-1', {
-      rowIndex: status.errors[0].rowIndex,
+      rowIndex: status.errors[0].row,
       correctedData: { salePrice: 5000 },
     });
 
@@ -147,5 +146,56 @@ describe('ImportsService', () => {
     expect(status.errorCount).toBe(0);
     expect(status.errors[0].retriedSuccess).toBe(true);
     expect(status.errors[0].sheetId).toBe('productos');
+  });
+
+  it('sanitizes unexpected row creation diagnostics in status and events', async () => {
+    const marker = 'sensitive-products-db-marker';
+    productsService.create.mockRejectedValueOnce(new Error(marker));
+    const recordDiagnostic = jest.spyOn(
+      protectedDiagnostics,
+      'recordProtectedDiagnostic',
+    );
+    const buffer = await buildXlsxBuffer([['Pan', 'PAN-1', 5000, '', 10, '', 0, '']]);
+
+    const started = await service.startProductsImport(
+      makeFile(buffer),
+      'user-1',
+      'org-1',
+      'request-products-1',
+    );
+    await flush();
+
+    const status = service.getImportStatus(started.jobId, 'user-1');
+    const serialized = JSON.stringify(status);
+    expect(serialized).not.toContain(marker);
+    expect(status.errors[0]).toMatchObject({
+      code: 'IMPORT_ROW_FAILED',
+      message: 'The row could not be imported',
+      row: 2,
+    });
+    expect(status.errors[0]).not.toHaveProperty('rawData');
+    expect(status.errors[0]).not.toHaveProperty('mappedData');
+    expect(status.recentEvents.every((event) => !event.message.includes(marker))).toBe(true);
+    expect(recordDiagnostic).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId: started.jobId, row: 2 }),
+      expect.any(Error),
+    );
+  });
+
+  it('turns parser failures into a safe import exception and protected diagnostic', async () => {
+    const marker = 'sensitive-parser-marker';
+    const recordDiagnostic = jest.spyOn(
+      protectedDiagnostics,
+      'recordProtectedDiagnostic',
+    );
+    (service as any).parseFile = jest.fn().mockRejectedValue(new Error(marker));
+
+    await expect(
+      service.startProductsImport(makeFile(Buffer.from('invalid')), 'user-1', 'org-1', 'request-products-2'),
+    ).rejects.toMatchObject({ message: 'The import file could not be processed' });
+    expect(recordDiagnostic).toHaveBeenCalledWith(
+      expect.objectContaining({ boundary: 'product-import-parser', requestId: 'request-products-2' }),
+      expect.any(Error),
+    );
   });
 });
