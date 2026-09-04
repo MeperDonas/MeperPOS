@@ -202,7 +202,7 @@ export default function ImportDataSettingsPage() {
   ) => {
     try {
       await retryRow.mutateAsync({
-        rowIndex: error.rowIndex,
+         rowIndex: error.row ?? error.rowIndex ?? 0,
         sheetId: error.sheetId,
         correctedData,
       });
@@ -263,7 +263,7 @@ export default function ImportDataSettingsPage() {
                       Archivo
                     </p>
                     <p className="text-sm font-medium text-foreground truncate">
-                      {status?.fileName ?? selectedFile?.name ?? "Importacion en curso"}
+                       {selectedFile?.name ?? "Importacion en curso"}
                     </p>
                   </div>
 
