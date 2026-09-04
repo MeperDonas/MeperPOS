@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 vi.mock("@/components/ui/Modal", () => ({
-  Modal: ({ children, title }: { children: React.ReactNode; title: string }) => (
-    <section><h2>{title}</h2>{children}</section>
+  Modal: ({ children, title, size }: { children: React.ReactNode; title: string; size?: string }) => (
+    <section data-modal-size={size}><h2>{title}</h2>{children}</section>
   ),
 }));
 vi.mock("@/hooks/useExpenses", () => ({
@@ -26,5 +26,20 @@ describe("ExpenseTaxonomyModal", () => {
     expect(screen.getByText("Gastos del local")).toBeInTheDocument();
     expect(screen.getByText("Arriendo")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /nuevo grupo/i })).toBeInTheDocument();
+  });
+
+  it("uses a wide modal and responsive group layout", () => {
+    render(<ExpenseTaxonomyModal isOpen onClose={vi.fn()} />);
+
+    expect(
+      screen.getByRole("heading", { name: "Gestionar categorías" }).closest("section"),
+    ).toHaveAttribute("data-modal-size", "xl");
+    expect(screen.getByText("Gastos del local").closest(".grid")).toHaveClass(
+      "md:grid-cols-2",
+    );
+    expect(screen.getByLabelText("Nuevo grupo").closest(".flex")).toHaveClass(
+      "flex-col",
+      "sm:flex-row",
+    );
   });
 });

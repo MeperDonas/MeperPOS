@@ -49,20 +49,20 @@ export function ExpenseTaxonomyModal({ isOpen, onClose }: Props) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Gestionar categorías" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Gestionar categorías" size="xl">
       <div className="space-y-5">
-        <div className="flex items-end gap-2">
-          <Input label="Nuevo grupo" value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="Nombre del grupo" />
-          <Button type="button" disabled={!groupName.trim() || createGroup.isPending} onClick={() => void run(async () => { await createGroup.mutateAsync({ name: groupName.trim() }); setGroupName(""); }, "Grupo creado")}>
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-end">
+          <Input className="min-w-0 flex-1" label="Nuevo grupo" value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="Nombre del grupo" />
+          <Button className="w-full shrink-0 sm:w-auto" type="button" disabled={!groupName.trim() || createGroup.isPending} onClick={() => void run(async () => { await createGroup.mutateAsync({ name: groupName.trim() }); setGroupName(""); }, "Grupo creado")}>
             <Plus className="h-4 w-4" aria-hidden="true" /> Nuevo grupo
           </Button>
         </div>
         {isLoading && <p className="text-sm text-muted-foreground">Cargando grupos...</p>}
         {isError && <p role="alert" className="text-sm text-danger">No se pudieron cargar los grupos.</p>}
         {!isLoading && groups.length === 0 && <p className="text-sm text-muted-foreground">No hay grupos configurados.</p>}
-        <div className="space-y-3">
+        <div className="grid gap-3 md:grid-cols-2 md:items-start">
           {groups.map((group) => (
-            <div key={group.id} className="rounded-2xl border border-border/70 p-4">
+            <div key={group.id} className="min-w-0 rounded-2xl border border-border/70 p-4">
               <div className="flex items-center gap-2">
                 {editing?.id === group.id ? <Input value={editing.value} onChange={(e) => setEditing({ ...editing, value: e.target.value })} /> : <h3 className="flex-1 font-bold">{group.name}</h3>}
                 {editing?.id === group.id ? <Button size="sm" onClick={() => void run(async () => { await updateGroup.mutateAsync({ id: group.id, data: { name: editing.value.trim() } }); setEditing(null); }, "Grupo actualizado")}>Guardar</Button> : <Button size="sm" variant="ghost" aria-label={`Editar ${group.name}`} onClick={() => setEditing({ id: group.id, value: group.name })}><Pencil className="h-4 w-4" aria-hidden="true" /></Button>}
