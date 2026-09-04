@@ -8,7 +8,7 @@ import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import {
   useCreateExpense,
-  useExpenseCategories,
+  useExpenseGroups,
   useUpdateExpense,
   useUploadExpenseReceipt,
 } from "@/hooks/useExpenses";
@@ -59,15 +59,21 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
   const updateExpense = useUpdateExpense();
   const uploadReceipt = useUploadExpenseReceipt();
 
-  const { data: categoriesData } = useExpenseCategories();
+  const { data: groupsData, isLoading: isGroupsLoading } = useExpenseGroups();
   const { data: suppliersData } = useSuppliers({ limit: 200, status: "active" });
   const { data: ordersData } = usePurchaseOrders({ limit: 200 });
 
-  const categories = categoriesData ?? [];
+  const groups = groupsData ?? [];
+  const labelOptions = groups.flatMap((group) => [
+    { value: `group-${group.id}`, label: `— ${group.name} —` },
+    ...(group.labels ?? [])
+      .filter((label) => label.active)
+      .map((label) => ({ value: label.id, label: `${group.name} / ${label.name}` })),
+  ]);
   const suppliers = suppliersData?.data ?? [];
   const orders = ordersData?.data ?? [];
 
-  const [categoryId, setCategoryId] = useState(expense?.categoryId ?? "");
+  const [labelId, setLabelId] = useState(expense?.labelId ?? "");
   const [supplierId, setSupplierId] = useState(expense?.supplierId ?? "");
   const [purchaseOrderId, setPurchaseOrderId] = useState(
     expense?.purchaseOrderId ?? "",
@@ -97,8 +103,8 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
       )
     : 0;
 
-  const error = !categoryId
-    ? "Selecciona una categoría"
+  const error = !labelId
+    ? "Selecciona una etiqueta de gasto"
     : !date
       ? "Selecciona una fecha"
       : numericTotal <= 0
@@ -120,7 +126,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
         await updateExpense.mutateAsync({
           id: expense.id,
           data: {
-            categoryId,
+            labelId,
             supplierId: supplierId || null,
             purchaseOrderId: purchaseOrderId || null,
             description: description.trim() || null,
@@ -131,7 +137,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
         toast.success("Gasto actualizado");
       } else {
         const created = await createExpense.mutateAsync({
-          categoryId,
+          labelId,
           supplierId: supplierId || undefined,
           purchaseOrderId: purchaseOrderId || undefined,
           description: description.trim() || undefined,
@@ -185,17 +191,13 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
         {/* Left column: expense data */}
         <div className="space-y-3">
           <BentoSelect
-            label="Categoría"
-            value={categoryId}
-            onChange={(value) => setCategoryId(value)}
+            label="Grupo y etiqueta"
+            value={labelId}
+            disabled={isGroupsLoading}
+            onChange={(value) => setLabelId(value.startsWith("group-") ? "" : value)}
             options={[
-              { value: "", label: "Selecciona una categoría" },
-              ...categories
-                .filter((category) => category.active)
-                .map((category) => ({
-                  value: category.id,
-                  label: category.name,
-                })),
+              { value: "", label: isGroupsLoading ? "Cargando etiquetas..." : "Selecciona un gasto" },
+              ...labelOptions,
             ]}
           />
 
