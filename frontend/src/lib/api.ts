@@ -1,7 +1,6 @@
 import axios, {
   AxiosError,
   AxiosInstance,
-  InternalAxiosRequestConfig,
 } from "axios";
 import { safeRemoveItem } from "@/lib/utils";
 import {
@@ -23,10 +22,49 @@ const AUTH_EXCLUDED_URLS = new Set([
 ]);
 
 type ApiErrorData = {
-  message?: string | string[];
-  error?: string | { message?: string | string[] };
-  errors?: Array<{ message?: string }>;
+  code?: unknown;
+  message?: unknown;
+  error?: unknown;
+  requestId?: unknown;
 };
+
+export interface ApiErrorDetails {
+  code: string;
+  message: string;
+  requestId?: string;
+}
+
+const UNKNOWN_ERROR_CODE = "UNKNOWN_ERROR";
+
+function safeMessage(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (Array.isArray(value)) {
+    const messages = value.filter(
+      (item): item is string => typeof item === "string" && !!item.trim(),
+    );
+    if (messages.length > 0) return messages.join(", ");
+  }
+  return undefined;
+}
+
+function safeRequestId(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() && value.length <= 128
+    ? value.trim()
+    : undefined;
+}
+
+export function getApiErrorDetails(error: unknown, fallback: string): ApiErrorDetails {
+  const data = axios.isAxiosError(error)
+    ? (error.response?.data as ApiErrorData | undefined)
+    : undefined;
+  const message = safeMessage(data?.message) ?? safeMessage(data?.error) ?? fallback;
+  const code =
+    typeof data?.code === "string" && data.code.trim()
+      ? data.code.trim()
+      : UNKNOWN_ERROR_CODE;
+
+  return { code, message, requestId: safeRequestId(data?.requestId) };
+}
 
 /**
  * Auth responses keep returning tokens in the JSON body (dual-mode backend)
@@ -41,40 +79,7 @@ interface AuthTokenResponse {
 }
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
-  if (axios.isAxiosError(error)) {
-    const data = error.response?.data as ApiErrorData | undefined;
-
-    const nestedErrorMessage =
-      typeof data?.error === "object" && data?.error !== null
-        ? data.error.message
-        : undefined;
-
-    const message = data?.message ?? nestedErrorMessage;
-
-    if (Array.isArray(message)) {
-      return message.join(", ");
-    }
-    if (typeof message === "string" && message.trim()) {
-      return message;
-    }
-
-    if (typeof data?.error === "string" && data.error.trim()) {
-      return data.error;
-    }
-
-    if (Array.isArray(data?.errors) && data.errors.length > 0) {
-      const firstError = data.errors[0]?.message;
-      if (typeof firstError === "string" && firstError.trim()) {
-        return firstError;
-      }
-    }
-  }
-
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return fallback;
+  return getApiErrorDetails(error, fallback).message;
 }
 
 // Custom per-request flags used by the refresh-and-retry flow.
