@@ -43,7 +43,9 @@ describe("CategoryStackedChart (daily stacked by category)", () => {
 
     expect(bebidas).toBeTruthy();
     expect(snacks).toBeTruthy();
-    expect(bebidas?.getAttribute("fill")).not.toBe(snacks?.getAttribute("fill"));
+    expect(bebidas?.getAttribute("fill")).not.toBe(
+      snacks?.getAttribute("fill"),
+    );
   });
 
   it("shows a tooltip with the day total and category breakdown on hover", () => {
@@ -68,13 +70,17 @@ describe("CategoryStackedChart (daily stacked by category)", () => {
     render(<CategoryStackedChart data={data} days={days} />);
     const bars = screen.getAllByTestId("category-daily-bar");
 
-    // First day (left side) → projects to the right with gap (translate-x-3).
+    // First day (left side) → projects to the right with a small gap.
     fireEvent.mouseEnter(bars[0]);
-    expect(screen.getByTestId("category-tooltip").className).toContain("translate-x-3");
+    expect(screen.getByTestId("category-tooltip").className).toContain(
+      "translate-x-2",
+    );
 
-    // Last day (right side) → projects to the left with gap (-translate-x-[calc(100%+20px)]).
+    // Last day (right side) → projects to the left with the same small gap.
     fireEvent.mouseEnter(bars[bars.length - 1]);
-    expect(screen.getByTestId("category-tooltip").className).toContain("-translate-x-[calc(100%+20px)]");
+    expect(screen.getByTestId("category-tooltip").className).toContain(
+      "-translate-x-[calc(100%+8px)]",
+    );
   });
 });
 
@@ -102,7 +108,7 @@ describe("CategoryStackedChart full-month behavior", () => {
     expect(visibleLabels).toEqual(["1", "5", "10", "15", "20", "25", "30"]);
   });
 
-  it("leaves a clear thin-bar gap between adjacent bars", () => {
+  it("keeps adjacent bars close while preserving distinct daily slots", () => {
     const { container } = render(
       <CategoryStackedChart data={data} days={monthDays} />,
     );
@@ -113,8 +119,28 @@ describe("CategoryStackedChart full-month behavior", () => {
     );
     const width = Number(bars[0].getAttribute("width"));
 
-    expect(width).toBeGreaterThan(0);
-    expect(width).toBeLessThan(slot * 0.8);
+    expect(width).toBeGreaterThan(slot * 0.8);
+    expect(width).toBeLessThan(slot);
+  });
+
+  it("clips the complete stack so segments form one cohesive bar", () => {
+    const { container } = render(
+      <CategoryStackedChart data={data} days={monthDays} />,
+    );
+
+    const segments = container.querySelectorAll(
+      '[data-testid="category-segment"]',
+    );
+    expect(segments[0].getAttribute("clip-path")).toMatch(
+      /^url\(#category-stack-/,
+    );
+    expect(segments[0].getAttribute("rx")).toBeNull();
+    expect(container.querySelector("clipPath rect")?.getAttribute("rx")).toBe(
+      "2",
+    );
+    expect(segments[0].getAttribute("class")).toContain(
+      "category-stack-segment",
+    );
   });
 
   it("handles a 31-day month without dropping the last day or overflowing labels", () => {

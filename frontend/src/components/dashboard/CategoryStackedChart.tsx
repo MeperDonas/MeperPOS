@@ -20,7 +20,10 @@ export function CategoryStackedChart({
 }) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
-  const series = useMemo(() => buildStackedDailySeries(data, days), [data, days]);
+  const series = useMemo(
+    () => buildStackedDailySeries(data, days),
+    [data, days],
+  );
   const colorMap = useMemo(
     () => buildCategoryColorMap(data?.map((row) => row.category)),
     [data],
@@ -38,20 +41,28 @@ export function CategoryStackedChart({
 
   /**
    * Always projects the tooltip towards the side furthest from the chart edge,
-   * leaving a 12px gap so the hovered bar remains completely visible and unobstructed:
+   * leaving a small gap so the hovered bar remains completely visible and unobstructed:
    * - If ratio >= 0.5 (closer to right edge), reflects to the LEFT with offset.
    * - If ratio < 0.5 (closer to left edge), reflects to the RIGHT with offset.
    */
-  const ratio = series.length > 1 && hoveredIndex >= 0 ? hoveredIndex / (series.length - 1) : 0.5;
+  const ratio =
+    series.length > 1 && hoveredIndex >= 0
+      ? hoveredIndex / (series.length - 1)
+      : 0.5;
   const isRightSide = ratio >= 0.5;
-  const tooltipTranslate = isRightSide ? "-translate-x-[calc(100%+20px)]" : "translate-x-3";
+  const tooltipTranslate = isRightSide
+    ? "-translate-x-[calc(100%+8px)]"
+    : "translate-x-2";
 
   const slot = series.length > 0 ? 400 / series.length : 0;
-  const barWidth = Math.max(3, slot * 0.72);
+  // Keep the daily slots distinct while reducing the visual gap between bars.
+  const barWidth = Math.max(3, slot * 0.86);
 
   const dayLabel = (date: string) => {
     const [year, month, day] = date.split("-").map(Number);
-    const safeDate = new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1, 12, 0, 0));
+    const safeDate = new Date(
+      Date.UTC(year, (month ?? 1) - 1, day ?? 1, 12, 0, 0),
+    );
     const weekday = capitalizeLabel(
       new Intl.DateTimeFormat("es-CO", {
         weekday: "long",
@@ -83,19 +94,36 @@ export function CategoryStackedChart({
 
           return (
             <g key={day.date}>
+              <defs>
+                <clipPath id={`category-stack-${day.date}`}>
+                  <rect
+                    x={x}
+                    y={100 - dayHeight}
+                    width={barWidth}
+                    height={dayHeight}
+                    rx={2}
+                  />
+                </clipPath>
+              </defs>
               {bars.map((bar) => (
                 <rect
                   key={`${day.date}:${bar.category}`}
-                  data-testid={bar.total > 0 ? "category-segment" : "category-empty-bar"}
+                  data-testid={
+                    bar.total > 0 ? "category-segment" : "category-empty-bar"
+                  }
                   data-category={bar.category}
                   x={x}
                   y={bar.y}
                   width={barWidth}
                   height={bar.height}
-                  rx={1}
                   fill={bar.color}
-                  className="transition-opacity"
-                  style={hoveredDate && hoveredDate !== day.date ? { opacity: 0.35 } : undefined}
+                  clipPath={`url(#category-stack-${day.date})`}
+                  className="category-stack-segment transition-opacity"
+                  style={
+                    hoveredDate && hoveredDate !== day.date
+                      ? { opacity: 0.35 }
+                      : undefined
+                  }
                 />
               ))}
             </g>
@@ -112,7 +140,9 @@ export function CategoryStackedChart({
             className="flex-1 cursor-pointer"
             onMouseEnter={() => setHoveredDate(day.date)}
             onMouseLeave={() => setHoveredDate(null)}
-            onClick={() => setHoveredDate((curr) => curr === day.date ? null : day.date)}
+            onClick={() =>
+              setHoveredDate((curr) => (curr === day.date ? null : day.date))
+            }
             onTouchStart={() => setHoveredDate(day.date)}
           />
         ))}
@@ -144,7 +174,9 @@ export function CategoryStackedChart({
                   <span className="flex items-center gap-1.5 font-medium text-white/70">
                     <span
                       className="inline-block h-2 w-2 rounded-[2px]"
-                      style={{ backgroundColor: colorMap.get(segment.category) }}
+                      style={{
+                        backgroundColor: colorMap.get(segment.category),
+                      }}
                     />
                     {segment.category}
                   </span>
