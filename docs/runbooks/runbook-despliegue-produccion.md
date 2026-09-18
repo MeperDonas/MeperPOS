@@ -24,7 +24,8 @@ Este runbook aplica a todo el equipo tecnico (desarrollo y operacion).
 - **Frontend (Vercel):** sirve la aplicacion Next.js.
 - **Backend (Railway):** ejecuta NestJS, expone `/api`, `/api/health`, `/api/docs`.
 - **Base de datos (Supabase):** Postgres administrado.
-- **ORM y migraciones (Prisma):** `prebuild` ejecuta `prisma generate` + `prisma migrate deploy`.
+- **ORM (Prisma Client):** `prebuild` ejecuta `prisma generate` y nada mas: solo genera el cliente, no toca la base de datos.
+- **Owner versionado de la migracion (Prisma):** `backend/package.json` es el unico responsable: `migrate:prod` aplica la migracion y `start:prod` lo ejecuta antes de arrancar la aplicacion.
 - **Imagenes (Cloudinary):** almacenamiento externo para assets de producto.
 
 ### Flujo de trafico
@@ -54,6 +55,8 @@ Este runbook aplica a todo el equipo tecnico (desarrollo y operacion).
 
 **Nota:** no definir `PORT` en Railway (Railway lo inyecta automaticamente).
 
+**Nota:** `SUPERADMIN_EMAIL`, `SUPERADMIN_PASSWORD`, `SUPERADMIN_NAME` y `SUPERADMIN_PROMOTE` son variables de la provision inicial (seccion 4.1), no de runtime: se definen solo para ejecutar `npm run provision:prod`. Quitar `SUPERADMIN_PASSWORD` del entorno cuando la provision termina.
+
 ### 3.2 Vercel (frontend)
 
 | Variable | Requerida | Ejemplo / Notas |
@@ -73,19 +76,65 @@ Este runbook aplica a todo el equipo tecnico (desarrollo y operacion).
    - Pooler session.
    - Direct connection.
 3. Configurar variables en Railway (`DATABASE_URL`, `DIRECT_URL`).
-4. Ejecutar migraciones y seed desde entorno conectado:
+4. Aplicar el esquema con el responsable versionado, desde un entorno con
+   conectividad a la base de datos:
 
 ```bash
-railway run npx prisma migrate deploy
-railway run npm run seed
+railway run npm run migrate:prod
 ```
 
-5. Verificar tablas en Supabase (`User`, `Product`, `Category`, `Settings`, `Sale`, etc.).
+5. Verificar el estado de las migraciones antes de provisionar:
+
+```bash
+railway run npx prisma migrate status
+```
+
+   `prisma migrate status` no debe reportar migraciones sin aplicar: verificar
+   que la migracion quedo aplicada antes de arrancar la aplicacion (seccion 4.2).
+   El deploy usa `npm run start:prod`, que ejecuta `migrate:prod` antes de
+   arrancar; si la migracion falla, el contenedor no arranca y el deploy queda
+   marcado como fallido.
+
+6. Crear el primer SuperAdmin con el provisioner de produccion. Definir en el
+   entorno `SUPERADMIN_EMAIL` y `SUPERADMIN_PASSWORD` (minimo 12 caracteres), y
+   opcionalmente `SUPERADMIN_NAME`:
+
+```bash
+railway run npm run provision:prod
+```
+
+   No usar claves conocidas ni valores de ejemplo como
+   `cambiar-esta-clave-produccion`: el script rechaza los defaults conocidos y las
+   claves documentadas en este repositorio. El comando es idempotente: si el email
+   ya es SuperAdmin no cambia nada. Si el email pertenece a un usuario que no es
+   SuperAdmin, falla en vez de promoverlo en silencio; para promoverlo de forma
+   explicita hay que definir `SUPERADMIN_PROMOTE=true`. Imprime un resumen sin
+   secretos y termina con codigo distinto de cero si rechaza la operacion.
+
+7. Crear la primera organizacion con la API de administracion (solo SuperAdmin),
+   autenticado con el SuperAdmin del paso 6:
+
+```bash
+curl -X POST "$BACKEND_URL/api/admin/organizations" \
+  -H "Authorization: Bearer <token-superadmin>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"<nombre-organizacion>","slug":"<slug>","admin":{"email":"<email>","name":"<nombre>"}}'
+```
+
+   `POST /api/admin/organizations` es el bootstrap de la organizacion: crea la
+   organizacion, el usuario ADMIN con una password temporal aleatoria, las
+   secuencias de venta y de orden de compra, y la caja por defecto.
+
+8. Verificar tablas en Supabase (`User`, `Product`, `Category`, `Settings`, `Sale`, etc.).
+
+   La produccion no usa datos demo: el seed de desarrollo queda fuera del camino
+   de provision. El catalogo opcional de una organizacion de sandbox sigue
+   disponible con `npm run seed:org:prod` (requiere `SEED_ALLOW_NON_DEV=true`).
 
 ### 4.2 Railway
 
 1. Root directory: `backend`.
-2. Start command: `npm run start:prod`.
+2. Start command: `npm run start:prod`, que ejecuta `migrate:prod` antes de arrancar la aplicacion.
 3. Health check path: `/api/health`.
 4. Confirmar deploy sin errores.
 
@@ -108,7 +157,8 @@ railway run npm run seed
 - [ ] `GET /api/health` responde `status: ok` y `database: connected`.
 - [ ] `GET /api/docs` disponible.
 - [ ] Frontend en Vercel carga sin errores JS.
-- [ ] Login funciona con usuarios seed o usuarios reales.
+- [ ] Login funciona con el SuperAdmin creado por `provision:prod` y con usuarios reales (no hay usuarios demo en produccion).
+- [ ] `prisma migrate status` sin migraciones pendientes: verificar el orden de `start:prod` (migracion antes del arranque).
 - [ ] Inventario y POS operativos.
 - [ ] `CORS_ORIGIN` sin localhost en produccion.
 - [ ] Spend limit configurado en Railway.
@@ -331,7 +381,10 @@ git checkout -b feature/<nombre>
 
 - Push/merge dispara deploy automatico en Railway y Vercel.
 - Railway debe encontrar schema y migraciones ya preparados; no debe descubrir cambios incompletos ni drift evitable.
-- Prisma aplica migraciones versionadas mediante `prisma migrate deploy` en el flujo de `prebuild` del backend.
+- El responsable versionado de la migracion es `backend/package.json`: `start:prod` ejecuta `npm run migrate:prod` (`prisma migrate deploy`) antes de arrancar la aplicacion; no depende de un paso definido en la plataforma.
+- La integracion continua aplica las migraciones en un paso explicito y separado (`.github/workflows/ci.yml`).
+  Ningun paso de compilacion toca la base de datos.
+- La plataforma no define un paso de migracion aparte: el contrato vive en el repositorio y se ejecuta al arrancar el contenedor (seccion 4.2).
 - Ejecutar smoke test post-deploy (seccion 9).
 - Si el despliegue depende de habilitar o actualizar variables de entorno, hacerlo antes o en la misma ventana operativa del release, nunca despues de detectar la falla en produccion.
 
