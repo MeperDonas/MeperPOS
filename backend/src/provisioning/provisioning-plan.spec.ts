@@ -22,7 +22,13 @@ import type {
  *   2. existing user  -> noop / promote / refuse (no password needed)
  *   3. password presence
  *   4. known default or documented sample  (more specific than length)
- *   5. minimum length
+ *   5. whitespace-only  (satisfies any length rule while hiding nothing)
+ *   6. surrounding whitespace  (invisible at login, and padding would fake length)
+ *   7. minimum length
+ *
+ * Rules 5 and 6 run before the length rule on purpose: once a password has been
+ * proven to have no surrounding whitespace, its raw and effective lengths are
+ * the same, so the minimum-length rule cannot be satisfied by padding.
  */
 
 const REFUSAL_CODE = /^[A-Z][A-Z0-9_]*$/;
@@ -105,6 +111,65 @@ describe('production provisioning plan (criterion #2)', () => {
     expect(plan.code).toBe('PASSWORD_KNOWN_DEFAULT');
     expect(DOCUMENTED_SAMPLE_PASSWORDS).toContain(documentedSample);
     expect(KNOWN_WEAK_PASSWORDS).toContain(documentedSample);
+  });
+
+  it('refuses a whitespace-only password (review R3-1)', () => {
+    // Length alone accepts this value: it is not empty, it is not on the
+    // denylist after trimming, and it reaches the minimum length. The account
+    // would be created with a secret that hides nothing.
+    const blank = ' '.repeat(MIN_SUPERADMIN_PASSWORD_LENGTH);
+    expect(blank.length).toBe(MIN_SUPERADMIN_PASSWORD_LENGTH);
+
+    const plan = asRefusal(
+      planProvisioning({ email: validEmail, password: blank }),
+    );
+
+    expect(plan.code).toBe('PASSWORD_BLANK');
+  });
+
+  it('refuses every whitespace-only password, not just spaces', () => {
+    const blanks = [
+      '\t'.repeat(MIN_SUPERADMIN_PASSWORD_LENGTH),
+      '\n'.repeat(MIN_SUPERADMIN_PASSWORD_LENGTH),
+      ' \t\n'.repeat(Math.ceil(MIN_SUPERADMIN_PASSWORD_LENGTH / 3)),
+    ];
+
+    for (const blank of blanks) {
+      expect(blank.trim()).toBe('');
+      const plan = asRefusal(
+        planProvisioning({ email: validEmail, password: blank }),
+      );
+      expect(plan.code).toBe('PASSWORD_BLANK');
+    }
+  });
+
+  it('refuses a password with leading or trailing whitespace', () => {
+    // An invisible trailing space is an undiagnosable login mismatch, and the
+    // operator cannot see why the copied value fails.
+    const padded = `${validPassword} `;
+    expect(padded.length).toBeGreaterThan(MIN_SUPERADMIN_PASSWORD_LENGTH);
+    expect(padded.trim()).toBe(validPassword);
+
+    const plan = asRefusal(
+      planProvisioning({ email: validEmail, password: padded }),
+    );
+
+    expect(plan.code).toBe('PASSWORD_SURROUNDING_WHITESPACE');
+    expect(plan.reason).toMatch(/whitespace|espacio/i);
+  });
+
+  it('refuses padding that would fake the minimum length', () => {
+    // Seven effective characters padded with five spaces reach the minimum only
+    // on the raw string. Enforcing the length rule on padding would defeat it.
+    const faked = 'Clave1!'.padEnd(MIN_SUPERADMIN_PASSWORD_LENGTH, ' ');
+    expect(faked.length).toBe(MIN_SUPERADMIN_PASSWORD_LENGTH);
+    expect(faked.trim().length).toBeLessThan(MIN_SUPERADMIN_PASSWORD_LENGTH);
+
+    const plan = asRefusal(
+      planProvisioning({ email: validEmail, password: faked }),
+    );
+
+    expect(plan.code).toBe('PASSWORD_SURROUNDING_WHITESPACE');
   });
 
   it('reuses the shared password denylist as the single source of truth', () => {
