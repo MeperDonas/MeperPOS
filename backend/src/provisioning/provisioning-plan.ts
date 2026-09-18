@@ -50,6 +50,8 @@ export type ProvisioningRefusalCode =
   | 'MISSING_SUPERADMIN_PASSWORD'
   | 'PASSWORD_TOO_SHORT'
   | 'PASSWORD_KNOWN_DEFAULT'
+  | 'PASSWORD_BLANK'
+  | 'PASSWORD_SURROUNDING_WHITESPACE'
   | 'EXISTING_USER_NOT_SUPERADMIN';
 
 export interface ProvisioningRefusal {
@@ -162,6 +164,27 @@ export function planProvisioning(input: ProvisioningInput): ProvisioningPlan {
     return refuse(
       'PASSWORD_KNOWN_DEFAULT',
       'SUPERADMIN_PASSWORD matches the shared password denylist or a value documented in this repository (the development seed or the runbook samples). Choose a unique value that appears nowhere in the project.',
+    );
+  }
+
+  // Whitespace satisfies every length rule while protecting nothing: 12 spaces
+  // are longer than the minimum and still hide no secret, so the value is
+  // rejected as blank before length is ever considered (review R3-1).
+  if (password.trim().length === 0) {
+    return refuse(
+      'PASSWORD_BLANK',
+      `SUPERADMIN_PASSWORD contains only whitespace. Set a real, unique secret of at least ${MIN_SUPERADMIN_PASSWORD_LENGTH} characters; blank padding never protects the account.`,
+    );
+  }
+
+  // Refused explicitly instead of silently trimmed: an invisible leading or
+  // trailing space becomes an undiagnosable login mismatch, and padding must
+  // never be able to satisfy the minimum-length rule below. Once this rule has
+  // passed, raw length and effective length are the same value.
+  if (password !== password.trim()) {
+    return refuse(
+      'PASSWORD_SURROUNDING_WHITESPACE',
+      'SUPERADMIN_PASSWORD starts or ends with whitespace. Remove the leading or trailing spaces so the stored secret matches what you type at login, and so padding cannot stand in for real length.',
     );
   }
 
