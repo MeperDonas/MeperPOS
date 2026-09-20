@@ -545,4 +545,78 @@ performed by this work.
 
 ## Native review outcome
 
-To be filled at the deliverable boundary.
+Reviewed as four chained candidates, one per work unit, on per-unit branches in this clone
+(`feat/product-service-type-u1` through `-u4`). Every candidate used an explicit committed range
+(`baseRef` plus `committedOnly: true`) with the lineage id issued by `review.inspect`. A bare
+`inspect` projects the working tree, not the commits, and would have reviewed only the unrelated
+local `openspec/config.yaml`.
+
+| Unit | Range | Lineage | Files / lines | Outcome |
+|---|---|---|---|---|
+| 1 | `master..2b9b2be` | `review-67d746e10d0bdf61` | 10 / 994 | **approved**, acknowledged, authority burned |
+| 2 | `2b9b2be..05d2c6e` | `review-a735a75880558a65` | 7 / 428 | **approved**, acknowledged, authority burned |
+| 3 | `05d2c6e..7315358` | none | 11 / — | **not reviewed** |
+| 4 | `7315358..67d1655` | `review-d07fa2154356e9bc` | 5 / 1354 | **stopped terminally**, then superseded |
+| 4 corrected | `7315358..HEAD` | `review-7bd70cbe8d0a2907` | 5 / 1385 | **`correction_required`**, fix applied, stopped terminally |
+
+All ran at tier `medium` with the single provider-selected lens `review-reliability` and a
+correction budget of 200. Units 1 and 2 opened no correction and closed with exactly one advisory
+finding each. Both findings landed on a **spec**, and both matched limitations already disclosed in
+this document before the review ran:
+
+- Unit 1, WARNING, informational, `R3-cancel-after-type-change` at
+  `backend/src/sales/sales.service.ts:486`: the cancel path decides from the product's current type,
+  so a line sold while the item was a PRODUCT is not restored if the item later became a SERVICE,
+  leaving its `SALE` movement unexplained.
+- Unit 2, WARNING, informational, `R3-SqlMockJoin` at
+  `backend/src/reports/reports.service.inventory-excludes-services.spec.ts:140-142`: the dashboard
+  low-stock spec asserts the raw SQL **text**, so it cannot prove counting semantics and would
+  false-negative on a correct parameterized implementation.
+
+### Unit 4 — three findings, two CRITICAL, all in the only component that writes to production
+
+The provider automatically escalated the first finding to a refuter round because it was
+`inferential`. The refuter confirmed it, and the review then demanded one bounded correction.
+
+1. `R3-concurrent-stale-stock` (CRITICAL, refuter-confirmed): the apply path wrote stock and
+   recorded the adjustment from a plan computed before the transaction opened, with no version
+   guard, so a concurrent sale could be overwritten to zero while the movement claimed the stale
+   quantity. Fixed in `0753675`.
+2. Self-caught while verifying that fix: **a version-only guard does not see a sale**.
+   `backend/src/sales/sales.service.ts` contains zero occurrences of `version` and decrements stock
+   without incrementing it, so the version would still match and the row would still be
+   overwritten. The guard now pins the stock value as well, which makes the update a
+   compare-and-swap on the value itself. Fixed in `67c249f`.
+3. `R3-unrecognized-apply-arguments` (CRITICAL, deterministic): an unrecognised argument was only
+   warned about and then ignored, so a mistyped scope flag fell back to the default organization
+   while `--apply` was present, enabling an unintended write against the wrong organization. The
+   parser now throws on anything it does not recognise. Fixed in `5e1b657` and verified by actually
+   running the CLI with a mistyped flag together with `--apply`, which aborts before any database
+   access.
+
+### The correction route cannot close on the same lineage in this environment
+
+After a correction changes the candidate, bound STATUS returns
+`{"action":"stop","next_transition":{"kind":"stop","reason_code":"captured_artifacts_unverifiable"}}`
+with `horizon: "terminal"`, and it never offers a re-verification slot. This reproduced identically
+on the original unit-4 lineage and on the fresh lineage whose correction plan had been correctly
+registered, with the candidate tree moving both times (`a2b47366` to `52633987`, and `16a4aaf3` to
+`78f5159a`). Per the reason-code table that stop is terminal and calls for maintainer inspection;
+this record is that inspection, and its finding is that the artifacts cannot be re-verified after a
+candidate change through this host's route.
+
+The route that does work is to **start a fresh lineage over the corrected candidate**. That is
+exactly what produced finding 3: the fresh lineage re-reviewed the whole candidate rather than only
+the correction.
+
+### Pending, and how to resume
+
+- Unit 4 has **no approval**. Verifying the corrected backfill needs a fresh lineage over
+  `7315358..HEAD`. It re-reviews all five original paths every time, so it can legitimately surface
+  another finding; three have already come out of two rounds, two of them CRITICAL.
+- Unit 3, the frontend, has **no review at all**.
+- The backfill must not be run against production until its review closes, and in any case not
+  before the deploy that applies `20260919181830_add_product_type`, because production does not yet
+  have the `Product.type` column.
+- The three corrections live on `feat/product-service-type-u4`. `feat/product-service-type` was
+  fast-forwarded to the same commit so that no branch carries the uncorrected script.
