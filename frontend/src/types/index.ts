@@ -19,6 +19,8 @@ export interface Product {
   minStock: number;
   /** Merchandise or sold labour. Absent means merchandise. */
   type?: ProductType;
+  /** Whether this item's stock is managed. Absent means yes, matching the backend default. */
+  tracksStock?: boolean;
   imageUrl: string | null;
   categoryId: string;
   category?: Category;
