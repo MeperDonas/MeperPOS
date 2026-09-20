@@ -634,6 +634,89 @@ describe("POS behavior evidence (#19, #18)", () => {
     const payload = createSaleMutateMock.mock.calls[0]?.[0] as { customerId?: string };
     expect(payload.customerId).toBeUndefined();
   });
+
+  it("shows a zero-stock service in the grid and bills it into the cart", async () => {
+    useProductsMock.mockReturnValue({
+      data: {
+        data: [makeProduct("9", "Mantenimiento", { type: "SERVICE", stock: 0 })],
+        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      },
+      isLoading: false,
+      isFetching: false,
+    });
+
+    render(<POSPage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Mantenimiento" }));
+
+    expect(screen.getByText("1 en carrito")).toBeTruthy();
+  });
+
+  it("does not cap a service quantity at its stored stock", async () => {
+    useProductsMock.mockReturnValue({
+      data: {
+        data: [makeProduct("9", "Mantenimiento", { type: "SERVICE", stock: 0 })],
+        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      },
+      isLoading: false,
+      isFetching: false,
+    });
+
+    render(<POSPage />);
+
+    const serviceCard = screen.getByRole("button", { name: "Mantenimiento" });
+    await userEvent.click(serviceCard);
+    await userEvent.click(serviceCard);
+    await userEvent.click(serviceCard);
+
+    // The cart header badge counts distinct cart LINES (1 here), not units, so
+    // the repeated click is read off the cart line's own quantity control: a
+    // service has no stock ceiling and must not be pinned at its stored 0.
+    expect(screen.getByDisplayValue("3")).toBeTruthy();
+  });
+
+  it("still keeps a zero-stock product out of the grid", async () => {
+    useProductsMock.mockReturnValue({
+      data: {
+        data: [makeProduct("7", "Producto Sin Stock", { stock: 0 })],
+        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      },
+      isLoading: false,
+      isFetching: false,
+    });
+
+    render(<POSPage />);
+
+    expect(
+      screen.queryByRole("button", { name: "Producto Sin Stock" }),
+    ).toBeNull();
+  });
+
+  it("filters the grid by item type", async () => {
+    useProductsMock.mockReturnValue({
+      data: {
+        data: [
+          makeProduct("1", "Producto Base", { stock: 5 }),
+          makeProduct("9", "Mantenimiento", { type: "SERVICE", stock: 0 }),
+        ],
+        meta: { total: 2, page: 1, limit: 20, totalPages: 1 },
+      },
+      isLoading: false,
+      isFetching: false,
+    });
+
+    render(<POSPage />);
+
+    expect(screen.getByRole("button", { name: "Producto Base" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Mantenimiento" })).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: /^Servicios$/i }));
+
+    expect(screen.getByRole("button", { name: "Mantenimiento" })).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Producto Base" }),
+    ).toBeNull();
+  });
 });
 
 describe("POS item price override (pos-edit-item-price)", () => {

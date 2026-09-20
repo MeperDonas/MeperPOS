@@ -1,3 +1,5 @@
+export type ProductType = "PRODUCT" | "SERVICE";
+
 export interface Product {
   id: string;
   name: string;
@@ -15,6 +17,8 @@ export interface Product {
   effectiveTaxRate?: number;
   stock: number;
   minStock: number;
+  /** Merchandise or sold labour. Absent means merchandise. */
+  type?: ProductType;
   imageUrl: string | null;
   categoryId: string;
   category?: Category;

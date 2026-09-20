@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { safeGetItem, safeSetItem } from "@/lib/utils";
+import { effectiveStock } from "@/lib/product-type";
 import type { CartItem } from "@/types";
 
 interface PausedSale {
@@ -121,7 +122,7 @@ export function usePausedSales() {
     // Backfill availableStock for paused sales saved before the field existed
     const migratedCart = sale.cart.map((item) => ({
       ...item,
-      availableStock: item.availableStock ?? item.product.stock,
+      availableStock: item.availableStock ?? effectiveStock(item.product),
     }));
 
     setPausedSales((prev) => prev.filter((s) => s.id !== id));
