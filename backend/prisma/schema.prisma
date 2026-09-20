@@ -162,6 +162,7 @@ model Product {
   stock               Int                 @default(0)
   minStock            Int                 @default(0)
   type                ProductType         @default(PRODUCT)
+  tracksStock         Boolean             @default(true)
   imageUrl            String?
   categoryId          String
   active              Boolean             @default(true)
@@ -184,6 +185,7 @@ model Product {
   @@index([organizationId, active])
   @@index([organizationId, categoryId])
   @@index([organizationId, type])
+  @@index([organizationId, tracksStock])
 }
 
 model InventoryMovement {

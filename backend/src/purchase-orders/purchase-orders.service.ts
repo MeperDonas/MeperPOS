@@ -100,7 +100,7 @@ export class PurchaseOrdersService {
 
       // A service is sold labour: it has no stock to receive and cannot be bought.
       // Refusing here means no order number is consumed and nothing is written.
-      if (!tracksStock(product.type)) {
+      if (!tracksStock(product)) {
         throw new BadRequestException(
           `El servicio ${product.name} no maneja inventario y no puede formar parte de una orden de compra`,
         );
@@ -484,7 +484,7 @@ export class PurchaseOrdersService {
 
         // Defence in depth: a service line can only exist in an order drafted before
         // the validation above existed. Receiving one must not invent merchandise.
-        if (tracksStock(product.type)) {
+        if (tracksStock(product)) {
           const previousStock = product.stock;
           const newStock = previousStock + r.qtyReceivedNow;
           const currentVersion = product.version;
