@@ -79,6 +79,7 @@ export class SalesService {
     const saleItems: Array<{
       productId: string;
       productType: ProductType;
+      productTracksStock: boolean;
       quantity: number;
       unitPrice: number;
       costPriceSnapshot: Prisma.Decimal;
@@ -127,6 +128,7 @@ export class SalesService {
       saleItems.push({
         productId: product.id,
         productType: product.type,
+        productTracksStock: product.tracksStock,
         quantity: item.quantity,
         unitPrice,
         costPriceSnapshot: product.costPrice,
@@ -213,8 +215,14 @@ export class SalesService {
             });
 
             // A service is sold labour, not merchandise: it has no stock to
-            // guard, decrement or record.
-            if (tracksStock(saleItem.productType)) {
+            // guard, decrement or record. The flag travels with the computed
+            // sale line, read from the product row that priced it.
+            if (
+              tracksStock({
+                type: saleItem.productType,
+                tracksStock: saleItem.productTracksStock,
+              })
+            ) {
               const updatedProduct = await tx.product.updateMany({
                 where: {
                   id: saleItem.productId,
@@ -486,7 +494,7 @@ export class SalesService {
             },
           });
 
-          if (product && tracksStock(product.type)) {
+          if (product && tracksStock(product)) {
             const previousStock = product.stock;
             const newStock = previousStock + item.quantity;
 

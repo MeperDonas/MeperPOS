@@ -8,7 +8,7 @@ import {
   parseBogotaStartOfDay,
 } from '../common/utils/bogota-date';
 import { ExpensesService } from '../expenses/expenses.service';
-import { normalizeStockForType } from '../products/product-type.logic';
+import { normalizeStock } from '../products/product-type.logic';
 import {
   aggregateFinancialSales,
   compareFinancialReports,
@@ -504,7 +504,13 @@ export class ReportsService {
           // inventory valuation.
           type: ProductType.PRODUCT,
         },
-        select: { stock: true, costPrice: true, salePrice: true, type: true },
+        select: {
+          stock: true,
+          costPrice: true,
+          salePrice: true,
+          type: true,
+          tracksStock: true,
+        },
       }),
       this.prisma.inventoryMovement.findMany({
         where: {
@@ -523,10 +529,7 @@ export class ReportsService {
         // The query already asks only for products. Normalising again here makes the
         // valuation structurally incapable of counting sold labour, whatever a
         // caller feeds it.
-        const stockedQuantity = normalizeStockForType(
-          product.type,
-          product.stock,
-        );
+        const stockedQuantity = normalizeStock(product, product.stock);
         return {
           stockQuantity: totals.stockQuantity + stockedQuantity,
           stockValue: totals.stockValue.add(

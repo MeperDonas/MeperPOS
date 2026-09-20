@@ -8,7 +8,7 @@ import { Prisma, ProductType, PromotionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   isLowStock,
-  normalizeStockForType,
+  normalizeStock,
   resolveInitialStockMovement,
   resolveStockDeltaMovement,
   tracksStock,
@@ -190,7 +190,13 @@ export class ProductsService {
     // rather than stored, so neither the inventory valuation nor the kárdex can be
     // inflated by an invented number.
     const resolvedType = rawType ?? ProductType.PRODUCT;
-    const resolvedStock = normalizeStockForType(resolvedType, stock);
+    // No row exists yet, so the subject mirrors what this write is about to store:
+    // only an explicit SERVICE is untracked; every other type defaults to tracked.
+    const resolvedSubject = {
+      type: resolvedType,
+      tracksStock: resolvedType !== ProductType.SERVICE,
+    };
+    const resolvedStock = normalizeStock(resolvedSubject, stock);
 
     assertValidPromotion(
       createProductDto.promotionType,
@@ -215,10 +221,7 @@ export class ProductsService {
 
     this.planLimitService.invalidateCache('products', organizationId);
 
-    const initialMovement = resolveInitialStockMovement(
-      resolvedType,
-      product.stock,
-    );
+    const initialMovement = resolveInitialStockMovement(product, product.stock);
 
     if (initialMovement) {
       await this.createInventoryMovement(
@@ -374,10 +377,16 @@ export class ProductsService {
 
     const previousStock = existingProduct.stock;
     // A service never carries stock, so editing one, or converting a stocked product
-    // into one, always lands on zero instead of storing the invented number.
+    // into one, always lands on zero instead of storing the invented number. The
+    // resulting subject reads the row's flag, because this write cannot change it
+    // yet: the effective state keeps whatever tracksStock the row declares.
     const effectiveType = updateProductDto.type ?? existingProduct.type;
-    const newStock = normalizeStockForType(
-      effectiveType,
+    const effectiveSubject = {
+      type: effectiveType,
+      tracksStock: existingProduct.tracksStock,
+    };
+    const newStock = normalizeStock(
+      effectiveSubject,
       updateProductDto.stock ?? previousStock,
     );
 
@@ -434,9 +443,9 @@ export class ProductsService {
     // direction is a real stock event, so the basis is stocked as soon as either the
     // previous or the resulting side tracks stock; only a service staying a service
     // records nothing.
-    const movementBasis = tracksStock(existingProduct.type)
-      ? existingProduct.type
-      : effectiveType;
+    const movementBasis = tracksStock(existingProduct)
+      ? existingProduct
+      : effectiveSubject;
     const movementType = resolveStockDeltaMovement(
       movementBasis,
       previousStock,
@@ -548,7 +557,7 @@ export class ProductsService {
       effectiveTaxRate: resolveEffectiveTaxRate(p, p.category),
       minStock: p.minStock,
       type: p.type,
-      isLowStock: isLowStock(p.type, p.stock, p.minStock),
+      isLowStock: isLowStock(p, p.stock, p.minStock),
       category: p.category,
       imageUrl: p.imageUrl,
       promotionType: p.promotionType,
@@ -594,7 +603,7 @@ export class ProductsService {
       effectiveTaxRate: resolveEffectiveTaxRate(product, product.category),
       minStock: product.minStock,
       type: product.type,
-      isLowStock: isLowStock(product.type, product.stock, product.minStock),
+      isLowStock: isLowStock(product, product.stock, product.minStock),
       category: product.category,
       imageUrl: product.imageUrl,
       promotionType: product.promotionType,
