@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn, formatCurrency } from "@/lib/utils";
+import { isService } from "@/lib/product-type";
 import { Package, PackageX } from "lucide-react";
 import type { Category, Product } from "@/types";
 
@@ -15,21 +16,27 @@ interface CategoryProductsModalProps {
 }
 
 function StockBadge({ product }: { product: Product }) {
-  const isOutOfStock = product.stock === 0;
-  const isLowStock = product.stock > 0 && product.stock <= product.minStock;
+  // A service carries no stock chip and is never out of stock nor low on stock,
+  // whatever the stored numbers say.
+  const service = isService(product);
+  const isOutOfStock = !service && product.stock === 0;
+  const isLowStock =
+    !service && product.stock > 0 && product.stock <= product.minStock;
 
   return (
     <span
       className={cn(
         "inline-flex items-center px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border shrink-0",
-        isOutOfStock
-          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
-          : isLowStock
-            ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
-            : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+        service
+          ? "bg-muted/60 text-muted-foreground border-border/60"
+          : isOutOfStock
+            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+            : isLowStock
+              ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
+              : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
       )}
     >
-      {product.stock} uds.
+      {service ? "Servicio" : `${product.stock} uds.`}
     </span>
   );
 }
