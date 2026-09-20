@@ -16,7 +16,7 @@ describe('planServicesBackfill', () => {
     { name: 'SCANNER', sku: 'SERVICIO' },
     { name: 'Sincronizacion General', sku: 'MEC-001' },
     { name: 'MANTENIMIENTO', sku: 'SERV 4' },
-    { name: 'SERVICIO', sku: 'SERVICIO' },
+    { name: 'SERVICIO', sku: '123' },
     { name: 'RETIRO CALCAS', sku: 'SERV 11' },
   ];
 
@@ -146,7 +146,7 @@ describe('planServicesBackfill', () => {
       expect(plan.refusals[0].reason).toBe('NOT_FOUND');
     });
 
-    it('will not match on the sku alone, which is shared in the real data', () => {
+    it('will not match on the sku alone, even when another row carries it', () => {
       const scanner: ServiceTarget = { name: 'SCANNER', sku: 'SERVICIO' };
       const plan = planServicesBackfill(
         [scanner],
@@ -205,7 +205,7 @@ describe('planServicesBackfill', () => {
       {
         id: 'p5',
         name: 'SERVICIO',
-        sku: 'SERVICIO',
+        sku: '123',
         stock: 963,
         type: ProductType.PRODUCT,
         active: true,
