@@ -8,7 +8,7 @@ import {
   IsUUID,
   IsEnum,
 } from 'class-validator';
-import { PromotionType } from '@prisma/client';
+import { ProductType, PromotionType } from '@prisma/client';
 
 export class CreateProductDto {
   @ApiProperty({ example: 'Product Name' })
@@ -59,6 +59,16 @@ export class CreateProductDto {
   @IsNumber()
   @Min(0)
   minStock: number;
+
+  @ApiProperty({
+    enum: ProductType,
+    enumName: 'ProductType',
+    required: false,
+    default: 'PRODUCT',
+  })
+  @IsEnum(ProductType)
+  @IsOptional()
+  type?: ProductType;
 
   @ApiProperty({ example: 'https://example.com/image.jpg', required: false })
   @IsString()
@@ -141,6 +151,15 @@ export class UpdateProductDto {
   @Min(0)
   @IsOptional()
   minStock?: number;
+
+  @ApiProperty({
+    enum: ProductType,
+    enumName: 'ProductType',
+    required: false,
+  })
+  @IsEnum(ProductType)
+  @IsOptional()
+  type?: ProductType;
 
   @ApiProperty({ example: 'https://example.com/image.jpg', required: false })
   @IsString()

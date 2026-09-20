@@ -4,8 +4,15 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma, PromotionType } from '@prisma/client';
+import { Prisma, ProductType, PromotionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  isLowStock,
+  normalizeStockForType,
+  resolveInitialStockMovement,
+  resolveStockDeltaMovement,
+  tracksStock,
+} from './product-type.logic';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
@@ -124,8 +131,16 @@ export class ProductsService {
     if (!organizationId) {
       throw new BadRequestException('Organization ID is required for this operation');
     }
-    const { sku, barcode: rawBarcode, categoryId, taxRate, taxable, ...rest } =
-      createProductDto;
+    const {
+      sku,
+      barcode: rawBarcode,
+      categoryId,
+      taxRate,
+      taxable,
+      type: rawType,
+      stock,
+      ...rest
+    } = createProductDto;
     // Normalize empty barcode to null so PostgreSQL unique constraint ignores it
     const barcode = rawBarcode?.trim() || null;
 
@@ -171,6 +186,12 @@ export class ProductsService {
       resolvedTaxRate = 0;
     }
 
+    // A service carries no stock. Whatever the payload asked for is normalised away
+    // rather than stored, so neither the inventory valuation nor the kárdex can be
+    // inflated by an invented number.
+    const resolvedType = rawType ?? ProductType.PRODUCT;
+    const resolvedStock = normalizeStockForType(resolvedType, stock);
+
     assertValidPromotion(
       createProductDto.promotionType,
       createProductDto.promotionValue,
@@ -186,21 +207,30 @@ export class ProductsService {
         organizationId,
         taxable: resolvedTaxable,
         taxRate: resolvedTaxRate,
+        type: resolvedType,
+        stock: resolvedStock,
       },
       include: { category: true },
     });
 
     this.planLimitService.invalidateCache('products', organizationId);
 
-    await this.createInventoryMovement(
-      product.id,
-      'PURCHASE',
-      0,
+    const initialMovement = resolveInitialStockMovement(
+      resolvedType,
       product.stock,
-      'Initial stock',
-      userId,
-      organizationId,
     );
+
+    if (initialMovement) {
+      await this.createInventoryMovement(
+        product.id,
+        initialMovement.type,
+        0,
+        initialMovement.quantity,
+        'Initial stock',
+        userId,
+        organizationId,
+      );
+    }
 
     return this.enrichWithEffectiveTax(this.enrichWithPromo(product));
   }
@@ -243,6 +273,8 @@ export class ProductsService {
       // Field reference: stock <= minStock is evaluated in the database, so
       // low-stock pages stay coherent without loading every product first.
       where.stock = { lte: this.prisma.product.fields.minStock };
+      // A service is never low on stock, so it can never belong on this page.
+      where.type = ProductType.PRODUCT;
     }
 
     // 'name' keeps the inventory list's alphabetical presentation coherent
@@ -341,7 +373,13 @@ export class ProductsService {
     }
 
     const previousStock = existingProduct.stock;
-    const newStock = updateProductDto.stock ?? previousStock;
+    // A service never carries stock, so editing one, or converting a stocked product
+    // into one, always lands on zero instead of storing the invented number.
+    const effectiveType = updateProductDto.type ?? existingProduct.type;
+    const newStock = normalizeStockForType(
+      effectiveType,
+      updateProductDto.stock ?? previousStock,
+    );
 
     // Apply the same opt-in tax invariant as create: `taxable=true` requires a
     // positive rate; `taxable=false` forces the stored rate back to 0.
@@ -371,6 +409,7 @@ export class ProductsService {
       data: {
         ...updateProductDto,
         ...taxData,
+        stock: newStock,
         barcode: normalizedBarcode,
         version: { increment: 1 },
       },
@@ -389,12 +428,22 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    if (
-      updateProductDto.stock !== undefined &&
-      updateProductDto.stock !== previousStock
-    ) {
-      const movementType =
-        newStock > previousStock ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
+    // The movement is decided from the stock the row actually had, so converting a
+    // stocked product into a service still records where its stock went, while an
+    // ordinary edit of a service records nothing at all. A conversion in either
+    // direction is a real stock event, so the basis is stocked as soon as either the
+    // previous or the resulting side tracks stock; only a service staying a service
+    // records nothing.
+    const movementBasis = tracksStock(existingProduct.type)
+      ? existingProduct.type
+      : effectiveType;
+    const movementType = resolveStockDeltaMovement(
+      movementBasis,
+      previousStock,
+      newStock,
+    );
+
+    if (movementType) {
       await this.createInventoryMovement(
         id,
         movementType,
@@ -467,7 +516,7 @@ export class ProductsService {
       SELECT p.*, c.name as "categoryName"
       FROM "Product" p
       LEFT JOIN "Category" c ON p."categoryId" = c.id
-      WHERE p.active = true AND p."organizationId" = ${organizationId} AND p.stock <= p."minStock"
+      WHERE p.active = true AND p."organizationId" = ${organizationId} AND p.stock <= p."minStock" AND p."type" = 'PRODUCT'
       ORDER BY p.stock ASC
     `;
   }
@@ -498,7 +547,8 @@ export class ProductsService {
       taxRate: p.taxRate,
       effectiveTaxRate: resolveEffectiveTaxRate(p, p.category),
       minStock: p.minStock,
-      isLowStock: p.stock <= p.minStock,
+      type: p.type,
+      isLowStock: isLowStock(p.type, p.stock, p.minStock),
       category: p.category,
       imageUrl: p.imageUrl,
       promotionType: p.promotionType,
@@ -543,7 +593,8 @@ export class ProductsService {
       taxRate: product.taxRate,
       effectiveTaxRate: resolveEffectiveTaxRate(product, product.category),
       minStock: product.minStock,
-      isLowStock: product.stock <= product.minStock,
+      type: product.type,
+      isLowStock: isLowStock(product.type, product.stock, product.minStock),
       category: product.category,
       imageUrl: product.imageUrl,
       promotionType: product.promotionType,
