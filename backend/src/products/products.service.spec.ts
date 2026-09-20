@@ -407,7 +407,8 @@ describe('ProductsService — Opt-in tax resolution', () => {
 
   describe('Search promotion parity (live service path)', () => {
     // Every search payload carries exactly these keys: all prior flat fields,
-    // the two additive promotion fields, and the derived effective price.
+    // the product/service discriminator, the two additive promotion fields,
+    // and the derived effective price.
     const FLAT_PAYLOAD_KEYS = [
       'id',
       'name',
@@ -419,6 +420,7 @@ describe('ProductsService — Opt-in tax resolution', () => {
       'taxRate',
       'effectiveTaxRate',
       'minStock',
+      'type',
       'isLowStock',
       'category',
       'imageUrl',

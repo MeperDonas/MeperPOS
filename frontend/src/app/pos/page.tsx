@@ -44,8 +44,10 @@ import {
   Pause,
   Play,
   User,
+  Wrench,
 } from "lucide-react";
 import { cn, formatCurrency, safeGetItem, safeSetItem } from "@/lib/utils";
+import { effectiveStock, isService } from "@/lib/product-type";
 import type { CartItem, Product, Sale } from "@/types";
 import { useToast } from "@/contexts/ToastContext";
 import { api, getApiErrorMessage } from "@/lib/api";
@@ -127,6 +129,7 @@ export default function POSPage() {
   const scannerInputRef = useRef<HTMLInputElement | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [showServicesOnly, setShowServicesOnly] = useState(false);
   const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
     const saved = safeGetItem(FAVORITE_PRODUCTS_KEY);
@@ -259,28 +262,38 @@ export default function POSPage() {
     [],
   );
 
-  // Filter out-of-stock products from POS — they simply don't appear
+  // Filter out-of-stock products from POS — they simply don't appear. A service
+  // has no stock ceiling, so it always stays in the grid.
   const inStockProducts = useMemo(
-    () => products.filter((p) => p.stock > 0),
+    () => products.filter((p) => effectiveStock(p) > 0),
     [products],
   );
 
   const visibleProducts = useMemo(() => {
-    if (!showFavoritesOnly) return inStockProducts;
-    return inStockProducts.filter((product) =>
-      favoriteProductIds.includes(product.id),
-    );
-  }, [inStockProducts, showFavoritesOnly, favoriteProductIds]);
+    const byType = showServicesOnly
+      ? inStockProducts.filter((product) => isService(product))
+      : inStockProducts;
+    if (!showFavoritesOnly) return byType;
+    return byType.filter((product) => favoriteProductIds.includes(product.id));
+  }, [
+    inStockProducts,
+    showServicesOnly,
+    showFavoritesOnly,
+    favoriteProductIds,
+  ]);
 
   const addToCart = useCallback((product: Product, quantity: number = 1) => {
-    if (product.stock <= 0) return;
+    if (effectiveStock(product) <= 0) return;
 
     setCart((prev) => {
       const existing = prev.find((item) => item.productId === product.id);
       if (existing) {
         // Cap at available stock — silently ignore if already at max
-        if (existing.quantity >= product.stock) return prev;
-        const newQty = Math.min(existing.quantity + quantity, product.stock);
+        if (existing.quantity >= effectiveStock(product)) return prev;
+        const newQty = Math.min(
+          existing.quantity + quantity,
+          effectiveStock(product),
+        );
         const discountAmount = existing.discountPercent
           ? Math.min(
               (existing.unitPrice * newQty * existing.discountPercent) / 100,
@@ -298,7 +311,7 @@ export default function POSPage() {
         {
           productId: product.id,
           product,
-          quantity: Math.min(quantity, product.stock),
+          quantity: Math.min(quantity, effectiveStock(product)),
           // Promotional price wins when present; list price stays snapshotted
           // as originalUnitPrice so the cart can strike it through. Prices are
           // normalized to numbers because salePrice can arrive as a Decimal
@@ -306,7 +319,7 @@ export default function POSPage() {
           unitPrice: Number(product.effectiveSalePrice ?? product.salePrice),
           originalUnitPrice: Number(product.salePrice),
           discountAmount: 0,
-          availableStock: product.stock,
+          availableStock: effectiveStock(product),
         },
       ];
     });
@@ -484,7 +497,7 @@ export default function POSPage() {
         return;
       }
 
-      if (product.stock <= 0) {
+      if (effectiveStock(product) <= 0) {
         setScanFeedback({
           tone: "warning",
           message: `${product.name} no tiene stock disponible.`,
@@ -494,7 +507,7 @@ export default function POSPage() {
       }
 
       const existingItem = cart.find((item) => item.productId === product.id);
-      if (existingItem && existingItem.quantity >= product.stock) {
+      if (existingItem && existingItem.quantity >= effectiveStock(product)) {
         setScanFeedback({
           tone: "warning",
           message: `${product.name} ya alcanzó el stock máximo en el carrito.`,
@@ -679,7 +692,7 @@ export default function POSPage() {
         return {
           ...item,
           product: freshProduct,
-          availableStock: freshProduct.stock,
+          availableStock: effectiveStock(freshProduct),
           unitPrice,
           originalUnitPrice: freshProduct.salePrice,
           discountAmount: Math.min(
@@ -782,6 +795,19 @@ export default function POSPage() {
                     className={`w-3.5 h-3.5 ${showFavoritesOnly ? "fill-current" : ""}`}
                   />
                   {showFavoritesOnly ? "Favoritos" : "Todos"}
+                </Button>
+                <Button
+                  type="button"
+                  variant={showServicesOnly ? "primary" : "secondary"}
+                  size="sm"
+                  onClick={() => {
+                    setShowServicesOnly((c) => !c);
+                    setCurrentPage(1);
+                  }}
+                  className="shrink-0"
+                >
+                  <Wrench className="w-3.5 h-3.5" />
+                  Servicios
                 </Button>
               </div>
               {scanFeedback.message && (

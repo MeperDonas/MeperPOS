@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, ProductType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../common/services/cache.service';
 import {
@@ -8,6 +8,7 @@ import {
   parseBogotaStartOfDay,
 } from '../common/utils/bogota-date';
 import { ExpensesService } from '../expenses/expenses.service';
+import { normalizeStockForType } from '../products/product-type.logic';
 import {
   aggregateFinancialSales,
   compareFinancialReports,
@@ -496,21 +497,46 @@ export class ReportsService {
     const period = buildFinancialComparisonPeriod(startDate, endDate);
     const [products, movements] = await Promise.all([
       this.prisma.product.findMany({
-        where: { organizationId: orgId, active: true },
-        select: { stock: true, costPrice: true, salePrice: true },
+        where: {
+          organizationId: orgId,
+          active: true,
+          // A service is sold labour, not merchandise, so it has no place in the
+          // inventory valuation.
+          type: ProductType.PRODUCT,
+        },
+        select: { stock: true, costPrice: true, salePrice: true, type: true },
       }),
       this.prisma.inventoryMovement.findMany({
-        where: { organizationId: orgId, createdAt: period.current },
+        where: {
+          organizationId: orgId,
+          createdAt: period.current,
+          // Historical service sales left phantom movements behind; they belong to
+          // the workshop, not to the merchandise ledger.
+          product: { type: ProductType.PRODUCT },
+        },
         select: { type: true, quantity: true },
       }),
     ]);
 
     const current = products.reduce(
-      (totals, product) => ({
-        stockQuantity: totals.stockQuantity + product.stock,
-        stockValue: totals.stockValue.add(product.costPrice.mul(product.stock)),
-        retailValue: totals.retailValue.add(product.salePrice.mul(product.stock)),
-      }),
+      (totals, product) => {
+        // The query already asks only for products. Normalising again here makes the
+        // valuation structurally incapable of counting sold labour, whatever a
+        // caller feeds it.
+        const stockedQuantity = normalizeStockForType(
+          product.type,
+          product.stock,
+        );
+        return {
+          stockQuantity: totals.stockQuantity + stockedQuantity,
+          stockValue: totals.stockValue.add(
+            product.costPrice.mul(stockedQuantity),
+          ),
+          retailValue: totals.retailValue.add(
+            product.salePrice.mul(stockedQuantity),
+          ),
+        };
+      },
       {
         stockQuantity: 0,
         stockValue: new Prisma.Decimal(0),
@@ -703,7 +729,7 @@ export class ReportsService {
       }),
       this.prisma.$queryRaw<[{ count: bigint }]>`
             SELECT COUNT(*)::bigint as count FROM "Product"
-            WHERE "organizationId" = ${orgId} AND active = true AND stock <= "minStock"
+            WHERE "organizationId" = ${orgId} AND active = true AND stock <= "minStock" AND "type" = 'PRODUCT'
           `.then((r) => Number(r[0].count)),
       this.prisma.sale.findMany({
         where: salesWhere,

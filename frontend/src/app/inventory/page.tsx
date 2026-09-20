@@ -37,6 +37,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiErrorMessage } from "@/lib/api";
 import { cn, resolveTaxFields } from "@/lib/utils";
+import { isService } from "@/lib/product-type";
 
 export default function InventoryPage() {
   const toast = useToast();
@@ -130,7 +131,7 @@ export default function InventoryPage() {
   }, [meta, page]);
 
   const lowStockProducts = products
-    .filter((p) => p.stock <= p.minStock)
+    .filter((p) => !isService(p) && p.stock <= p.minStock)
     .toSorted((a, b) =>
       a.name.localeCompare(b.name, "es-CO", {
         sensitivity: "base",
@@ -271,6 +272,17 @@ export default function InventoryPage() {
     // taxable:true with a 0 rate would be rejected by the backend, silently
     // keeping the old rate — so derive taxable from the entered rate.
     const taxData = resolveTaxFields(taxRateInput);
+    // A service carries no inventory: the type is always explicit in the payload
+    // and the stock numbers are forced to zero, so a hidden field can never leak
+    // a stale value back into the record.
+    const stockData =
+      formData.type === "SERVICE"
+        ? { type: "SERVICE" as const, stock: 0, minStock: 0 }
+        : {
+            type: "PRODUCT" as const,
+            stock: formData.stock ?? 0,
+            minStock: formData.minStock ?? 5,
+          };
     // Promotion: empty type = no offer (explicit nulls clear it server-side);
     // a selected type requires a positive value.
     const hasPromotion = promotionTypeInput !== "";
@@ -311,8 +323,7 @@ export default function InventoryPage() {
           ...taxData,
           costPrice: updateData.costPrice ?? 0,
           salePrice: updateData.salePrice ?? 0,
-          stock: updateData.stock ?? 0,
-          minStock: updateData.minStock ?? 5,
+          ...stockData,
           promotionType: hasPromotion ? promotionTypeInput : null,
           promotionValue:
             hasPromotion && parsedPromotionValue !== null
@@ -334,8 +345,7 @@ export default function InventoryPage() {
           ...taxData,
           costPrice: formData.costPrice ?? 0,
           salePrice: formData.salePrice ?? 0,
-          stock: formData.stock ?? 0,
-          minStock: formData.minStock ?? 5,
+          ...stockData,
           promotionType: hasPromotion ? promotionTypeInput : null,
           promotionValue:
             hasPromotion && parsedPromotionValue !== null
@@ -681,6 +691,20 @@ export default function InventoryPage() {
                   })),
                 ]}
               />
+              <BentoSelect
+                label="Tipo"
+                value={formData.type === "SERVICE" ? "SERVICE" : "PRODUCT"}
+                onChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    type: value === "SERVICE" ? "SERVICE" : "PRODUCT",
+                  })
+                }
+                options={[
+                  { value: "PRODUCT", label: "Producto" },
+                  { value: "SERVICE", label: "Servicio" },
+                ]}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <CurrencyInput
                   label="Precio de Costo"
@@ -715,27 +739,31 @@ export default function InventoryPage() {
                     onChange={(e) => setTaxRateInput(e.target.value)}
                   />
                 </div>
-                <Input
-                  label="Stock"
-                  type="number"
-                  value={formData.stock || 0}
-                  onChange={(e) =>
-                    setFormData({ ...formData, stock: Number(e.target.value) })
-                  }
-                  required
-                />
-                <Input
-                  label="Stock Mín."
-                  type="number"
-                  value={formData.minStock || 5}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      minStock: Number(e.target.value),
-                    })
-                  }
-                  required
-                />
+                {formData.type !== "SERVICE" && (
+                  <>
+                    <Input
+                      label="Stock"
+                      type="number"
+                      value={formData.stock || 0}
+                      onChange={(e) =>
+                        setFormData({ ...formData, stock: Number(e.target.value) })
+                      }
+                      required
+                    />
+                    <Input
+                      label="Stock Mín."
+                      type="number"
+                      value={formData.minStock || 5}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          minStock: Number(e.target.value),
+                        })
+                      }
+                      required
+                    />
+                  </>
+                )}
               </div>
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
