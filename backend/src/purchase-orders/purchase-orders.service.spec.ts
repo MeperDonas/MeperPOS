@@ -386,4 +386,73 @@ describe('PurchaseOrdersService', () => {
     );
     expect(txMock.auditLog.create).not.toHaveBeenCalled();
   });
+
+  it('refuses to put a service on a purchase order', async () => {
+    prismaMock.supplier.findFirst.mockResolvedValue({
+      id: 'supplier-1',
+      active: true,
+    });
+    prismaMock.product.findFirst.mockResolvedValue({
+      id: 'serv-1',
+      name: 'MANTENIMIENTO',
+      type: 'SERVICE',
+      active: true,
+      taxRate: 0,
+    });
+
+    await expect(
+      service.create(
+        {
+          supplierId: 'supplier-1',
+          items: [{ productId: 'serv-1', qtyOrdered: 1, unitCost: 20000 }],
+        } as never,
+        'user-1',
+        'org-1',
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    // The refusal has to happen while validating the lines: no order number may be
+    // consumed, and no order or order line may be written.
+    expect(sequenceServiceMock.nextNumber).not.toHaveBeenCalled();
+    expect(txMock.purchaseOrder.create).not.toHaveBeenCalled();
+    expect(txMock.purchaseOrderItem.create).not.toHaveBeenCalled();
+  });
+
+  it('receives a service line without moving stock or the kárdex', async () => {
+    prismaMock.purchaseOrder.findFirst.mockResolvedValue(buildOrder());
+    txMock.purchaseOrderItem.findUnique.mockResolvedValue({
+      id: 'poi-1',
+      purchaseOrderId: 'po-1',
+      productId: 'serv-1',
+      qtyOrdered: 5,
+      qtyReceived: 0,
+      unitCost: 100,
+    });
+    txMock.product.findFirst.mockResolvedValue({
+      id: 'serv-1',
+      stock: 0,
+      version: 1,
+      costPrice: 0,
+      type: 'SERVICE',
+    });
+    txMock.product.updateMany.mockResolvedValue({ count: 1 });
+    txMock.purchaseOrderItem.findMany.mockResolvedValue([
+      { id: 'poi-1', qtyOrdered: 5, qtyReceived: 2 },
+    ]);
+
+    await service.receive(
+      'po-1',
+      { items: [{ itemId: 'poi-1', qtyReceivedNow: 2 }] },
+      'user-1',
+      'org-1',
+    );
+
+    expect(txMock.product.updateMany).not.toHaveBeenCalled();
+    expect(txMock.inventoryMovement.create).not.toHaveBeenCalled();
+    expect(txMock.auditLog.create).not.toHaveBeenCalled();
+    // The received quantity must still be recorded, otherwise the order can never close.
+    expect(txMock.purchaseOrderItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'poi-1' } }),
+    );
+  });
 });
