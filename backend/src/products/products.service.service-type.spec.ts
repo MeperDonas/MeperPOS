@@ -151,6 +151,135 @@ describe('ProductsService — product versus service', () => {
     });
   });
 
+  describe('the write boundary', () => {
+    it('forces tracksStock to false when a service is created with the flag on', async () => {
+      // The invariant is enforced at the write boundary, so no invalid
+      // combination can be stored.
+      prismaMock.product.create.mockResolvedValue(
+        buildProduct({
+          type: ProductType.SERVICE,
+          stock: 0,
+          tracksStock: false,
+        }),
+      );
+
+      const payload = {
+        ...baseCreateDto,
+        type: ProductType.SERVICE,
+        tracksStock: true,
+        stock: 9996,
+      };
+
+      await service.create(payload, USER_ID, ORG_ID);
+
+      expect(prismaMock.product.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: ProductType.SERVICE,
+            tracksStock: false,
+            stock: 0,
+          }),
+        }),
+      );
+      expect(prismaMock.inventoryMovement.create).not.toHaveBeenCalled();
+    });
+
+    it('normalises the stock of an untracked product to zero and writes no opening movement', async () => {
+      prismaMock.product.create.mockResolvedValue(
+        buildProduct({
+          type: ProductType.PRODUCT,
+          stock: 0,
+          tracksStock: false,
+        }),
+      );
+
+      const payload = {
+        ...baseCreateDto,
+        name: 'PASTILLAS',
+        type: ProductType.PRODUCT,
+        tracksStock: false,
+        stock: 9991,
+      };
+
+      await service.create(payload, USER_ID, ORG_ID);
+
+      expect(prismaMock.product.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: ProductType.PRODUCT,
+            tracksStock: false,
+            stock: 0,
+          }),
+        }),
+      );
+      expect(prismaMock.inventoryMovement.create).not.toHaveBeenCalled();
+    });
+
+    it('keeps tracked merchandise untouched: stock 10 and one opening PURCHASE movement', async () => {
+      // Control: tracked merchandise must be unaffected by the boundary.
+      prismaMock.product.create.mockResolvedValue(
+        buildProduct({
+          type: ProductType.PRODUCT,
+          stock: 10,
+          tracksStock: true,
+        }),
+      );
+
+      const payload = {
+        ...baseCreateDto,
+        name: 'PASTILLAS',
+        type: ProductType.PRODUCT,
+        tracksStock: true,
+        stock: 10,
+      };
+
+      await service.create(payload, USER_ID, ORG_ID);
+
+      expect(prismaMock.product.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: ProductType.PRODUCT,
+            tracksStock: true,
+            stock: 10,
+          }),
+        }),
+      );
+      expect(prismaMock.inventoryMovement.create).toHaveBeenCalledTimes(1);
+      expect(prismaMock.inventoryMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: 'PURCHASE',
+            quantity: 10,
+            previousStock: 0,
+            newStock: 10,
+          }),
+        }),
+      );
+    });
+
+    it('defaults a missing tracksStock to true, matching the column default', async () => {
+      prismaMock.product.create.mockResolvedValue(
+        buildProduct({
+          type: ProductType.PRODUCT,
+          stock: 0,
+          tracksStock: true,
+        }),
+      );
+
+      await service.create(
+        { ...baseCreateDto, name: 'PASTILLAS', type: ProductType.PRODUCT },
+        USER_ID,
+        ORG_ID,
+      );
+
+      expect(prismaMock.product.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ tracksStock: true }),
+        }),
+      );
+    });
+  });
+
   describe('update', () => {
     it('never moves stock or the kárdex when a service stock is edited', async () => {
       const existingService = buildProduct({
@@ -215,6 +344,8 @@ describe('ProductsService — product versus service', () => {
     });
 
     it('records one ADJUSTMENT_IN when a service is converted back into a stocked product', async () => {
+      // The flag must now be declared explicitly: converting back into stocked
+      // merchandise is no longer derived from the type alone.
       const existingService = buildProduct({
         id: 'serv-1',
         type: ProductType.SERVICE,
@@ -227,12 +358,13 @@ describe('ProductsService — product versus service', () => {
         );
       prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
 
-      await service.update(
-        'serv-1',
-        { type: ProductType.PRODUCT, stock: 10 },
-        USER_ID,
-        ORG_ID,
-      );
+      const payload = {
+        type: ProductType.PRODUCT,
+        tracksStock: true,
+        stock: 10,
+      };
+
+      await service.update('serv-1', payload, USER_ID, ORG_ID);
 
       expect(prismaMock.inventoryMovement.create).toHaveBeenCalledTimes(1);
       expect(prismaMock.inventoryMovement.create).toHaveBeenCalledWith(
@@ -245,6 +377,146 @@ describe('ProductsService — product versus service', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('untracked merchandise in the update path', () => {
+    it('zeroes the stock and records where it went when tracking is turned off', async () => {
+      const trackedProduct = buildProduct({
+        id: 'prod-1',
+        type: ProductType.PRODUCT,
+        stock: 40,
+        tracksStock: true,
+      });
+      prismaMock.product.findFirst
+        .mockResolvedValueOnce(trackedProduct)
+        .mockResolvedValueOnce(
+          buildProduct({
+            type: ProductType.PRODUCT,
+            stock: 0,
+            tracksStock: false,
+          }),
+        );
+      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
+
+      const payload = {
+        tracksStock: false,
+        stock: 500,
+      };
+
+      await service.update('prod-1', payload, USER_ID, ORG_ID);
+
+      expect(prismaMock.product.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tracksStock: false,
+            stock: 0,
+          }),
+        }),
+      );
+      // Turning tracking off drops the stock to zero, so the kárdex has to say where those units
+      // went. This is the counterpart of converting a product into a service, which records the
+      // same movement; leaving none would recreate the unexplained-stock defect this feature
+      // exists to remove.
+      expect(prismaMock.inventoryMovement.create).toHaveBeenCalledTimes(1);
+      expect(prismaMock.inventoryMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: 'ADJUSTMENT_OUT',
+            quantity: -40,
+            previousStock: 40,
+            newStock: 0,
+          }),
+        }),
+      );
+    });
+
+    it('converts a service into tracked merchandise when the caller declares tracksStock: true', async () => {
+      // Counterpart of the conversion test above: converting a service back into
+      // merchandise now requires the caller to declare the flag, because it is
+      // explicit rather than derived from the type.
+      const existingService = buildProduct({
+        id: 'serv-1',
+        type: ProductType.SERVICE,
+        stock: 0,
+        tracksStock: false,
+      });
+      prismaMock.product.findFirst
+        .mockResolvedValueOnce(existingService)
+        .mockResolvedValueOnce(
+          buildProduct({
+            type: ProductType.PRODUCT,
+            stock: 10,
+            tracksStock: true,
+          }),
+        );
+      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
+
+      const payload = {
+        type: ProductType.PRODUCT,
+        tracksStock: true,
+        stock: 10,
+      };
+
+      await service.update('serv-1', payload, USER_ID, ORG_ID);
+
+      expect(prismaMock.product.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tracksStock: true,
+            stock: 10,
+          }),
+        }),
+      );
+      expect(prismaMock.inventoryMovement.create).toHaveBeenCalledTimes(1);
+      expect(prismaMock.inventoryMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: 'ADJUSTMENT_IN',
+            quantity: 10,
+            previousStock: 0,
+            newStock: 10,
+          }),
+        }),
+      );
+    });
+
+    it('leaves a service untracked when the type changes without the flag', async () => {
+      // Intended consequence of making the flag explicit, not an oversight:
+      // changing the type alone no longer implies tracked stock.
+      const existingService = buildProduct({
+        id: 'serv-1',
+        type: ProductType.SERVICE,
+        stock: 0,
+        tracksStock: false,
+      });
+      prismaMock.product.findFirst
+        .mockResolvedValueOnce(existingService)
+        .mockResolvedValueOnce(
+          buildProduct({
+            type: ProductType.PRODUCT,
+            stock: 0,
+            tracksStock: false,
+          }),
+        );
+      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.update(
+        'serv-1',
+        { type: ProductType.PRODUCT },
+        USER_ID,
+        ORG_ID,
+      );
+
+      expect(prismaMock.product.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tracksStock: false,
+            stock: 0,
+          }),
+        }),
+      );
+      expect(prismaMock.inventoryMovement.create).not.toHaveBeenCalled();
     });
   });
 
@@ -268,6 +540,7 @@ describe('ProductsService — product versus service', () => {
         expect.objectContaining({
           stock: { lte: MIN_STOCK_FIELD_REF },
           type: ProductType.PRODUCT,
+          tracksStock: true,
         }),
       );
     });
@@ -282,6 +555,7 @@ describe('ProductsService — product versus service', () => {
       ).join('?');
       expect(sql).toContain('p."type"');
       expect(sql).toContain('PRODUCT');
+      expect(sql).toContain('p."tracksStock" = true');
     });
 
     it('never marks a service as low on stock in the search mapper', async () => {
@@ -300,6 +574,36 @@ describe('ProductsService — product versus service', () => {
       );
 
       const result = await service.quickSearch('SERV 4', ORG_ID);
+
+      expect(result?.isLowStock).toBe(false);
+    });
+
+    it('never marks an untracked product as low on stock in the search mapper', async () => {
+      prismaMock.product.findMany.mockResolvedValue([
+        buildProduct({
+          type: ProductType.PRODUCT,
+          tracksStock: false,
+          stock: 0,
+          minStock: 5,
+        }),
+      ]);
+
+      const results = await service.searchProducts('PASTILLAS', 20, ORG_ID);
+
+      expect(results[0].isLowStock).toBe(false);
+    });
+
+    it('never marks an untracked product as low on stock in the quick-search mapper', async () => {
+      prismaMock.product.findFirst.mockResolvedValue(
+        buildProduct({
+          type: ProductType.PRODUCT,
+          tracksStock: false,
+          stock: 0,
+          minStock: 5,
+        }),
+      );
+
+      const result = await service.quickSearch('PASTILLAS', ORG_ID);
 
       expect(result?.isLowStock).toBe(false);
     });

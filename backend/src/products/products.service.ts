@@ -139,6 +139,7 @@ export class ProductsService {
       taxable,
       type: rawType,
       stock,
+      tracksStock: rawTracksStock,
       ...rest
     } = createProductDto;
     // Normalize empty barcode to null so PostgreSQL unique constraint ignores it
@@ -190,11 +191,14 @@ export class ProductsService {
     // rather than stored, so neither the inventory valuation nor the kárdex can be
     // inflated by an invented number.
     const resolvedType = rawType ?? ProductType.PRODUCT;
-    // No row exists yet, so the subject mirrors what this write is about to store:
-    // only an explicit SERVICE is untracked; every other type defaults to tracked.
+    // The invariant is enforced here, at the write boundary, so no invalid combination can ever
+    // be stored: a service is never tracked, whatever the payload says. An absent flag means
+    // tracked, matching the column default.
+    const resolvedTracksStock =
+      resolvedType === ProductType.SERVICE ? false : (rawTracksStock ?? true);
     const resolvedSubject = {
       type: resolvedType,
-      tracksStock: resolvedType !== ProductType.SERVICE,
+      tracksStock: resolvedTracksStock,
     };
     const resolvedStock = normalizeStock(resolvedSubject, stock);
 
@@ -215,6 +219,7 @@ export class ProductsService {
         taxRate: resolvedTaxRate,
         type: resolvedType,
         stock: resolvedStock,
+        tracksStock: resolvedTracksStock,
       },
       include: { category: true },
     });
@@ -276,8 +281,10 @@ export class ProductsService {
       // Field reference: stock <= minStock is evaluated in the database, so
       // low-stock pages stay coherent without loading every product first.
       where.stock = { lte: this.prisma.product.fields.minStock };
-      // A service is never low on stock, so it can never belong on this page.
+      // A service is never low on stock, and neither is untracked merchandise, so
+      // neither can belong on this page.
       where.type = ProductType.PRODUCT;
+      where.tracksStock = true;
     }
 
     // 'name' keeps the inventory list's alphabetical presentation coherent
@@ -381,9 +388,16 @@ export class ProductsService {
     // resulting subject reads the row's flag, because this write cannot change it
     // yet: the effective state keeps whatever tracksStock the row declares.
     const effectiveType = updateProductDto.type ?? existingProduct.type;
+    // Same invariant as create, applied to the resulting state: a service is never tracked. When
+    // the caller says nothing the row keeps what it had, which is why converting a service back
+    // into merchandise requires declaring tracksStock: true explicitly.
+    const effectiveTracksStock =
+      effectiveType === ProductType.SERVICE
+        ? false
+        : (updateProductDto.tracksStock ?? existingProduct.tracksStock);
     const effectiveSubject = {
       type: effectiveType,
-      tracksStock: existingProduct.tracksStock,
+      tracksStock: effectiveTracksStock,
     };
     const newStock = normalizeStock(
       effectiveSubject,
@@ -419,6 +433,7 @@ export class ProductsService {
         ...updateProductDto,
         ...taxData,
         stock: newStock,
+        tracksStock: effectiveTracksStock,
         barcode: normalizedBarcode,
         version: { increment: 1 },
       },
@@ -525,7 +540,7 @@ export class ProductsService {
       SELECT p.*, c.name as "categoryName"
       FROM "Product" p
       LEFT JOIN "Category" c ON p."categoryId" = c.id
-      WHERE p.active = true AND p."organizationId" = ${organizationId} AND p.stock <= p."minStock" AND p."type" = 'PRODUCT'
+      WHERE p.active = true AND p."organizationId" = ${organizationId} AND p.stock <= p."minStock" AND p."type" = 'PRODUCT' AND p."tracksStock" = true
       ORDER BY p.stock ASC
     `;
   }
