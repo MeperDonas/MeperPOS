@@ -231,10 +231,14 @@ async function applyPlan(
       }
 
       // The plan was computed before this transaction opened, so its stock and
-      // version are stale by construction. Re-read the row here and pin the
-      // version we just saw: a concurrent sale bumps it, this update then matches
-      // no row, and the whole transaction rolls back instead of overwriting the
-      // sale with a zero. The movement below is derived from this same live read.
+      // version are stale by construction. Re-read the row here and pin BOTH the
+      // version and the stock value we just saw, which makes the update below a
+      // compare-and-swap: any concurrent writer, whatever it does to the version,
+      // leaves the row not matching and the whole transaction rolls back instead
+      // of overwriting it with a zero. The stock value is pinned on purpose and
+      // not just the version, because the sale path decrements stock WITHOUT
+      // bumping Product.version, so a version-only guard would not see a sale at
+      // all. The movement below is derived from this same live read.
       const live = await tx.product.findUnique({
         where: { id: action.productId },
         select: { stock: true, version: true },
@@ -247,7 +251,11 @@ async function applyPlan(
       }
 
       const { count } = await tx.product.updateMany({
-        where: { id: action.productId, version: live.version },
+        where: {
+          id: action.productId,
+          version: live.version,
+          stock: live.stock,
+        },
         data: {
           type: ProductType.SERVICE,
           stock: 0,
