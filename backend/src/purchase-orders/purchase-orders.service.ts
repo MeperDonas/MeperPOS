@@ -16,6 +16,7 @@ import { ReceivePurchaseOrderDto } from './dto/receive-purchase-order.dto';
 import { CancelPurchaseOrderDto } from './dto/cancel-purchase-order.dto';
 import { QueryPurchaseOrdersDto } from './dto/query-purchase-orders.dto';
 import { SequenceService } from '../common/sequences/sequence.service';
+import { tracksStock } from '../products/product-type.logic';
 
 interface ComputedItem {
   productId: string;
@@ -94,6 +95,14 @@ export class PurchaseOrdersService {
       if (!product.active) {
         throw new BadRequestException(
           `El producto ${product.name} no está activo`,
+        );
+      }
+
+      // A service is sold labour: it has no stock to receive and cannot be bought.
+      // Refusing here means no order number is consumed and nothing is written.
+      if (!tracksStock(product.type)) {
+        throw new BadRequestException(
+          `El servicio ${product.name} no maneja inventario y no puede formar parte de una orden de compra`,
         );
       }
 
@@ -473,61 +482,65 @@ export class PurchaseOrdersService {
           );
         }
 
-        const previousStock = product.stock;
-        const newStock = previousStock + r.qtyReceivedNow;
-        const currentVersion = product.version;
-        const newUnitCost = Number(item.unitCost);
-        const oldCost = Number(product.costPrice);
-        const costChanged = newUnitCost !== oldCost;
+        // Defence in depth: a service line can only exist in an order drafted before
+        // the validation above existed. Receiving one must not invent merchandise.
+        if (tracksStock(product.type)) {
+          const previousStock = product.stock;
+          const newStock = previousStock + r.qtyReceivedNow;
+          const currentVersion = product.version;
+          const newUnitCost = Number(item.unitCost);
+          const oldCost = Number(product.costPrice);
+          const costChanged = newUnitCost !== oldCost;
 
-        const updateData: Record<string, unknown> = {
-          stock: { increment: r.qtyReceivedNow },
-          version: { increment: 1 },
-        };
-        if (costChanged) {
-          updateData.costPrice = newUnitCost;
-        }
+          const updateData: Record<string, unknown> = {
+            stock: { increment: r.qtyReceivedNow },
+            version: { increment: 1 },
+          };
+          if (costChanged) {
+            updateData.costPrice = newUnitCost;
+          }
 
-        const updated = await tx.product.updateMany({
-          where: { id: item.productId, version: currentVersion },
-          data: updateData,
-        });
+          const updated = await tx.product.updateMany({
+            where: { id: item.productId, version: currentVersion },
+            data: updateData,
+          });
 
-        if (updated.count === 0) {
-          throw new ConflictException(
-            'Modificación concurrente detectada sobre el producto',
-          );
-        }
+          if (updated.count === 0) {
+            throw new ConflictException(
+              'Modificación concurrente detectada sobre el producto',
+            );
+          }
 
-        await tx.inventoryMovement.create({
-          data: {
-            productId: item.productId,
-            type: 'PURCHASE',
-            quantity: r.qtyReceivedNow,
-            previousStock,
-            newStock,
-            reason: `OC-${order.orderNumber}`,
-            userId,
-            organizationId,
-          },
-        });
-
-        if (costChanged) {
-          await tx.auditLog.create({
+          await tx.inventoryMovement.create({
             data: {
+              productId: item.productId,
+              type: 'PURCHASE',
+              quantity: r.qtyReceivedNow,
+              previousStock,
+              newStock,
+              reason: `OC-${order.orderNumber}`,
               userId,
-              action: 'PRODUCT_COST_UPDATED_FROM_PO',
-              resource: 'Product',
-              resourceId: item.productId,
               organizationId,
-              metadata: {
-                oldCost,
-                newCost: newUnitCost,
-                orderNumber: order.orderNumber,
-                purchaseOrderId: order.id,
-              },
             },
           });
+
+          if (costChanged) {
+            await tx.auditLog.create({
+              data: {
+                userId,
+                action: 'PRODUCT_COST_UPDATED_FROM_PO',
+                resource: 'Product',
+                resourceId: item.productId,
+                organizationId,
+                metadata: {
+                  oldCost,
+                  newCost: newUnitCost,
+                  orderNumber: order.orderNumber,
+                  purchaseOrderId: order.id,
+                },
+              },
+            });
+          }
         }
 
         await tx.purchaseOrderItem.update({
