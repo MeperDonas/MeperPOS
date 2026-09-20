@@ -210,7 +210,7 @@ export class ExportsService {
       take: query.limit || undefined,
       orderBy: { createdAt: 'desc' },
       include: {
-        product: { select: { name: true, sku: true } },
+        product: { select: { name: true, sku: true, type: true } },
         user: { select: { name: true } },
       },
     });
@@ -378,6 +378,7 @@ export class ExportsService {
       inventory: [
         'Date',
         'Product',
+        'Product Type',
         'Type',
         'Quantity',
         'Previous Stock',
@@ -424,6 +425,7 @@ export class ExportsService {
       inventory: (item) => [
         new Date(item.createdAt).toLocaleDateString(),
         item.product?.name || 'N/A',
+        item.product?.type || 'N/A',
         item.type,
         item.quantity,
         item.previousStock,
@@ -448,7 +450,7 @@ export class ExportsService {
       sales: [20, 30, 40, 25, 25, 30],
       products: [50, 25, 25, 20, 20, 15, 15],
       customers: [35, 25, 25, 30, 25, 20, 30, 28],
-      inventory: [25, 40, 25, 15, 20, 20, 25],
+      inventory: [25, 40, 18, 25, 15, 20, 20, 25],
       expenses: [25, 30, 30, 40, 20, 20],
       economic: [30, 40, 30],
     };
