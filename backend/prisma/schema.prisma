@@ -161,6 +161,7 @@ model Product {
   taxable             Boolean             @default(false)
   stock               Int                 @default(0)
   minStock            Int                 @default(0)
+  type                ProductType         @default(PRODUCT)
   imageUrl            String?
   categoryId          String
   active              Boolean             @default(true)
@@ -182,6 +183,7 @@ model Product {
   @@unique([organizationId, barcode])
   @@index([organizationId, active])
   @@index([organizationId, categoryId])
+  @@index([organizationId, type])
 }
 
 model InventoryMovement {
@@ -532,6 +534,11 @@ enum OrgRole {
   MEMBER
   CASHIER
   INVENTORY_USER
+}
+
+enum ProductType {
+  PRODUCT
+  SERVICE
 }
 
 enum PromotionType {
