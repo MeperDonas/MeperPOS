@@ -102,7 +102,7 @@ export class PurchaseOrdersService {
       // Refusing here means no order number is consumed and nothing is written.
       if (!tracksStock(product)) {
         throw new BadRequestException(
-          `El servicio ${product.name} no maneja inventario y no puede formar parte de una orden de compra`,
+          `El ítem ${product.name} no maneja inventario y no puede formar parte de una orden de compra`,
         );
       }
 

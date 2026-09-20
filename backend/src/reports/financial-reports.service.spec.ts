@@ -256,7 +256,12 @@ describe('ReportsService financial read model', () => {
     // A service is sold labour, so the valuation must only ever ask for products.
     expect(prismaMock.product.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { organizationId: 'org-a', active: true, type: 'PRODUCT' },
+        where: {
+          organizationId: 'org-a',
+          active: true,
+          type: 'PRODUCT',
+          tracksStock: true,
+        },
       }),
     );
   });
