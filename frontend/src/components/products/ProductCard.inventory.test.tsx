@@ -49,6 +49,51 @@ describe("ProductCard inventory mode — status chip", () => {
     expect(screen.getByText("Agotado")).toBeInTheDocument();
     expect(screen.getByTestId("stock-alert-icon")).toBeInTheDocument();
   });
+
+  it("shows a 'Servicio' chip instead of an 'Agotado' chip when the item is a service", () => {
+    render(
+      <ProductCard
+        product={{ ...baseProduct, type: "SERVICE", stock: 0, minStock: 5 }}
+        mode="inventory"
+      />,
+    );
+
+    const chip = screen.getByTestId("service-chip");
+    expect(chip.textContent?.trim()).toBe("Servicio");
+
+    // A service is sold labour: it can never be out of stock, so neither the out-of-stock
+    // nor the low-stock chip may appear, and the stock badge must not read "0 uds.".
+    expect(screen.queryByText("Agotado")).toBeNull();
+    expect(screen.queryByText("Stock bajo")).toBeNull();
+    expect(screen.queryByTestId("stock-alert-icon")).toBeNull();
+
+    // The dual-metrics stock badge is the sibling of the "Precio" label.
+    const stockBadge = screen.getByText("Precio").parentElement?.lastElementChild;
+    expect(stockBadge?.textContent?.trim()).toBe("Servicio");
+    expect(screen.queryByText("0 uds.")).toBeNull();
+  });
+
+  it("shows 'Inactivo' rather than 'Servicio' when a service has been deactivated", () => {
+    render(
+      <ProductCard
+        product={{
+          ...baseProduct,
+          type: "SERVICE",
+          stock: 0,
+          minStock: 5,
+          active: false,
+        }}
+        mode="inventory"
+      />,
+    );
+
+    // Deactivating a service must stay visible: a service is sold labour that can never be
+    // out of stock, but the inactive state still wins over the type, so the state chip is
+    // neither the service chip nor an out-of-stock chip.
+    expect(screen.getByText("Inactivo")).toBeInTheDocument();
+    expect(screen.queryByTestId("service-chip")).toBeNull();
+    expect(screen.queryByTestId("stock-alert-icon")).toBeNull();
+  });
 });
 
 describe("ProductCard inventory mode — stock block (dual metrics)", () => {

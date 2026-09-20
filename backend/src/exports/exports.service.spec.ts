@@ -370,4 +370,47 @@ describe('ExportsService', () => {
       { headers: false },
     );
   });
+
+  it('asks for the product type when listing inventory movements', async () => {
+    prismaMock.inventoryMovement.findMany.mockResolvedValue([]);
+
+    await service.exportInventory(
+      ORG_ID,
+      { format: 'pdf', type: 'inventory' } as ExportQueryDto,
+      buildResMock(),
+    );
+
+    expect(prismaMock.inventoryMovement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          product: { select: { name: true, sku: true, type: true } },
+        }),
+      }),
+    );
+  });
+
+  it('labels each exported movement with the product type', async () => {
+    prismaMock.inventoryMovement.findMany.mockResolvedValue([
+      {
+        createdAt: new Date('2026-05-02T10:00:00.000Z'),
+        type: 'PURCHASE',
+        quantity: 5,
+        previousStock: 0,
+        newStock: 5,
+        product: { name: 'MANTENIMIENTO', sku: 'SERV 4', type: 'SERVICE' },
+        user: { name: 'User' },
+      },
+    ]);
+
+    await service.exportInventory(
+      ORG_ID,
+      { format: 'csv', type: 'inventory' } as ExportQueryDto,
+      buildResMock(),
+    );
+
+    // Columns: Date, Product, Product Type, Type, Quantity, Previous Stock, New Stock, User.
+    // csv.write is called with [headers, ...dataRows], so index 1 is the first data row.
+    const writtenRows = (csv.write as jest.Mock).mock.calls[0][0] as unknown[][];
+    expect(writtenRows[1][2]).toBe('SERVICE');
+  });
 });

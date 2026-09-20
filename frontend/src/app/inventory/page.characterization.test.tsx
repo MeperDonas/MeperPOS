@@ -257,4 +257,30 @@ describe("Inventory page — characterization (current behavior)", () => {
     expect(alfa.compareDocumentPosition(mango) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(mango.compareDocumentPosition(zeta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  it("low-stock toggle skips services, which are never low on stock (client-side)", () => {
+    setResponse([
+      buildProduct({ name: "Panela Baja", stock: 2, minStock: 5 }),
+      buildProduct({ name: "Dulce Sano", stock: 9, minStock: 5 }),
+      buildProduct({
+        name: "Mantenimiento",
+        type: "SERVICE",
+        stock: 0,
+        minStock: 5,
+      }),
+    ]);
+
+    render(<InventoryPage />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /^Stock Bajo( ?\d+)?$/ }),
+    );
+
+    expect(screen.getByText("Panela Baja")).toBeInTheDocument();
+    expect(screen.queryByText("Dulce Sano")).not.toBeInTheDocument();
+    // A service is never low on stock: its numbers would qualify
+    // (stock 0 <= minStock 5), so the client-side filter must skip it
+    // explicitly instead of comparing raw numbers.
+    expect(screen.queryByText("Mantenimiento")).not.toBeInTheDocument();
+  });
 });

@@ -6,7 +6,7 @@ import {
   ForbiddenException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient, ProductType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSaleDto, UpdateSaleDto } from './dto/sales.dto';
 import type { Response } from 'express';
@@ -19,6 +19,7 @@ import { SettingsService } from '../settings/settings.service';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
 import { computeSkipTake } from '../common/utils/pagination';
 import { computeEffectiveSalePrice } from '../products/products.service';
+import { tracksStock } from '../products/product-type.logic';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { SequenceService } from '../common/sequences/sequence.service';
 import { PLAN_LIMITS } from '../plan-limits/plan-limits.constants';
@@ -77,6 +78,7 @@ export class SalesService {
     let totalTax = 0;
     const saleItems: Array<{
       productId: string;
+      productType: ProductType;
       quantity: number;
       unitPrice: number;
       costPriceSnapshot: Prisma.Decimal;
@@ -124,6 +126,7 @@ export class SalesService {
 
       saleItems.push({
         productId: product.id,
+        productType: product.type,
         quantity: item.quantity,
         unitPrice,
         costPriceSnapshot: product.costPrice,
@@ -209,50 +212,54 @@ export class SalesService {
               },
             });
 
-            const updatedProduct = await tx.product.updateMany({
-              where: {
-                id: saleItem.productId,
-                active: true,
-                stock: { gte: saleItem.quantity },
-              },
-              data: {
-                stock: { decrement: saleItem.quantity },
-              },
-            });
+            // A service is sold labour, not merchandise: it has no stock to
+            // guard, decrement or record.
+            if (tracksStock(saleItem.productType)) {
+              const updatedProduct = await tx.product.updateMany({
+                where: {
+                  id: saleItem.productId,
+                  active: true,
+                  stock: { gte: saleItem.quantity },
+                },
+                data: {
+                  stock: { decrement: saleItem.quantity },
+                },
+              });
 
-            if (updatedProduct.count === 0) {
-              throw new ConflictException(
-                `Insufficient stock for product ${saleItem.productId}`,
-              );
+              if (updatedProduct.count === 0) {
+                throw new ConflictException(
+                  `Insufficient stock for product ${saleItem.productId}`,
+                );
+              }
+
+              const productAfterUpdate = await tx.product.findFirst({
+                where: { id: saleItem.productId, organizationId },
+                select: { stock: true },
+              });
+
+              if (!productAfterUpdate) {
+                throw new NotFoundException(
+                  `Product with ID ${saleItem.productId} not found`,
+                );
+              }
+
+              const newStock = productAfterUpdate.stock;
+              const previousStock = newStock + saleItem.quantity;
+
+              await tx.inventoryMovement.create({
+                data: {
+                  productId: saleItem.productId,
+                  type: 'SALE' as const,
+                  quantity: -saleItem.quantity,
+                  previousStock,
+                  newStock,
+                  reason: `Sale #${saleNumber}`,
+                  userId,
+                  saleId: createdSale.id,
+                  organizationId,
+                },
+              });
             }
-
-            const productAfterUpdate = await tx.product.findFirst({
-              where: { id: saleItem.productId, organizationId },
-              select: { stock: true },
-            });
-
-            if (!productAfterUpdate) {
-              throw new NotFoundException(
-                `Product with ID ${saleItem.productId} not found`,
-              );
-            }
-
-            const newStock = productAfterUpdate.stock;
-            const previousStock = newStock + saleItem.quantity;
-
-            await tx.inventoryMovement.create({
-              data: {
-                productId: saleItem.productId,
-                type: 'SALE' as const,
-                quantity: -saleItem.quantity,
-                previousStock,
-                newStock,
-                reason: `Sale #${saleNumber}`,
-                userId,
-                saleId: createdSale.id,
-                organizationId,
-              },
-            });
           }
 
           for (const payment of payments) {
@@ -479,7 +486,7 @@ export class SalesService {
             },
           });
 
-          if (product) {
+          if (product && tracksStock(product.type)) {
             const previousStock = product.stock;
             const newStock = previousStock + item.quantity;
 
