@@ -49,7 +49,6 @@ const TARGETS: ServiceTarget[] = [
 interface CliOptions {
   apply: boolean;
   orgSlug: string;
-  warnings: string[];
 }
 
 interface WriteSummary {
@@ -58,20 +57,22 @@ interface WriteSummary {
 }
 
 /**
- * Reads the command line. `--apply` is the ONLY thing that enables writes:
- * no flag, `--dry-run`, or any unrecognised argument leaves the run in
- * dry-run mode, which never writes a row.
+ * Reads the command line. `--apply` is the ONLY thing that enables writes, so
+ * with no flag the run is a dry run and never writes a row.
  *
- * Only two situations fail closed instead of running: a malformed `--org`
- * (the organization scope must never be guessed) and `--apply` together with
- * `--dry-run` (contradictory intent, so the run is refused rather than
- * resolved by argument order).
+ * Anything not unambiguously understood fails closed: an unrecognised
+ * argument, a malformed `--org` (the organization scope must never be
+ * guessed), and `--apply` together with `--dry-run` (contradictory intent, so
+ * the run is refused rather than resolved by argument order).
+ *
+ * An unrecognised argument aborts on purpose. The dangerous case is a mistyped
+ * scope: tolerating it would let a run carrying `--apply` fall back to the
+ * default organization and write to the wrong one.
  */
 function parseArgs(argv: string[]): CliOptions {
   let wantsApply = false;
   let wantsDryRun = false;
   let orgSlug = DEFAULT_ORG_SLUG;
-  const warnings: string[] = [];
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -109,10 +110,12 @@ function parseArgs(argv: string[]): CliOptions {
       continue;
     }
 
-    // Anything else is ignored for the write decision: the run stays in
-    // dry-run mode, but the operator is told the argument was not understood.
-    warnings.push(
-      `argumento no reconocido "${arg}" (se ignora; soportados: --apply, --dry-run, --org <slug>)`,
+    // Fail closed. A flag this script does not understand means the operator's
+    // intent was not honoured, and the dangerous case is a mistyped scope:
+    // falling back to the default organization while --apply is present would
+    // write to the wrong one.
+    throw new Error(
+      `argumento no reconocido "${arg}" (soportados: --apply, --dry-run, --org <slug>). Aborting: no se escribió nada.`,
     );
   }
 
@@ -122,7 +125,7 @@ function parseArgs(argv: string[]): CliOptions {
     );
   }
 
-  return { apply: wantsApply && !wantsDryRun, orgSlug, warnings };
+  return { apply: wantsApply && !wantsDryRun, orgSlug };
 }
 
 function movementLabel(action: BackfillAction): string {
@@ -293,11 +296,7 @@ async function applyPlan(
 }
 
 async function run(): Promise<number> {
-  const { apply, orgSlug, warnings } = parseArgs(process.argv.slice(2));
-
-  for (const warning of warnings) {
-    console.warn(`⚠️  ${LOG_PREFIX} ${warning}`);
-  }
+  const { apply, orgSlug } = parseArgs(process.argv.slice(2));
 
   // Guard: this script mutates real stock. In dev/test it runs freely;
   // production requires an explicit opt-in, mirroring seed-org.ts.
