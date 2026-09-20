@@ -42,7 +42,7 @@ const TARGETS: ServiceTarget[] = [
   { name: 'SCANNER', sku: 'SERVICIO' },
   { name: 'Sincronizacion General', sku: 'MEC-001' },
   { name: 'MANTENIMIENTO', sku: 'SERV 4' },
-  { name: 'SERVICIO', sku: 'SERVICIO' },
+  { name: 'SERVICIO', sku: '123' },
   { name: 'RETIRO CALCAS', sku: 'SERV 11' },
 ];
 
