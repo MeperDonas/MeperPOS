@@ -184,6 +184,30 @@ describe('SalesService — selling services', () => {
         }),
       );
     });
+
+    it('sells an untracked product with no stock and writes no inventory movement', async () => {
+      const txMock = wireTransaction(buildTx());
+      // An untracked product is merchandise nobody counts: it is billed like a
+      // service, so its stock is never guarded or moved.
+      prismaMock.product.findFirst.mockResolvedValue({
+        ...productRow({ id: 'prod-1', stock: 0 }),
+        tracksStock: false,
+      });
+
+      await service.create(
+        {
+          items: [{ productId: 'prod-1', quantity: 1, discountAmount: 0 }],
+          discountAmount: 0,
+          payments: [{ method: 'CASH' as const, amount: 100 }],
+        },
+        'user-1',
+        'org-1',
+      );
+
+      expect(txMock.saleItem.create).toHaveBeenCalledTimes(1);
+      expect(txMock.product.updateMany).not.toHaveBeenCalled();
+      expect(txMock.inventoryMovement.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('update — cancelling a sale', () => {

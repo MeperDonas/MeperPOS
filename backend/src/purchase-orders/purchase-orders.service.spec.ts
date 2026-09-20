@@ -455,4 +455,76 @@ describe('PurchaseOrdersService', () => {
       expect.objectContaining({ where: { id: 'poi-1' } }),
     );
   });
+
+  it('refuses an untracked product on a purchase order', async () => {
+    prismaMock.supplier.findFirst.mockResolvedValue({
+      id: 'supplier-1',
+      active: true,
+    });
+    prismaMock.product.findFirst.mockResolvedValue({
+      id: 'prod-untracked',
+      name: 'CAJA VACÍA',
+      type: 'PRODUCT',
+      tracksStock: false,
+      active: true,
+      taxRate: 19,
+    });
+
+    await expect(
+      service.create(
+        {
+          supplierId: 'supplier-1',
+          items: [
+            { productId: 'prod-untracked', qtyOrdered: 1, unitCost: 50000 },
+          ],
+        } as never,
+        'user-1',
+        'org-1',
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    // A line for something whose stock is not controlled records nothing meaningful.
+    expect(sequenceServiceMock.nextNumber).not.toHaveBeenCalled();
+    expect(txMock.purchaseOrder.create).not.toHaveBeenCalled();
+    expect(txMock.purchaseOrderItem.create).not.toHaveBeenCalled();
+  });
+
+  it('receives an untracked product line without moving stock', async () => {
+    prismaMock.purchaseOrder.findFirst.mockResolvedValue(buildOrder());
+    txMock.purchaseOrderItem.findUnique.mockResolvedValue({
+      id: 'poi-1',
+      purchaseOrderId: 'po-1',
+      productId: 'prod-untracked',
+      qtyOrdered: 5,
+      qtyReceived: 0,
+      unitCost: 100,
+    });
+    txMock.product.findFirst.mockResolvedValue({
+      id: 'prod-untracked',
+      stock: 0,
+      version: 1,
+      costPrice: 0,
+      type: 'PRODUCT',
+      tracksStock: false,
+    });
+    txMock.product.updateMany.mockResolvedValue({ count: 1 });
+    txMock.purchaseOrderItem.findMany.mockResolvedValue([
+      { id: 'poi-1', qtyOrdered: 5, qtyReceived: 2 },
+    ]);
+
+    await service.receive(
+      'po-1',
+      { items: [{ itemId: 'poi-1', qtyReceivedNow: 2 }] },
+      'user-1',
+      'org-1',
+    );
+
+    expect(txMock.product.updateMany).not.toHaveBeenCalled();
+    expect(txMock.inventoryMovement.create).not.toHaveBeenCalled();
+    expect(txMock.auditLog.create).not.toHaveBeenCalled();
+    // The received quantity must still be recorded, otherwise the order can never close.
+    expect(txMock.purchaseOrderItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'poi-1' } }),
+    );
+  });
 });
