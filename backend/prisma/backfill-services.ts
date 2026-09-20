@@ -31,9 +31,9 @@ const prisma = new PrismaClient();
 
 const LOG_PREFIX = '[backfill:services]';
 
-const DEFAULT_ORG_SLUG = 'FMC-001';
-
 const MOVEMENT_REASON = 'Corrección: servicio, no mercancía';
+
+const DEFAULT_ORG_SLUG = 'FMC-001';
 
 // Owner-confirmed target list. Do not extend it by inference: the rows are
 // matched on name AND sku, and anything not listed here is left alone.
@@ -230,23 +230,46 @@ async function applyPlan(
         continue;
       }
 
-      await tx.product.update({
+      // The plan was computed before this transaction opened, so its stock and
+      // version are stale by construction. Re-read the row here and pin the
+      // version we just saw: a concurrent sale bumps it, this update then matches
+      // no row, and the whole transaction rolls back instead of overwriting the
+      // sale with a zero. The movement below is derived from this same live read.
+      const live = await tx.product.findUnique({
         where: { id: action.productId },
+        select: { stock: true, version: true },
+      });
+
+      if (!live) {
+        throw new Error(
+          `Producto ${action.productId} desapareció entre la planificación y la aplicación; no se escribió nada.`,
+        );
+      }
+
+      const { count } = await tx.product.updateMany({
+        where: { id: action.productId, version: live.version },
         data: {
           type: ProductType.SERVICE,
           stock: 0,
           version: { increment: 1 },
         },
       });
+
+      if (count === 0) {
+        throw new Error(
+          `Producto ${action.productId} cambió entre la planificación y la aplicación; el backfill se niega a pisarlo y no escribió nada.`,
+        );
+      }
+
       rowsWritten += 1;
 
-      if (action.requiresMovement) {
+      if (live.stock !== 0) {
         await tx.inventoryMovement.create({
           data: {
             productId: action.productId,
             type: 'ADJUSTMENT_OUT',
-            quantity: action.movementQuantity,
-            previousStock: action.previousStock,
+            quantity: -live.stock,
+            previousStock: live.stock,
             newStock: 0,
             reason: MOVEMENT_REASON,
             userId: actorUserId,
