@@ -73,6 +73,49 @@ describe("ProductCard inventory mode — status chip", () => {
     expect(screen.queryByText("0 uds.")).toBeNull();
   });
 
+  it("shows a 'Sin inventario' chip instead of an 'Agotado' chip when the product is untracked", () => {
+    render(
+      <ProductCard
+        product={{
+          ...baseProduct,
+          type: "PRODUCT",
+          tracksStock: false,
+          stock: 0,
+          minStock: 5,
+        }}
+        mode="inventory"
+      />,
+    );
+
+    const chip = screen.getByTestId("untracked-chip");
+    expect(chip.textContent?.trim()).toBe("Sin inventario");
+
+    // An untracked product is real merchandise nobody counts: it can never be out of
+    // stock nor low on stock, so no stock alert chip may appear, and the stock badge
+    // must not read the stored "0 uds.".
+    expect(screen.queryByText("Agotado")).toBeNull();
+    expect(screen.queryByText("Stock bajo")).toBeNull();
+    expect(screen.queryByTestId("stock-alert-icon")).toBeNull();
+
+    // The dual-metrics stock badge is the sibling of the "Precio" label.
+    const stockBadge = screen.getByText("Precio").parentElement?.lastElementChild;
+    expect(stockBadge?.textContent?.trim()).toBe("Sin inventario");
+    expect(screen.queryByText("0 uds.")).toBeNull();
+  });
+
+  it("still shows the stock count for an explicitly tracked product", () => {
+    render(
+      <ProductCard
+        product={{ ...baseProduct, tracksStock: true, stock: 7, minStock: 5 }}
+        mode="inventory"
+      />,
+    );
+
+    // The untracked branch must not swallow normal merchandise.
+    expect(screen.getByText("7 uds.")).toBeInTheDocument();
+    expect(screen.queryByTestId("untracked-chip")).toBeNull();
+  });
+
   it("shows 'Inactivo' rather than 'Servicio' when a service has been deactivated", () => {
     render(
       <ProductCard
