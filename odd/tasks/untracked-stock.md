@@ -119,43 +119,43 @@ Strict TDD. RED observed before every GREEN.
 
 ### Work unit 1 — the flag and the rule
 
-1. [ ] RED: rewrite `backend/src/products/product-type.logic.spec.ts` for the new `StockSubject`
+1. [x] RED: rewrite `backend/src/products/product-type.logic.spec.ts` for the new `StockSubject`
        contract: `tracksStock({ type: PRODUCT, tracksStock: true })` true;
        `({ type: SERVICE, tracksStock: false })` false; **`({ type: SERVICE, tracksStock: true })`
        false** (the invariant clause); and the same product/untracked mirror for
        `normalizeStockForType`, `resolveInitialStockMovement`, `isLowStock` and
        `resolveStockDeltaMovement`, keeping every existing behavioural assertion.
-2. [ ] GREEN: add `tracksStock` to `backend/prisma/schema.prisma`, hand-write
+2. [x] GREEN: add `tracksStock` to `backend/prisma/schema.prisma`, hand-write
        `backend/prisma/migrations/<timestamp>_add_product_tracks_stock/migration.sql`, and extend
        the logic module to the new contract.
-3. [ ] GREEN: apply with `prisma migrate deploy` against the local database and prove with
+3. [x] GREEN: apply with `prisma migrate deploy` against the local database and prove with
        `prisma migrate diff` that the pre-existing drift set is unchanged.
-4. [ ] GREEN: mirror the contract in `frontend/src/lib/product-type.ts` + its spec.
+4. [x] GREEN: mirror the contract in `frontend/src/lib/product-type.ts` + its spec.
 
 ### Work unit 2 — products owns the invariant
 
-5. [ ] RED: extend `backend/src/products/products.service.service-type.spec.ts` — a `SERVICE`
+5. [x] RED: extend `backend/src/products/products.service.service-type.spec.ts` — a `SERVICE`
        forces `tracksStock = false`; an untracked product persists stock 0 with no opening movement
        and no adjustment movement; the low-stock query excludes it; `isLowStock` is false.
-6. [ ] GREEN: implement in `products.service.ts` and add `tracksStock` to both DTOs.
+6. [x] GREEN: implement in `products.service.ts` and add `tracksStock` to both DTOs.
 
 ### Work unit 3 — sales
 
-7. [ ] RED/GREEN: the sale line carries `tracksStock`, and the create loop and the cancel guard ask
+7. [x] RED/GREEN: the sale line carries `tracksStock`, and the create loop and the cancel guard ask
        the rule with it, so an untracked product is billed without stock and restored without it.
 
 ### Work unit 4 — reports
 
-8. [ ] RED/GREEN: the valuation query, the movement query and the dashboard raw SQL exclude
+8. [x] RED/GREEN: the valuation query, the movement query and the dashboard raw SQL exclude
        untracked rows, expressed through the flag rather than the type.
 
 ### Work unit 5 — purchase orders
 
-9. [ ] RED/GREEN: an untracked product is refused like a service, and receiving one moves no stock.
+9. [x] RED/GREEN: an untracked product is refused like a service, and receiving one moves no stock.
 
 ### Work unit 6 — frontend
 
-10. [ ] RED/GREEN: the form declares the flag for a product and forces it off for a service, hiding
+10. [x] RED/GREEN: the form declares the flag for a product and forces it off for a service, hiding
         the stock fields; the POS treats an untracked product like a service; the cards show no
         stock chip for it.
 
@@ -189,11 +189,65 @@ consumers, and the frontend.
 
 ## Verification evidence
 
-To be filled as each work unit closes.
+All commands were run by the parent session with PowerShell. The delegated writers have no working
+shell in this environment (`execvpe(/bin/bash) failed`, in their `bash` tool), so they produced files
+and the parent produced every execution claim. Branch `feat/150-untracked-stock`, four commits.
+
+| Check | Command | Result |
+|---|---|---|
+| Rule contract spec (RED) | `npm run test -- --testPathPatterns=product-type.logic` | FAIL **13 of 22** — the spec imports `normalizeStock` and `StockSubject`, neither of which existed, and the item-based calls disagree with the type-based signatures. The 9 passing tests are the tracked-product guards. |
+| Rule contract spec (GREEN) | same | PASS 22/22 |
+| Client regeneration | `npx prisma generate` | Generated Prisma Client v6.19.2 |
+| Migration applied | `npx dotenv -e .env.development -- npx prisma migrate deploy` | Applied `20260920230000_add_product_tracks_stock`, success |
+| Drift unchanged | `npx prisma migrate diff --from-url <dev> --to-datamodel` | Zero mentions of `tracksStock`; the same five pre-existing drifts |
+| Write-boundary spec (RED) | `npm run test -- --testPathPatterns=products.service.service-type` | FAIL **8 of 18** — the invariant, the DTO field, the two low-stock predicates |
+| Write-boundary spec (GREEN) | same | PASS 18/18 |
+| Sales, purchase orders, reports (RED) | `npm run test -- --testPathPatterns="sales.service.selling-services\|purchase-orders.service.spec\|reports.service.inventory-excludes-services"` | **3 failed, 25 passed**. The three failures are exactly the report predicates. **Sales and purchase orders passed on the first run**, which is the evidence that the centralised rule already made them correct. |
+| Those three (GREEN) | same | PASS 28/28 after the predicates and two stale expectations |
+| Full backend suite | `npm run test` | **PASS 101 suites / 1012 tests, 0 failures** |
+| Backend typecheck | `npx tsc --noEmit -p tsconfig.build.json` | clean |
+| Frontend suite | `cd frontend && npm run test` | **PASS 72 files / 429 tests, 0 failures** |
+| Frontend typecheck | `npx tsc --noEmit` | clean |
+| Frontend lint | `npx eslint <the five touched frontend files>` | zero problems |
+| Backend lint delta | each changed file linted against its `master` version | **no error added**; `products.service.ts` 14 → 14 and `reports.service.ts` 18 → 18, with warnings dropping |
 
 ## Disclosed deviations
 
-To be filled as they occur.
+1. **The flag's semantics were implemented the wrong way round first, and the tests caught it.** The
+   rule was first written as `item.tracksStock && item.type !== SERVICE`, which makes an absent flag
+   mean *untracked*. That broke **11 tests across 6 suites**, because every existing spec fixture
+   builds a product row without the flag, and it also diverged from the frontend twin, which had been
+   written as `item.tracksStock !== false` (absent means *tracked*, matching the column default).
+   Aligning the backend to `!== false` fixed all 11 at once and removed a backend/frontend
+   disagreement that would have been a real defect for any payload that omitted the field. The spec's
+   22 assertions hold under either form, so they could not have caught it — the existing suite did.
+2. **One test requirement I wrote was wrong, and the code was right.** I specified that turning
+   tracking off on a product holding 40 units should write **no** kárdex movement. That recreates the
+   unexplained-stock defect this feature exists to remove, and it contradicts the already-approved
+   counterpart — converting a product into a service, which does record the `ADJUSTMENT_OUT`. The
+   test was corrected to assert the movement, and the test name now says so.
+3. **Work units 3 and 5 needed no production change at all.** Because work unit 1 centralised the rule
+   and made every call site pass the item, sales and purchase orders already read the flag: an
+   untracked product already skips stock on a sale and is already refused on a purchase order. The
+   only production edit in that range was the refusal message, which said `El servicio` while it now
+   also refuses an untracked battery. What those work units add is the proof, not the behaviour —
+   their tests passed on the first run, which is recorded as evidence rather than presented as a RED.
+4. **Two older exact-shape assertions in the reports specs gained the additive key.** Both pin a
+   `where` object literally rather than with containment, so `tracksStock: true` broke them:
+   `reports.service.inventory-excludes-services.spec.ts` and
+   `financial-reports.service.spec.ts:257`. Intended additive consequences, not accommodation.
+5. **The three report predicates keep the `type` predicate alongside `tracksStock: true`** rather than
+   replacing it, so the query mirrors the rule's conjunction and cannot disagree with it even for a
+   malformed row. The cost is a clause the data makes redundant; the benefit is that a SQL filter and
+   the rule can never drift.
+6. **The delegated writers repeatedly returned an RDD review disposition instead of their work**, and
+   twice reported that they had made no edits while the edits had in fact landed. Every claim was
+   therefore verified by **running** the suite rather than by reading the report, which is how the 11
+   broken tests and both stale assertions were found. Their `bash` tool is broken in this
+   environment, which is also why the parent ran every command.
+7. **Work unit 7 is blocked on the owner**, not on engineering: the six-item candidate list in issue
+   #150 needs confirmation, particularly `ACEITES` (actively sold, 10 movements) and `BATERIA`
+   (already zeroed by hand). Nothing about the code correction can proceed without that answer.
 
 ## Native review outcome
 
