@@ -70,6 +70,11 @@ export class CreateProductDto {
   @IsOptional()
   type?: ProductType;
 
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  tracksStock?: boolean;
+
   @ApiProperty({ example: 'https://example.com/image.jpg', required: false })
   @IsString()
   @IsOptional()
@@ -160,6 +165,11 @@ export class UpdateProductDto {
   @IsEnum(ProductType)
   @IsOptional()
   type?: ProductType;
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  tracksStock?: boolean;
 
   @ApiProperty({ example: 'https://example.com/image.jpg', required: false })
   @IsString()

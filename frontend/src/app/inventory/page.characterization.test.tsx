@@ -283,4 +283,31 @@ describe("Inventory page — characterization (current behavior)", () => {
     // explicitly instead of comparing raw numbers.
     expect(screen.queryByText("Mantenimiento")).not.toBeInTheDocument();
   });
+
+  it("low-stock toggle skips untracked products, which are never low on stock (client-side)", () => {
+    setResponse([
+      buildProduct({ name: "Panela Baja", stock: 2, minStock: 5 }),
+      buildProduct({ name: "Dulce Sano", stock: 9, minStock: 5 }),
+      buildProduct({
+        name: "Servilletas sin conteo",
+        type: "PRODUCT",
+        stock: 0,
+        minStock: 5,
+        tracksStock: false,
+      }),
+    ]);
+
+    render(<InventoryPage />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /^Stock Bajo( ?\d+)?$/ }),
+    );
+
+    expect(screen.getByText("Panela Baja")).toBeInTheDocument();
+    expect(screen.queryByText("Dulce Sano")).not.toBeInTheDocument();
+    // An untracked product is not counted: its numbers would qualify
+    // (stock 0 <= minStock 5), so the client-side filter must skip it
+    // explicitly instead of comparing raw numbers.
+    expect(screen.queryByText("Servilletas sin conteo")).not.toBeInTheDocument();
+  });
 });

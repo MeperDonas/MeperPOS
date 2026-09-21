@@ -37,7 +37,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiErrorMessage } from "@/lib/api";
 import { cn, resolveTaxFields } from "@/lib/utils";
-import { isService } from "@/lib/product-type";
+import { isService, tracksStock } from "@/lib/product-type";
 
 export default function InventoryPage() {
   const toast = useToast();
@@ -130,8 +130,10 @@ export default function InventoryPage() {
     }
   }, [meta, page]);
 
+  // Neither a service nor an untracked item can be low on stock: `tracksStock`
+  // encodes both rules so the raw numbers never raise a false alert here.
   const lowStockProducts = products
-    .filter((p) => !isService(p) && p.stock <= p.minStock)
+    .filter((p) => tracksStock(p) && p.stock <= p.minStock)
     .toSorted((a, b) =>
       a.name.localeCompare(b.name, "es-CO", {
         sensitivity: "base",
@@ -272,17 +274,25 @@ export default function InventoryPage() {
     // taxable:true with a 0 rate would be rejected by the backend, silently
     // keeping the old rate — so derive taxable from the entered rate.
     const taxData = resolveTaxFields(taxRateInput);
-    // A service carries no inventory: the type is always explicit in the payload
-    // and the stock numbers are forced to zero, so a hidden field can never leak
-    // a stale value back into the record.
-    const stockData =
-      formData.type === "SERVICE"
-        ? { type: "SERVICE" as const, stock: 0, minStock: 0 }
-        : {
-            type: "PRODUCT" as const,
-            stock: formData.stock ?? 0,
-            minStock: formData.minStock ?? 5,
-          };
+    // A service or an untracked item carries no managed inventory: the type and
+    // the flag are always explicit in the payload and the stock numbers are
+    // forced to zero, so a hidden field can never leak a stale value back into
+    // the record.
+    const isServiceType = formData.type === "SERVICE";
+    const isTracked = !isServiceType && formData.tracksStock !== false;
+    const stockData = isTracked
+      ? {
+          type: "PRODUCT" as const,
+          tracksStock: true,
+          stock: formData.stock ?? 0,
+          minStock: formData.minStock ?? 5,
+        }
+      : {
+          type: isServiceType ? ("SERVICE" as const) : ("PRODUCT" as const),
+          tracksStock: false,
+          stock: 0,
+          minStock: 0,
+        };
     // Promotion: empty type = no offer (explicit nulls clear it server-side);
     // a selected type requires a positive value.
     const hasPromotion = promotionTypeInput !== "";
@@ -705,6 +715,28 @@ export default function InventoryPage() {
                   { value: "SERVICE", label: "Servicio" },
                 ]}
               />
+              {!isService(formData) && (
+                <div className="flex items-center gap-2">
+                  <input
+                    id="tracksStock"
+                    type="checkbox"
+                    checked={formData.tracksStock !== false}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        tracksStock: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                  <label
+                    htmlFor="tracksStock"
+                    className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                  >
+                    Maneja inventario
+                  </label>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <CurrencyInput
                   label="Precio de Costo"
@@ -739,7 +771,7 @@ export default function InventoryPage() {
                     onChange={(e) => setTaxRateInput(e.target.value)}
                   />
                 </div>
-                {formData.type !== "SERVICE" && (
+                {!isService(formData) && formData.tracksStock !== false && (
                   <>
                     <Input
                       label="Stock"

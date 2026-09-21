@@ -1,105 +1,143 @@
 import { MovementType, ProductType } from '@prisma/client';
 import {
   isLowStock,
-  normalizeStockForType,
+  normalizeStock,
   resolveInitialStockMovement,
   resolveStockDeltaMovement,
   tracksStock,
+  type StockSubject,
 } from './product-type.logic';
 
 /**
- * The whole point of this module is that a service is not merchandise: it must never
- * be counted as stocked, never be blocked by a stock rule and never move the kárdex.
- * Every stock decision in the codebase has to route through these five functions, so
- * this spec is the single place where the rule is pinned.
+ * A service is sold labour, and an untracked product is merchandise nobody counts. Both are
+ * invisible to stock: never guarded, never decremented, never valued, never alerted on. Every
+ * stock decision in the codebase routes through these five functions, so this spec is the single
+ * place where the rule is pinned.
  */
 describe('product-type.logic — the single stock-decision authority', () => {
+  const product = (overrides: Partial<StockSubject> = {}): StockSubject => ({
+    type: ProductType.PRODUCT,
+    tracksStock: true,
+    ...overrides,
+  });
+
+  const untracked = (overrides: Partial<StockSubject> = {}): StockSubject => ({
+    type: ProductType.PRODUCT,
+    tracksStock: false,
+    ...overrides,
+  });
+
+  const service = (overrides: Partial<StockSubject> = {}): StockSubject => ({
+    type: ProductType.SERVICE,
+    tracksStock: false,
+    ...overrides,
+  });
+
   describe('tracksStock', () => {
-    it('tracks stock for a physical product', () => {
-      expect(tracksStock(ProductType.PRODUCT)).toBe(true);
+    it('tracks stock for merchandise that declares it', () => {
+      expect(tracksStock(product())).toBe(true);
     });
 
     it('never tracks stock for a service', () => {
-      expect(tracksStock(ProductType.SERVICE)).toBe(false);
+      expect(tracksStock(service())).toBe(false);
+    });
+
+    it('does not track stock for merchandise nobody counts', () => {
+      expect(tracksStock(untracked())).toBe(false);
+    });
+
+    it('refuses to track a service even when its row claims it does', () => {
+      expect(tracksStock(service({ tracksStock: true }))).toBe(false);
     });
   });
 
-  describe('normalizeStockForType', () => {
+  describe('normalizeStock', () => {
+    it('keeps a tracked product stock untouched', () => {
+      expect(normalizeStock(product(), 42)).toBe(42);
+    });
+
+    it('keeps a zero-stock product at zero', () => {
+      expect(normalizeStock(product(), 0)).toBe(0);
+    });
+
     it('forces a service to zero regardless of the stored stock', () => {
-      expect(normalizeStockForType(ProductType.SERVICE, 9996)).toBe(0);
+      expect(normalizeStock(service(), 9996)).toBe(0);
     });
 
-    it('leaves a product stock untouched', () => {
-      expect(normalizeStockForType(ProductType.PRODUCT, 42)).toBe(42);
-    });
-
-    it('leaves a zero-stock product untouched', () => {
-      expect(normalizeStockForType(ProductType.PRODUCT, 0)).toBe(0);
+    it('forces untracked merchandise to zero', () => {
+      expect(normalizeStock(untracked(), 9991)).toBe(0);
     });
   });
 
   describe('resolveInitialStockMovement', () => {
-    it('records no opening movement for a service, even with an invented stock', () => {
-      expect(resolveInitialStockMovement(ProductType.SERVICE, 9996)).toBeNull();
-    });
-
-    it('records the opening PURCHASE movement for a product', () => {
-      expect(resolveInitialStockMovement(ProductType.PRODUCT, 10)).toEqual({
+    it('records the opening PURCHASE movement for a tracked product', () => {
+      expect(resolveInitialStockMovement(product(), 10)).toEqual({
         type: MovementType.PURCHASE,
         quantity: 10,
       });
     });
 
     it('records no opening movement for a product created with zero stock', () => {
-      expect(resolveInitialStockMovement(ProductType.PRODUCT, 0)).toBeNull();
+      expect(resolveInitialStockMovement(product(), 0)).toBeNull();
+    });
+
+    it('records no opening movement for a service', () => {
+      expect(resolveInitialStockMovement(service(), 9996)).toBeNull();
+    });
+
+    it('records no opening movement for untracked merchandise', () => {
+      expect(resolveInitialStockMovement(untracked(), 9991)).toBeNull();
     });
   });
 
   describe('isLowStock', () => {
-    it('never reports a service as low on stock, even at zero against a positive minimum', () => {
-      expect(isLowStock(ProductType.SERVICE, 0, 5)).toBe(false);
+    it('reports a tracked product at zero against a positive minimum', () => {
+      expect(isLowStock(product(), 0, 5)).toBe(true);
     });
 
-    it('never reports a service as low on stock at the zero/zero boundary', () => {
-      expect(isLowStock(ProductType.SERVICE, 0, 0)).toBe(false);
+    it('reports a tracked product exactly at the minimum, which is inclusive', () => {
+      expect(isLowStock(product(), 5, 5)).toBe(true);
     });
 
-    it('reports a product at zero against a positive minimum', () => {
-      expect(isLowStock(ProductType.PRODUCT, 0, 5)).toBe(true);
+    it('does not report a tracked product above the minimum', () => {
+      expect(isLowStock(product(), 6, 5)).toBe(false);
     });
 
-    it('reports a product exactly at the minimum (the boundary is inclusive)', () => {
-      expect(isLowStock(ProductType.PRODUCT, 5, 5)).toBe(true);
+    it('never reports a service as low on stock', () => {
+      expect(isLowStock(service(), 0, 5)).toBe(false);
+      expect(isLowStock(service(), 0, 0)).toBe(false);
     });
 
-    it('does not report a product above the minimum', () => {
-      expect(isLowStock(ProductType.PRODUCT, 6, 5)).toBe(false);
+    it('never reports untracked merchandise as low on stock', () => {
+      expect(isLowStock(untracked(), 0, 5)).toBe(false);
     });
   });
 
   describe('resolveStockDeltaMovement', () => {
-    it('records no movement when a service stock drops', () => {
-      expect(resolveStockDeltaMovement(ProductType.SERVICE, 10, 0)).toBeNull();
-    });
-
-    it('records no movement when a service stock rises', () => {
-      expect(resolveStockDeltaMovement(ProductType.SERVICE, 0, 10)).toBeNull();
-    });
-
-    it('records an ADJUSTMENT_IN when a product stock rises', () => {
-      expect(resolveStockDeltaMovement(ProductType.PRODUCT, 5, 10)).toBe(
+    it('records an ADJUSTMENT_IN when tracked stock rises', () => {
+      expect(resolveStockDeltaMovement(product(), 5, 10)).toBe(
         MovementType.ADJUSTMENT_IN,
       );
     });
 
-    it('records an ADJUSTMENT_OUT when a product stock drops', () => {
-      expect(resolveStockDeltaMovement(ProductType.PRODUCT, 10, 5)).toBe(
+    it('records an ADJUSTMENT_OUT when tracked stock drops', () => {
+      expect(resolveStockDeltaMovement(product(), 10, 5)).toBe(
         MovementType.ADJUSTMENT_OUT,
       );
     });
 
-    it('records no movement when a product stock is unchanged', () => {
-      expect(resolveStockDeltaMovement(ProductType.PRODUCT, 10, 10)).toBeNull();
+    it('records no movement when tracked stock is unchanged', () => {
+      expect(resolveStockDeltaMovement(product(), 10, 10)).toBeNull();
+    });
+
+    it('records no movement when a service stock changes', () => {
+      expect(resolveStockDeltaMovement(service(), 10, 0)).toBeNull();
+      expect(resolveStockDeltaMovement(service(), 0, 10)).toBeNull();
+    });
+
+    it('records no movement when untracked stock changes', () => {
+      expect(resolveStockDeltaMovement(untracked(), 9991, 0)).toBeNull();
+      expect(resolveStockDeltaMovement(untracked(), 0, 9991)).toBeNull();
     });
   });
 });
