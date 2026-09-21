@@ -69,6 +69,19 @@ describe('ReportsService — inventory valuation excludes services', () => {
       ...overrides,
     });
 
+  // An untracked product is merchandise nobody counts: a real PRODUCT row whose
+  // stock must stay invisible to the valuation and to the low-stock alert.
+  const untrackedRow = (overrides: Partial<{ stock: number }> = {}) => ({
+    ...productRow({
+      stock: 9991,
+      costPrice: new Prisma.Decimal('10000'),
+      salePrice: new Prisma.Decimal('20000'),
+      type: ProductType.PRODUCT,
+      ...overrides,
+    }),
+    tracksStock: false,
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     service = new ReportsService(prismaMock as never, cacheMock as never);
@@ -126,7 +139,53 @@ describe('ReportsService — inventory valuation excludes services', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             organizationId: 'org-1',
-            product: { type: ProductType.PRODUCT },
+            product: { type: ProductType.PRODUCT, tracksStock: true },
+          }),
+        }),
+      );
+    });
+
+    it('asks only for tracked items when valuing the inventory', async () => {
+      prismaMock.product.findMany.mockResolvedValue([]);
+
+      await service.getInventorySnapshot('org-1');
+
+      expect(prismaMock.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organizationId: 'org-1',
+            active: true,
+            type: ProductType.PRODUCT,
+            tracksStock: true,
+          }),
+        }),
+      );
+    });
+
+    it('lets no untracked stock reach the valuation even if an untracked row is returned', async () => {
+      prismaMock.product.findMany.mockResolvedValue([
+        productRow(),
+        untrackedRow(),
+      ]);
+
+      const result = await service.getInventorySnapshot('org-1');
+
+      expect(result.current.stockQuantity).toBe(10);
+      expect(result.current.stockValue).toBe('20000.00');
+      expect(result.current.retailValue).toBe('50000.00');
+      expect(result.current.potentialProfit).toBe('30000.00');
+    });
+
+    it('counts only movements of tracked items in the movement totals', async () => {
+      prismaMock.product.findMany.mockResolvedValue([]);
+
+      await service.getInventorySnapshot('org-1');
+
+      expect(prismaMock.inventoryMovement.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organizationId: 'org-1',
+            product: { type: ProductType.PRODUCT, tracksStock: true },
           }),
         }),
       );
@@ -143,6 +202,19 @@ describe('ReportsService — inventory valuation excludes services', () => {
 
       expect(sql).toContain('"type"');
       expect(sql).toContain('PRODUCT');
+    });
+
+    it('never counts untracked merchandise as running low on stock', async () => {
+      await service.getDashboardKPIs('org-1');
+
+      const sql = (
+        prismaMock.$queryRaw.mock.calls[0][0] as unknown as string[]
+      ).join('?');
+
+      expect(sql).toContain('"type"');
+      expect(sql).toContain('PRODUCT');
+      expect(sql).toContain('tracksStock');
+      expect(sql).toContain('true');
     });
   });
 });

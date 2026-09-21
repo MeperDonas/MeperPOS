@@ -3,48 +3,55 @@ import { MovementType, ProductType } from '@prisma/client';
 /**
  * The single authority for every stock decision.
  *
- * A service is sold labour, not merchandise: it is never counted as stocked, never
- * blocked by a stock rule, never reported as low on stock, and never moves the kárdex.
- * Every consumer must call these functions instead of re-deriving the rule, so the
- * behaviour cannot diverge between the POS, the products module, the reports and the
- * purchase orders.
+ * A service is sold labour, and an untracked product is merchandise nobody counts. Both are
+ * invisible to stock: never guarded, never decremented, never valued, never alerted on. Every
+ * consumer must call these functions instead of re-deriving the rule, so the behaviour cannot
+ * diverge between the POS, the products module, the reports, the purchase orders and the cards.
  */
 
-/** A service does not carry inventory; a product does. */
-export function tracksStock(type: ProductType): boolean {
-  return type !== ProductType.SERVICE;
+/** The two facts every stock decision needs: what the item is, and whether its stock is managed. */
+export type StockSubject = {
+  type: ProductType;
+  tracksStock: boolean;
+};
+
+/**
+ * An item is stock-controlled when it declares it AND it is merchandise. An absent flag counts as
+ * tracked, which is what the column default says and what the frontend twin does, so the two sides
+ * can never disagree. The write boundary keeps a service at `tracksStock = false`; the type clause
+ * makes the rule total even if a row ever disagrees, so a service can never be treated as stocked
+ * whatever the flag says.
+ */
+export function tracksStock(item: StockSubject): boolean {
+  return item.tracksStock !== false && item.type !== ProductType.SERVICE;
 }
 
-/** Stored stock is meaningless for a service, so it is normalised to zero. */
-export function normalizeStockForType(
-  type: ProductType,
-  stock: number,
-): number {
-  return tracksStock(type) ? stock : 0;
+/** Stored stock is meaningless for anything untracked, so it is normalised to zero. */
+export function normalizeStock(item: StockSubject, stock: number): number {
+  return tracksStock(item) ? stock : 0;
 }
 
 /**
- * The opening stock movement a product is created with. A service records none, and a
- * product created with zero stock records none either, so no phantom PURCHASE is ever
- * written for an item that was not physically received.
+ * The opening stock movement an item is created with. An untracked item records none, and neither
+ * does a tracked product created with zero stock, so no phantom PURCHASE is ever written.
  */
 export function resolveInitialStockMovement(
-  type: ProductType,
+  item: StockSubject,
   stock: number,
 ): { type: MovementType; quantity: number } | null {
-  if (!tracksStock(type) || stock === 0) {
+  if (!tracksStock(item) || stock === 0) {
     return null;
   }
   return { type: MovementType.PURCHASE, quantity: stock };
 }
 
-/** The low-stock rule. A service is never low on stock, whatever the numbers say. */
+/** The low-stock rule. An untracked item is never low on stock, whatever the numbers say. */
 export function isLowStock(
-  type: ProductType,
+  item: StockSubject,
   stock: number,
   minStock: number,
 ): boolean {
-  if (!tracksStock(type)) {
+  if (!tracksStock(item)) {
     return false;
   }
   return stock <= minStock;
@@ -52,11 +59,11 @@ export function isLowStock(
 
 /** The adjustment a manual stock edit produces, or null when nothing moved. */
 export function resolveStockDeltaMovement(
-  type: ProductType,
+  item: StockSubject,
   previousStock: number,
   nextStock: number,
 ): MovementType | null {
-  if (!tracksStock(type) || previousStock === nextStock) {
+  if (!tracksStock(item) || previousStock === nextStock) {
     return null;
   }
   return nextStock > previousStock

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { cn, formatCurrency } from "@/lib/utils";
-import { isService } from "@/lib/product-type";
+import { isService, tracksStock } from "@/lib/product-type";
 import { Badge } from "@/components/ui/Badge";
 import { AlertTriangle, Package, Power, RotateCcw, Star, Edit3, Wrench } from "lucide-react";
 
@@ -16,6 +16,7 @@ type ProductCardData = {
   costPrice?: number;
   minStock?: number;
   type?: string | null;
+  tracksStock?: boolean | null;
   category?: { name: string } | null;
   active?: boolean;
   /** Active promotion — when present, effectiveSalePrice is the selling price */
@@ -65,6 +66,21 @@ function StatusChip({ product, isInactive }: { product: ProductCardData; isInact
     );
   }
 
+  // An untracked product is real merchandise nobody counts: it is never "Agotado"
+  // nor "Stock bajo" either, but it still loses to the inactive and service
+  // states, which the operator must be able to see.
+  if (!tracksStock(product)) {
+    return (
+      <span
+        data-testid="untracked-chip"
+        className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/90 dark:bg-card/90 px-2 py-0.5 font-mono text-[10px] font-bold text-muted-foreground shadow-xs backdrop-blur-md"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+        Sin inventario
+      </span>
+    );
+  }
+
   if (isOutOfStock) {
     return (
       <span
@@ -107,6 +123,7 @@ function DualMetrics({ product }: { product: ProductCardData }) {
   const isLowStock = hasMinStock && product.stock > 0 && product.stock <= (product.minStock as number);
 
   const isServiceItem = isService(product);
+  const isUntrackedItem = !isServiceItem && !tracksStock(product);
 
   const hasPromo =
     typeof product.effectiveSalePrice === "number" &&
@@ -126,11 +143,13 @@ function DualMetrics({ product }: { product: ProductCardData }) {
 
   const stockBadgeClass = isServiceItem
     ? "bg-muted/60 text-muted-foreground border-border/60"
-    : isOutOfStock
-      ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
-      : isLowStock
-        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
-        : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
+    : isUntrackedItem
+      ? "bg-muted/60 text-muted-foreground border-border/60"
+      : isOutOfStock
+        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+        : isLowStock
+          ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
+          : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
 
   return (
     <div className="flex flex-col gap-1.5 rounded-xl border border-border/50 bg-muted/30 p-2 sm:p-2.5">
@@ -145,7 +164,11 @@ function DualMetrics({ product }: { product: ProductCardData }) {
             stockBadgeClass,
           )}
         >
-          {isServiceItem ? "Servicio" : `${product.stock} uds.`}
+          {isServiceItem
+            ? "Servicio"
+            : isUntrackedItem
+              ? "Sin inventario"
+              : `${product.stock} uds.`}
         </span>
       </div>
 

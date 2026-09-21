@@ -8,7 +8,7 @@ import { Prisma, ProductType, PromotionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   isLowStock,
-  normalizeStockForType,
+  normalizeStock,
   resolveInitialStockMovement,
   resolveStockDeltaMovement,
   tracksStock,
@@ -139,6 +139,7 @@ export class ProductsService {
       taxable,
       type: rawType,
       stock,
+      tracksStock: rawTracksStock,
       ...rest
     } = createProductDto;
     // Normalize empty barcode to null so PostgreSQL unique constraint ignores it
@@ -190,7 +191,16 @@ export class ProductsService {
     // rather than stored, so neither the inventory valuation nor the kárdex can be
     // inflated by an invented number.
     const resolvedType = rawType ?? ProductType.PRODUCT;
-    const resolvedStock = normalizeStockForType(resolvedType, stock);
+    // The invariant is enforced here, at the write boundary, so no invalid combination can ever
+    // be stored: a service is never tracked, whatever the payload says. An absent flag means
+    // tracked, matching the column default.
+    const resolvedTracksStock =
+      resolvedType === ProductType.SERVICE ? false : (rawTracksStock ?? true);
+    const resolvedSubject = {
+      type: resolvedType,
+      tracksStock: resolvedTracksStock,
+    };
+    const resolvedStock = normalizeStock(resolvedSubject, stock);
 
     assertValidPromotion(
       createProductDto.promotionType,
@@ -209,16 +219,14 @@ export class ProductsService {
         taxRate: resolvedTaxRate,
         type: resolvedType,
         stock: resolvedStock,
+        tracksStock: resolvedTracksStock,
       },
       include: { category: true },
     });
 
     this.planLimitService.invalidateCache('products', organizationId);
 
-    const initialMovement = resolveInitialStockMovement(
-      resolvedType,
-      product.stock,
-    );
+    const initialMovement = resolveInitialStockMovement(product, product.stock);
 
     if (initialMovement) {
       await this.createInventoryMovement(
@@ -273,8 +281,10 @@ export class ProductsService {
       // Field reference: stock <= minStock is evaluated in the database, so
       // low-stock pages stay coherent without loading every product first.
       where.stock = { lte: this.prisma.product.fields.minStock };
-      // A service is never low on stock, so it can never belong on this page.
+      // A service is never low on stock, and neither is untracked merchandise, so
+      // neither can belong on this page.
       where.type = ProductType.PRODUCT;
+      where.tracksStock = true;
     }
 
     // 'name' keeps the inventory list's alphabetical presentation coherent
@@ -374,10 +384,23 @@ export class ProductsService {
 
     const previousStock = existingProduct.stock;
     // A service never carries stock, so editing one, or converting a stocked product
-    // into one, always lands on zero instead of storing the invented number.
+    // into one, always lands on zero instead of storing the invented number. The
+    // resulting subject reads the row's flag, because this write cannot change it
+    // yet: the effective state keeps whatever tracksStock the row declares.
     const effectiveType = updateProductDto.type ?? existingProduct.type;
-    const newStock = normalizeStockForType(
-      effectiveType,
+    // Same invariant as create, applied to the resulting state: a service is never tracked. When
+    // the caller says nothing the row keeps what it had, which is why converting a service back
+    // into merchandise requires declaring tracksStock: true explicitly.
+    const effectiveTracksStock =
+      effectiveType === ProductType.SERVICE
+        ? false
+        : (updateProductDto.tracksStock ?? existingProduct.tracksStock);
+    const effectiveSubject = {
+      type: effectiveType,
+      tracksStock: effectiveTracksStock,
+    };
+    const newStock = normalizeStock(
+      effectiveSubject,
       updateProductDto.stock ?? previousStock,
     );
 
@@ -410,6 +433,7 @@ export class ProductsService {
         ...updateProductDto,
         ...taxData,
         stock: newStock,
+        tracksStock: effectiveTracksStock,
         barcode: normalizedBarcode,
         version: { increment: 1 },
       },
@@ -434,9 +458,9 @@ export class ProductsService {
     // direction is a real stock event, so the basis is stocked as soon as either the
     // previous or the resulting side tracks stock; only a service staying a service
     // records nothing.
-    const movementBasis = tracksStock(existingProduct.type)
-      ? existingProduct.type
-      : effectiveType;
+    const movementBasis = tracksStock(existingProduct)
+      ? existingProduct
+      : effectiveSubject;
     const movementType = resolveStockDeltaMovement(
       movementBasis,
       previousStock,
@@ -516,7 +540,7 @@ export class ProductsService {
       SELECT p.*, c.name as "categoryName"
       FROM "Product" p
       LEFT JOIN "Category" c ON p."categoryId" = c.id
-      WHERE p.active = true AND p."organizationId" = ${organizationId} AND p.stock <= p."minStock" AND p."type" = 'PRODUCT'
+      WHERE p.active = true AND p."organizationId" = ${organizationId} AND p.stock <= p."minStock" AND p."type" = 'PRODUCT' AND p."tracksStock" = true
       ORDER BY p.stock ASC
     `;
   }
@@ -548,7 +572,8 @@ export class ProductsService {
       effectiveTaxRate: resolveEffectiveTaxRate(p, p.category),
       minStock: p.minStock,
       type: p.type,
-      isLowStock: isLowStock(p.type, p.stock, p.minStock),
+      tracksStock: p.tracksStock,
+      isLowStock: isLowStock(p, p.stock, p.minStock),
       category: p.category,
       imageUrl: p.imageUrl,
       promotionType: p.promotionType,
@@ -594,7 +619,8 @@ export class ProductsService {
       effectiveTaxRate: resolveEffectiveTaxRate(product, product.category),
       minStock: product.minStock,
       type: product.type,
-      isLowStock: isLowStock(product.type, product.stock, product.minStock),
+      tracksStock: product.tracksStock,
+      isLowStock: isLowStock(product, product.stock, product.minStock),
       category: product.category,
       imageUrl: product.imageUrl,
       promotionType: product.promotionType,

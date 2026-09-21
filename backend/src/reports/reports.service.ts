@@ -8,7 +8,7 @@ import {
   parseBogotaStartOfDay,
 } from '../common/utils/bogota-date';
 import { ExpensesService } from '../expenses/expenses.service';
-import { normalizeStockForType } from '../products/product-type.logic';
+import { normalizeStock } from '../products/product-type.logic';
 import {
   aggregateFinancialSales,
   compareFinancialReports,
@@ -501,18 +501,26 @@ export class ReportsService {
           organizationId: orgId,
           active: true,
           // A service is sold labour, not merchandise, so it has no place in the
-          // inventory valuation.
+          // inventory valuation. An untracked item has no stock to value either.
           type: ProductType.PRODUCT,
+          tracksStock: true,
         },
-        select: { stock: true, costPrice: true, salePrice: true, type: true },
+        select: {
+          stock: true,
+          costPrice: true,
+          salePrice: true,
+          type: true,
+          tracksStock: true,
+        },
       }),
       this.prisma.inventoryMovement.findMany({
         where: {
           organizationId: orgId,
           createdAt: period.current,
           // Historical service sales left phantom movements behind; they belong to
-          // the workshop, not to the merchandise ledger.
-          product: { type: ProductType.PRODUCT },
+          // the workshop, not to the merchandise ledger. Movements of merchandise
+          // nobody counts stay out too.
+          product: { type: ProductType.PRODUCT, tracksStock: true },
         },
         select: { type: true, quantity: true },
       }),
@@ -523,10 +531,7 @@ export class ReportsService {
         // The query already asks only for products. Normalising again here makes the
         // valuation structurally incapable of counting sold labour, whatever a
         // caller feeds it.
-        const stockedQuantity = normalizeStockForType(
-          product.type,
-          product.stock,
-        );
+        const stockedQuantity = normalizeStock(product, product.stock);
         return {
           stockQuantity: totals.stockQuantity + stockedQuantity,
           stockValue: totals.stockValue.add(
@@ -729,7 +734,7 @@ export class ReportsService {
       }),
       this.prisma.$queryRaw<[{ count: bigint }]>`
             SELECT COUNT(*)::bigint as count FROM "Product"
-            WHERE "organizationId" = ${orgId} AND active = true AND stock <= "minStock" AND "type" = 'PRODUCT'
+            WHERE "organizationId" = ${orgId} AND active = true AND stock <= "minStock" AND "type" = 'PRODUCT' AND "tracksStock" = true
           `.then((r) => Number(r[0].count)),
       this.prisma.sale.findMany({
         where: salesWhere,
