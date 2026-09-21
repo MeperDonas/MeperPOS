@@ -71,6 +71,7 @@ describe('ProductsService — Opt-in tax resolution', () => {
     taxRate: overrides.taxRate ?? 0,
     stock: 10,
     minStock: 5,
+    tracksStock: true,
     imageUrl: null,
     categoryId: overrides.categoryId ?? 'cat-1',
     active: true,
@@ -407,8 +408,8 @@ describe('ProductsService — Opt-in tax resolution', () => {
 
   describe('Search promotion parity (live service path)', () => {
     // Every search payload carries exactly these keys: all prior flat fields,
-    // the product/service discriminator, the two additive promotion fields,
-    // and the derived effective price.
+    // the product/service discriminator, the stock-tracking flag, the two
+    // additive promotion fields, and the derived effective price.
     const FLAT_PAYLOAD_KEYS = [
       'id',
       'name',
@@ -421,6 +422,7 @@ describe('ProductsService — Opt-in tax resolution', () => {
       'effectiveTaxRate',
       'minStock',
       'type',
+      'tracksStock',
       'isLowStock',
       'category',
       'imageUrl',
@@ -460,6 +462,7 @@ describe('ProductsService — Opt-in tax resolution', () => {
         taxRate: 0,
         effectiveTaxRate: 0,
         minStock: 5,
+        tracksStock: true,
         isLowStock: false,
         imageUrl: null,
       });
@@ -491,6 +494,7 @@ describe('ProductsService — Opt-in tax resolution', () => {
         taxRate: 0,
         effectiveTaxRate: 0,
         minStock: 5,
+        tracksStock: true,
         isLowStock: false,
         imageUrl: null,
       });
@@ -523,6 +527,7 @@ describe('ProductsService — Opt-in tax resolution', () => {
         taxRate: 0,
         effectiveTaxRate: 0,
         minStock: 5,
+        tracksStock: true,
         isLowStock: false,
         imageUrl: null,
       });
@@ -554,6 +559,7 @@ describe('ProductsService — Opt-in tax resolution', () => {
         taxRate: 0,
         effectiveTaxRate: 0,
         minStock: 5,
+        tracksStock: true,
         isLowStock: false,
         imageUrl: null,
       });
