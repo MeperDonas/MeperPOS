@@ -15,7 +15,9 @@ no place to express it. Measured on production (`Motors Club`, `FMC-001`):
   `minStock = 5` and contribute **~$121,237,000** to an inventory valuation of **$183,296,000**:
   `LIQUIDO` `SERV 3` (9,991 units, **54% of the whole report**), `GUAYA` `1234` (998),
   `ACEITES` `LIQUIDO` (91), `CAPUCHON` `SERV 15` (100), `VALBULINA` `SERV 5` (98),
-  `BATERIA` `SERV 7` (0, zeroed by hand).
+  `BATERIA` `SERV 7` (0, zeroed by hand). The owner later confirmed that `ACEITES` is deliberately
+  a single generic product covering motorbike oils rather than one per brand, so it is real stock
+  and stays tracked; the other five are untracked.
 - **The stock was never accumulated.** Every case traces to a single `PURCHASE … "Initial stock"`
   at creation, except `BATERIA` which was created at 0 and raised with `ADJUSTMENT_IN 0→1000`.
   Sales only ever decrease stock, so these are inputs, not the result of any process.
@@ -159,19 +161,30 @@ Strict TDD. RED observed before every GREEN.
         the stock fields; the POS treats an untracked product like a service; the cards show no
         stock chip for it.
 
-### Work unit 7 — the data correction (BLOCKED on the owner's list)
+### Work unit 7 — the data correction (owner decision recorded)
 
-11. [ ] BLOCKED: the candidate list in issue #150 needs the owner's confirmation, particularly
-        `ACEITES` (actively sold) and `BATERIA` (already zero). Same mechanics as the services
-        backfill. Expected effect if all six are marked: **$183,296,000 → ~$62,059,000**.
-12. [ ] Destructive production write: needs explicit authorisation and a backup, and the deploy must
-        precede it because production must have the column first.
+11. [x] The owner confirmed the list on 2026-09-20. It is **five items, not six**: `LIQUIDO`
+        (`SERV 3`, 9,991), `GUAYA` (`1234`, 998), `CAPUCHON` (`SERV 15`, 100), `VALBULINA`
+        (`SERV 5`, 98) and `BATERIA` (`SERV 7`, 0) become untracked. **`ACEITES` stays tracked**: the
+        owner explained that "Aceites" is deliberately one generic product covering motorbike oils
+        rather than one per brand, so its 91 units are real stock. Expected effect on the inventory
+        report: **$183,296,000 → ~$65,426,000**.
+12. [x] **No second backfill script is written.** The `Maneja inventario` checkbox from work unit 6
+        performs this correction through the already-reviewed write boundary: unticking it writes
+        `tracksStock = false` and `stock = 0` and records the `ADJUSTMENT_OUT` from the stock the row
+        actually held, so the kárdex explains the change exactly as a script would. `BATERIA` already
+        sits at zero, so it receives the flag and no movement. At five items this is also the safer
+        route: each one is visible to the operator, against a purpose-built script needing its own
+        review.
+13. [ ] Destructive production write, still owed: **merge and deploy first**, because production does
+        not yet have the `tracksStock` column and the migration is what creates it; then **back up**;
+        then untick the five items.
 
 ### Verification and closure
 
-13. [ ] Full backend and frontend suites, typecheck, lint delta against `master`.
-14. [ ] Native review at the deliverable boundary.
-15. [ ] Push and PR remain the owner's decisions.
+14. [ ] Full backend and frontend suites, typecheck, lint delta against `master`.
+15. [ ] Native review at the deliverable boundary.
+16. [ ] Push and PR remain the owner's decisions.
 
 ## Out of scope
 
