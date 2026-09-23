@@ -1,0 +1,23 @@
+# ODD: Integrate responsive product redesign with tracked-stock master
+
+## Objective
+Publish the reviewed responsive card/editor redesign from `feat/responsive-product-card-form` as focused, issue-linked PRs after preserving the stock-tracking behavior already on `master`. Approved issue: https://github.com/MeperDonas/MeperPOS/issues/153 (OPEN, `status:approved` verified on GitHub).
+
+## Scope and authority
+- Isolated worktree `../MeperPOS-product-card-integrated`, branch `feat/responsive-product-card-form-integrated` created from `origin/master` at `c5226f4`; keep the original redesign branch, existing worktrees and local `openspec/config.yaml` untouched.
+- Source commits `ce85862` (shared card), `5234adf` (product editor), `b3ec045` (verification) were reviewed against their old base `0c98792`; their approval does not cover new integration commits. Preserve product `tracksStock` semantics and native tests from current master.
+- Strict TDD from `openspec/config.yaml`: `cd frontend && npm run test` with focused filters, observed RED/GREEN for new behavior. Frontend build and changed-file ESLint are additional checks. Verification commands route to `gentle-ai-verify` where callable; child Bash may be unavailable in Windows, so parent may run PowerShell after diagnosis.
+- Delivery strategy chosen by user: stacked PRs to `master` (card PR first, form PR second based on card branch); no tracker branch. Each cohesive original work unit exceeds 400 changed lines; one honest slicing pass was already performed. Do not publish an over-budget PR absent an authorized size exception. No automatic merge.
+
+## Tasks
+- [x] **CARD-4** — Integrate the reviewed card layout/tests with current master, preserving active/depleted/service/untracked goods behavior, inventory permission/actions and POS favorites. Route: bounded delegated writer on card and direct tests. RED/GREEN focused tests, typecheck; work-unit commit and fresh review candidate.
+- [ ] **FORM-5** — Integrate the responsive create/edit editor/tests without losing the `tracksStock` choice, conditional stock values, type semantics, promotion, barcode, image and permissions. Route: bounded delegated writer on inventory page and direct tests. RED/GREEN focused tests, typecheck; work-unit commit and fresh review candidate.
+- [ ] **DELIVERY-6** — Run focused + full frontend suite, build, scoped lint, measure each PR diff and attempt authenticated mobile/tablet/desktop visual smoke. Request maintainer `size:exception` when a cohesive PR slice remains above 400. Once gates are satisfied, push branch slices, publish PRs with `Closes #153`, exactly one `type:feature` label each, describe dependency and tests; observe CI. Route: independent verifier, parent GitHub delivery.
+
+## Evidence
+- Initial comparison: original redesign branch is 12 commits behind and 4 ahead of `origin/master`; shared overlapping files include `ProductCard.tsx`, its direct tests, and `inventory/page.tsx`. Original card unit is 160+3 test lines, 126+317 component lines plus task record, >400; original form unit is 223 added test lines and 191+177 page lines, >400. Previous 437/437 tests and successful build applied only to the old base.
+- Preflight: issue #153 labels `enhancement`, `status:approved`, `type:feature` confirmed from GitHub; master `c5226f4`. No PR published yet.
+- `CARD-4` done. Commit `ee6a7f780bf43b3a39e9e57e45f41d03b3cb6bf2`, native review `review-39a77222d812c6e4` approved and acknowledged/burned for this committed candidate. Rollback: revert this one card/test/task-doc commit on the integration branch. Integration: new worktree baseline `npm.cmd run test -- ProductCard.inventory` 23/23; imported reviewed tests on master code RED 10 failed / 23 passed; delegated stock-compatible card implementation GREEN 40/40, `npx.cmd tsc --noEmit` passed, scoped ESLint (card and test) passed, `git diff --check` passed. Windows child Bash failed `/bin/bash`; parent PowerShell ran the commands after diagnosis. The source cherry-pick conflict was resolved without rewriting the original work-unit commit. Publication budget: 761 changed lines including two task documents; exception or new cohesive slice is required before PR.
+
+## Next step
+Integrate FORM-5 on top of reviewed CARD-4. Retain the master `tracksStock` form choice and conditional stock fields; rerun focused tests and review this new work-unit commit before any PR publication.
