@@ -1,0 +1,53 @@
+name: Feature request
+description: Propose a user-facing feature or improvement with testable outcomes.
+title: "[Feature]: "
+labels:
+  - enhancement
+  - type:feature
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem and desired behavior. Do not include credentials or private customer data.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and current behavior
+      description: Who is affected, in which flow, and what happens today?
+      placeholder: Describe the current limitation and its impact.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Explain the user-visible behavior you expect, without prescribing implementation details.
+      placeholder: Describe what users should be able to do after the change.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable behaviors, including responsive or accessibility expectations where relevant.
+      placeholder: |
+        - [ ] The affected flow behaves correctly on mobile and desktop.
+        - [ ] Existing interactions remain available.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+      description: Name the affected areas and anything intentionally excluded.
+      placeholder: Include relevant modules, roles, and explicit non-goals.
+    validations:
+      required: false
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification and context
+      description: Include reproduction steps, test evidence, mockups, or links if available.
+      placeholder: Include links or commands; never paste secrets.
+    validations:
+      required: false
