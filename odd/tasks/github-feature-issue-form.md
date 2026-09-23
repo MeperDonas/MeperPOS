@@ -4,7 +4,7 @@
 Enable a YAML Issue Form on MeperPOS so feature work, including the completed responsive product-card/form redesign, can be tracked in a conforming GitHub issue before publication of its PRs.
 
 ## Evidence and constraints
-- Target: `github.com/MeperDonas/MeperPOS`, default branch `master`, issues enabled. No `.github/ISSUE_TEMPLATE` on current remote `master` at `2a855082843d842ed01a9350841d7887bd54e455`.
+- Target: `github.com/MeperDonas/MeperPOS`, default branch `master`, issues enabled. At initial exploration `2a855082843d842ed01a9350841d7887bd54e455` had no Issue Form; by `c5226f4034eb87d9a09bc23e4c3ba333131de6ad` the form was available on GitHub default branch.
 - No equivalent issue found in open/closed searches for product-card redesign, product modal, or issue forms. Search again with selected form and full candidate review before publication.
 - Issue-creation policy requires a YAML Issue Form already on the default branch; Markdown/blank issue body is not a fallback.
 - Branch-PR policy requires a linked approved issue for every PR; neither issue nor approval may be invented. Repository Git guidance prohibits direct push to the default branch. This creates a bootstrap dependency that cannot be bypassed by publishing a branch alone.
@@ -13,13 +13,13 @@ Enable a YAML Issue Form on MeperPOS so feature work, including the completed re
 
 ## Plan
 - [x] **FORM-1** — Add a reusable YAML Feature Request issue form with unambiguous purpose, required problem/outcome/acceptance fields, optional scope/verification context; validate YAML structure locally and commit on `chore/github-feature-issue-form`. Route: inline direct (one small config file + progress document). Acceptance: exact form is readable, controls valid, no claim of publication.
-- [ ] **ISSUE-2** — Once the form is on `master`, follow issue-creation skill: fetch current form/policy and labels, search open+closed duplicates, materialize reviewed answers privately, create/read back exactly once. Route: pending external bootstrap; do not claim issue created until confirmed.
+- [x] **ISSUE-2** — Once the form is on `master`, follow issue-creation skill: fetch current form/policy and labels, search open+closed duplicates, materialize reviewed answers privately, create/read back exactly once. Route: pending external bootstrap; do not claim issue created until confirmed.
 - [ ] **PR-3** — Once a conforming issue is approved by authorized maintainer, reconcile redesign against latest `master`, verify tests/CI, apply review-budget strategy and then publish issue-linked PR slices with exact one type label. Route: pending issue and approval; direct push to master forbidden.
 
 ## Progress and evidence
 - `FORM-1`: done. Commit `a003284fd57b849d49808e694c2d0e542f89a084`; YAML parsed with installed `js-yaml` (3 required + 2 optional textarea controls, unique IDs); native review `review-2e18bc93dd928404` approved and acknowledged. Branch `chore/github-feature-issue-form` pushed to `origin` at this commit. Rollback: revert this one commit and remove the unpublished form branch only with explicit authorization.
-- `ISSUE-2`: blocked until the form is available on `master` by an authorized route.
-- `PR-3`: blocked until issue existence/approval and integration with current `master` are verified.
+- `ISSUE-2`: done. GitHub `master` at `c5226f4034eb87d9a09bc23e4c3ba333131de6ad` served the selected Feature request YAML form (blob `b65f48f3f5b3e79acded7c2346651433a97c16ac`). Actor ADMIN; declared labels `enhancement` and `type:feature` verified. Open-and-closed duplicate searches found only #150 (separate stock-control semantics; not an equivalent redesign). Issue #153 https://github.com/MeperDonas/MeperPOS/issues/153 created once using the form and read back with exact title/body, OPEN, labels `enhancement` and `type:feature`. Private temporary body/readback files cleaned up. Protected `status:approved` was not added and is still pending explicit authorized maintainer action.
+- `PR-3`: issue #153 exists, but its `status:approved` label is absent. PR publication remains blocked until authorized approval; product branch also predates merged stock-tracking and requires isolated reconciliation plus rerun of checks.
 
 ## Next step
-Blocked: an authorized maintainer must resolve the issue-first bootstrap dependency and merge the form to `master` by repository policy. Only then may ISSUE-2 proceed; PR-3 additionally needs a conforming approved issue and redesign integration with latest `master`. Do not create a PR without an approved issue, directly push to `master`, or invent approval.
+Await target-host-verifiable maintainer approval of issue #153 (`status:approved`) before PR creation. Map product branch conflicts against latest `master`, then reconcile in an isolated branch without rewriting the reviewed work units; rerun focused/full checks before pushing any PR slice.
