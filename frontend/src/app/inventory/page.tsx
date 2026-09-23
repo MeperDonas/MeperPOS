@@ -130,8 +130,6 @@ export default function InventoryPage() {
     }
   }, [meta, page]);
 
-  // Neither a service nor an untracked item can be low on stock: `tracksStock`
-  // encodes both rules so the raw numbers never raise a false alert here.
   const lowStockProducts = products
     .filter((p) => tracksStock(p) && p.stock <= p.minStock)
     .toSorted((a, b) =>
@@ -173,6 +171,7 @@ export default function InventoryPage() {
       salePrice: 0,
       stock: 0,
       minStock: 5,
+      tracksStock: true,
       categoryId: "",
     });
     setTaxRateInput("");
@@ -274,25 +273,19 @@ export default function InventoryPage() {
     // taxable:true with a 0 rate would be rejected by the backend, silently
     // keeping the old rate — so derive taxable from the entered rate.
     const taxData = resolveTaxFields(taxRateInput);
-    // A service or an untracked item carries no managed inventory: the type and
-    // the flag are always explicit in the payload and the stock numbers are
-    // forced to zero, so a hidden field can never leak a stale value back into
-    // the record.
-    const isServiceType = formData.type === "SERVICE";
-    const isTracked = !isServiceType && formData.tracksStock !== false;
-    const stockData = isTracked
-      ? {
-          type: "PRODUCT" as const,
-          tracksStock: true,
-          stock: formData.stock ?? 0,
-          minStock: formData.minStock ?? 5,
-        }
-      : {
-          type: isServiceType ? ("SERVICE" as const) : ("PRODUCT" as const),
-          tracksStock: false,
-          stock: 0,
-          minStock: 0,
-        };
+    // Hidden inventory fields must not leak stale values into a service or an
+    // untracked product. Keep type and tracking explicit in both payloads.
+    const stockData =
+      isService(formData)
+        ? { type: "SERVICE" as const, tracksStock: false, stock: 0, minStock: 0 }
+        : formData.tracksStock === false
+          ? { type: "PRODUCT" as const, tracksStock: false, stock: 0, minStock: 0 }
+          : {
+              type: "PRODUCT" as const,
+              tracksStock: true,
+              stock: formData.stock ?? 0,
+              minStock: formData.minStock ?? 5,
+            };
     // Promotion: empty type = no offer (explicit nulls clear it server-side);
     // a selected type requires a positive value.
     const hasPromotion = promotionTypeInput !== "";
@@ -644,224 +637,231 @@ export default function InventoryPage() {
         title={editingProduct ? "Editar Producto" : "Nuevo Producto"}
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-1">
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Imagen del producto
-              </label>
-              <ImageUpload
-                value={formData.imageUrl || ""}
-                onChange={(url) => setFormData({ ...formData, imageUrl: url })}
-                onUpload={handleImageUpload}
-                disabled={
-                  uploadProductImage.isPending ||
-                  uploadProductImageById.isPending
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <fieldset className="min-w-0 rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
+            <legend className="px-2 text-xs font-bold uppercase tracking-wider text-primary">
+              Identidad
+            </legend>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] lg:gap-6">
+              <div className="min-w-0 max-w-44">
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Imagen del producto
+                </p>
+                <ImageUpload
+                  value={formData.imageUrl || ""}
+                  onChange={(url) => setFormData({ ...formData, imageUrl: url })}
+                  onUpload={handleImageUpload}
+                  disabled={
+                    uploadProductImage.isPending ||
+                    uploadProductImageById.isPending
+                  }
+                />
+              </div>
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-1 lg:grid-cols-2">
+                <div className="sm:col-span-2 md:col-span-1 lg:col-span-2">
+                  <Input
+                    ref={nameInputRef}
+                    label="Nombre"
+                    value={formData.name || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+                <Input
+                  label="SKU"
+                  value={formData.sku || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, sku: e.target.value })
+                  }
+                  required
+                />
+                <Input
+                  ref={barcodeInputRef}
+                  label="Código de Barras"
+                  value={formData.barcode || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, barcode: e.target.value })
+                  }
+                  onKeyDown={handleBarcodeKeyDown}
+                />
+                <BentoSelect
+                  label="Categoría"
+                  value={formData.categoryId || ""}
+                  onChange={(value) =>
+                    setFormData({ ...formData, categoryId: value })
+                  }
+                  options={[
+                    { value: "", label: "Seleccionar categoría" },
+                    ...categories.map((cat) => ({
+                      value: cat.id,
+                      label: cat.name,
+                    })),
+                  ]}
+                />
+                <BentoSelect
+                  label="Tipo"
+                  value={formData.type === "SERVICE" ? "SERVICE" : "PRODUCT"}
+                  onChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      type: value === "SERVICE" ? "SERVICE" : "PRODUCT",
+                    })
+                  }
+                  options={[
+                    { value: "PRODUCT", label: "Producto" },
+                    { value: "SERVICE", label: "Servicio" },
+                  ]}
+                />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset className="min-w-0 rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
+            <legend className="px-2 text-xs font-bold uppercase tracking-wider text-primary">
+              Precios
+            </legend>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+              <CurrencyInput
+                label="Precio de Costo"
+                value={formData.costPrice || ""}
+                onChange={(value) =>
+                  setFormData({ ...formData, costPrice: value })
                 }
+                required
+              />
+              <CurrencyInput
+                label="Precio de Venta"
+                value={formData.salePrice || ""}
+                onChange={(value) =>
+                  setFormData({ ...formData, salePrice: value })
+                }
+                required
+              />
+              <Input
+                label="Impuesto (%)"
+                type="number"
+                step="0.01"
+                value={taxRateInput}
+                onChange={(e) => setTaxRateInput(e.target.value)}
               />
             </div>
-            <div className="md:col-span-1 space-y-3 lg:space-y-4">
-              <Input
-                ref={nameInputRef}
-                label="Nombre"
-                value={formData.name || ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                required
-              />
-              <Input
-                label="SKU"
-                value={formData.sku || ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, sku: e.target.value })
-                }
-                required
-              />
-              <Input
-                ref={barcodeInputRef}
-                label="Código de Barras"
-                value={formData.barcode || ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, barcode: e.target.value })
-                }
-                onKeyDown={handleBarcodeKeyDown}
-              />
-              <BentoSelect
-                label="Categoría"
-                value={formData.categoryId || ""}
-                onChange={(value) =>
-                  setFormData({ ...formData, categoryId: value })
-                }
-                options={[
-                  { value: "", label: "Seleccionar categoría" },
-                  ...categories.map((cat) => ({
-                    value: cat.id,
-                    label: cat.name,
-                  })),
-                ]}
-              />
-              <BentoSelect
-                label="Tipo"
-                value={formData.type === "SERVICE" ? "SERVICE" : "PRODUCT"}
-                onChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    type: value === "SERVICE" ? "SERVICE" : "PRODUCT",
-                  })
-                }
-                options={[
-                  { value: "PRODUCT", label: "Producto" },
-                  { value: "SERVICE", label: "Servicio" },
-                ]}
-              />
-              {!isService(formData) && (
-                <div className="flex items-center gap-2">
-                  <input
-                    id="tracksStock"
-                    type="checkbox"
-                    checked={formData.tracksStock !== false}
+          </fieldset>
+
+          {!isService(formData) && (
+            <fieldset className="min-w-0 rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
+              <legend className="px-2 text-xs font-bold uppercase tracking-wider text-primary">
+                Inventario
+              </legend>
+              <div className="mb-4 flex items-center gap-2">
+                <input
+                  id="tracksStock"
+                  type="checkbox"
+                  checked={formData.tracksStock !== false}
+                  onChange={(e) =>
+                    setFormData({ ...formData, tracksStock: e.target.checked })
+                  }
+                />
+                <label htmlFor="tracksStock" className="text-sm text-foreground">
+                  Maneja inventario
+                </label>
+              </div>
+              {formData.tracksStock !== false && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                  <Input
+                    label="Stock"
+                    type="number"
+                    value={formData.stock || 0}
+                    onChange={(e) =>
+                      setFormData({ ...formData, stock: Number(e.target.value) })
+                    }
+                    required
+                  />
+                  <Input
+                    label="Stock Mín."
+                    type="number"
+                    value={formData.minStock || 5}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        tracksStock: e.target.checked,
+                        minStock: Number(e.target.value),
                       })
                     }
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                    required
                   />
-                  <label
-                    htmlFor="tracksStock"
-                    className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                  >
-                    Maneja inventario
-                  </label>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
-                <CurrencyInput
-                  label="Precio de Costo"
-                  value={formData.costPrice || ""}
+            </fieldset>
+          )}
+
+          <fieldset className="min-w-0 rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
+            <legend className="px-2 text-xs font-bold uppercase tracking-wider text-primary">
+              Oferta
+            </legend>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+              <div className="w-full min-w-0 sm:max-w-64">
+                <BentoSelect
+                  value={promotionTypeInput}
                   onChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      costPrice: value,
-                    })
+                    setPromotionTypeInput(
+                      value === "PERCENTAGE" || value === "FIXED_PRICE"
+                        ? value
+                        : "",
+                    )
                   }
-                  required
-                />
-                <CurrencyInput
-                  label="Precio de Venta"
-                  value={formData.salePrice || ""}
-                  onChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      salePrice: value,
-                    })
-                  }
-                  required
+                  placeholder="Sin oferta"
+                  options={[
+                    { value: "", label: "Sin oferta" },
+                    { value: "PERCENTAGE", label: "Porcentaje" },
+                    { value: "FIXED_PRICE", label: "Precio fijo" },
+                  ]}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Input
-                    label="Impuesto (%)"
-                    type="number"
-                    step="0.01"
-                    value={taxRateInput}
-                    onChange={(e) => setTaxRateInput(e.target.value)}
-                  />
-                </div>
-                {!isService(formData) && formData.tracksStock !== false && (
-                  <>
-                    <Input
-                      label="Stock"
-                      type="number"
-                      value={formData.stock || 0}
-                      onChange={(e) =>
-                        setFormData({ ...formData, stock: Number(e.target.value) })
-                      }
-                      required
-                    />
-                    <Input
-                      label="Stock Mín."
-                      type="number"
-                      value={formData.minStock || 5}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          minStock: Number(e.target.value),
-                        })
-                      }
-                      required
-                    />
-                  </>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Oferta
-                </label>
-                <div className="flex items-start gap-2">
-                  <BentoSelect
-                    value={promotionTypeInput}
-                    onChange={(value) =>
-                      setPromotionTypeInput(
-                        value === "PERCENTAGE" || value === "FIXED_PRICE"
-                          ? value
-                          : "",
-                      )
-                    }
-                    className="w-full"
-                    placeholder="Sin oferta"
-                    options={[
-                      { value: "", label: "Sin oferta" },
-                      { value: "PERCENTAGE", label: "Porcentaje" },
-                      { value: "FIXED_PRICE", label: "Precio fijo" },
-                    ]}
-                  />
-                  {promotionTypeInput !== "" && (
-                    <>
-                      {promotionTypeInput === "FIXED_PRICE" ? (
-                        <CurrencyInput
-                          placeholder="Valor"
-                          value={promotionValueInput}
-                          onChange={(value) =>
-                            setPromotionValueInput(String(value))
-                          }
-                          className="w-full"
-                        />
-                      ) : (
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="Valor"
-                          value={promotionValueInput}
-                          onChange={(e) =>
-                            setPromotionValueInput(e.target.value)
-                          }
-                          className="w-full"
-                        />
-                      )}
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        title="Quitar oferta"
-                        aria-label="Quitar oferta"
-                        onClick={() => {
-                          setPromotionTypeInput("");
-                          setPromotionValueInput("");
-                        }}
-                        className="shrink-0 px-3"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
+              {promotionTypeInput !== "" && (
+                <>
+                  <div className="w-full min-w-0 sm:max-w-56">
+                    {promotionTypeInput === "FIXED_PRICE" ? (
+                      <CurrencyInput
+                        placeholder="Valor"
+                        value={promotionValueInput}
+                        onChange={(value) =>
+                          setPromotionValueInput(String(value))
+                        }
+                        className="w-full"
+                      />
+                    ) : (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Valor"
+                        value={promotionValueInput}
+                        onChange={(e) =>
+                          setPromotionValueInput(e.target.value)
+                        }
+                        className="w-full"
+                      />
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    title="Quitar oferta"
+                    aria-label="Quitar oferta"
+                    onClick={() => {
+                      setPromotionTypeInput("");
+                      setPromotionValueInput("");
+                    }}
+                    className="self-start px-3"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </>
+              )}
             </div>
-          </div>
+          </fieldset>
+
           <Input
             label="Descripción"
             value={formData.description || ""}
@@ -877,7 +877,7 @@ export default function InventoryPage() {
                 type="button"
                 variant="danger"
                 onClick={() => handleDelete(editingProduct.id)}
-                className="w-full sm:w-auto"
+                className="w-full sm:mr-auto sm:w-auto"
               >
                 Eliminar definitivo
               </Button>
@@ -887,7 +887,7 @@ export default function InventoryPage() {
                 type="button"
                 variant="danger"
                 onClick={() => handleDelete(editingProduct.id)}
-                className="w-full sm:w-auto"
+                className="w-full sm:mr-auto sm:w-auto"
               >
                 Eliminar definitivo
               </Button>
