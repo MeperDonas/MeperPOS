@@ -1,5 +1,8 @@
 schema: spec-driven
 
+sdd:
+  artifact_store: engram
+
 context: |
   Full-stack inventory management system (MeperPOS) with POS module.
   Backend: NestJS 11 + Prisma 6 + PostgreSQL on port 3001.
@@ -9,9 +12,9 @@ context: |
   Workspaces: backend/ (NestJS) and frontend/ (Next.js).
 
 persistence:
-  mode: hybrid
+  mode: engram
   engram: true
-  openspec: true
+  openspec: false
 
 strict_tdd: true
 
