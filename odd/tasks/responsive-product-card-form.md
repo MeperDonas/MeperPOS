@@ -21,7 +21,7 @@ A common visual skeleton (4:3 media, overlaid status, category/title/SKU, promin
 - Native review: user-owned RDD on; assess committed work units at previous reviewed boundary and follow provider route, never infer approval from this checklist.
 
 ## Tasks
-- [ ] **CARD-1** — Recompose shared `ProductCard` for both modes and expand direct tests for narrow-width structure, statuses, promotion, actions, favorites and keyboard behavior. Route: delegated writer (component + tests). Check: focused Vitest, build or typecheck, parent readback; record exact checks and commit SHA.
+- [x] **CARD-1** — Recompose shared `ProductCard` for both modes and expand direct tests for narrow-width structure, statuses, promotion, actions, favorites and keyboard behavior. Route: delegated writer (component + tests). Check: focused Vitest, build or typecheck, parent readback; record exact checks and commit SHA.
 - [ ] **FORM-2** — Restructure the product create/edit modal in inventory around compact responsive sections without changing data semantics; add focused form interaction tests for create/edit/conditional fields and permissions. Route: delegated writer (page + tests, possibly a small scoped form component). Check: focused Vitest, build or typecheck, parent readback; record exact checks and commit SHA.
 - [ ] **FLOW-3** — Verify integrated POS/inventory behavior and responsive layouts (phone/tablet/desktop, light/dark where feasible), repair only regressions attributable to this change, and capture validation evidence alongside any necessary tests/docs in a work-unit commit. Route: delegated verification then bounded delegated writer only if repairs are needed. Check: focused POS/inventory suite, frontend build/lint where feasible, runtime browser check or explicit limitation; record commit SHA.
 
@@ -32,9 +32,9 @@ A common visual skeleton (4:3 media, overlaid status, category/title/SKU, promin
 - Focused tests pass; any existing failures are separated and reported with exact commands. No backend changes, no automatic push/PR.
 
 ## Progress and evidence
-- `CARD-1`: in progress. Commit: pending. Tests: pending. Risk/review: pending.
-- `FORM-2`: pending. Commit: pending. Tests: pending. Risk/review: pending.
+- `CARD-1`: done. Commit: `ce85862a84092842f32f38dbdf7e3fd63264136b`. Strict TDD RED: 8 failed/22 passed, GREEN: 31 passed/0 failed with `cd frontend && npm.cmd run test -- ProductCard.inventory`; `npx.cmd tsc --noEmit` passed. Writer Bash unavailable in Windows child, so parent PowerShell ran commands after isolated diagnosis. Native risk assessment returned `unassessable` (schema-incompatible); native review lineage `review-28750c0e4a988e88` approved and acknowledged/burned for this committed candidate. Rollback: revert this work-unit commit (card, its tests and initial task file).
+- `FORM-2`: in progress. Commit: pending. Tests: pending. Risk/review: pending.
 - `FLOW-3`: pending. Commit: pending. Tests: pending. Risk/review: pending.
 
 ## Next step
-CARD-1 in progress: delegate the component and test changes, keeping the product mode contract intact.
+FORM-2 in progress: delegate TDD tests first for the modal composition, then implement after observed RED. CARD-1 commit is the reviewed boundary.
