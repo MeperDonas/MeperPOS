@@ -10,7 +10,6 @@ import {
   useDeleteProduct,
   useReactivateProduct,
   useUploadProductImage,
-  useUploadProductImageById,
 } from "@/hooks/useProducts";
 import { useCategories } from "@/hooks/useCategories";
 import { Input } from "@/components/ui/Input";
@@ -64,6 +63,10 @@ export default function InventoryPage() {
   );
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<Partial<Product>>({});
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  // Mutation flags can lag behind the first await; keep the editor locked synchronously.
+  const saveInProgressRef = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [taxRateInput, setTaxRateInput] = useState("");
   // "Oferta" inputs kept as raw strings (like taxRateInput) so partial typing
   // works; parsed on submit. Empty type = no promotion (explicit null clears).
@@ -115,9 +118,6 @@ export default function InventoryPage() {
   const deleteProduct = useDeleteProduct();
   const reactivateProduct = useReactivateProduct();
   const uploadProductImage = useUploadProductImage();
-  const uploadProductImageById = useUploadProductImageById(
-    editingProduct?.id || "",
-  );
 
   const products = data?.data || [];
   const meta = data?.meta;
@@ -125,7 +125,6 @@ export default function InventoryPage() {
 
   useEffect(() => {
     if (meta && meta.totalPages > 0 && page > meta.totalPages) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPage(1);
     }
   }, [meta, page]);
@@ -147,8 +146,20 @@ export default function InventoryPage() {
     }),
   );
 
+  const closeEditor = () => {
+    if (saveInProgressRef.current) return;
+    setShowModal(false);
+    setEditingProduct(null);
+    setFormData({});
+    setPendingImageFile(null);
+    setTaxRateInput("");
+    setPromotionTypeInput("");
+    setPromotionValueInput("");
+  };
+
   const handleEdit = (product: Product) => {
-    if (!canManageInventory) return;
+    if (!canManageInventory || saveInProgressRef.current) return;
+    setPendingImageFile(null);
     setEditingProduct(product);
     setFormData(product);
     setTaxRateInput(product.taxRate > 0 ? String(product.taxRate) : "");
@@ -160,7 +171,8 @@ export default function InventoryPage() {
   };
 
   const handleCreate = () => {
-    if (!canManageInventory) return;
+    if (!canManageInventory || saveInProgressRef.current) return;
+    setPendingImageFile(null);
     setEditingProduct(null);
     setFormData({
       name: "",
@@ -191,11 +203,7 @@ export default function InventoryPage() {
       try {
         await deactivateProduct.mutateAsync(productToDeactivate);
         toast.success("Producto desactivado correctamente");
-        if (editingProduct?.id === productToDeactivate) {
-          setShowModal(false);
-          setEditingProduct(null);
-          setFormData({});
-        }
+        if (editingProduct?.id === productToDeactivate) closeEditor();
         setShowDeactivateModal(false);
         setProductToDeactivate(null);
       } catch (error) {
@@ -217,11 +225,7 @@ export default function InventoryPage() {
       try {
         await deleteProduct.mutateAsync(productToDelete);
         toast.success("Producto eliminado definitivamente");
-        if (editingProduct?.id === productToDelete) {
-          setShowModal(false);
-          setEditingProduct(null);
-          setFormData({});
-        }
+        if (editingProduct?.id === productToDelete) closeEditor();
         setShowDeleteModal(false);
         setProductToDelete(null);
       } catch (error) {
@@ -243,11 +247,7 @@ export default function InventoryPage() {
       try {
         await reactivateProduct.mutateAsync(productToReactivate);
         toast.success("Producto reactivado correctamente");
-        if (editingProduct?.id === productToReactivate) {
-          setShowModal(false);
-          setEditingProduct(null);
-          setFormData({});
-        }
+        if (editingProduct?.id === productToReactivate) closeEditor();
         setShowReactivateModal(false);
         setProductToReactivate(null);
       } catch (error) {
@@ -260,12 +260,27 @@ export default function InventoryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saveInProgressRef.current) return;
     const normalizedCategoryId =
       formData.categoryId?.toString().trim() || undefined;
+    if (!formData.name?.trim() || !formData.sku?.trim() || !normalizedCategoryId) {
+      toast.error("Completa nombre, SKU y categoría antes de guardar");
+      return;
+    }
     const hasExplicitTaxRate = taxRateInput.trim() !== "";
     const parsedTaxRate = hasExplicitTaxRate ? Number(taxRateInput) : undefined;
-    if (hasExplicitTaxRate && Number.isNaN(parsedTaxRate)) {
-      toast.error("Ingresa una tasa de impuesto valida");
+    if (hasExplicitTaxRate && (Number.isNaN(parsedTaxRate) || parsedTaxRate! < 0)) {
+      toast.error("Ingresa una tasa de impuesto válida");
+      return;
+    }
+    if (
+      !Number.isFinite(formData.costPrice ?? 0) || (formData.costPrice ?? 0) < 0 ||
+      !Number.isFinite(formData.salePrice ?? 0) || (formData.salePrice ?? 0) < 0 ||
+      (!isService(formData) && formData.tracksStock !== false &&
+        (!Number.isFinite(formData.stock ?? 0) || (formData.stock ?? 0) < 0 ||
+         !Number.isFinite(formData.minStock ?? 0) || (formData.minStock ?? 0) < 0))
+    ) {
+      toast.error("Revisa los precios y las cantidades antes de guardar");
       return;
     }
     // Tax is opt-in: a positive rate keeps the product taxable, while 0 or an
@@ -302,7 +317,19 @@ export default function InventoryPage() {
       }
     }
 
+    saveInProgressRef.current = true;
+    setIsSaving(true);
     try {
+      // Generic upload does not mutate the product. Retain its URL in the draft
+      // if the subsequent save fails so a retry does not upload the file twice.
+      let imageUrl = formData.imageUrl;
+      if (pendingImageFile) {
+        const result = await uploadProductImage.mutateAsync(pendingImageFile);
+        if (!result.imageUrl) throw new Error("No se recibió la URL de la imagen");
+        imageUrl = result.imageUrl;
+        setFormData((previous) => ({ ...previous, imageUrl }));
+        setPendingImageFile(null);
+      }
       if (editingProduct) {
         const updateData = { ...formData };
         delete updateData.id;
@@ -327,6 +354,7 @@ export default function InventoryPage() {
           costPrice: updateData.costPrice ?? 0,
           salePrice: updateData.salePrice ?? 0,
           ...stockData,
+          ...(imageUrl !== editingProduct.imageUrl ? { imageUrl: imageUrl || "" } : {}),
           promotionType: hasPromotion ? promotionTypeInput : null,
           promotionValue:
             hasPromotion && parsedPromotionValue !== null
@@ -338,12 +366,9 @@ export default function InventoryPage() {
           data: cleanedData,
         });
       } else {
-        if (!normalizedCategoryId) {
-          toast.error("Debes seleccionar una categoria");
-          return;
-        }
         const cleanedFormData = {
           ...formData,
+          ...(imageUrl ? { imageUrl } : {}),
           categoryId: normalizedCategoryId,
           ...taxData,
           costPrice: formData.costPrice ?? 0,
@@ -359,23 +384,13 @@ export default function InventoryPage() {
         toast.success("Producto creado correctamente");
       }
       if (editingProduct) toast.success("Producto actualizado correctamente");
-      setShowModal(false);
-      setFormData({});
-      setTaxRateInput("");
-      setPromotionTypeInput("");
-      setPromotionValueInput("");
+      saveInProgressRef.current = false;
+      closeEditor();
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Error al guardar el producto"));
-    }
-  };
-
-  const handleImageUpload = async (file: File): Promise<string> => {
-    if (editingProduct) {
-      const result = await uploadProductImageById.mutateAsync(file);
-      return result.imageUrl || "";
-    } else {
-      const result = await uploadProductImage.mutateAsync(file);
-      return result.imageUrl;
+    } finally {
+      saveInProgressRef.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -432,7 +447,7 @@ export default function InventoryPage() {
             </p>
           </div>
           {canManageInventory && (
-            <Button onClick={handleCreate} className="w-full sm:w-auto shrink-0">
+            <Button onClick={handleCreate} disabled={isSaving} className="w-full sm:w-auto shrink-0">
               <Plus className="w-4 h-4" />
               Nuevo Producto
             </Button>
@@ -633,32 +648,35 @@ export default function InventoryPage() {
 
       <Modal
         isOpen={canManageInventory && showModal}
-        onClose={() => setShowModal(false)}
+        onClose={closeEditor}
         title={editingProduct ? "Editar Producto" : "Nuevo Producto"}
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <fieldset className="min-w-0 rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
-            <legend className="px-2 text-xs font-bold uppercase tracking-wider text-primary">
-              Identidad
-            </legend>
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] lg:gap-6">
-              <div className="min-w-0 max-w-44">
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <form
+          onSubmit={handleSubmit}
+          onChangeCapture={(event) => {
+            if (saveInProgressRef.current) event.stopPropagation();
+          }}
+          aria-busy={isSaving}
+        >
+          <fieldset disabled={isSaving} className="m-0 w-full min-w-0 space-y-4 border-0 p-0 sm:space-y-5">
+          <div role="group" aria-label="Identidad" className="min-w-0 space-y-3">
+            <h3 className="text-sm font-semibold text-primary">Datos del producto</h3>
+            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
+              <div className="mx-auto w-full min-w-0 max-w-56 md:max-w-none">
+                <p className="mb-1.5 text-xs font-semibold text-muted-foreground text-center md:text-left">
                   Imagen del producto
                 </p>
                 <ImageUpload
                   value={formData.imageUrl || ""}
-                  onChange={(url) => setFormData({ ...formData, imageUrl: url })}
-                  onUpload={handleImageUpload}
-                  disabled={
-                    uploadProductImage.isPending ||
-                    uploadProductImageById.isPending
-                  }
+                  file={pendingImageFile}
+                  onFileChange={setPendingImageFile}
+                  onChange={(url) => setFormData((previous) => ({ ...previous, imageUrl: url }))}
+                  disabled={isSaving || uploadProductImage.isPending || createProduct.isPending || updateProduct.isPending}
                 />
               </div>
-              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-1 lg:grid-cols-2">
-                <div className="sm:col-span-2 md:col-span-1 lg:col-span-2">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
                   <Input
                     ref={nameInputRef}
                     label="Nombre"
@@ -716,12 +734,10 @@ export default function InventoryPage() {
                 />
               </div>
             </div>
-          </fieldset>
+          </div>
 
-          <fieldset className="min-w-0 rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
-            <legend className="px-2 text-xs font-bold uppercase tracking-wider text-primary">
-              Precios
-            </legend>
+          <div role="group" aria-label="Precios" className="min-w-0 space-y-3">
+            <h3 className="text-sm font-semibold text-primary">Precios e impuesto</h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
               <CurrencyInput
                 label="Precio de Costo"
@@ -747,14 +763,12 @@ export default function InventoryPage() {
                 onChange={(e) => setTaxRateInput(e.target.value)}
               />
             </div>
-          </fieldset>
+          </div>
 
           {!isService(formData) && (
-            <fieldset className="min-w-0 rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
-              <legend className="px-2 text-xs font-bold uppercase tracking-wider text-primary">
-                Inventario
-              </legend>
-              <div className="mb-4 flex items-center gap-2">
+            <div role="group" aria-label="Inventario" className="min-w-0 space-y-3">
+              <h3 className="text-sm font-semibold text-primary">Inventario</h3>
+              <div className="flex items-center gap-2">
                 <input
                   id="tracksStock"
                   type="checkbox"
@@ -792,13 +806,11 @@ export default function InventoryPage() {
                   />
                 </div>
               )}
-            </fieldset>
+            </div>
           )}
 
-          <fieldset className="min-w-0 rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
-            <legend className="px-2 text-xs font-bold uppercase tracking-wider text-primary">
-              Oferta
-            </legend>
+          <div role="group" aria-label="Oferta" className="min-w-0 space-y-3">
+            <h3 className="text-sm font-semibold text-primary">Oferta</h3>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <div className="w-full min-w-0 sm:max-w-64">
                 <BentoSelect
@@ -860,7 +872,7 @@ export default function InventoryPage() {
                 </>
               )}
             </div>
-          </fieldset>
+          </div>
 
           <Input
             label="Descripción"
@@ -871,7 +883,7 @@ export default function InventoryPage() {
             textarea
             rows={3}
           />
-          <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4 border-t border-border/60">
+          <div className="flex flex-col sm:flex-row gap-2 justify-end pt-3 border-t border-border/40">
             {editingProduct?.active && (
               <Button
                 type="button"
@@ -895,22 +907,15 @@ export default function InventoryPage() {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => {
-                setShowModal(false);
-                setEditingProduct(null);
-                setFormData({});
-                setTaxRateInput("");
-                setPromotionTypeInput("");
-                setPromotionValueInput("");
-              }}
+              onClick={closeEditor}
               className="w-full sm:w-auto"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              loading={createProduct.isPending || updateProduct.isPending}
-              disabled={isEditingInactive}
+              loading={createProduct.isPending || updateProduct.isPending || uploadProductImage.isPending}
+              disabled={isEditingInactive || isSaving}
               className="w-full sm:w-auto"
             >
               {isEditingInactive
@@ -920,6 +925,7 @@ export default function InventoryPage() {
                   : "Crear"}
             </Button>
           </div>
+          </fieldset>
         </form>
       </Modal>
 
