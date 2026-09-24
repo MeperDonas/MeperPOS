@@ -95,9 +95,9 @@ describe("ProductCard inventory mode — status chip", () => {
     expect(screen.queryByText("Stock bajo")).toBeNull();
     expect(screen.queryByTestId("stock-alert-icon")).toBeNull();
 
-    // The dual-metrics stock badge is the sibling of the "Precio" label.
-    const stockBadge = screen.getByText("Precio").parentElement?.lastElementChild;
-    expect(stockBadge?.textContent?.trim()).toBe("Sin inventario");
+    const stockBadge = screen.getByTestId("product-stock");
+    expect(stockBadge).toHaveTextContent("Sin inventario");
+    expect(screen.getByText("Precio").parentElement).not.toContainElement(stockBadge);
     expect(screen.queryByText("0 uds.")).toBeNull();
   });
 
@@ -164,10 +164,11 @@ describe("ProductCard inventory mode — status chip", () => {
   });
 });
 
-describe("ProductCard inventory mode — stock block (dual metrics)", () => {
-  it("renders stock count in the dual metrics block", () => {
+describe("ProductCard inventory mode — separate price and stock", () => {
+  it("renders stock count apart from the price panel", () => {
     render(<ProductCard product={baseProduct} mode="inventory" />);
     expect(screen.getByText("20 uds.")).toBeInTheDocument();
+    expect(screen.getByText("Precio").parentElement).not.toContainElement(screen.getByTestId("product-stock"));
   });
 
   it("renders the formatted COP price", () => {
@@ -245,6 +246,67 @@ describe("ProductCard inventory mode — footer action", () => {
     await user.click(button);
 
     expect(onReactivate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ProductCard inventory mode — full-card edit target", () => {
+  it("exposes an edge-to-edge edit button over the media, details, and empty card space", async () => {
+    const onEdit = vi.fn();
+    const user = userEvent.setup();
+    const { container } = render(
+      <ProductCard product={baseProduct} mode="inventory" onClick={onEdit} />,
+    );
+
+    const card = container.firstElementChild;
+    const editTarget = screen.getAllByRole("button", { name: /editar producto: camisa de lino natural/i })
+      .find((button) => button.classList.contains("inset-0"));
+    // JSDOM cannot hit-test CSS. An absolute inset-0 button is the full-card
+    // interaction surface, including blank space that has no content element.
+    expect(card).toHaveClass("relative");
+    expect(editTarget).toHaveClass("absolute", "inset-0");
+    expect(editTarget?.parentElement).toBe(card);
+    await user.click(editTarget!);
+    expect(onEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps deactivation outside the full-card edit target", async () => {
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    const user = userEvent.setup();
+    const { container } = render(
+      <ProductCard product={baseProduct} mode="inventory" onClick={onEdit} onDelete={onDelete} />,
+    );
+
+    const editTarget = screen.getAllByRole("button", { name: /editar producto: camisa de lino natural/i })
+      .find((button) => button.classList.contains("inset-0"));
+    const deactivate = screen.getByRole("button", { name: /desactivar producto/i });
+    expect(editTarget).toBeDefined();
+    expect(editTarget).not.toContainElement(deactivate);
+    expect(container.querySelector("button button")).toBeNull();
+    await user.click(deactivate);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onEdit).not.toHaveBeenCalled();
+    await user.click(editTarget!);
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps reactivation outside the full-card edit target for inactive products", async () => {
+    const onEdit = vi.fn();
+    const onReactivate = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ProductCard product={{ ...baseProduct, active: false }} mode="inventory" onClick={onEdit} onReactivate={onReactivate} />,
+    );
+
+    const editTarget = screen.getAllByRole("button", { name: /editar producto: camisa de lino natural/i })
+      .find((button) => button.classList.contains("inset-0"));
+    const reactivate = screen.getByRole("button", { name: /reactivar producto/i });
+    expect(editTarget).toHaveClass("absolute", "inset-0");
+    expect(editTarget).not.toContainElement(reactivate);
+    await user.click(reactivate);
+    expect(onReactivate).toHaveBeenCalledTimes(1);
+    expect(onEdit).not.toHaveBeenCalled();
   });
 });
 
@@ -437,7 +499,13 @@ describe("ProductCard — responsive action and price hierarchy", () => {
     );
 
     expect(screen.queryByRole("button", { name: /^\+ agregar$/i })).toBeNull();
-    await user.click(screen.getByRole("button", { name: /editar producto/i }));
+    expect(screen.getByRole("button", { name: /editar producto: camisa de lino natural/i })).toBeInTheDocument();
+    const edit = screen.getByRole("button", { name: /^editar producto$/i });
+    expect(edit).toHaveAttribute("title", "Editar producto");
+    expect(edit).toHaveClass("h-11", "w-11");
+    expect(edit).not.toHaveTextContent("Editar");
+    expect(screen.getByRole("button", { name: /desactivar producto/i })).toHaveClass("h-11", "w-11");
+    await user.click(edit);
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onDelete).not.toHaveBeenCalled();
   });
