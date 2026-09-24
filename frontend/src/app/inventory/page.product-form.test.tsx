@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { forwardRef, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { forwardRef, useEffect, type ComponentProps, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
 
 const create = vi.fn().mockResolvedValue({});
 const update = vi.fn().mockResolvedValue({});
+const uploadImage = vi.fn().mockResolvedValue({ imageUrl: "/images/panela-new.jpg" });
+const uploadImageById = vi.fn().mockResolvedValue({ imageUrl: "/images/panela-new.jpg" });
 let role = "ADMIN";
 let products: ReturnType<typeof product>[] = [];
 
@@ -17,8 +19,8 @@ vi.mock("@/hooks/useProducts", () => ({
   useDeactivateProduct: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteProduct: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useReactivateProduct: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useUploadProductImage: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useUploadProductImageById: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUploadProductImage: () => ({ mutateAsync: uploadImage, isPending: false }),
+  useUploadProductImageById: () => ({ mutateAsync: uploadImageById, isPending: false }),
 }));
 vi.mock("@/hooks/useCategories", () => ({
   useCategories: () => ({ data: { data: [{ id: "cat-1", name: "General" }] } }),
@@ -28,18 +30,34 @@ vi.mock("@/contexts/ToastContext", () => ({
   useToast: () => ({ success: vi.fn(), error: vi.fn() }),
 }));
 vi.mock("@/components/ui/Modal", () => ({
-  Modal: ({ isOpen, title, children }: { isOpen: boolean; title: string; children: ReactNode }) =>
-    isOpen ? <div role="dialog" aria-label={title}>{children}</div> : null,
+  Modal: function MockModal({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: ReactNode }) {
+    useEffect(() => {
+      if (!isOpen) return;
+      const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+      window.addEventListener("keydown", onKeyDown);
+      return () => window.removeEventListener("keydown", onKeyDown);
+    }, [isOpen, onClose]);
+    return isOpen ? <div role="dialog" aria-label={title}>
+      <button type="button" aria-label="Backdrop" onClick={onClose} />
+      <button type="button" aria-label="Cerrar" onClick={onClose} />
+      {children}
+    </div> : null;
+  },
 }));
 vi.mock("@/components/ui/ConfirmDialog", () => ({ ConfirmDialog: () => null }));
 vi.mock("@/components/products/ProductCard", () => ({
   ProductCard: function ProductCard({ product: item, onClick }: { product: ReturnType<typeof product>; onClick?: () => void }) {
-    return <button onClick={onClick}>{item.name}</button>;
+    return <button onClick={onClick} data-image-url={item.imageUrl ?? ""}>{item.name}</button>;
   },
 }));
-vi.mock("@/components/ui/ImageUpload", () => ({
-  ImageUpload: () => <div data-testid="product-image" />,
-}));
+vi.mock("@/components/ui/ImageUpload", async (importOriginal) => {
+  const { ImageUpload: RealImageUpload } = await importOriginal<typeof import("@/components/ui/ImageUpload")>();
+  return {
+    ImageUpload: (props: ComponentProps<typeof RealImageUpload>) => (
+      <div data-testid="product-image"><RealImageUpload {...props} /></div>
+    ),
+  };
+});
 vi.mock("@/components/ui/Input", () => ({
   Input: forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { label?: string; textarea?: boolean }>(
     function MockInput({ label, textarea, ...props }, ref) {
@@ -83,11 +101,22 @@ const openEdit = () => {
   fireEvent.click(screen.getByRole("button", { name: "Panela" }));
   return screen.getByRole("dialog", { name: "Editar Producto" });
 };
+const selectImage = (dialog: HTMLElement) => {
+  const fileInput = within(dialog).getByTestId("product-image").querySelector<HTMLInputElement>('input[type="file"]');
+  expect(fileInput).not.toBeNull();
+  const file = new File(["new photo"], "panela.png", { type: "image/png" });
+  fireEvent.change(fileInput!, { target: { files: [file] } });
+  return file;
+};
 
 beforeEach(() => {
+  Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:panela-preview") });
+  Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
   vi.clearAllMocks();
   create.mockResolvedValue({});
   update.mockResolvedValue({});
+  uploadImage.mockResolvedValue({ imageUrl: "/images/panela-new.jpg" });
+  uploadImageById.mockResolvedValue({ imageUrl: "/images/panela-new.jpg" });
   role = "ADMIN";
   products = [];
 });
@@ -126,6 +155,170 @@ describe("inventory product modal", () => {
     }));
     expect(update.mock.calls[0][0].data).not.toHaveProperty("version");
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it("stages an edit image without uploading or updating until Save, then uses the generic upload and update payload", async () => {
+    products = [product({ imageUrl: "/images/panela-original.jpg" })];
+    render(<InventoryPage />);
+    const dialog = openEdit();
+    const file = selectImage(dialog);
+
+    expect(uploadImageById).not.toHaveBeenCalled();
+    expect(uploadImage).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole("img", { name: "Preview" })).toHaveAttribute("src", "blob:panela-preview");
+    expect(screen.getByRole("button", { name: "Panela" })).toHaveAttribute("data-image-url", "/images/panela-original.jpg");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Actualizar" }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith({
+      id: "p-1",
+      data: expect.objectContaining({ imageUrl: "/images/panela-new.jpg" }),
+    }));
+    expect(uploadImage).toHaveBeenCalledWith(file);
+    expect(uploadImageById).not.toHaveBeenCalled();
+  });
+
+  it("locks the edited product until its pending image upload and update finish", async () => {
+    products = [
+      product({ imageUrl: "/images/panela-original.jpg" }),
+      product({ id: "p-2", name: "Leche", sku: "LEC-1", imageUrl: "/images/leche.jpg" }),
+    ];
+    let resolveUpload!: (result: { imageUrl: string }) => void;
+    let resolveUpdate!: (result: object) => void;
+    uploadImage.mockImplementationOnce(() => new Promise((resolve) => { resolveUpload = resolve; }));
+    update.mockImplementationOnce(() => new Promise((resolve) => { resolveUpdate = resolve; }));
+    render(<InventoryPage />);
+    const dialog = openEdit();
+    fireEvent.change(within(dialog).getByLabelText("Nombre"), { target: { value: "Panela orgánica" } });
+    const file = selectImage(dialog);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Actualizar" }));
+    await waitFor(() => expect(uploadImage).toHaveBeenCalledWith(file));
+    expect(update).not.toHaveBeenCalled();
+
+    expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeDisabled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Backdrop" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cerrar" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Leche" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo Producto" }));
+    fireEvent.submit(within(dialog).getByRole("button", { name: "Actualizar" }).closest("form")!);
+    expect(uploadImage).toHaveBeenCalledOnce();
+    expect(screen.getByRole("dialog", { name: "Editar Producto" })).toBe(dialog);
+    expect(within(dialog).getByLabelText("Nombre")).toHaveValue("Panela orgánica");
+    const name = within(dialog).getByLabelText("Nombre");
+    expect(name).toBeDisabled();
+    fireEvent.change(name, { target: { value: "Otro producto" } });
+    expect(update).not.toHaveBeenCalled();
+
+    await act(async () => { resolveUpload({ imageUrl: "/images/panela-new.jpg" }); });
+    await waitFor(() => expect(update).toHaveBeenCalledOnce());
+    expect(update).toHaveBeenCalledWith({
+      id: "p-1",
+      data: expect.objectContaining({ name: "Panela orgánica", imageUrl: "/images/panela-new.jpg" }),
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Backdrop" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Leche" }));
+    fireEvent.submit(within(dialog).getByRole("button", { name: "Actualizar" }).closest("form")!);
+    expect(update).toHaveBeenCalledOnce();
+    expect(screen.getByRole("dialog", { name: "Editar Producto" })).toBe(dialog);
+    expect(uploadImageById).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Leche" })).toHaveAttribute("data-image-url", "/images/leche.jpg");
+    await act(async () => { resolveUpdate({}); });
+    expect(screen.queryByRole("dialog", { name: "Editar Producto" })).not.toBeInTheDocument();
+  });
+
+  it("discards a selected edit image on Cancel and restores the existing preview on reopen", () => {
+    products = [product({ imageUrl: "/images/panela-original.jpg" })];
+    render(<InventoryPage />);
+    const dialog = openEdit();
+    selectImage(dialog);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Panela" })).toHaveAttribute("data-image-url", "/images/panela-original.jpg");
+    expect(update).not.toHaveBeenCalled();
+    expect(uploadImage).not.toHaveBeenCalled();
+    expect(uploadImageById).not.toHaveBeenCalled();
+
+    const reopened = openEdit();
+    expect(within(reopened).getByRole("img", { name: "Preview" })).toHaveAttribute("src", expect.stringContaining("panela-original.jpg"));
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:panela-preview");
+  });
+
+  it("saves removal of an existing image as an explicit empty value only after Save", async () => {
+    products = [product({ imageUrl: "/images/panela-original.jpg" })];
+    render(<InventoryPage />);
+    const dialog = openEdit();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+
+    expect(within(dialog).queryByRole("img", { name: "Preview" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Panela" })).toHaveAttribute("data-image-url", "/images/panela-original.jpg");
+    expect(update).not.toHaveBeenCalled();
+    expect(uploadImage).not.toHaveBeenCalled();
+    expect(uploadImageById).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Actualizar" }));
+    await waitFor(() => expect(update).toHaveBeenCalledOnce());
+    expect(update.mock.calls[0][0].data).toHaveProperty("imageUrl");
+    expect(update.mock.calls[0][0].data.imageUrl).toBe("");
+    expect(uploadImage).not.toHaveBeenCalled();
+    expect(uploadImageById).not.toHaveBeenCalled();
+  });
+
+  it("removes a pending replacement without uploading it and clears the saved image on Save", async () => {
+    products = [product({ imageUrl: "/images/panela-original.jpg" })];
+    render(<InventoryPage />);
+    const dialog = openEdit();
+    selectImage(dialog);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+    expect(within(dialog).queryByRole("img", { name: "Preview" })).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Actualizar" }));
+    await waitFor(() => expect(update).toHaveBeenCalledOnce());
+    expect(update.mock.calls[0][0].data.imageUrl).toBe("");
+    expect(uploadImage).not.toHaveBeenCalled();
+  });
+
+  it("uploads a new product image only after valid Save, then sends its URL", async () => {
+    render(<InventoryPage />);
+    const dialog = openCreate();
+    const file = selectImage(dialog);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Crear" }));
+    expect(uploadImage).not.toHaveBeenCalled();
+    fireEvent.change(within(dialog).getByLabelText("Nombre"), { target: { value: "Café" } });
+    fireEvent.change(within(dialog).getByLabelText("SKU"), { target: { value: "CAF-1" } });
+    fireEvent.change(within(dialog).getByLabelText("Categoría"), { target: { value: "cat-1" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Crear" }));
+    await waitFor(() => expect(create).toHaveBeenCalledOnce());
+    expect(uploadImage).toHaveBeenCalledWith(file);
+    expect(create.mock.calls[0][0].imageUrl).toBe("/images/panela-new.jpg");
+    expect(create.mock.calls[0][0].imageUrl).not.toMatch(/^data:/);
+  });
+
+  it("keeps the uploaded URL in the draft after update failure and retries without uploading again", async () => {
+    products = [product({ imageUrl: "/images/panela-original.jpg" })];
+    let rejectUpdate!: (reason: Error) => void;
+    update.mockImplementationOnce(() => new Promise((_, reject) => { rejectUpdate = reject; }));
+    render(<InventoryPage />);
+    const dialog = openEdit();
+    selectImage(dialog);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Actualizar" }));
+    await waitFor(() => expect(update).toHaveBeenCalledOnce());
+    expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeDisabled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Backdrop" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.submit(within(dialog).getByRole("button", { name: "Actualizar" }).closest("form")!);
+    expect(update).toHaveBeenCalledOnce();
+    expect(screen.getByRole("dialog", { name: "Editar Producto" })).toBe(dialog);
+    await act(async () => { rejectUpdate(new Error("Save failed")); });
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeEnabled());
+    expect(within(dialog).getByRole("img", { name: "Preview" })).toHaveAttribute("src", expect.stringContaining("panela-new.jpg"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Actualizar" }));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(2));
+    expect(uploadImage).toHaveBeenCalledTimes(1);
+    expect(update.mock.calls[1][0].data.imageUrl).toBe("/images/panela-new.jpg");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Editar Producto" })).not.toBeInTheDocument());
   });
 
   it("defaults new products to tracked inventory with stock inputs", () => {
@@ -271,8 +464,8 @@ describe("inventory product modal", () => {
     expect(within(inventory).getByLabelText("Stock")).toBeInTheDocument();
     expect(within(promotion).getByText("Sin oferta")).toBeInTheDocument();
     const media = within(identity).getByTestId("product-image");
-    expect(media.parentElement?.className).toMatch(/max-w-/);
-    expect(identity.querySelector(".grid")?.className).toMatch(/md:grid-cols-2/);
+    expect(media.parentElement?.className).toMatch(/mx-auto.*max-w-56/);
+    expect(identity.querySelector(".grid")?.className).toMatch(/md:grid-cols-/);
     expect(prices.querySelector(".grid")?.className).toMatch(/grid-cols-1.*sm:grid-cols-2/);
     expect(inventory.querySelector(".grid")?.className).toMatch(/grid-cols-1.*sm:grid-cols-2/);
 
