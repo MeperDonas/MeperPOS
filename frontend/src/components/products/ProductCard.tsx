@@ -65,7 +65,7 @@ function ProductMedia({ product, isInactive, favorite }: {
   favorite?: React.ReactNode;
 }) {
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-border/50 bg-muted/20">
+    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-[15px] bg-muted/20">
       {product.imageUrl ? (
         <Image src={product.imageUrl} alt={product.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover transition-transform duration-300 group-hover:scale-105" />
       ) : (
@@ -89,8 +89,8 @@ function ProductDetails({ product, mode }: { product: ProductCardData; mode: "po
   const service = isService(product);
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-      <div className="min-w-0 space-y-1 px-0.5">
+    <div className="flex min-w-0 flex-1 flex-col gap-2.5 px-3">
+      <div className="min-w-0 space-y-1">
         <span className="block truncate font-mono text-[10px] font-bold uppercase tracking-wider text-primary">
           {product.category?.name || (mode === "pos" ? "General" : "Sin categoría")}
         </span>
@@ -99,24 +99,26 @@ function ProductDetails({ product, mode }: { product: ProductCardData; mode: "po
         </h3>
         {product.sku && <span className="block min-w-0 break-all font-mono text-[10px] text-muted-foreground">{product.sku}</span>}
       </div>
-      <div className="min-w-0 rounded-xl border border-border/50 bg-muted/30 px-2.5 py-2.5">
-        <span className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Precio</span>
-        <div className="mt-1 min-w-0">
-          <span data-testid={hasPromo ? "offer-effective-price" : undefined} className="block min-w-0 break-words font-mono text-base font-extrabold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-lg">
-            {formatCurrency(Number(hasPromo ? product.effectiveSalePrice : product.salePrice))}
-          </span>
-          {hasPromo && (
-            <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <s data-testid="offer-list-price" className="min-w-0 break-words font-mono text-[11px] text-muted-foreground line-through [overflow-wrap:anywhere]">
-                {formatCurrency(Number(product.salePrice))}
-              </s>
-              <span className="rounded-md bg-rose-500/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-rose-700 dark:text-rose-400">
-                Oferta{discount > 0 ? ` -${discount}%` : ""}
-              </span>
-            </div>
-          )}
+      <div className="min-w-0 space-y-2">
+        <div className="min-w-0 rounded-lg bg-primary/5 px-2.5 py-2">
+          <span className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Precio</span>
+          <div className="mt-1 min-w-0">
+            <span data-testid={hasPromo ? "offer-effective-price" : undefined} className="block min-w-0 break-words font-mono text-base font-extrabold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-lg">
+              {formatCurrency(Number(hasPromo ? product.effectiveSalePrice : product.salePrice))}
+            </span>
+            {hasPromo && (
+              <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <s data-testid="offer-list-price" className="min-w-0 break-words font-mono text-[11px] text-muted-foreground line-through [overflow-wrap:anywhere]">
+                  {formatCurrency(Number(product.salePrice))}
+                </s>
+                <span className="rounded-md bg-rose-500/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-rose-700 dark:text-rose-400">
+                  Oferta{discount > 0 ? ` -${discount}%` : ""}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-        <span data-testid="product-stock" className="mt-2 block border-t border-border/50 pt-1.5 font-mono text-[11px] font-medium text-muted-foreground">
+        <span data-testid="product-stock" className="inline-flex max-w-full rounded-md border border-border/60 bg-background px-2 py-1 font-mono text-[11px] font-medium text-muted-foreground">
           {service ? "Servicio" : !tracksStock(product) ? "Sin inventario" : `${product.stock} uds.`}
         </span>
       </div>
@@ -133,16 +135,16 @@ export function ProductCard({ product, mode, onClick, onDelete, onReactivate, is
 
   return (
     <div className={cn(
-      "group relative flex min-w-0 flex-col gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-xs transition-colors hover:border-primary/40 sm:p-3",
+      "group relative flex min-w-0 flex-col gap-2.5 rounded-2xl border border-border/70 bg-card pb-3 shadow-xs transition-colors hover:border-primary/40",
       isInactive && "bg-muted/20 opacity-60",
     )}>
-      {/* A separate overlay keeps the whole POS card clickable without nesting buttons. */}
-      {!isInventory && onClick && (
+      {/* The card overlay stays below independent management and favorite buttons. */}
+      {onClick && (
         <button
           type="button"
-          aria-label={`Agregar al carrito: ${product.name}`}
-          aria-disabled={cannotAdd}
-          disabled={cannotAdd}
+          aria-label={isInventory ? `Editar producto: ${product.name}` : `Agregar al carrito: ${product.name}`}
+          aria-disabled={isInventory ? undefined : cannotAdd}
+          disabled={!isInventory && cannotAdd}
           onClick={onClick}
           className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         />
@@ -162,12 +164,12 @@ export function ProductCard({ product, mode, onClick, onDelete, onReactivate, is
         </button>
       )} />
       <ProductDetails product={product} mode={mode} />
-      <div className="relative z-20 flex min-w-0 items-center gap-2">
+      <div className={cn("relative z-20 flex min-w-0 items-center gap-2 px-3", isInventory && "justify-end")}>
         {isInventory ? (
           <>
             {onClick && (
-              <button type="button" onClick={onClick} aria-label={`Editar producto: ${product.name}`} className={cn(actionClass, "flex-1")}>
-                <Edit3 className="h-4 w-4 shrink-0" aria-hidden="true" /> Editar
+              <button type="button" onClick={onClick} title="Editar producto" aria-label="Editar producto" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border/80 text-foreground transition-colors hover:border-primary/50 hover:text-primary">
+                <Edit3 className="h-4 w-4" aria-hidden="true" />
               </button>
             )}
             {footerHandler && (
@@ -176,7 +178,7 @@ export function ProductCard({ product, mode, onClick, onDelete, onReactivate, is
                 onClick={footerHandler}
                 title={isInactive ? "Reactivar producto" : "Desactivar producto"}
                 aria-label={isInactive ? "Reactivar producto" : "Desactivar producto"}
-                className={cn("inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/80 text-muted-foreground transition-colors", isInactive ? "text-emerald-600 hover:bg-emerald-500/10" : "hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-600")}
+                className={cn("inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border/80 text-muted-foreground transition-colors", isInactive ? "text-emerald-600 hover:bg-emerald-500/10" : "hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-600")}
               >
                 {isInactive ? <RotateCcw className="h-4 w-4" aria-hidden="true" /> : <Power className="h-4 w-4" aria-hidden="true" />}
               </button>
