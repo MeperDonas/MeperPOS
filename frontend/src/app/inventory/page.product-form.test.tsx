@@ -87,7 +87,7 @@ function product(overrides: Record<string, unknown> = {}) {
   return {
     id: "p-1", name: "Panela", sku: "PAN-1", barcode: "123456", description: "Dulce",
     type: "PRODUCT", costPrice: 1000, salePrice: 2000, taxRate: 19,
-    stock: 8, minStock: 2, categoryId: "cat-1", imageUrl: null,
+    stock: 8, minStock: 2, isLowStock: false, categoryId: "cat-1", imageUrl: null,
     promotionType: null, promotionValue: null, active: true, version: 1,
     ...overrides,
   };
@@ -367,13 +367,26 @@ describe("inventory product modal", () => {
 
   it("excludes untracked products from the low-stock list", () => {
     products = [
-      product({ tracksStock: false, stock: 0, minStock: 2 }),
-      product({ id: "p-2", name: "Leche", tracksStock: true, stock: 0, minStock: 2 }),
+      product({ tracksStock: false, stock: 0, minStock: 2, isLowStock: false }),
+      product({ id: "p-2", name: "Leche", tracksStock: true, stock: 0, minStock: 2, isLowStock: true }),
     ];
     render(<InventoryPage />);
     fireEvent.click(screen.getByRole("button", { name: /stock bajo/i }));
     expect(screen.queryByRole("button", { name: "Panela" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Leche" })).toBeInTheDocument();
+  });
+
+  it("reads the server low-stock flag instead of the raw numbers", () => {
+    // A tracked product above min stock that the server nevertheless flags (it moved
+    // between pages) must show, and one below min stock the server cleared must not.
+    products = [
+      product({ id: "p-3", name: "Arroz", stock: 50, minStock: 2, isLowStock: true }),
+      product({ id: "p-4", name: "Azucar", stock: 0, minStock: 9, isLowStock: false }),
+    ];
+    render(<InventoryPage />);
+    fireEvent.click(screen.getByRole("button", { name: /stock bajo/i }));
+    expect(screen.getByRole("button", { name: "Arroz" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Azucar" })).not.toBeInTheDocument();
   });
 
   it("keeps stock for products but hides and clears stock when saving services", async () => {

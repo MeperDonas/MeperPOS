@@ -3,7 +3,7 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, ProductType } from '@prisma/client';
 import { computeEffectiveSalePrice, ProductsService } from './products.service';
 
 describe('ProductsService — Opt-in tax resolution', () => {
@@ -1050,6 +1050,169 @@ describe('ProductsService — Opt-in tax resolution', () => {
           where: expect.not.objectContaining({ stock: expect.anything() }),
         }),
       );
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════
+  // Low-stock flag on every product response
+  // ════════════════════════════════════════════════════════════════════
+  //
+  // The client used to re-derive the low-stock rule in three places, and one of them
+  // gated on `isService` instead of `tracksStock`, so an untracked product with stale
+  // numbers was badged "low on stock" while the server's own rule said false. The fix is
+  // to ship the server's answer on every read so no consumer has to re-derive it.
+  describe('isLowStock is present on every product response', () => {
+    const setupFindAll = (rows: ReturnType<typeof buildProduct>[]) => {
+      prismaMock.product.findMany.mockResolvedValue(rows);
+      prismaMock.product.count.mockResolvedValue(rows.length);
+    };
+
+    it('findAll carries the flag, true for a tracked product at or below minStock', async () => {
+      setupFindAll([buildProduct({ stock: 5, minStock: 5 })]);
+
+      const result = await service.findAll(ORG_ID, 1, 10);
+
+      expect(result.data[0]).toMatchObject({
+        stock: 5,
+        minStock: 5,
+        isLowStock: true,
+      });
+    });
+
+    it('findAll carries the flag, false for a tracked product above minStock', async () => {
+      setupFindAll([buildProduct({ stock: 6, minStock: 5 })]);
+
+      const result = await service.findAll(ORG_ID, 1, 10);
+
+      expect(result.data[0]).toMatchObject({
+        stock: 6,
+        minStock: 5,
+        isLowStock: false,
+      });
+    });
+
+    it('findAll reports an untracked product as NOT low even when its numbers qualify', async () => {
+      // stock 2 <= minStock 5 would qualify on the numbers alone; nothing counts it.
+      setupFindAll([
+        buildProduct({
+          type: ProductType.PRODUCT,
+          tracksStock: false,
+          stock: 2,
+          minStock: 5,
+        }),
+      ]);
+
+      const result = await service.findAll(ORG_ID, 1, 10);
+
+      expect(result.data[0]).toMatchObject({
+        tracksStock: false,
+        stock: 2,
+        minStock: 5,
+        isLowStock: false,
+      });
+    });
+
+    it('findAll reports a service as NOT low even when its numbers qualify', async () => {
+      setupFindAll([
+        buildProduct({
+          type: ProductType.SERVICE,
+          tracksStock: false,
+          stock: 0,
+          minStock: 5,
+        }),
+      ]);
+
+      const result = await service.findAll(ORG_ID, 1, 10);
+
+      expect(result.data[0]).toMatchObject({
+        type: ProductType.SERVICE,
+        isLowStock: false,
+      });
+    });
+
+    it('findOne carries the flag', async () => {
+      prismaMock.product.findFirst.mockResolvedValue(
+        buildProduct({ stock: 3, minStock: 5 }),
+      );
+
+      const result = await service.findOne('prod-1', ORG_ID);
+
+      expect(result).toMatchObject({ stock: 3, minStock: 5, isLowStock: true });
+    });
+
+    it('findOne reports an untracked product as NOT low', async () => {
+      prismaMock.product.findFirst.mockResolvedValue(
+        buildProduct({ tracksStock: false, stock: 1, minStock: 5 }),
+      );
+
+      const result = await service.findOne('prod-1', ORG_ID);
+
+      expect(result).toMatchObject({ isLowStock: false });
+    });
+
+    it('create carries the flag', async () => {
+      prismaMock.category.findFirst.mockResolvedValue(
+        categoryWithDefault(null, false),
+      );
+      prismaMock.product.findUnique.mockResolvedValue(null);
+      prismaMock.product.create.mockResolvedValue(
+        buildProduct({ stock: 4, minStock: 5 }),
+      );
+      prismaMock.inventoryMovement.create.mockResolvedValue({});
+
+      const result = await service.create(
+        {
+          name: 'Test Product',
+          sku: 'SKU-001',
+          costPrice: 100,
+          salePrice: 150,
+          stock: 4,
+          minStock: 5,
+          categoryId: 'cat-1',
+        },
+        USER_ID,
+        ORG_ID,
+      );
+
+      expect(result).toMatchObject({ stock: 4, minStock: 5, isLowStock: true });
+    });
+
+    it('update carries the flag', async () => {
+      prismaMock.product.findFirst.mockResolvedValue(
+        buildProduct({ id: 'prod-1', stock: 10, minStock: 5 }),
+      );
+      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
+      prismaMock.product.findFirst
+        .mockResolvedValueOnce(
+          buildProduct({ id: 'prod-1', stock: 10, minStock: 5 }),
+        )
+        .mockResolvedValueOnce(
+          buildProduct({ id: 'prod-1', stock: 2, minStock: 5 }),
+        );
+      prismaMock.inventoryMovement.create.mockResolvedValue({});
+
+      const result = await service.update(
+        'prod-1',
+        { stock: 2 },
+        USER_ID,
+        ORG_ID,
+      );
+
+      expect(result).toMatchObject({ stock: 2, minStock: 5, isLowStock: true });
+    });
+
+    it('adds the flag exactly once, without disturbing the promo and tax fields', async () => {
+      prismaMock.product.findFirst.mockResolvedValue(
+        buildProduct({ stock: 1, minStock: 5 }),
+      );
+
+      const result = await service.findOne('prod-1', ORG_ID);
+
+      expect(result).toMatchObject({
+        isLowStock: true,
+        effectiveSalePrice: null,
+        effectiveTaxRate: 0,
+      });
     });
   });
 });

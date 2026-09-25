@@ -30,6 +30,11 @@ export interface Product {
   createdAt: string;
   updatedAt: string;
   version: number;
+  /**
+   * Backend-computed low-stock flag (products service). Absent means the payload predates
+   * the field; render it as-is and never re-derive it from `stock`/`minStock`, because the
+   * rule is the server's (an untracked item is never low on stock).
+   */
   isLowStock?: boolean;
 }
 

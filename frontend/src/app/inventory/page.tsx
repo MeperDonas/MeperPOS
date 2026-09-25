@@ -36,7 +36,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiErrorMessage } from "@/lib/api";
 import { cn, resolveTaxFields } from "@/lib/utils";
-import { isService, tracksStock } from "@/lib/product-type";
+import { isService } from "@/lib/product-type";
 
 export default function InventoryPage() {
   const toast = useToast();
@@ -129,8 +129,10 @@ export default function InventoryPage() {
     }
   }, [meta, page]);
 
+  // The low-stock decision is the server's (findAll also filters in the database), so the
+  // badge count reads the server-computed flag instead of re-deriving the rule here.
   const lowStockProducts = products
-    .filter((p) => tracksStock(p) && p.stock <= p.minStock)
+    .filter((p) => p.isLowStock === true)
     .toSorted((a, b) =>
       a.name.localeCompare(b.name, "es-CO", {
         sensitivity: "base",

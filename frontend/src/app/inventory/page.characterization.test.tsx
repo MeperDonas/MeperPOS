@@ -137,6 +137,9 @@ function buildProduct(overrides: Record<string, unknown> = {}) {
     salePrice: 2000,
     stock: 10,
     minStock: 5,
+    // The server ships the low-stock flag; the page reads it instead of re-deriving
+    // the rule, so fixtures must declare it the way a real response would.
+    isLowStock: false,
     imageUrl: null,
     categoryId: "cat-1",
     category: { id: "cat-1", name: "General" },
@@ -224,10 +227,10 @@ describe("Inventory page — characterization (current behavior)", () => {
     expect(lastCall.status).toBe("inactive");
   });
 
-  it("low-stock toggle shows only products at or below min stock (client-side)", () => {
+  it("low-stock toggle shows only the products the server flagged (client-side)", () => {
     setResponse([
-      buildProduct({ name: "Panela Baja", stock: 2, minStock: 5 }),
-      buildProduct({ name: "Dulce Sano", stock: 9, minStock: 5 }),
+      buildProduct({ name: "Panela Baja", stock: 2, minStock: 5, isLowStock: true }),
+      buildProduct({ name: "Dulce Sano", stock: 9, minStock: 5, isLowStock: false }),
     ]);
 
     render(<InventoryPage />);
@@ -258,15 +261,16 @@ describe("Inventory page — characterization (current behavior)", () => {
     expect(mango.compareDocumentPosition(zeta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("low-stock toggle skips services, which are never low on stock (client-side)", () => {
+  it("low-stock toggle skips services, which the server never flags as low", () => {
     setResponse([
-      buildProduct({ name: "Panela Baja", stock: 2, minStock: 5 }),
-      buildProduct({ name: "Dulce Sano", stock: 9, minStock: 5 }),
+      buildProduct({ name: "Panela Baja", stock: 2, minStock: 5, isLowStock: true }),
+      buildProduct({ name: "Dulce Sano", stock: 9, minStock: 5, isLowStock: false }),
       buildProduct({
         name: "Mantenimiento",
         type: "SERVICE",
         stock: 0,
         minStock: 5,
+        isLowStock: false,
       }),
     ]);
 
@@ -284,16 +288,17 @@ describe("Inventory page — characterization (current behavior)", () => {
     expect(screen.queryByText("Mantenimiento")).not.toBeInTheDocument();
   });
 
-  it("low-stock toggle skips untracked products, which are never low on stock (client-side)", () => {
+  it("low-stock toggle skips untracked products, which the server never flags as low", () => {
     setResponse([
-      buildProduct({ name: "Panela Baja", stock: 2, minStock: 5 }),
-      buildProduct({ name: "Dulce Sano", stock: 9, minStock: 5 }),
+      buildProduct({ name: "Panela Baja", stock: 2, minStock: 5, isLowStock: true }),
+      buildProduct({ name: "Dulce Sano", stock: 9, minStock: 5, isLowStock: false }),
       buildProduct({
         name: "Servilletas sin conteo",
         type: "PRODUCT",
         stock: 0,
         minStock: 5,
         tracksStock: false,
+        isLowStock: false,
       }),
     ]);
 
@@ -306,8 +311,30 @@ describe("Inventory page — characterization (current behavior)", () => {
     expect(screen.getByText("Panela Baja")).toBeInTheDocument();
     expect(screen.queryByText("Dulce Sano")).not.toBeInTheDocument();
     // An untracked product is not counted: its numbers would qualify
-    // (stock 0 <= minStock 5), so the client-side filter must skip it
-    // explicitly instead of comparing raw numbers.
+    // (stock 0 <= minStock 5), but the server's flag is false, and the page reads
+    // the flag rather than comparing raw numbers.
     expect(screen.queryByText("Servilletas sin conteo")).not.toBeInTheDocument();
+  });
+
+  it("trusts the server flag over the numbers for an untracked product with stale stock", () => {
+    // The drift this locks down: stock 2 <= minStock 5 looks low, but nothing counts it,
+    // so the page must not badge it and must not count it in the low-stock total.
+    setResponse([
+      buildProduct({ name: "Papel sin conteo", stock: 2, minStock: 5, tracksStock: false, isLowStock: false }),
+      buildProduct({ name: "Panela Baja", stock: 2, minStock: 5, isLowStock: true }),
+    ]);
+
+    render(<InventoryPage />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /^Stock Bajo( ?\d+)?$/ }),
+    );
+
+    expect(screen.getByText("Panela Baja")).toBeInTheDocument();
+    expect(screen.queryByText("Papel sin conteo")).not.toBeInTheDocument();
+    // The low-stock badge counts only what the server flagged: 1, not 2.
+    expect(
+      screen.getByRole("button", { name: /^Stock Bajo ?1$/ }),
+    ).toBeInTheDocument();
   });
 });
