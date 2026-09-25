@@ -43,7 +43,16 @@ export function useCreateSale() {
   return useMutation({
     mutationFn: (data: {
       customerId?: string;
-      items: Pick<CartItem, "productId" | "quantity" | "unitPrice" | "discountAmount">[];
+      // `unitPrice` is optional and should be sent ONLY for a deliberate
+      // manager override: the server derives the effective (promotion-aware)
+      // price itself and rejects an override from a non-ADMIN. Echoing the
+      // cart price back on every line would turn a promotion edited after the
+      // line was added into a spurious "override".
+      items: Array<
+        Pick<CartItem, "productId" | "quantity" | "discountAmount"> & {
+          unitPrice?: number;
+        }
+      >;
       discountAmount?: number;
       payments?: Array<{
         method: "CASH" | "CARD" | "TRANSFER";
