@@ -12,6 +12,8 @@ const baseProduct = {
   stock: 20,
   salePrice: 45000,
   minStock: 5,
+  // The server ships the low-stock flag; the card renders it and never re-derives it.
+  isLowStock: false,
   category: { name: "Ropa" },
   active: true,
 };
@@ -26,10 +28,10 @@ describe("ProductCard inventory mode — status chip", () => {
     expect(screen.queryByText("•")).toBeNull();
   });
 
-  it("shows 'Stock bajo' chip with alert dot when stock <= minStock", () => {
+  it("shows 'Stock bajo' chip with alert dot when the server flags low stock", () => {
     render(
       <ProductCard
-        product={{ ...baseProduct, stock: 3, minStock: 5 }}
+        product={{ ...baseProduct, stock: 3, minStock: 5, isLowStock: true }}
         mode="inventory"
       />,
     );
@@ -38,10 +40,26 @@ describe("ProductCard inventory mode — status chip", () => {
     expect(screen.getByTestId("stock-alert-icon")).toBeInTheDocument();
   });
 
+  it("does not show 'Stock bajo' when the numbers would qualify but the server flag is false", () => {
+    // The drift this guards: an untracked product can carry stale stock/minStock. The
+    // server rule says false, so the card must read the flag, not the arithmetic.
+    render(
+      <ProductCard
+        product={{ ...baseProduct, stock: 1, minStock: 5, isLowStock: false }}
+        mode="inventory"
+      />,
+    );
+
+    expect(screen.queryByText("Stock bajo")).toBeNull();
+    expect(screen.getByText("Activo")).toBeInTheDocument();
+  });
+
   it("shows 'Agotado' chip when stock is 0", () => {
     render(
       <ProductCard
-        product={{ ...baseProduct, stock: 0 }}
+        // A tracked product at zero IS low on stock server-side, so the flag is true here:
+        // "Agotado" must still win the status chain over the lower-severity low stock.
+        product={{ ...baseProduct, stock: 0, isLowStock: true }}
         mode="inventory"
       />,
     );
