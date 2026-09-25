@@ -50,6 +50,8 @@ import { cn, formatCurrency, safeGetItem, safeSetItem } from "@/lib/utils";
 import { effectiveStock, isService } from "@/lib/product-type";
 import type { CartItem, Product, Sale } from "@/types";
 import { useToast } from "@/contexts/ToastContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasAnyRole } from "@/lib/auth";
 import { api, getApiErrorMessage } from "@/lib/api";
 
 const POS_PAGE_SIZE = 20;
@@ -94,6 +96,38 @@ function cartItemOffer(item: CartItem) {
   return percent > 0 ? { percent } : null;
 }
 
+/**
+ * The price the SERVER would charge for this line: the promotion-aware
+ * `effectiveSalePrice` when one is active, otherwise the list price. This is
+ * the same value `SalesService.create` derives, so a line flagged here is
+ * exactly the line the server treats as an override (and audits).
+ */
+function cartItemServerUnitPrice(item: CartItem): number | null {
+  const listPrice = Number(item.product?.salePrice);
+  if (!Number.isFinite(listPrice)) return null;
+  const effective = item.product?.effectiveSalePrice;
+  return typeof effective === "number" && Number.isFinite(effective)
+    ? effective
+    : listPrice;
+}
+
+/**
+ * True when the line's price differs from the server-derived price — i.e. a
+ * manual override rather than a promotion. Mirrors the backend's 0.01
+ * tolerance so the cart never flags noise the API would consider a match.
+ */
+function cartItemPriceOverride(
+  item: CartItem,
+): { serverUnitPrice: number } | null {
+  const serverUnitPrice = cartItemServerUnitPrice(item);
+  if (serverUnitPrice === null) return null;
+  const lineUnitPrice = Number(item.unitPrice);
+  if (!Number.isFinite(lineUnitPrice)) return null;
+  return Math.abs(lineUnitPrice - serverUnitPrice) > 0.01
+    ? { serverUnitPrice }
+    : null;
+}
+
 interface PaymentMethod {
   type: "CASH" | "CARD" | "TRANSFER";
   amount: number;
@@ -122,6 +156,7 @@ function isCompactCode(value: string): boolean {
 
 export default function POSPage() {
   const toast = useToast();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -207,6 +242,13 @@ export default function POSPage() {
     usePausedSales();
   const createSale = useCreateSale();
   const quickSearchProduct = useQuickSearchProduct();
+
+  // Overriding a line's price is a manager permission, enforced server-side
+  // by SalesService (a non-ADMIN override is rejected with 403). The control is
+  // hidden here so a cashier is never offered an action the API will refuse.
+  // `hasAnyRole` mirrors the backend RolesGuard hierarchy, so OWNER and
+  // SUPER_ADMIN — which inherit ADMIN there — still see it.
+  const canOverridePrice = hasAnyRole(user?.role, ["ADMIN"]);
 
   const customers = customersData?.data || [];
   const totalPages = Math.max(productsData?.meta?.totalPages ?? 1, 1);
@@ -597,7 +639,13 @@ export default function POSPage() {
         items: cart.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
-          unitPrice: item.unitPrice,
+          // Sent only for a real override. For every other line the server
+          // derives the price itself, so a promotion applied after the line
+          // entered the cart is honoured instead of being read as an
+          // (unauthorized) override request.
+          ...(cartItemPriceOverride(item)
+            ? { unitPrice: item.unitPrice }
+            : {}),
           discountAmount: item.discountAmount,
         })),
         discountAmount,
@@ -939,6 +987,16 @@ export default function POSPage() {
                           >
                             Oferta -{cartItemOffer(item)!.percent}%
                           </Badge>
+                        )}
+                        {cartItemPriceOverride(item) && (
+                          <span data-testid="price-overridden" className="shrink-0">
+                            <Badge
+                              variant="warning"
+                              className="text-[9px] px-1.5 py-0 font-mono uppercase"
+                            >
+                              Precio ajustado
+                            </Badge>
+                          </span>
                         )}
                         {Number.isFinite(Number(item.originalUnitPrice)) &&
                           Number(item.unitPrice) !==
@@ -1358,25 +1416,29 @@ export default function POSPage() {
         >
           <div className="space-y-4">
             <div className="space-y-2">
-              <CurrencyInput
-                label="Precio unitario"
-                value={customPrice}
-                onChange={(value) => setCustomPrice(value === 0 ? "" : String(value))}
-                placeholder="Precio"
-              />
-              <Button
-                variant="secondary"
-                className="w-full"
-                disabled={!customPrice}
-                onClick={() => {
-                  if (!editingDiscount) return;
-                  const price = Number(customPrice);
-                  if (Number.isNaN(price) || price < 0) return;
-                  updateItemPrice(editingDiscount, price);
-                }}
-              >
-                Aplicar precio
-              </Button>
+              {canOverridePrice && (
+                <>
+                  <CurrencyInput
+                    label="Precio unitario"
+                    value={customPrice}
+                    onChange={(value) => setCustomPrice(value === 0 ? "" : String(value))}
+                    placeholder="Precio"
+                  />
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    disabled={!customPrice}
+                    onClick={() => {
+                      if (!editingDiscount) return;
+                      const price = Number(customPrice);
+                      if (Number.isNaN(price) || price < 0) return;
+                      updateItemPrice(editingDiscount, price);
+                    }}
+                  >
+                    Aplicar precio
+                  </Button>
+                </>
+              )}
             </div>
 
             <CurrencyInput
