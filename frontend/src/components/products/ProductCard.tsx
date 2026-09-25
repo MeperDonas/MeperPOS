@@ -13,7 +13,6 @@ type ProductCardData = {
   stock: number;
   salePrice: number;
   costPrice?: number;
-  minStock?: number;
   type?: string | null;
   tracksStock?: boolean | null;
   category?: { name: string } | null;
@@ -22,6 +21,8 @@ type ProductCardData = {
   promotionType?: string | null;
   promotionValue?: number | null;
   effectiveSalePrice?: number | null;
+  /** Backend-computed low-stock flag; the client must not re-derive it. */
+  isLowStock?: boolean;
 };
 
 interface ProductCardProps {
@@ -37,7 +38,9 @@ interface ProductCardProps {
 function StatusChip({ product, isInactive }: { product: ProductCardData; isInactive: boolean }) {
   const service = isService(product);
   const depleted = product.stock === 0;
-  const low = typeof product.minStock === "number" && product.stock > 0 && product.stock <= product.minStock;
+  // The flag is the server's answer (see backend isLowStock): an untracked item is never low
+  // on stock whatever its stored numbers say, so re-deriving it here could only drift.
+  const low = product.isLowStock === true;
   const status = isInactive ? "inactive" : service ? "service" : !tracksStock(product) ? "untracked" : depleted ? "depleted" : low ? "low" : "healthy";
   const colors = {
     inactive: "text-muted-foreground",
