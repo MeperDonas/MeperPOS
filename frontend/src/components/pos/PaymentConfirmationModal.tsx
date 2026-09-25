@@ -112,8 +112,11 @@ export function PaymentConfirmationModal({
   const cashPaid = methods
     .filter((method) => method.type === "CASH")
     .reduce((sum, method) => sum + method.amount, 0);
-  const nonCashPaid = totalPaid - cashPaid;
-  const change = Math.max(0, cashPaid - Math.max(0, total - nonCashPaid));
+  // Change is cash-only and is measured against the FULL total, never netted against a
+  // non-cash tender: `SalesService.create` persists `cashPaid > total ? cashPaid - total : null`,
+  // so this preview must use the same rule or the cashier reads back a number the sale does
+  // not carry. Under-tendering the cash side yields no change at all, and the server stores null.
+  const change = cashPaid > total ? cashPaid - total : 0;
   const canConfirm = totalPaid >= total && methods.some((method) => method.amount > 0);
 
   const updateMethodAmount = (index: number, amount: number) => {
