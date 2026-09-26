@@ -61,6 +61,7 @@ function TestHarness() {
 function renderHarness() {
   const queryClient = new QueryClient();
   const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+  const clearSpy = vi.spyOn(queryClient, "clear");
   render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -70,7 +71,7 @@ function renderHarness() {
       </ToastProvider>
     </QueryClientProvider>
   );
-  return { invalidateSpy };
+  return { invalidateSpy, clearSpy, queryClient };
 }
 
 /** Route api.post calls by URL so every test can control refresh/login/org flows. */
@@ -228,6 +229,38 @@ describe("AuthContext - in-memory session migration (issue #48 slice C2)", () =>
       });
       expect(pushMock).toHaveBeenCalledWith("/login");
     });
+
+    it("drops the SuperAdmin organization selection so it cannot outlive the session", async () => {
+      routePostBy(async (url) => {
+        if (url === "/auth/refresh") {
+          return Promise.resolve({ data: { accessToken: "restore-token" } });
+        }
+        if (url === "/auth/logout") {
+          return Promise.resolve({ data: {} });
+        }
+        throw new Error(`Unexpected POST ${url}`);
+      });
+      (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: testUser,
+      });
+
+      // A SuperAdmin scoped every request to one organization.
+      localStorage.setItem("selectedOrganizationId", "org-a");
+
+      renderHarness();
+
+      await waitFor(() => {
+        expect(getAccessToken()).toBe("restore-token");
+      });
+
+      await userEvent.click(
+        await screen.findByRole("button", { name: /Cerrar Sesion/i })
+      );
+
+      // The selection is identity-scoped client state that lib/api.ts injects as
+      // X-Organization-Id, so the next session must not inherit it.
+      expect(localStorage.getItem("selectedOrganizationId")).toBeNull();
+    });
   });
 
   describe("switchOrganization", () => {
@@ -365,5 +398,157 @@ describe("AuthContext - in-memory session migration (issue #48 slice C2)", () =>
     // Login keeps tokens out of localStorage entirely.
     expect(localStorage.getItem("token")).toBeNull();
     expect(localStorage.getItem("refreshToken")).toBeNull();
+  });
+
+  describe("query cache across the session boundary", () => {
+    // The exact key the inventory page uses (useProducts -> ["products", rest]).
+    const inventoryKey = [
+      "products",
+      { page: 1, limit: 10, status: "active", orderBy: "name" },
+    ];
+
+    it("drops every cached query when the user logs out", async () => {
+      routePostBy(async (url) => {
+        if (url === "/auth/refresh") {
+          return Promise.resolve({ data: { accessToken: "restore-token" } });
+        }
+        if (url === "/auth/logout") {
+          return Promise.resolve({ data: {} });
+        }
+        throw new Error(`Unexpected POST ${url}`);
+      });
+      (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: testUser,
+      });
+
+      const { queryClient } = renderHarness();
+
+      await waitFor(() => {
+        expect(getAccessToken()).toBe("restore-token");
+      });
+
+      // Account A browsed its inventory during the session.
+      queryClient.setQueryData(inventoryKey, {
+        data: [{ id: "product-from-account-a" }],
+      });
+      expect(queryClient.getQueryData(inventoryKey)).toBeDefined();
+
+      await userEvent.click(
+        await screen.findByRole("button", { name: /Cerrar Sesion/i })
+      );
+
+      // The cache is identity-scoped data: it must not outlive the session, or
+      // the next account reads these rows until a manual page reload.
+      expect(queryClient.getQueryData(inventoryKey)).toBeUndefined();
+    });
+
+    it("clears the cache from the logout teardown itself, not only from the identity change", async () => {
+      // The session is already anonymous (restore fails), so logout produces no
+      // identity transition and the watcher stays inert. Only the logout
+      // teardown can clear the cache here, which is what makes this test
+      // discriminate the explicit clear from the effect that also clears.
+      routePostBy(async (url) => {
+        if (url === "/auth/refresh") {
+          return Promise.reject(new Error("No refresh cookie"));
+        }
+        if (url === "/auth/logout") {
+          return Promise.resolve({ data: {} });
+        }
+        throw new Error(`Unexpected POST ${url}`);
+      });
+
+      const { queryClient } = renderHarness();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("loading")).toHaveTextContent("false");
+      });
+
+      queryClient.setQueryData(inventoryKey, {
+        data: [{ id: "product-from-account-a" }],
+      });
+      expect(queryClient.getQueryData(inventoryKey)).toBeDefined();
+
+      await userEvent.click(
+        await screen.findByRole("button", { name: /Cerrar Sesion/i })
+      );
+
+      expect(queryClient.getQueryData(inventoryKey)).toBeUndefined();
+    });
+
+    it("drops the previous account's cache when a different identity takes over", async () => {
+      const accountB = {
+        id: "user-2",
+        email: "bruno@example.com",
+        name: "Bruno Diaz",
+        role: "ADMIN",
+        active: true,
+        organizationId: "org-c",
+      };
+
+      routePostBy(async (url) => {
+        if (url === "/auth/refresh") {
+          return Promise.resolve({ data: { accessToken: "restore-token" } });
+        }
+        if (url === "/auth/login") {
+          return Promise.resolve({
+            data: { accessToken: "account-b-token", user: accountB },
+          });
+        }
+        throw new Error(`Unexpected POST ${url}`);
+      });
+      (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: testUser,
+      });
+
+      const { queryClient } = renderHarness();
+
+      await waitFor(() => {
+        expect(getAccessToken()).toBe("restore-token");
+      });
+
+      // Account A browsed its inventory during the session.
+      queryClient.setQueryData(inventoryKey, {
+        data: [{ id: "product-from-account-a" }],
+      });
+
+      // Account B takes over without an intervening logout.
+      await userEvent.click(
+        await screen.findByRole("button", { name: /Iniciar Sesion/i })
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("user")).toHaveTextContent(
+          "bruno@example.com"
+        );
+      });
+
+      // Cleared, not merely marked stale: invalidateQueries would leave these
+      // rows readable, which is exactly how the leak survived a switch.
+      await waitFor(() => {
+        expect(queryClient.getQueryData(inventoryKey)).toBeUndefined();
+      });
+    });
+
+    it("keeps the cache when the first identity is assigned on mount", async () => {
+      routePostBy(async (url) => {
+        if (url === "/auth/refresh") {
+          return Promise.resolve({ data: { accessToken: "restore-token" } });
+        }
+        throw new Error(`Unexpected POST ${url}`);
+      });
+      (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: testUser,
+      });
+
+      const { clearSpy } = renderHarness();
+
+      await waitFor(() => {
+        expect(getAccessToken()).toBe("restore-token");
+      });
+
+      // Boot/restore is the first assignment, not a transition: a legitimately
+      // warmed cache must survive it.
+      expect(clearSpy).not.toHaveBeenCalled();
+    });
   });
 });
