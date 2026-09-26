@@ -249,10 +249,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void api.post("/auth/logout").catch(() => undefined);
     clearAccessToken();
     safeRemoveItem(USER_DISPLAY_CACHE_KEY);
+    // Every cached query belongs to the identity that fetched it, and no query
+    // key is identity-scoped, so the whole cache dies with the session. Without
+    // this the next account is served the previous one's rows until a reload.
+    queryClient.clear();
     setUser(null);
     setPendingSelection(null);
     router.push("/login");
-  }, [router]);
+  }, [queryClient, router]);
 
   const value = useMemo(
     () => ({

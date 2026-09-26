@@ -70,7 +70,7 @@ function renderHarness() {
       </ToastProvider>
     </QueryClientProvider>
   );
-  return { invalidateSpy };
+  return { invalidateSpy, queryClient };
 }
 
 /** Route api.post calls by URL so every test can control refresh/login/org flows. */
@@ -365,5 +365,48 @@ describe("AuthContext - in-memory session migration (issue #48 slice C2)", () =>
     // Login keeps tokens out of localStorage entirely.
     expect(localStorage.getItem("token")).toBeNull();
     expect(localStorage.getItem("refreshToken")).toBeNull();
+  });
+
+  describe("query cache across the session boundary", () => {
+    // The exact key the inventory page uses (useProducts -> ["products", rest]).
+    const inventoryKey = [
+      "products",
+      { page: 1, limit: 10, status: "active", orderBy: "name" },
+    ];
+
+    it("drops every cached query when the user logs out", async () => {
+      routePostBy(async (url) => {
+        if (url === "/auth/refresh") {
+          return Promise.resolve({ data: { accessToken: "restore-token" } });
+        }
+        if (url === "/auth/logout") {
+          return Promise.resolve({ data: {} });
+        }
+        throw new Error(`Unexpected POST ${url}`);
+      });
+      (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: testUser,
+      });
+
+      const { queryClient } = renderHarness();
+
+      await waitFor(() => {
+        expect(getAccessToken()).toBe("restore-token");
+      });
+
+      // Account A browsed its inventory during the session.
+      queryClient.setQueryData(inventoryKey, {
+        data: [{ id: "product-from-account-a" }],
+      });
+      expect(queryClient.getQueryData(inventoryKey)).toBeDefined();
+
+      await userEvent.click(
+        await screen.findByRole("button", { name: /Cerrar Sesion/i })
+      );
+
+      // The cache is identity-scoped data: it must not outlive the session, or
+      // the next account reads these rows until a manual page reload.
+      expect(queryClient.getQueryData(inventoryKey)).toBeUndefined();
+    });
   });
 });
