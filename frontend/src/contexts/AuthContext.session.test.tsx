@@ -442,6 +442,39 @@ describe("AuthContext - in-memory session migration (issue #48 slice C2)", () =>
       expect(queryClient.getQueryData(inventoryKey)).toBeUndefined();
     });
 
+    it("clears the cache from the logout teardown itself, not only from the identity change", async () => {
+      // The session is already anonymous (restore fails), so logout produces no
+      // identity transition and the watcher stays inert. Only the logout
+      // teardown can clear the cache here, which is what makes this test
+      // discriminate the explicit clear from the effect that also clears.
+      routePostBy(async (url) => {
+        if (url === "/auth/refresh") {
+          return Promise.reject(new Error("No refresh cookie"));
+        }
+        if (url === "/auth/logout") {
+          return Promise.resolve({ data: {} });
+        }
+        throw new Error(`Unexpected POST ${url}`);
+      });
+
+      const { queryClient } = renderHarness();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("loading")).toHaveTextContent("false");
+      });
+
+      queryClient.setQueryData(inventoryKey, {
+        data: [{ id: "product-from-account-a" }],
+      });
+      expect(queryClient.getQueryData(inventoryKey)).toBeDefined();
+
+      await userEvent.click(
+        await screen.findByRole("button", { name: /Cerrar Sesion/i })
+      );
+
+      expect(queryClient.getQueryData(inventoryKey)).toBeUndefined();
+    });
+
     it("drops the previous account's cache when a different identity takes over", async () => {
       const accountB = {
         id: "user-2",

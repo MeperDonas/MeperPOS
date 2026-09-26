@@ -42,9 +42,11 @@ read-only scout) agree.
   account's rows rendered even when a refetch does fire.
 - **Two logout entry points, both funneling into the same function:** `components/layout/Sidebar.tsx:268`
   and `app/admin/layout.tsx:69`. A fix inside `AuthContext` covers both; a fix per call site would not.
-- **The hard-navigation path is safe:** `lib/api.ts:52` does `window.location.href = LOGIN_PATH` when
-  the refresh fails, which wipes the cache. That is why the leak is reachable only through a
-  voluntary logout (soft navigation), never through an expired session.
+- **The hard-navigation path is safe for the cache:** `lib/api.ts:102-106` (`defaultOnSessionExpired`)
+  does `window.location.href = LOGIN_PATH`, which recreates the JS context and empties the cache. That
+  is why the leak is reachable only through a voluntary logout (soft navigation), never through an
+  expired session. The refresh-failure branch sits at `:175-176`. An earlier revision of this document
+  cited `:52`; that line number was carried over from a scout pass and never verified. Corrected.
 - **Residual identity-scoped client state survives logout:** `logout` removes only the `"user"` key,
   leaving `selectedOrganizationId` in localStorage, which `lib/api.ts:135-137` injects as the
   `X-Organization-Id` header on every request.
@@ -107,7 +109,11 @@ impact per the interceptor evidence above.
 - [x] AC3 The first identity assignment on mount does not clear the cache by itself.
 - [x] AC4 The fix lives in `AuthProvider`, so both logout entry points (`Sidebar`, `admin/layout`)
       are covered without touching either caller. Neither caller file is in the diff.
-- [x] AC5 `logout` removes `selectedOrganizationId` as well as the user display cache.
+- [x] AC5 `logout` removes `selectedOrganizationId` as well as the user display cache. **Scoped to the
+      logout path:** the session-expiry path (`lib/api.ts:175-176`) never calls `logout`, so it still
+      leaves the key behind. An earlier wording of this AC claimed the selection could not outlive *the
+      session*; the implementation does not deliver that, and the claim was narrowed rather than the
+      code widened. Tracked as gap 2 below.
 - [x] AC6 The `SALE`/inventory/POS behaviour, the session migration contract (tokens in memory only)
       and the `switchOrganization` failure path are all unchanged: the 7 pre-existing session tests
       pass untouched, including the failure-path test and the predicate assertions.
@@ -142,6 +148,11 @@ Strict TDD. RED observed before every GREEN. One work-unit commit per unit.
 ### Verification and closure
 
 7. [x] Targeted suite, full frontend suite, `tsc --noEmit`, eslint on touched files.
+
+   Evidence amended after independent verification (owner chose to document the residual gaps rather
+   than widen the change): the logout test that the identity watcher masked was joined by a
+   discriminating teardown test, proven by mutation; the stale `lib/api.ts` citation was corrected; and
+   AC5 was narrowed to the logout path. Gaps 1 and 2 are recorded as follow-ups.
 8. [ ] Native review at the deliverable boundary, if the review switch is enabled.
 9. [ ] Push and PR remain the owner's decisions.
 
@@ -177,9 +188,12 @@ Three commits: `fedb1c4`, `ef55c5d`, `ba500b4`.
 | WU3 GREEN | same | **PASS 11/11** |
 | Typecheck | `npx tsc --noEmit` | clean, exit 0 |
 | Lint (touched files) | `npx eslint src/contexts/AuthContext.tsx src/contexts/AuthContext.session.test.tsx` | zero problems, exit 0 |
-| Full frontend suite (branch) | `npm run test` | **473 passed, 2 failed of 475**; both failures are load-induced 5 s timeouts in untouched suites (deviation 3) |
-| Full frontend suite (baseline) | `npm run test` at `master` `e24e60e` | **470 passed, 1 failed of 471** — `app/tasks/page.evidence.test.tsx` fails with the SAME test and the SAME 5 s timeout, so that failure is pre-existing. Test count 471 → 475 confirms exactly the 4 added tests. |
+| Full frontend suite (branch, final candidate) | `npm run test` | **475 passed, 1 failed of 476**. The single failure is the pre-existing `app/tasks/page.evidence.test.tsx` 5 s timeout, identical to the baseline below. That is +5 tests over `master`, matching the 5 added tests. |
+| Full frontend suite (baseline) | `npm run test` at `master` `e24e60e` | **470 passed, 1 failed of 471** — `app/tasks/page.evidence.test.tsx` fails with the SAME test and the SAME 5 s timeout, so that failure is pre-existing. Test count 471 → 476 confirms exactly the 5 added tests. |
 | Suspect suites in isolation | `npm run test -- src/app/suppliers/supplier-modal.test.tsx src/app/tasks/page.evidence.test.tsx` | **PASS 8/8** at HEAD, confirming the full-run failures are parallel-load flake, not regressions. |
+| Discrimination of the logout clear (mutation check) | comment out `queryClient.clear()` in `logout`, then `npm run test -- src/contexts/AuthContext.session.test.tsx` | **FAIL 1 of 12** — the new teardown test fails while the original logout test still **passes**, which empirically confirms the masking the independent verifier reported. Mutation reverted; that file is back to its committed state. |
+| Amended session suite | `npm run test -- src/contexts/AuthContext.session.test.tsx` | **PASS 12/12** |
+| Typecheck after amendment | `npx tsc --noEmit` | clean, exit 0 |
 
 ## Disclosed deviations
 
@@ -206,6 +220,45 @@ Three commits: `fedb1c4`, `ef55c5d`, `ba500b4`.
    to keep the diff bounded. The duplication is pre-existing and untouched.
 5. **`switchOrganization` keeps its now-redundant `invalidateQueries`.** Deliberate: removing it would
    rewrite an existing passing test's contract inside a bugfix. Recorded as out of scope.
+6. **The original logout test was masked, and an independent verifier caught it.** `drops every cached
+   query when the user logs out` seeds the cache and asserts it is gone, but the identity watcher also
+   clears on `A -> null`, so reverting the explicit `queryClient.clear()` in `logout` leaves that test
+   green. This was confirmed by mutation, not argued: with the clear commented out, that test still
+   passed while the added teardown test failed. A dedicated test now pins the logout teardown in a
+   scenario where no identity transition is possible (restore fails, so the session is already
+   anonymous and the watcher is inert). Recorded because the earlier evidence overclaimed.
+7. **The independent verification could not run any command.** Its environment has the same broken
+   `bash` (`execvpe(/bin/bash) failed`) documented in `untracked-stock.md`, so it verified by reading
+   source only and explicitly marked every command-derived claim as unverified. All command results in
+   this document are the parent session's own runs. It also observed HEAD moving mid-session
+   (`master` -> this branch) because the parent switched branches during the run; that was the parent's
+   work, not a mutation by the verifier.
+
+## Follow-ups recorded from independent verification
+
+Neither gap below is caused by this change; both predate it and are SuperAdmin-only. They are recorded
+rather than fixed because the owner bounded this change to the reported logout/login leak.
+
+**Gap 1 — the SuperAdmin organization switch leaves data readable** (`Sidebar.tsx:283-295`). Both
+callbacks (`onSwitch`, `onSelectAll`) call `invalidateQueries()` only. Invalidation marks entries
+stale; it does not remove them, so `getQueryData` still returns the previous organization's rows until
+something refetches. Fix direction: `queryClient.clear()` on a scope switch, since a scope switch is
+an identity-scope change. Caveat to resolve first: `clear()` would also drop `["admin",
+"organizations"]`, the switcher's own data source, so the switcher's behavior must be re-verified.
+
+**Gap 2 — the session-expiry path leaves `selectedOrganizationId` behind** (`lib/api.ts:175-176`).
+The path clears the user display cache and hard-navigates, but never removes the selected organization.
+After re-login, `Sidebar.tsx:141-145` rehydrates it and `lib/api.ts:135` sends it as
+`X-Organization-Id`. Fix direction: give session teardown a single owner (`lib/session.ts` or a small
+helper) used by both `logout` and the expiry handler, instead of the cleanup knowledge living in two
+places.
+
+**Observation — the identity key cannot see the SuperAdmin scope.**
+`AdminOrganizationInterceptor` overwrites `organizationId` from the header only when `user.isSuperAdmin`,
+so a SuperAdmin's key is `id:none` for every selected organization. Clear-on-`user`-change therefore
+cannot cover that dimension. This is the strongest argument for the identity-scoped key factory
+described as out of scope above: it is defense in depth for the reported leak, and required only if the
+invariant is widened to include the SuperAdmin scope.
 
 ## Native review outcome
 
