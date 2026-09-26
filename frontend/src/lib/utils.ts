@@ -17,6 +17,18 @@ export function formatCurrency(amount: number, currency: string = CURRENCY) {
   }).format(isCop ? Math.round(amount) : amount);
 }
 
+/**
+ * Canonical coercion for values that may arrive as a Prisma `Decimal` string.
+ * The backend serializes `Decimal` columns as JSON strings (`"15000.00"`), and
+ * `Number.isFinite` does NOT coerce strings, so raw string values fail numeric
+ * guards and inflate digit-only formatters. Every Decimal-backed read must pass
+ * through this helper: non-finite or absent values collapse to 0.
+ */
+export function toFiniteNumber(value: string | number | null | undefined): number {
+  const parsed = typeof value === "number" ? value : Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export function formatDate(date: string | Date) {
   return new Intl.DateTimeFormat(LOCALE, {
     year: "numeric",
