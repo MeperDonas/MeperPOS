@@ -229,6 +229,38 @@ describe("AuthContext - in-memory session migration (issue #48 slice C2)", () =>
       });
       expect(pushMock).toHaveBeenCalledWith("/login");
     });
+
+    it("drops the SuperAdmin organization selection so it cannot outlive the session", async () => {
+      routePostBy(async (url) => {
+        if (url === "/auth/refresh") {
+          return Promise.resolve({ data: { accessToken: "restore-token" } });
+        }
+        if (url === "/auth/logout") {
+          return Promise.resolve({ data: {} });
+        }
+        throw new Error(`Unexpected POST ${url}`);
+      });
+      (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: testUser,
+      });
+
+      // A SuperAdmin scoped every request to one organization.
+      localStorage.setItem("selectedOrganizationId", "org-a");
+
+      renderHarness();
+
+      await waitFor(() => {
+        expect(getAccessToken()).toBe("restore-token");
+      });
+
+      await userEvent.click(
+        await screen.findByRole("button", { name: /Cerrar Sesion/i })
+      );
+
+      // The selection is identity-scoped client state that lib/api.ts injects as
+      // X-Organization-Id, so the next session must not inherit it.
+      expect(localStorage.getItem("selectedOrganizationId")).toBeNull();
+    });
   });
 
   describe("switchOrganization", () => {
