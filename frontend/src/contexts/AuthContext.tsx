@@ -61,6 +61,13 @@ interface AuthTokenResponse {
 /** localStorage key for the user object. Display cache only, NOT auth material. */
 const USER_DISPLAY_CACHE_KEY = "user";
 
+/**
+ * localStorage key for the SuperAdmin organization scope. The request layer
+ * (lib/api.ts) injects it as the X-Organization-Id header and the sidebar writes
+ * it, so it is identity-scoped state and must die with the session too.
+ */
+const SELECTED_ORGANIZATION_KEY = "selectedOrganizationId";
+
 function extractAccessToken(payload: {
   accessToken?: string;
   token?: string;
@@ -279,6 +286,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void api.post("/auth/logout").catch(() => undefined);
     clearAccessToken();
     safeRemoveItem(USER_DISPLAY_CACHE_KEY);
+    safeRemoveItem(SELECTED_ORGANIZATION_KEY);
     // Every cached query belongs to the identity that fetched it, and no query
     // key is identity-scoped, so the whole cache dies with the session. Without
     // this the next account is served the previous one's rows until a reload.
