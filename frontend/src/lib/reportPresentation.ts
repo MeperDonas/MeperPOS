@@ -1,10 +1,10 @@
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, toFiniteNumber } from "@/lib/utils";
 
 export type ReportGranularity = "day" | "month";
 
+/** Kept as the report-facing alias; the single implementation lives in utils. */
 export function safeDecimalNumber(value: string | number | null | undefined) {
-  const parsed = typeof value === "number" ? value : Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return toFiniteNumber(value);
 }
 
 export function formatReportMoney(value: string | number | null | undefined) {
