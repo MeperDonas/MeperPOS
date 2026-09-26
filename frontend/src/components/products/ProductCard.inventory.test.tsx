@@ -11,7 +11,6 @@ const baseProduct = {
   imageUrl: null,
   stock: 20,
   salePrice: 45000,
-  minStock: 5,
   // The server ships the low-stock flag; the card renders it and never re-derives it.
   isLowStock: false,
   category: { name: "Ropa" },
@@ -31,7 +30,7 @@ describe("ProductCard inventory mode — status chip", () => {
   it("shows 'Stock bajo' chip with alert dot when the server flags low stock", () => {
     render(
       <ProductCard
-        product={{ ...baseProduct, stock: 3, minStock: 5, isLowStock: true }}
+        product={{ ...baseProduct, stock: 3, isLowStock: true }}
         mode="inventory"
       />,
     );
@@ -45,7 +44,7 @@ describe("ProductCard inventory mode — status chip", () => {
     // server rule says false, so the card must read the flag, not the arithmetic.
     render(
       <ProductCard
-        product={{ ...baseProduct, stock: 1, minStock: 5, isLowStock: false }}
+        product={{ ...baseProduct, stock: 1, isLowStock: false }}
         mode="inventory"
       />,
     );
@@ -71,7 +70,7 @@ describe("ProductCard inventory mode — status chip", () => {
   it("shows a 'Servicio' chip instead of an 'Agotado' chip when the item is a service", () => {
     render(
       <ProductCard
-        product={{ ...baseProduct, type: "SERVICE", stock: 0, minStock: 5 }}
+        product={{ ...baseProduct, type: "SERVICE", stock: 0 }}
         mode="inventory"
       />,
     );
@@ -97,7 +96,6 @@ describe("ProductCard inventory mode — status chip", () => {
           type: "PRODUCT",
           tracksStock: false,
           stock: 0,
-          minStock: 5,
         }}
         mode="inventory"
       />,
@@ -166,7 +164,6 @@ describe("ProductCard inventory mode — status chip", () => {
           ...baseProduct,
           type: "SERVICE",
           stock: 0,
-          minStock: 5,
           active: false,
         }}
         mode="inventory"
