@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/Input";
+import { toFiniteNumber } from "@/lib/utils";
 
 interface CurrencyInputProps {
   label?: string;
@@ -32,7 +33,12 @@ function formatThousands(digits: string): string {
 
 function digitsFromValue(v: number | string | undefined): string {
   if (v === undefined || v === null) return "";
-  return toDigits(String(v));
+  // Resolve the value to a number BEFORE stripping digits. A Prisma `Decimal`
+  // arrives as a string ("15000.00"); digit-stripping that directly yields
+  // "1500000" and displays 100x the real amount. A blank input stays blank
+  // instead of collapsing to a displayed "0".
+  if (typeof v === "string" && v.trim() === "") return "";
+  return toDigits(String(toFiniteNumber(v)));
 }
 
 /**
