@@ -153,7 +153,9 @@ Strict TDD. RED observed before every GREEN. One work-unit commit per unit.
    than widen the change): the logout test that the identity watcher masked was joined by a
    discriminating teardown test, proven by mutation; the stale `lib/api.ts` citation was corrected; and
    AC5 was narrowed to the logout path. Gaps 1 and 2 are recorded as follow-ups.
-8. [ ] Native review at the deliverable boundary, if the review switch is enabled.
+8. [x] Native review at the deliverable boundary, if the review switch is enabled. RDD is on
+      (`global: on`), lineage `review-7f25177ca07f410b` closed **approved** with no correction needed
+      and the authority is burned.
 9. [ ] Push and PR remain the owner's decisions.
 
 ## Out of scope
@@ -262,4 +264,23 @@ invariant is widened to include the SuperAdmin scope.
 
 ## Native review outcome
 
-To be filled at the deliverable boundary.
+Lineage `review-7f25177ca07f410b`, target `sha256:572036667e2a93f005d61b481936071bb78e3a7b0239691625a36bad0da09060`,
+base `e24e60e`, `committed-only`, the same 3 paths, 496 changed lines, risk tier **medium**, one
+consolidated lens (`review-reliability`).
+
+The reviewer ran once — one host-relayed model run, forecast before the run and authorised with
+`reviewerRunAcknowledged` — and the review closed **approved** on the last admitted event. No
+correction was required: the bounded budget of 200 logical corrections was untouched, and no refuter
+or targeted validator was needed. The exact acknowledgement continuation was executed unchanged and
+termed the authority burned (`gentle-ai.review-acknowledged/v1`).
+
+A first lineage, `review-c4b09bd0d6b421dc`, was started against the pre-amendment candidate
+(`sha256:90e89646…`) and was superseded when the evidence amendment changed the candidate tree. It
+produced no capture, no verdict and no approval, and nothing was burned on it; it remains in native
+state as an unreviewed lineage. Superseding it rather than collecting it was the honest choice: the
+reviewers would have read a document whose citation this change corrects.
+
+This section is recorded in a post-review commit, following the repository convention established by
+`untracked-stock.md`. The reviewed candidate is the tree named above; delivery is **not** authorised by
+this outcome. Commit, push, pull-request and release follow ordinary repository policy and remain the
+owner's decisions.
