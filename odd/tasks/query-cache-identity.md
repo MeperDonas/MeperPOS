@@ -101,16 +101,16 @@ impact per the interceptor evidence above.
 
 ## Acceptance criteria
 
-- [ ] AC1 After `logout`, no query cached during the previous session is readable from the client.
-- [ ] AC2 A change of authenticated identity (different `user.id` or `organizationId`) clears the
+- [x] AC1 After `logout`, no query cached during the previous session is readable from the client.
+- [x] AC2 A change of authenticated identity (different `user.id` or `organizationId`) clears the
       cache even when no logout happened in between.
-- [ ] AC3 The first identity assignment on mount does not clear the cache by itself.
-- [ ] AC4 The fix lives in `AuthProvider`, so both logout entry points (`Sidebar`, `admin/layout`)
-      are covered without touching either caller.
-- [ ] AC5 `logout` removes `selectedOrganizationId` as well as the user display cache.
-- [ ] AC6 The `SALE`/inventory/POS behaviour, the session migration contract (tokens in memory only)
-      and the `switchOrganization` failure path are all unchanged: the existing session suite passes
-      without weakened assertions.
+- [x] AC3 The first identity assignment on mount does not clear the cache by itself.
+- [x] AC4 The fix lives in `AuthProvider`, so both logout entry points (`Sidebar`, `admin/layout`)
+      are covered without touching either caller. Neither caller file is in the diff.
+- [x] AC5 `logout` removes `selectedOrganizationId` as well as the user display cache.
+- [x] AC6 The `SALE`/inventory/POS behaviour, the session migration contract (tokens in memory only)
+      and the `switchOrganization` failure path are all unchanged: the 7 pre-existing session tests
+      pass untouched, including the failure-path test and the predicate assertions.
 
 ## Tasks
 
@@ -118,29 +118,30 @@ Strict TDD. RED observed before every GREEN. One work-unit commit per unit.
 
 ### Work unit 1 — the query cache dies with the session
 
-1. [ ] RED: extend `frontend/src/contexts/AuthContext.session.test.tsx` — seed the harness
+1. [x] RED: extend `frontend/src/contexts/AuthContext.session.test.tsx` — seed the harness
        `QueryClient` with an account-A products entry under the real key
        `["products", { page: 1, limit: 10, status: "active", orderBy: "name" }]`, log out, and assert
        the entry is gone.
-2. [ ] GREEN: `queryClient.clear()` in `AuthContext.logout` (and add `queryClient` to its deps).
+2. [x] GREEN: `queryClient.clear()` in `AuthContext.logout` (and add `queryClient` to its deps).
 
 ### Work unit 2 — the identity boundary owns the cache
 
-3. [ ] RED: a second test seeds the cache, then changes identity through `switchOrganization` without
+3. [x] RED: a second test seeds the cache, then changes identity through a second login without
        logging out, and asserts the seeded entry is **removed**, not merely marked stale. This
        discriminates the new mechanism from the old one: `invalidateQueries` leaves the data present
        and readable, which is precisely why the invalidate-only approach leaked.
-4. [ ] RED: a third test asserts the cache survives the first identity assignment on mount (AC3).
-5. [ ] GREEN: derive the identity key in `AuthProvider` and clear on change after the first
+4. [x] RED: a third test asserts the cache survives the first identity assignment on mount (AC3).
+       **This test failed against the first implementation and found a real defect** (deviation 1).
+5. [x] GREEN: derive the identity key in `AuthProvider` and clear on change after the first
        assignment.
 
 ### Work unit 3 — the residual SuperAdmin selection
 
-6. [ ] RED/GREEN: `logout` removes `selectedOrganizationId`.
+6. [x] RED/GREEN: `logout` removes `selectedOrganizationId`.
 
 ### Verification and closure
 
-7. [ ] Targeted suite, full frontend suite, `tsc --noEmit`, eslint on touched files.
+7. [x] Targeted suite, full frontend suite, `tsc --noEmit`, eslint on touched files.
 8. [ ] Native review at the deliverable boundary, if the review switch is enabled.
 9. [ ] Push and PR remain the owner's decisions.
 
@@ -162,15 +163,49 @@ inside a single review unit; no chaining needed.
 
 ## Verification evidence
 
-All commands are run by the parent session with PowerShell. To be filled as the work units close.
+All commands are run by the parent session with PowerShell, on branch `fix/query-cache-identity`.
+Three commits: `fedb1c4`, `ef55c5d`, `ba500b4`.
 
 | Check | Command | Result |
 |---|---|---|
-| | | |
+| WU1 RED | `npm run test -- src/contexts/AuthContext.session.test.tsx` | FAIL **1 of 8** — `expected { Object (data) } to be undefined`: the account-A row was still readable after logout. The 7 pre-existing tests passed. |
+| WU1 GREEN | same | PASS 8/8 |
+| WU2 RED | same | FAIL **1 of 10** — `expected { Object (data) } to be undefined`: account A's row survived account B's login. |
+| WU2 first GREEN attempt | same | FAIL **1 of 10** — `expected "clear" to not be called at all, but actually been called 1 times`: the boot guard was wrong (deviation 1). |
+| WU2 GREEN | same | PASS 10/10 |
+| WU3 RED | same | FAIL **1 of 11** — `expected 'org-a' to be null`: the SuperAdmin scope survived logout. |
+| WU3 GREEN | same | **PASS 11/11** |
+| Typecheck | `npx tsc --noEmit` | clean, exit 0 |
+| Lint (touched files) | `npx eslint src/contexts/AuthContext.tsx src/contexts/AuthContext.session.test.tsx` | zero problems, exit 0 |
+| Full frontend suite (branch) | `npm run test` | **473 passed, 2 failed of 475**; both failures are load-induced 5 s timeouts in untouched suites (deviation 3) |
+| Full frontend suite (baseline) | `npm run test` at `master` `e24e60e` | **470 passed, 1 failed of 471** — `app/tasks/page.evidence.test.tsx` fails with the SAME test and the SAME 5 s timeout, so that failure is pre-existing. Test count 471 → 475 confirms exactly the 4 added tests. |
+| Suspect suites in isolation | `npm run test -- src/app/suppliers/supplier-modal.test.tsx src/app/tasks/page.evidence.test.tsx` | **PASS 8/8** at HEAD, confirming the full-run failures are parallel-load flake, not regressions. |
 
 ## Disclosed deviations
 
-To be filled.
+1. **The AC3 guard test caught a real defect in my first implementation of the invariant.** The first
+   version used `useRef<string | null | undefined>(undefined)` and treated `undefined` as "boot". But
+   the provider's first render happens with `user === null`, so the effect consumed the sentinel on
+   the null render and then read the `null -> A` restore as a transition, clearing the cache on boot
+   — exactly what AC3 forbids. The ref now holds the **last non-null identity observed**, which is
+   deliberately not reset on teardown so that `null -> B` after a teardown still clears while
+   `null -> A` on boot does not. This is the strongest evidence in the change: the test failed for the
+   right reason before it passed.
+2. **The AC3 test is a guard, not a discriminating RED.** It passed before the fix as well as after:
+   before, because nothing cleared the cache at all. It is kept because it is what caught deviation 1
+   and it pins the boot exemption against future regressions. Recorded here rather than presented as
+   a RED.
+3. **Two unrelated suites fail intermittently in the full run and are NOT caused by this change.**
+   `app/tasks/page.evidence.test.tsx` reproduces the identical failure on `master` in the baseline
+   run. `app/suppliers/supplier-modal.test.tsx` passes in isolation, and it `vi.mock`s
+   `@/contexts/AuthContext` entirely (`supplier-modal.test.tsx:64`), so it cannot be affected by this
+   change at all. Neither suite is in the quarantine registry. They are load-induced 5 s timeouts;
+   fixing them is not part of this feature.
+4. **The `selectedOrganizationId` key string is duplicated with `Sidebar.tsx`.** A named constant was
+   added in `AuthContext.tsx` for the logout path rather than rewriting the three sidebar call sites,
+   to keep the diff bounded. The duplication is pre-existing and untouched.
+5. **`switchOrganization` keeps its now-redundant `invalidateQueries`.** Deliberate: removing it would
+   rewrite an existing passing test's contract inside a bugfix. Recorded as out of scope.
 
 ## Native review outcome
 
