@@ -162,6 +162,30 @@ describe("ThermalReceipt", () => {
     expect(receipt).not.toHaveTextContent("Cambio");
   });
 
+  it("renders no change row for a mixed sale whose cash side under-tendered", () => {
+    // The server persists `change: null` whenever `cashPaid <= total`, even when a
+    // non-cash tender covers the remainder. The receipt must read that stored value,
+    // never re-derive a change from the tender mix.
+    const product = makeProduct("Producto E");
+    const sale = makeSale({
+      items: [makeItem(product, 1, 100000)],
+      subtotal: 100000,
+      taxAmount: 19000,
+      total: 119000,
+      amountPaid: 120000,
+      change: null,
+      payments: [makePayment("CASH", 60000), makePayment("CARD", 60000)],
+    });
+
+    render(<ThermalReceipt sale={sale} organizationName="Mi Tienda" />);
+    const receipt = screen.getByTestId("thermal-receipt");
+
+    expect(receipt).toHaveTextContent("Efectivo");
+    expect(receipt).toHaveTextContent(amountPattern(60000));
+    expect(receipt).toHaveTextContent("Tarjeta");
+    expect(receipt).not.toHaveTextContent("Cambio");
+  });
+
   it("renders custom header and footer when provided", () => {
     const sale = makeSale();
     render(

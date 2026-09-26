@@ -12,6 +12,7 @@ import {
   resolveInitialStockMovement,
   resolveStockDeltaMovement,
   tracksStock,
+  type StockSubject,
 } from './product-type.logic';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
@@ -240,7 +241,7 @@ export class ProductsService {
       );
     }
 
-    return this.enrichWithEffectiveTax(this.enrichWithPromo(product));
+    return this.enrichProduct(product);
   }
 
   async findAll(
@@ -306,9 +307,7 @@ export class ProductsService {
     ]);
 
     return {
-      data: products.map((p) =>
-        this.enrichWithEffectiveTax(this.enrichWithPromo(p)),
-      ),
+      data: products.map((p) => this.enrichProduct(p)),
       meta: {
         total,
         page,
@@ -328,7 +327,7 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    return this.enrichWithEffectiveTax(this.enrichWithPromo(product));
+    return this.enrichProduct(product);
   }
 
   async update(
@@ -479,7 +478,7 @@ export class ProductsService {
       );
     }
 
-    return this.enrichWithEffectiveTax(this.enrichWithPromo(product));
+    return this.enrichProduct(product);
   }
 
   async deactivate(id: string, organizationId: string | undefined) {
@@ -662,6 +661,46 @@ export class ProductsService {
       ...product,
       effectiveSalePrice: computeEffectiveSalePrice(product),
     };
+  }
+
+  /**
+   * Enriches a product with the low-stock flag, so every product the API hands the client
+   * already answers the question. The flag is computed from the single stock rule in
+   * `product-type.logic`: an untracked item is never low on stock whatever its stored
+   * numbers say. Clients must render this field rather than re-deriving the rule, which is
+   * how an untracked product used to be badged "low on stock" by three separate call sites.
+   */
+  private enrichWithLowStock<
+    T extends StockSubject & { stock: number; minStock: number },
+  >(product: T): T & { isLowStock: boolean } {
+    return {
+      ...product,
+      isLowStock: isLowStock(product, product.stock, product.minStock),
+    };
+  }
+
+  /**
+   * The single response shape for a persisted product row: promo-aware price, effective
+   * tax rate and the low-stock flag. Every read that returns whole product rows (create,
+   * findAll, findOne, update) goes through here, so a new derived field cannot reach only
+   * some of the endpoints and leave the client to guess.
+   */
+  private enrichProduct<
+    T extends PromoPricingProduct &
+      StockSubject & {
+        taxable: boolean;
+        taxRate: Prisma.Decimal | number;
+        stock: number;
+        minStock: number;
+        category?: {
+          taxable: boolean;
+          defaultTaxRate: Prisma.Decimal | null;
+        } | null;
+      },
+  >(product: T) {
+    return this.enrichWithLowStock(
+      this.enrichWithEffectiveTax(this.enrichWithPromo(product)),
+    );
   }
 
   private async createInventoryMovement(

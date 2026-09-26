@@ -134,6 +134,30 @@ describe("printThermalReceipt", () => {
     expect(writtenHtml).toContain("Vuelva pronto");
   });
 
+  it("prints the persisted change amount, and no change row when the server stored null", () => {
+    vi.spyOn(window, "open").mockReturnValue(mockPrintWindow());
+
+    printThermalReceipt(
+      makeSale({ amountPaid: 20000, change: 8100, payments: [makePayment("CASH", 20000)] }),
+      "Mi Tienda",
+    );
+    expect(writeMock.mock.calls[0]?.[0] as string).toContain("Cambio");
+    expect(writeMock.mock.calls[0]?.[0] as string).toContain("8.100");
+
+    // A mixed sale whose cash side under-tendered persists `change: null`. The receipt
+    // must print nothing for it rather than deriving a change from the tender mix.
+    writeMock.mockClear();
+    printThermalReceipt(
+      makeSale({
+        amountPaid: 11900,
+        change: null,
+        payments: [makePayment("CASH", 6000), makePayment("CARD", 5900)],
+      }),
+      "Mi Tienda",
+    );
+    expect(writeMock.mock.calls[0]?.[0] as string).not.toContain("Cambio");
+  });
+
   it("does not throw when the browser blocks the popup", () => {
     vi.spyOn(window, "open").mockReturnValue(null);
     const sale = makeSale();

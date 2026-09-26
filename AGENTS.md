@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents working in this repository.
 
 ## Project Overview
 
@@ -24,6 +24,8 @@ npm run seed            # Seed database with faker data
 npx prisma migrate dev  # Run migrations
 npx prisma studio       # Open Prisma Studio GUI
 ```
+
+> ⚠️ `npm run lint` in the backend runs `eslint --fix` and will reformat ~80 unrelated files. To check without mutating the tree, use `npx eslint <file>`. The backend test suite also requires PostgreSQL on port 5432: roughly 94 integration tests fail without it.
 
 ### Frontend (`/frontend`)
 ```bash
@@ -52,23 +54,31 @@ Frontend uses `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:3001/api`).
 ### Backend Structure
 
 NestJS modules under `backend/src/`:
-- `auth/` — JWT authentication, user registration/login, role-based guards
-- `products/` — Product CRUD + two controllers: `products.controller.ts` (standard CRUD) and `products-search.controller.ts` (search, quick-search, low-stock)
+
+- `auth/` — JWT authentication, login/refresh, cookies, CSRF, role guards
+- `products/` — Product CRUD + `products.controller.ts` (CRUD) and `products-search.controller.ts` (search, quick-search, low-stock)
 - `sales/` — Sale creation with multi-payment support (CASH/CARD/TRANSFER)
-- `categories/`, `customers/`, `reports/`, `settings/`, `exports/`, `cloudinary/`
-- `prisma/` — Singleton `PrismaService` shared across all modules
+- `purchase-orders/` — PO creation, receiving, and a state machine
+- `expenses/` — expenses plus an expense taxonomy (groups/labels)
+- `suppliers/`, `customers/`, `categories/`, `tasks/`, `users/`
+- `reports/` — financial reporting; `exports/` — export endpoints
+- `cash-registers/`, `billing/`, `plan-limits/`, `provisioning/`, `admin/`
+- `imports/` — multi-sheet importer; `backfill/` — CLI backfill planners
+- `receipts/`, `settings/`, `cloudinary/`, `config/`, `common/`
+- `prisma/` — singleton `PrismaService` shared across all modules
+- `testing/` — shared test fixtures/helpers
 
-**Auth flow**: JWT Bearer token, stored in `localStorage` on the frontend. The `JwtAuthGuard` + `JwtStrategy` validate tokens. All protected routes use `@UseGuards(JwtAuthGuard)`.
+**Auth flow**: Access and refresh tokens both ride **httpOnly cookies**. The refresh token is cookie-ONLY and is stripped from every response body. `applyAuthCookies` / `clearAuthCookies` in `auth/cookies.helper.ts` own that; a CSRF cookie + `cookie-csrf.guard.ts` protect the mutating routes. `JwtAuthGuard` + `JwtStrategy` validate the access token. **The frontend does not keep the access token in `localStorage`** — `setAccessToken`/`clearAccessToken` in `lib/api.ts` hold it in memory for the session, and `refreshSession()` dedupes concurrent refreshes. `localStorage` is used only for `selectedOrganizationId` and UI preferences.
 
-**Role system**: Three roles — `ADMIN`, `CASHIER`, `INVENTORY_USER`. Route access is enforced both in the backend (guards/decorators) and frontend (`DashboardLayout` route-role map).
+**Role system**: `OrgRole` (`prisma/schema.prisma`) is the single role enum — `OWNER`, `ADMIN`, `MEMBER`, `CASHIER`, `INVENTORY_USER`. `SUPER_ADMIN` is a non-persisted pseudo-role carried on `RequestUser`, not a column. `RolesGuard.getInheritedRoles` nests them: `OWNER ⊃ ADMIN ⊃ MEMBER ⊃ CASHIER`; `INVENTORY_USER` inherits nothing. Enforce authorization with `@Roles(...)` on the route — the `DashboardLayout` route map and per-page role checks in the frontend are display only and are never a security boundary.
 
-**Database**: PostgreSQL via Prisma. Key models: `User`, `Product`, `Category`, `Customer`, `Sale`, `SaleItem`, `InventoryMovement`, `Settings`, `AuditLog`. Products use optimistic concurrency (`version` field).
+**Database**: PostgreSQL via Prisma. Key models: `User`, `Product`, `Category`, `Customer`, `Sale`, `SaleItem`, `Payment`, `InventoryMovement`, `Settings`, `AuditLog`, `Organization`, `OrgUser`. There is **no optimistic-concurrency `version` field** on `Product`. Stock concurrency is a compare-and-swap: `updateMany({ id, active: true, stock: { gte: qty } })` inside a `Serializable` transaction, rejecting when `count === 0`.
 
 ### Frontend Structure
 
 Next.js App Router under `frontend/src/`:
 
-**Pages** (`app/`): `login`, `register`, `dashboard`, `pos`, `inventory`, `sales`, `customers`, `reports`, `categories`, `profile`, `settings`
+**Pages** (`app/`): `login`, `register`, `dashboard`, `pos`, `inventory`, `sales`, `customers`, `reports`, `categories`, `profile`, `settings`, `admin`, `expenses`, `suppliers`, `tasks`, `users`, `purchase-orders`
 
 **Data fetching**: All server state via TanStack Query (React Query v5). Custom hooks in `hooks/` wrap `api` client calls (e.g., `useProducts`, `useSales`). The `api` singleton in `lib/api.ts` is an Axios instance with auto-JWT injection and 401-redirect handling.
 
@@ -86,9 +96,11 @@ Next.js App Router under `frontend/src/`:
 
 ## Key Conventions
 
+- **The server owns every number that becomes money.** Tax rate (`resolveEffectiveTaxRate`), effective sale price (`computeEffectiveSalePrice`), sale totals, change and low-stock classification are all derived in the backend and sent down as fields. The client *reads* them; it never re-derives them. A client-supplied `unitPrice` is a **request to override**, not a default — it requires ADMIN/OWNER/SUPER_ADMIN and is recorded in `AuditLog` as `SALE_PRICE_OVERRIDE` inside the sale transaction. See `SalesService.create` and `canOverridePrice`.
 - `cn()` from `lib/utils.ts` for conditional Tailwind class merging — always use this instead of string concatenation
 - `formatCurrency(amount)` for COP formatting; `formatDate/formatDateTime` for es-CO locale
 - `getApiErrorMessage(error, fallback)` for extracting user-facing error messages from Axios errors
 - Backend DTOs use `class-validator` decorators; global `ValidationPipe` is applied in `main.ts`
 - All API endpoints are prefixed with `/api` (set in `main.ts` via `app.setGlobalPrefix('api')`)
 - Prisma migrations live in `backend/prisma/migrations/`; seed script is `backend/prisma/seed.ts`
+- Derived product fields go through the single `enrichProduct` funnel in `ProductsService`, so a new field cannot reach only some endpoints

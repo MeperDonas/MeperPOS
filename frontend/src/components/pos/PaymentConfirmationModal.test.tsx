@@ -107,3 +107,147 @@ describe("PaymentConfirmationModal currency output", () => {
     ).toBeInTheDocument();
   });
 });
+
+/**
+ * The persisted `sale.change` is the contract: `SalesService.create` stores
+ * `cashPaid > total ? cashPaid - total : null`. Change is CASH-ONLY and is measured
+ * against the FULL total — a non-cash tender is never netted out of it. The preview
+ * therefore has to use the same rule, or the cashier reads a number the sale does not
+ * carry.
+ */
+describe("PaymentConfirmationModal change preview — server parity", () => {
+  /** Mirrors the server formula exactly, so the two can be compared case by case. */
+  const serverChange = (total: number, methods: PaymentMethod[]) => {
+    const cashPaid = methods
+      .filter((method) => method.type === "CASH")
+      .reduce((sum, method) => sum + method.amount, 0);
+    return cashPaid > total ? cashPaid - total : null;
+  };
+
+  /**
+   * The change row's own amount. Scoped to the row because the quick-cash buttons render
+   * the same formatted amounts (20.000 / 50.000), so a bare text query is ambiguous.
+   */
+  const renderedChange = () => {
+    const label = screen.queryByText("Cambio");
+    return label?.parentElement?.textContent ?? null;
+  };
+  /** Same string, but with the literal NBSP that raw textContent preserves. */
+  const fmtRaw = (amount: string) => `$${NBSP}${amount}`;
+
+  it("shows NO change when cash under-tenders the total and a card covers the rest", () => {
+    // total 100.000, cash 60.000, card 60.000 → fully covered, but the cash side is short.
+    const paymentMethods = [
+      { type: "CASH", amount: 60000 },
+      { type: "CARD", amount: 60000 },
+    ] as PaymentMethod[];
+
+    // The old formula netted the card off the total and printed a phantom $20.000.
+    expect(serverChange(100000, paymentMethods)).toBeNull();
+
+    render(
+      <PaymentConfirmationModal
+        {...baseProps}
+        total={100000}
+        paymentMethods={paymentMethods}
+      />,
+    );
+
+    expect(screen.queryByText("Cambio")).not.toBeInTheDocument();
+    // The sale is still payable: total covered, just not in cash.
+    expect(
+      screen.getByRole("button", { name: /Confirmar Pago/i }),
+    ).toBeEnabled();
+  });
+
+  it("shows exactly cash - total when cash over-tenders alongside a card", () => {
+    const paymentMethods = [
+      { type: "CASH", amount: 120000 },
+      { type: "CARD", amount: 60000 },
+    ] as PaymentMethod[];
+
+    // Change is not netted against the card: it is the full 20.000 of surplus cash.
+    expect(serverChange(100000, paymentMethods)).toBe(20000);
+
+    render(
+      <PaymentConfirmationModal
+        {...baseProps}
+        total={100000}
+        paymentMethods={paymentMethods}
+      />,
+    );
+
+    expect(screen.getByText("Cambio")).toBeInTheDocument();
+    expect(renderedChange()).toContain(fmtRaw("20.000"));
+  });
+
+  it("shows no change for a pure non-cash payment", () => {
+    const paymentMethods = [{ type: "CARD", amount: 100000 }] as PaymentMethod[];
+
+    expect(serverChange(100000, paymentMethods)).toBeNull();
+
+    render(
+      <PaymentConfirmationModal
+        {...baseProps}
+        total={100000}
+        paymentMethods={paymentMethods}
+      />,
+    );
+
+    expect(screen.queryByText("Cambio")).not.toBeInTheDocument();
+  });
+
+  it("shows no change when the cash tender equals the total", () => {
+    const paymentMethods = [{ type: "CASH", amount: 100000 }] as PaymentMethod[];
+
+    // Equal is not greater: the server persists null, and so does the preview.
+    expect(serverChange(100000, paymentMethods)).toBeNull();
+
+    render(
+      <PaymentConfirmationModal
+        {...baseProps}
+        total={100000}
+        paymentMethods={paymentMethods}
+      />,
+    );
+
+    expect(screen.queryByText("Cambio")).not.toBeInTheDocument();
+  });
+
+  it("shows the surplus cash when cash alone over-tenders", () => {
+    const paymentMethods = [{ type: "CASH", amount: 150000 }] as PaymentMethod[];
+
+    expect(serverChange(100000, paymentMethods)).toBe(50000);
+
+    render(
+      <PaymentConfirmationModal
+        {...baseProps}
+        total={100000}
+        paymentMethods={paymentMethods}
+      />,
+    );
+
+    expect(screen.getByText("Cambio")).toBeInTheDocument();
+    expect(renderedChange()).toContain(fmtRaw("50.000"));
+  });
+
+  it("still withholds the change row while the sale is under-tendered overall", () => {
+    const paymentMethods = [{ type: "CASH", amount: 40000 }] as PaymentMethod[];
+
+    render(
+      <PaymentConfirmationModal
+        {...baseProps}
+        total={100000}
+        paymentMethods={paymentMethods}
+      />,
+    );
+
+    expect(serverChange(100000, paymentMethods)).toBeNull();
+    expect(screen.queryByText("Cambio")).not.toBeInTheDocument();
+    expect(screen.getByText("Faltante")).toBeInTheDocument();
+    expect(screen.getByText(fmtText("60.000"))).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Confirmar Pago/i }),
+    ).toBeDisabled();
+  });
+});
