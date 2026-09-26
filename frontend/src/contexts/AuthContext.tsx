@@ -7,6 +7,7 @@ import {
   useState,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { safeSetItem, safeRemoveItem } from "@/lib/utils";
@@ -59,6 +60,13 @@ interface AuthTokenResponse {
 
 /** localStorage key for the user object. Display cache only, NOT auth material. */
 const USER_DISPLAY_CACHE_KEY = "user";
+
+/**
+ * localStorage key for the SuperAdmin organization scope. The request layer
+ * (lib/api.ts) injects it as the X-Organization-Id header and the sidebar writes
+ * it, so it is identity-scoped state and must die with the session too.
+ */
+const SELECTED_ORGANIZATION_KEY = "selectedOrganizationId";
 
 function extractAccessToken(payload: {
   accessToken?: string;
@@ -121,6 +129,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void restoreSession();
   }, []);
+
+  // The query cache belongs to the authenticated identity. No query key is
+  // identity-scoped, so any transition to a different user or organization must
+  // drop every entry, or the incoming identity is served the outgoing one's
+  // data. Expressing the invariant here rather than at each transition covers
+  // login, an in-app organization switch, and any path not written yet, so a
+  // future call site cannot forget to clean up.
+  const identityKey = user
+    ? `${user.id}:${user.organizationId ?? "none"}`
+    : null;
+  // The last non-null identity observed, or null while none has been seen yet.
+  // Boot and the null that follows a teardown are not the same thing, so this
+  // deliberately keeps a stale value through a teardown instead of resetting.
+  const lastIdentityRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const lastIdentity = lastIdentityRef.current;
+    if (identityKey !== null) {
+      lastIdentityRef.current = identityKey;
+    }
+
+    // No identity has been seen yet: this is boot/restore, not a transition, so
+    // clearing here would only discard a legitimately warmed cache.
+    if (lastIdentity === null) return;
+
+    if (identityKey !== lastIdentity) {
+      queryClient.clear();
+    }
+  }, [identityKey, queryClient]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -249,10 +286,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void api.post("/auth/logout").catch(() => undefined);
     clearAccessToken();
     safeRemoveItem(USER_DISPLAY_CACHE_KEY);
+    safeRemoveItem(SELECTED_ORGANIZATION_KEY);
+    // Every cached query belongs to the identity that fetched it, and no query
+    // key is identity-scoped, so the whole cache dies with the session. Without
+    // this the next account is served the previous one's rows until a reload.
+    queryClient.clear();
     setUser(null);
     setPendingSelection(null);
     router.push("/login");
-  }, [router]);
+  }, [queryClient, router]);
 
   const value = useMemo(
     () => ({
