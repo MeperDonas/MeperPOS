@@ -52,4 +52,14 @@ describe("CurrencyInput", () => {
     fireEvent.change(input, { target: { value: "500000" } });
     expect(onChange).toHaveBeenLastCalledWith(100000);
   });
+
+  it("renders a Prisma Decimal string without inflating the fraction", () => {
+    render(<CurrencyInput value="15000.00" onChange={vi.fn()} />);
+    expect(screen.getByRole("textbox")).toHaveValue("15.000");
+  });
+
+  it("stays empty for a blank value instead of displaying 0", () => {
+    render(<CurrencyInput value="   " onChange={vi.fn()} />);
+    expect(screen.getByRole("textbox")).toHaveValue("");
+  });
 });

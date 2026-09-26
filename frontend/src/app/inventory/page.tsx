@@ -35,7 +35,7 @@ import type { Product } from "@/types";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiErrorMessage } from "@/lib/api";
-import { cn, resolveTaxFields } from "@/lib/utils";
+import { cn, resolveTaxFields, toFiniteNumber } from "@/lib/utils";
 import { isService, tracksStock } from "@/lib/product-type";
 
 export default function InventoryPage() {
@@ -159,14 +159,24 @@ export default function InventoryPage() {
 
   const handleEdit = (product: Product) => {
     if (!canManageInventory || saveInProgressRef.current) return;
+    // The backend serializes Prisma `Decimal` columns as JSON strings, so every
+    // Decimal-backed field arrives as "15000.00". Normalize them HERE, the single
+    // seed point, so the form never holds a string: a string price both fails the
+    // `Number.isFinite` submit guard (blocking every save) and inflates the
+    // digit-only currency formatter 100x ("15.000" -> "1.500.000").
+    const costPrice = toFiniteNumber(product.costPrice);
+    const salePrice = toFiniteNumber(product.salePrice);
+    const taxRate = toFiniteNumber(product.taxRate);
+    const promotionValue =
+      product.promotionValue != null
+        ? toFiniteNumber(product.promotionValue)
+        : null;
     setPendingImageFile(null);
     setEditingProduct(product);
-    setFormData(product);
-    setTaxRateInput(product.taxRate > 0 ? String(product.taxRate) : "");
+    setFormData({ ...product, costPrice, salePrice, taxRate, promotionValue });
+    setTaxRateInput(taxRate > 0 ? String(taxRate) : "");
     setPromotionTypeInput(product.promotionType ?? "");
-    setPromotionValueInput(
-      product.promotionValue != null ? String(product.promotionValue) : "",
-    );
+    setPromotionValueInput(promotionValue != null ? String(promotionValue) : "");
     setShowModal(true);
   };
 
