@@ -232,6 +232,52 @@ describe('ProductsService — Opt-in tax resolution', () => {
   // Product Update — tax behavior
   // ════════════════════════════════════════════════════════════════════
   describe('Product Update', () => {
+    it('rejects a category owned by another organization before updating an owned product', async () => {
+      prismaMock.product.findFirst.mockResolvedValueOnce(buildProduct());
+      prismaMock.category.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        service.update('prod-1', { categoryId: 'foreign-cat' }, USER_ID, ORG_ID),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.category.findFirst).toHaveBeenCalledWith({
+        where: { id: 'foreign-cat', organizationId: ORG_ID },
+      });
+      expect(prismaMock.product.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('updates an owned product with a category from the same organization', async () => {
+      const category = {
+        ...categoryWithDefault(null),
+        id: 'cat-2',
+        organizationId: ORG_ID,
+      };
+      prismaMock.product.findFirst
+        .mockResolvedValueOnce(buildProduct())
+        .mockResolvedValueOnce(
+          buildProduct({ categoryId: 'cat-2', category, version: 2 }),
+        );
+      prismaMock.category.findFirst.mockResolvedValueOnce(category);
+      prismaMock.product.updateMany.mockResolvedValueOnce({ count: 1 });
+
+      const result = await service.update(
+        'prod-1',
+        { categoryId: 'cat-2' },
+        USER_ID,
+        ORG_ID,
+      );
+
+      expect(prismaMock.category.findFirst).toHaveBeenCalledWith({
+        where: { id: 'cat-2', organizationId: ORG_ID },
+      });
+      expect(prismaMock.product.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ categoryId: 'cat-2' }),
+        }),
+      );
+      expect(result.categoryId).toBe('cat-2');
+    });
+
     it('stores taxable + rate when explicitly provided', async () => {
       const existing = buildProduct({ taxRate: 16, version: 1 });
       prismaMock.product.findFirst.mockResolvedValueOnce(existing);

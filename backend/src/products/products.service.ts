@@ -348,6 +348,15 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
+    if (updateProductDto.categoryId !== undefined) {
+      const category = await this.prisma.category.findFirst({
+        where: { id: updateProductDto.categoryId, organizationId },
+      });
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+    }
+
     if (updateProductDto.sku && updateProductDto.sku !== existingProduct.sku) {
       const existingSku = await this.prisma.product.findUnique({
         where: {
