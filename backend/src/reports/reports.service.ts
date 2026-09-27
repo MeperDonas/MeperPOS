@@ -1231,6 +1231,12 @@ export class ReportsService {
         id: {
           in: relevantUserIds,
         },
+        ...(organizationId && {
+          OR: [
+            { organizationUsers: { some: { organizationId } } },
+            { sales: { some: { organizationId } } },
+          ],
+        }),
       },
       select: {
         id: true,
