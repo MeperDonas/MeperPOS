@@ -188,6 +188,10 @@ describe('ReportsService', () => {
         id: {
           in: ['user-1', 'user-2'],
         },
+        OR: [
+          { organizationUsers: { some: { organizationId: 'org-1' } } },
+          { sales: { some: { organizationId: 'org-1' } } },
+        ],
       },
       select: {
         id: true,
@@ -232,6 +236,263 @@ describe('ReportsService', () => {
           salesPct: 0,
         },
       },
+    ]);
+  });
+
+  it('omits an explicitly selected foreign user while keeping a shared member', async () => {
+    prismaMock.sale.findMany.mockResolvedValue([]);
+    const candidates = [
+      {
+        id: 'foreign-user',
+        name: 'Foreign Name',
+        organizations: ['org-2'],
+        sales: ['org-2'],
+      },
+      {
+        id: 'shared-user',
+        name: 'Shared Name',
+        organizations: ['org-1', 'org-2'],
+        sales: [],
+      },
+    ];
+    prismaMock.user.findMany.mockImplementation(
+      ({
+        where,
+      }: {
+        where: {
+          id: { in: string[] };
+          OR: Array<{
+            organizationUsers?: { some: { organizationId: string } };
+            sales?: { some: { organizationId: string } };
+          }>;
+        };
+      }) =>
+        Promise.resolve(
+          candidates
+            .filter(
+              (user) =>
+                where.id.in.includes(user.id) &&
+                where.OR.some(
+                  (branch) =>
+                    (branch.organizationUsers &&
+                      user.organizations.includes(
+                        branch.organizationUsers.some.organizationId,
+                      )) ||
+                    (branch.sales &&
+                      user.sales.includes(branch.sales.some.organizationId)),
+                ),
+            )
+            .map(({ id, name }) => ({ id, name })),
+        ),
+    );
+
+    const result = await service.getUserPerformance(
+      'org-1',
+      undefined,
+      undefined,
+      false,
+      ['foreign-user', 'shared-user'],
+    );
+
+    expect(prismaMock.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: { in: ['foreign-user', 'shared-user'] },
+          OR: [
+            { organizationUsers: { some: { organizationId: 'org-1' } } },
+            { sales: { some: { organizationId: 'org-1' } } },
+          ],
+        },
+      }),
+    );
+    expect(result.data).toEqual([
+      expect.objectContaining({
+        userId: 'shared-user',
+        userName: 'Shared Name',
+      }),
+    ]);
+  });
+
+  it.each(['current', 'previous'] as const)(
+    'retains a removed seller with %s org-scoped sales but hides unrelated selected users',
+    async (period) => {
+      const users = [
+        { id: 'removed', name: 'Former Seller', organizations: [] },
+        {
+          id: 'shared',
+          name: 'Shared Seller',
+          organizations: ['org-1', 'org-2'],
+        },
+        { id: 'foreign', name: 'Foreign Seller', organizations: ['org-2'] },
+      ];
+      const selectedIds = users.map((user) => user.id);
+      const saleRecords = [
+        {
+          userId: 'removed',
+          total: 80,
+          customerId: 'c1',
+          organizationId: 'org-1',
+          createdAt: new Date(
+            period === 'current'
+              ? '2026-03-11T12:00:00Z'
+              : '2026-03-08T12:00:00Z',
+          ),
+        },
+        {
+          userId: 'shared',
+          total: 30,
+          customerId: 'c2',
+          organizationId: 'org-1',
+          createdAt: new Date('2026-03-11T12:00:00Z'),
+        },
+        {
+          userId: 'shared',
+          total: 900,
+          customerId: 'c3',
+          organizationId: 'org-2',
+          createdAt: new Date('2026-03-11T12:00:00Z'),
+        },
+        {
+          userId: 'foreign',
+          total: 700,
+          customerId: 'c4',
+          organizationId: 'org-2',
+          createdAt: new Date('2026-03-11T12:00:00Z'),
+        },
+      ];
+      // Period sales are scoped; the User.sales relation checks all history.
+      prismaMock.sale.findMany.mockImplementation(
+        ({
+          where,
+        }: {
+          where: {
+            organizationId?: string;
+            status: string;
+            createdAt?: { gte: Date; lte: Date };
+            userId?: { in: string[] };
+          };
+        }) =>
+          Promise.resolve(
+            saleRecords
+              .filter(
+                (sale) =>
+                  (!where.organizationId ||
+                    sale.organizationId === where.organizationId) &&
+                  where.status === 'COMPLETED' &&
+                  (!where.userId || where.userId.in.includes(sale.userId)) &&
+                  (!where.createdAt ||
+                    (sale.createdAt >= where.createdAt.gte &&
+                      sale.createdAt <= where.createdAt.lte)),
+              )
+              .map(({ userId, total, customerId }) => ({
+                userId,
+                total,
+                customerId,
+              })),
+          ),
+      );
+      prismaMock.user.findMany.mockImplementation(
+        ({
+          where,
+        }: {
+          where: {
+            id: { in: string[] };
+            OR: Array<{
+              organizationUsers?: { some: { organizationId: string } };
+              sales?: { some: { organizationId: string } };
+            }>;
+          };
+        }) =>
+          Promise.resolve(
+            users
+              .filter(
+                (user) =>
+                  where.id.in.includes(user.id) &&
+                  where.OR.some(
+                    (branch) =>
+                      (branch.organizationUsers &&
+                        user.organizations.includes(
+                          branch.organizationUsers.some.organizationId,
+                        )) ||
+                      (branch.sales &&
+                        saleRecords.some(
+                          (sale) =>
+                            sale.userId === user.id &&
+                            sale.organizationId ===
+                              branch.sales?.some.organizationId,
+                        )),
+                  ),
+              )
+              .map(({ id, name }) => ({ id, name })),
+          ),
+      );
+
+      const result = await service.getUserPerformance(
+        'org-1',
+        '2026-03-10',
+        '2026-03-12',
+        true,
+        selectedIds,
+      );
+
+      expect(prismaMock.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: { in: selectedIds },
+            OR: [
+              { organizationUsers: { some: { organizationId: 'org-1' } } },
+              { sales: { some: { organizationId: 'org-1' } } },
+            ],
+          },
+        }),
+      );
+      expect(result.data.map((row) => row.userId)).toEqual(
+        period === 'current' ? ['removed', 'shared'] : ['shared', 'removed'],
+      );
+      expect(result.data.find((row) => row.userId === 'removed')).toEqual(
+        expect.objectContaining({
+          salesCount: period === 'current' ? 1 : 0,
+          revenue: period === 'current' ? 80 : 0,
+          comparison: {
+            revenuePct: period === 'current' ? 100 : -100,
+            salesPct: period === 'current' ? 100 : -100,
+          },
+        }),
+      );
+      expect(result.data.find((row) => row.userId === 'shared')).toEqual(
+        expect.objectContaining({
+          salesCount: 1,
+          revenue: 30,
+          uniqueCustomers: 1,
+        }),
+      );
+    },
+  );
+
+  it('keeps global SuperAdmin name resolution unfiltered without an organization', async () => {
+    prismaMock.sale.findMany.mockResolvedValue([]);
+    prismaMock.user.findMany.mockResolvedValue([
+      { id: 'foreign-user', name: 'Foreign Name' },
+    ]);
+
+    const result = await service.getUserPerformance(
+      undefined,
+      undefined,
+      undefined,
+      false,
+      ['foreign-user'],
+    );
+
+    expect(prismaMock.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ['foreign-user'] } },
+      }),
+    );
+    expect(result.data).toEqual([
+      expect.objectContaining({
+        userId: 'foreign-user',
+        userName: 'Foreign Name',
+      }),
     ]);
   });
 
