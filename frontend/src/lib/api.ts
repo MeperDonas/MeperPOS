@@ -2,15 +2,15 @@ import axios, {
   AxiosError,
   AxiosInstance,
 } from "axios";
-import { safeRemoveItem } from "@/lib/utils";
 import {
   getAccessToken,
   setAccessToken,
   clearAccessToken,
+  clearSessionState,
+  SELECTED_ORGANIZATION_KEY,
 } from "@/lib/session";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-const USER_DISPLAY_CACHE_KEY = "user";
 const LOGIN_PATH = "/login";
 
 /** Endpoints that must never trigger the refresh flow (they are pre-auth or own the session lifecycle). */
@@ -132,7 +132,7 @@ export class ApiClient {
           config.headers.Authorization = `Bearer ${token}`;
         }
         if (typeof window !== "undefined") {
-          const orgId = localStorage.getItem("selectedOrganizationId");
+          const orgId = localStorage.getItem(SELECTED_ORGANIZATION_KEY);
           if (orgId) {
             config.headers["X-Organization-Id"] = orgId;
           }
@@ -171,8 +171,11 @@ export class ApiClient {
 
         return this.refreshSession().then((newToken) => {
           if (!newToken) {
-            // Refresh failed — the session is definitively dead.
-            safeRemoveItem(USER_DISPLAY_CACHE_KEY);
+            // Refresh failed — the session is definitively dead. Tear the whole
+            // session down rather than only the user cache: the organization
+            // scope is identity-scoped state that the next login would inherit
+            // and send as X-Organization-Id.
+            clearSessionState();
             this.onSessionExpired();
             return Promise.reject(error);
           }
