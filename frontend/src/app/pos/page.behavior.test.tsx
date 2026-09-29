@@ -260,6 +260,16 @@ vi.mock("@/contexts/ToastContext", () => ({
   }),
 }));
 
+// The POS reads the acting role to decide whether to offer the price-override
+// control. Default to CASHIER (the least-privileged POS role) so every
+// pre-existing test keeps asserting the restricted surface; suites that
+// exercise overriding opt in explicitly.
+const authState = vi.hoisted(() => ({ role: "CASHIER" as string }));
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ user: authState.role ? { role: authState.role } : null }),
+}));
+
 import POSPage from "./page";
 import { printReceipt, printThermalReceipt } from "@/hooks/useReceipt";
 import * as nextDynamic from "next/dynamic";
@@ -722,6 +732,14 @@ describe("POS behavior evidence (#19, #18)", () => {
 describe("POS item price override (pos-edit-item-price)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Overriding is a manager permission (enforced server-side by
+    // SalesService). These tests cover the override UI itself, so they must
+    // act as a role that is actually allowed to override.
+    authState.role = "ADMIN";
+  });
+
+  afterEach(() => {
+    authState.role = "CASHIER";
   });
 
   afterEach(() => {
@@ -901,6 +919,145 @@ describe("POS item price override (pos-edit-item-price)", () => {
     expect(payload.items[0].unitPrice).toBe(45000);
     // The original price must not leak into the sale payload.
     expect(payload.items[0]).not.toHaveProperty("originalUnitPrice");
+  });
+
+  it("flags an overridden line so the manager can see the deviation in the cart", async () => {
+    renderWithSingleProduct("Producto Marcado", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto Marcado" }));
+
+    expect(screen.queryByTestId("price-overridden")).toBeNull();
+
+    await openDiscountModal();
+    const priceInput = screen.getByPlaceholderText("Precio");
+    await userEvent.clear(priceInput);
+    await userEvent.type(priceInput, "45000");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar precio" }));
+
+    expect(screen.getByTestId("price-overridden").textContent).toContain(
+      "Precio ajustado",
+    );
+  });
+});
+
+describe("POS price override permission (manager only)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    createSaleMutateMock.mockResolvedValue(makeSale());
+  });
+
+  afterEach(() => {
+    cleanup();
+    authState.role = "CASHIER";
+  });
+
+  function renderWithSingleProduct(name: string, salePrice: number) {
+    useProductsMock.mockReturnValue({
+      data: {
+        data: [makeProduct("p1", name, { salePrice })],
+        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      },
+      isLoading: false,
+      isFetching: false,
+    });
+    return render(<POSPage />);
+  }
+
+  async function openDiscountModal() {
+    await userEvent.click(screen.getByTitle("Descuento"));
+  }
+
+  async function expectNoPriceControl(name: string) {
+    renderWithSingleProduct(name, 50000);
+    await userEvent.click(screen.getByRole("button", { name }));
+    await openDiscountModal();
+
+    // The discount half of the modal still works for a cashier...
+    expect(screen.getByPlaceholderText("0.00")).toBeTruthy();
+    // ...but the price override is not offered at all.
+    expect(screen.queryByRole("button", { name: "Aplicar precio" })).toBeNull();
+    expect(screen.queryByPlaceholderText("Precio")).toBeNull();
+  }
+
+  it("hides the Aplicar precio control from a CASHIER", async () => {
+    authState.role = "CASHIER";
+    await expectNoPriceControl("Producto Cajero");
+  });
+
+  it("hides the Aplicar precio control from a MEMBER", async () => {
+    authState.role = "MEMBER";
+    await expectNoPriceControl("Producto Miembro");
+  });
+
+  it("hides the Aplicar precio control when there is no user", async () => {
+    authState.role = "";
+    await expectNoPriceControl("Producto Anonimo");
+  });
+
+  it("shows the Aplicar precio control to an ADMIN", async () => {
+    authState.role = "ADMIN";
+    renderWithSingleProduct("Producto Admin", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto Admin" }));
+    await openDiscountModal();
+
+    expect(screen.getByRole("button", { name: "Aplicar precio" })).toBeTruthy();
+  });
+
+  it("shows the Aplicar precio control to an OWNER (inherits ADMIN)", async () => {
+    // Mirrors RolesGuard.getInheritedRoles, where OWNER inherits ADMIN.
+    authState.role = "OWNER";
+    renderWithSingleProduct("Producto Owner", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto Owner" }));
+    await openDiscountModal();
+
+    expect(screen.getByRole("button", { name: "Aplicar precio" })).toBeTruthy();
+  });
+
+  it("omits unitPrice from the payload for a CASHIER so the server derives it", async () => {
+    // A CASHIER cannot override, so the client must not even claim a price:
+    // if a promotion is applied after the line enters the cart, echoing the
+    // stale cart price would be rejected as an unauthorized override.
+    authState.role = "CASHIER";
+    renderWithSingleProduct("Producto Server", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto Server" }));
+
+    await userEvent.click(screen.getByRole("button", { name: /tarjeta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /confirmar pago/i }, { timeout: 3000 }),
+    );
+
+    await waitFor(() => {
+      expect(createSaleMutateMock).toHaveBeenCalled();
+    });
+
+    const payload = createSaleMutateMock.mock.calls[0]?.[0] as {
+      items: Array<{ productId: string; unitPrice?: number }>;
+    };
+    expect(payload.items).toHaveLength(1);
+    expect(payload.items[0]).not.toHaveProperty("unitPrice");
+  });
+
+  it("omits unitPrice from the payload when the line matches the product price", async () => {
+    authState.role = "ADMIN";
+    renderWithSingleProduct("Producto Sin Editar", 50000);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Producto Sin Editar" }),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /tarjeta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /finalizar venta/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /confirmar pago/i }, { timeout: 3000 }),
+    );
+
+    await waitFor(() => {
+      expect(createSaleMutateMock).toHaveBeenCalled();
+    });
+
+    const payload = createSaleMutateMock.mock.calls[0]?.[0] as {
+      items: Array<{ unitPrice?: number }>;
+    };
+    expect(payload.items[0]).not.toHaveProperty("unitPrice");
   });
 });
 
