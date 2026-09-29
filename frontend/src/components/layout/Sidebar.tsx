@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { OrganizationSwitcher } from "@/components/auth/OrganizationSwitcher";
 import { useQueryClient } from "@tanstack/react-query";
+import { SELECTED_ORGANIZATION_KEY } from "@/lib/session";
 import {
   LayoutDashboard,
   ShoppingBasket,
@@ -139,7 +140,7 @@ export function Sidebar() {
   const queryClient = useQueryClient();
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("selectedOrganizationId");
+      return localStorage.getItem(SELECTED_ORGANIZATION_KEY);
     }
     return null;
   });
@@ -283,14 +284,19 @@ export function Sidebar() {
                 currentOrganizationId={selectedOrgId}
                 onSwitch={async (orgId) => {
                   setSelectedOrgId(orgId);
-                  localStorage.setItem("selectedOrganizationId", orgId);
-                  queryClient.invalidateQueries();
+                  localStorage.setItem(SELECTED_ORGANIZATION_KEY, orgId);
+                  // A scope change must REMOVE the previous scope's data rather
+                  // than mark it stale: invalidation leaves those rows readable
+                  // while the refetch resolves, so the previously selected
+                  // organization stays on screen. The switcher's own list comes
+                  // back because its observer stays mounted and refetches.
+                  queryClient.clear();
                 }}
                 isSuperAdmin
                 onSelectAll={() => {
                   setSelectedOrgId(null);
-                  localStorage.removeItem("selectedOrganizationId");
-                  queryClient.invalidateQueries();
+                  localStorage.removeItem(SELECTED_ORGANIZATION_KEY);
+                  queryClient.clear();
                 }}
               />
             ) : (

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Sidebar } from "./Sidebar";
 import { api } from "@/lib/api";
@@ -225,5 +226,57 @@ describe("Sidebar", () => {
     expect(
       screen.queryByRole("link", { name: "Salidas" })
     ).not.toBeInTheDocument();
+  });
+
+  it("removes the previously scoped data when a SuperAdmin changes organization", async () => {
+    useAuthMock.mockReturnValue({
+      user: {
+        id: "admin-1",
+        email: "admin@example.com",
+        role: "ADMIN",
+        active: true,
+        isSuperAdmin: true,
+        organizationId: null,
+      },
+      logout: vi.fn(),
+      switchOrganization: switchOrganizationMock,
+    });
+    // The SuperAdmin switcher reads the admin endpoint, which returns an array.
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [
+        { id: "org-a", name: "Org A", plan: "BASIC", status: "ACTIVE" },
+        { id: "org-b", name: "Org B", plan: "PRO", status: "ACTIVE" },
+      ],
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const scopedKey = ["products", { page: 1, limit: 10 }];
+    queryClient.setQueryData(scopedKey, {
+      data: [{ id: "product-from-org-a" }],
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Sidebar />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith("/admin/organizations");
+    });
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Seleccionar organizacion" })
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /Org A/ }));
+
+    // A scope change must REMOVE the previous scope's data rather than mark it
+    // stale: invalidation leaves those rows readable while the refetch resolves,
+    // so the previously selected organization would stay on screen.
+    await waitFor(() => {
+      expect(queryClient.getQueryData(scopedKey)).toBeUndefined();
+    });
   });
 });
