@@ -215,7 +215,7 @@ export class SalesService {
         );
       }
 
-      const unitPrice = requestedUnitPrice ?? serverUnitPrice;
+      const unitPrice = isOverride ? requestedUnitPrice : serverUnitPrice;
 
       if (isOverride) {
         priceOverrides.push({
