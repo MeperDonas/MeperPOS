@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { OrganizationSwitcher } from "@/components/auth/OrganizationSwitcher";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { SELECTED_ORGANIZATION_KEY } from "@/lib/session";
 import {
   LayoutDashboard,
@@ -132,6 +132,33 @@ const roleLabels: Record<string, string> = {
   CASHIER: "Cajero",
   INVENTORY_USER: "Inventario",
 };
+
+/**
+ * Applies a SuperAdmin organization scope change.
+ *
+ * A scope change must RESET the queries: not clear them, and not merely
+ * invalidate them.
+ *
+ * - Invalidating leaves the previous organization's rows readable while the
+ *   refetch resolves.
+ * - Clearing empties the cache but leaves a MOUNTED observer holding its last
+ *   result, and unlike invalidating it requests no refetch at all, so those rows
+ *   can stay on screen indefinitely.
+ *
+ * `resetQueries` drops the displayed state AND refetches the active queries,
+ * which is also how the switcher's own organization list comes back.
+ */
+export function applyOrganizationScope(
+  queryClient: QueryClient,
+  organizationId: string | null
+): void {
+  if (organizationId) {
+    localStorage.setItem(SELECTED_ORGANIZATION_KEY, organizationId);
+  } else {
+    localStorage.removeItem(SELECTED_ORGANIZATION_KEY);
+  }
+  void queryClient.resetQueries();
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -284,19 +311,12 @@ export function Sidebar() {
                 currentOrganizationId={selectedOrgId}
                 onSwitch={async (orgId) => {
                   setSelectedOrgId(orgId);
-                  localStorage.setItem(SELECTED_ORGANIZATION_KEY, orgId);
-                  // A scope change must REMOVE the previous scope's data rather
-                  // than mark it stale: invalidation leaves those rows readable
-                  // while the refetch resolves, so the previously selected
-                  // organization stays on screen. The switcher's own list comes
-                  // back because its observer stays mounted and refetches.
-                  queryClient.clear();
+                  applyOrganizationScope(queryClient, orgId);
                 }}
                 isSuperAdmin
                 onSelectAll={() => {
                   setSelectedOrgId(null);
-                  localStorage.removeItem(SELECTED_ORGANIZATION_KEY);
-                  queryClient.clear();
+                  applyOrganizationScope(queryClient, null);
                 }}
               />
             ) : (
