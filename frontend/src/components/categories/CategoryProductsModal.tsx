@@ -17,11 +17,11 @@ interface CategoryProductsModalProps {
 
 function StockBadge({ product }: { product: Product }) {
   // A service carries no stock chip and is never out of stock nor low on stock,
-  // whatever the stored numbers say.
+  // whatever the stored numbers say. The low-stock decision is the server's
+  // (`isLowStock`), so an untracked product cannot be badged from stale numbers.
   const service = isService(product);
   const isOutOfStock = !service && product.stock === 0;
-  const isLowStock =
-    !service && product.stock > 0 && product.stock <= product.minStock;
+  const isLowStock = product.isLowStock === true;
 
   return (
     <span
