@@ -6,7 +6,7 @@ import {
   ForbiddenException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { Prisma, PrismaClient, ProductType } from '@prisma/client';
+import { OrgRole, Prisma, PrismaClient, ProductType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSaleDto, UpdateSaleDto } from './dto/sales.dto';
 import type { Response } from 'express';
@@ -54,10 +54,76 @@ export class SalesService {
     return { userId: user.userId };
   }
 
+  /**
+   * Price override is a manager permission, not a cashier one.
+   *
+   * Mirrors the hierarchy enforced by `RolesGuard.getInheritedRoles` — OWNER and
+   * SUPER_ADMIN inherit ADMIN — so the POS control (which only renders for
+   * `hasAnyRole(role, ["ADMIN"])`) and this gate agree on who may override. A
+   * missing `user` is treated as "no manager permission" (deny by default),
+   * because the price is the server's to defend.
+   */
+  private canOverridePrice(user: RequestUser | undefined): boolean {
+    if (!user) return false;
+    if (user.isSuperAdmin || user.role === 'SUPER_ADMIN') return true;
+    return user.role === OrgRole.ADMIN || user.role === OrgRole.OWNER;
+  }
+
+  /**
+   * Writes the audit trail for a single overridden sale line.
+   *
+   * Follows the `audit(...)` convention of `ExpenseTaxonomyService` (one
+   * SCREAMING_SNAKE action, a `resource`/`resourceId` pair, and a JSON
+   * `metadata` payload) with the actor on `userId` as `ExpensesService` does.
+   * `AuditLog` has no dedicated price columns, so the original and overridden
+   * prices live in `metadata` — the model can carry them without a migration.
+   *
+   * Called inside the sale transaction on purpose: an audit trail that can be
+   * lost because a separate write failed is not an audit trail.
+   */
+  private async auditPriceOverride(
+    tx: Prisma.TransactionClient,
+    entry: {
+      saleId: string;
+      saleNumber: number;
+      productId: string;
+      productName: string;
+      quantity: number;
+      serverUnitPrice: number;
+      overriddenUnitPrice: number;
+      userId: string;
+      organizationId: string;
+      actorRole: string;
+    },
+  ): Promise<void> {
+    await tx.auditLog.create({
+      data: {
+        userId: entry.userId,
+        action: 'SALE_PRICE_OVERRIDE',
+        resource: 'Sale',
+        resourceId: entry.saleId,
+        organizationId: entry.organizationId,
+        metadata: {
+          summary: `Price override on sale #${entry.saleNumber}: ${entry.productName} charged at ${entry.overriddenUnitPrice} instead of ${entry.serverUnitPrice}`,
+          saleId: entry.saleId,
+          saleNumber: entry.saleNumber,
+          productId: entry.productId,
+          productName: entry.productName,
+          quantity: entry.quantity,
+          originalUnitPrice: entry.serverUnitPrice,
+          overriddenUnitPrice: entry.overriddenUnitPrice,
+          actorRole: entry.actorRole,
+          timestamp: new Date().toISOString(),
+        },
+      },
+    });
+  }
+
   async create(
     createSaleDto: CreateSaleDto,
     userId: string,
     organizationId: string | undefined,
+    user?: RequestUser,
   ) {
     if (!organizationId) {
       throw new BadRequestException('Organization ID is required for this operation');
@@ -89,6 +155,17 @@ export class SalesService {
       total: number;
     }> = [];
 
+    // Manager-approved price overrides awaiting their audit rows. Collected
+    // here so the audit is written against the persisted sale, inside the same
+    // transaction that writes it.
+    const priceOverrides: Array<{
+      productId: string;
+      productName: string;
+      quantity: number;
+      serverUnitPrice: number;
+      overriddenUnitPrice: number;
+    }> = [];
+
     for (const item of items) {
       const product = await this.prisma.product.findFirst({
         where: { id: item.productId, organizationId },
@@ -105,9 +182,51 @@ export class SalesService {
         throw new BadRequestException(`Product ${product.name} is not active`);
       }
 
-      const unitPrice = Number(
-        item.unitPrice ?? computeEffectiveSalePrice(product) ?? product.salePrice,
+      // The server owns the price. `computeEffectiveSalePrice` is the single
+      // source of truth (promotion-aware); a client-supplied `unitPrice` is
+      // never a default to fall back to, it is a request to override it — and
+      // overriding is a manager-only, audited act.
+      const serverUnitPrice = Number(
+        computeEffectiveSalePrice(product) ?? product.salePrice,
       );
+      const requestedUnitPrice =
+        item.unitPrice === undefined || item.unitPrice === null
+          ? null
+          : Number(item.unitPrice);
+
+      // Defensive: the DTO's @Min(0) already rejects negatives, but the service
+      // is also reachable from paths that skip the ValidationPipe, and a
+      // negative price would flip the sale into money owed rather than paid.
+      if (requestedUnitPrice !== null && requestedUnitPrice < 0) {
+        throw new BadRequestException(
+          `Unit price for product ${product.name} cannot be negative`,
+        );
+      }
+
+      // 0.01 tolerance absorbs float noise between a client that round-trips
+      // the server price and the DECIMAL(10,2) value it was derived from.
+      const isOverride =
+        requestedUnitPrice !== null &&
+        Math.abs(requestedUnitPrice - serverUnitPrice) > 0.01;
+
+      if (isOverride && !this.canOverridePrice(user)) {
+        throw new ForbiddenException(
+          `Only an ADMIN may override the unit price of ${product.name}`,
+        );
+      }
+
+      const unitPrice = requestedUnitPrice ?? serverUnitPrice;
+
+      if (isOverride) {
+        priceOverrides.push({
+          productId: product.id,
+          productName: product.name,
+          quantity: item.quantity,
+          serverUnitPrice,
+          overriddenUnitPrice: unitPrice,
+        });
+      }
+
       const grossSubtotal = unitPrice * item.quantity;
       const itemDiscount = Math.max(0, item.discountAmount || 0);
 
@@ -268,6 +387,20 @@ export class SalesService {
                 },
               });
             }
+          }
+
+          // Every override leaves a trail, written in the same transaction as
+          // the sale it explains: if the audit cannot be persisted, the sale
+          // rolls back with it.
+          for (const override of priceOverrides) {
+            await this.auditPriceOverride(tx, {
+              saleId: createdSale.id,
+              saleNumber,
+              userId,
+              organizationId,
+              actorRole: user?.role ?? 'UNKNOWN',
+              ...override,
+            });
           }
 
           for (const payment of payments) {

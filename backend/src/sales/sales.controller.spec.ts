@@ -115,10 +115,13 @@ describe('SalesController', () => {
     const result = await controller.create(createSaleDto, cashierUser);
 
     expect(result).toEqual(expected);
+    // The role must reach the service: SalesService needs it to authorize a
+    // price override, so it is threaded as the acting principal.
     expect(salesServiceMock.create).toHaveBeenCalledWith(
       createSaleDto,
       'cashier-1',
       'org-1',
+      cashierUser,
     );
   });
 });

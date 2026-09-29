@@ -10,6 +10,25 @@ import { SalesService } from './sales.service';
 describe('SalesService', () => {
   let service: SalesService;
 
+  // Acting principals for the price-override permission. Only the manager
+  // fixture may deviate from the server-derived price.
+  const adminUser = {
+    userId: 'user-1',
+    email: 'admin@example.com',
+    organizationId: 'org-1',
+    role: 'ADMIN',
+    tokenVersion: 0,
+    isSuperAdmin: false,
+  } as const;
+  const cashierUser = {
+    ...adminUser,
+    role: 'CASHIER',
+  } as const;
+  const memberUser = {
+    ...adminUser,
+    role: 'MEMBER',
+  } as const;
+
   const sequenceServiceMock = {
     nextNumber: jest.fn(),
   };
@@ -583,7 +602,7 @@ describe('SalesService', () => {
     );
   });
 
-  it('create honors an edited unit price (price override) instead of product salePrice', async () => {
+  it('create honors an ADMIN price override instead of product salePrice, and audits it', async () => {
     const txMock = {
       sale: { create: jest.fn() },
       saleItem: { create: jest.fn() },
@@ -593,6 +612,7 @@ describe('SalesService', () => {
       },
       inventoryMovement: { create: jest.fn() },
       payment: { create: jest.fn() },
+      auditLog: { create: jest.fn() },
     };
 
     prismaMock.$transaction.mockImplementation(
@@ -628,18 +648,28 @@ describe('SalesService', () => {
       {
         customerId: 'cust-1',
         items: [
-          { productId: 'prod-1', quantity: 1, unitPrice: 80, discountAmount: 0 },
+          {
+            productId: 'prod-1',
+            quantity: 1,
+            unitPrice: 80,
+            discountAmount: 0,
+          },
         ],
         discountAmount: 0,
         payments: [{ method: 'CASH' as const, amount: 80 }],
       },
       'user-1',
       'org-1',
+      adminUser,
     );
 
     expect(txMock.saleItem.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ unitPrice: 80, subtotal: 80, total: 80 }),
+        data: expect.objectContaining({
+          unitPrice: 80,
+          subtotal: 80,
+          total: 80,
+        }),
       }),
     );
     expect(txMock.sale.create).toHaveBeenCalledWith(
@@ -647,6 +677,22 @@ describe('SalesService', () => {
         data: expect.objectContaining({ subtotal: 80, total: 80 }),
       }),
     );
+    // The override must leave a trail carrying both prices and the actor.
+    expect(txMock.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'user-1',
+        action: 'SALE_PRICE_OVERRIDE',
+        resource: 'Sale',
+        resourceId: 'sale-new',
+        organizationId: 'org-1',
+        metadata: expect.objectContaining({
+          productId: 'prod-1',
+          originalUnitPrice: 100,
+          overriddenUnitPrice: 80,
+          actorRole: 'ADMIN',
+        }),
+      }),
+    });
   });
 
   it('create persists the authoritative product cost and ignores a client cost snapshot', async () => {
@@ -710,7 +756,9 @@ describe('SalesService', () => {
         data: expect.objectContaining({ costPriceSnapshot: 37.25 }),
       }),
     );
-    expect(txMock.saleItem.create.mock.calls[0][0].data.costPriceSnapshot).not.toBe(999);
+    expect(
+      txMock.saleItem.create.mock.calls[0][0].data.costPriceSnapshot,
+    ).not.toBe(999);
   });
 
   it('keeps the sale cost snapshot independent from later product cost changes', async () => {
@@ -996,6 +1044,7 @@ describe('SalesService', () => {
       },
       inventoryMovement: { create: jest.fn() },
       payment: { create: jest.fn() },
+      auditLog: { create: jest.fn() },
     });
 
     const primeCreate = (
@@ -1075,20 +1124,26 @@ describe('SalesService', () => {
       expect(persisted.total).toBe(8000);
     });
 
-    it('honors a trusted client unitPrice override even with an active promotion', async () => {
+    it('honors an ADMIN unitPrice override even with an active promotion', async () => {
       const tx = buildTx();
       primeCreate(tx, promoProduct, 52);
 
       await service.create(
         {
           items: [
-            { productId: 'prod-1', quantity: 1, unitPrice: 9000, discountAmount: 0 },
+            {
+              productId: 'prod-1',
+              quantity: 1,
+              unitPrice: 9000,
+              discountAmount: 0,
+            },
           ],
           discountAmount: 0,
           payments: [{ method: 'CASH' as const, amount: 9000 }],
         },
         'user-1',
         'org-1',
+        adminUser,
       );
 
       expect(tx.saleItem.create).toHaveBeenCalledWith(
@@ -1096,6 +1151,71 @@ describe('SalesService', () => {
           data: expect.objectContaining({ unitPrice: 9000, subtotal: 9000 }),
         }),
       );
+      // Original price recorded is the PROMOTIONAL one the server derived,
+      // not the list price.
+      expect(tx.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: 'SALE_PRICE_OVERRIDE',
+          metadata: expect.objectContaining({
+            originalUnitPrice: 8000,
+            overriddenUnitPrice: 9000,
+          }),
+        }),
+      });
+    });
+
+    it('charges the promotional price when the client echoes the LIST price', async () => {
+      // Behavior change made live by this fix: the client can no longer pin the
+      // sale to list price by sending it. The server derives 8000 from the
+      // PERCENTAGE 20 promotion and the CASHIER's echoed 10000 is treated as
+      // an unauthorized override, not as a valid price.
+      const tx = buildTx();
+      primeCreate(tx, promoProduct, 55);
+
+      await expect(
+        service.create(
+          {
+            items: [
+              {
+                productId: 'prod-1',
+                quantity: 1,
+                unitPrice: 10000,
+                discountAmount: 0,
+              },
+            ],
+            discountAmount: 0,
+            payments: [{ method: 'CASH' as const, amount: 10000 }],
+          },
+          'user-1',
+          'org-1',
+          cashierUser,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(tx.sale.create).not.toHaveBeenCalled();
+    });
+
+    it('charges the promotional price when the client sends no price at all', async () => {
+      const tx = buildTx();
+      primeCreate(tx, promoProduct, 56);
+
+      await service.create(
+        {
+          items: [{ productId: 'prod-1', quantity: 1, discountAmount: 0 }],
+          discountAmount: 0,
+          payments: [{ method: 'CASH' as const, amount: 8000 }],
+        },
+        'user-1',
+        'org-1',
+        cashierUser,
+      );
+
+      expect(tx.saleItem.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ unitPrice: 8000, subtotal: 8000 }),
+        }),
+      );
+      expect(tx.auditLog.create).not.toHaveBeenCalled();
     });
 
     it('stacks the manual rebate on the offer price and floors the item total at zero', async () => {
@@ -1139,6 +1259,258 @@ describe('SalesService', () => {
           'org-1',
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('create price override authorization', () => {
+    // A plain product, no promotion: the server price is the list price, so
+    // any deviation the client asks for is unambiguously an override.
+    const plainProduct = {
+      id: 'prod-1',
+      name: 'Plain Product',
+      active: true,
+      costPrice: 5000,
+      salePrice: 100000,
+      taxable: false,
+      taxRate: 0,
+      stock: 10,
+      category: { taxable: false, defaultTaxRate: null },
+    };
+
+    const buildTx = () => ({
+      sale: { create: jest.fn() },
+      saleItem: { create: jest.fn() },
+      product: {
+        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      inventoryMovement: { create: jest.fn() },
+      payment: { create: jest.fn() },
+      auditLog: { create: jest.fn() },
+    });
+
+    const primeCreate = (tx: ReturnType<typeof buildTx>) => {
+      prismaMock.$transaction.mockImplementation(
+        async (callback: (tx: unknown) => unknown) => callback(tx),
+      );
+      sequenceServiceMock.nextNumber.mockResolvedValue({
+        number: 60,
+        formatted: '60',
+      });
+      prismaMock.product.findFirst.mockResolvedValue(plainProduct);
+      tx.sale.create.mockResolvedValue({ id: 'sale-new', saleNumber: 60 });
+      prismaMock.sale.findFirst.mockResolvedValue({
+        id: 'sale-new',
+        saleNumber: 60,
+        userId: 'user-1',
+        user: { id: 'user-1', name: 'User', email: 'user@example.com' },
+        customer: null,
+        items: [],
+        payments: [],
+      });
+    };
+
+    const dtoWithPrice = (unitPrice?: number) => ({
+      items: [
+        { productId: 'prod-1', quantity: 1, unitPrice, discountAmount: 0 },
+      ],
+      discountAmount: 0,
+      payments: [{ method: 'CASH' as const, amount: unitPrice ?? 100000 }],
+    });
+
+    it('rejects a CASHIER override', async () => {
+      const tx = buildTx();
+      primeCreate(tx);
+
+      await expect(
+        service.create(dtoWithPrice(1), 'user-1', 'org-1', cashierUser),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      // Nothing may be persisted for a rejected override.
+      expect(tx.sale.create).not.toHaveBeenCalled();
+      expect(tx.saleItem.create).not.toHaveBeenCalled();
+      expect(tx.auditLog.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects a MEMBER override (MEMBER is not a manager)', async () => {
+      const tx = buildTx();
+      primeCreate(tx);
+
+      await expect(
+        service.create(dtoWithPrice(1), 'user-1', 'org-1', memberUser),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(tx.sale.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects an override when no acting principal is supplied at all', async () => {
+      const tx = buildTx();
+      primeCreate(tx);
+
+      await expect(
+        service.create(dtoWithPrice(1), 'user-1', 'org-1'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(tx.sale.create).not.toHaveBeenCalled();
+    });
+
+    it('accepts an ADMIN override down to 0 and audits original + new + actor', async () => {
+      const tx = buildTx();
+      primeCreate(tx);
+
+      await service.create(dtoWithPrice(0), 'user-1', 'org-1', adminUser);
+
+      expect(tx.saleItem.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            unitPrice: 0,
+            subtotal: 0,
+            total: 0,
+          }),
+        }),
+      );
+      expect(tx.auditLog.create).toHaveBeenCalledTimes(1);
+      const auditRow = tx.auditLog.create.mock.calls[0][0].data;
+      expect(auditRow.userId).toBe('user-1');
+      expect(auditRow.action).toBe('SALE_PRICE_OVERRIDE');
+      expect(auditRow.resource).toBe('Sale');
+      expect(auditRow.resourceId).toBe('sale-new');
+      expect(auditRow.organizationId).toBe('org-1');
+      expect(auditRow.metadata).toMatchObject({
+        saleId: 'sale-new',
+        productId: 'prod-1',
+        productName: 'Plain Product',
+        quantity: 1,
+        originalUnitPrice: 100000,
+        overriddenUnitPrice: 0,
+        actorRole: 'ADMIN',
+      });
+    });
+
+    it('writes no audit row when the client price matches the server price', async () => {
+      const tx = buildTx();
+      primeCreate(tx);
+
+      await service.create(
+        dtoWithPrice(100000),
+        'user-1',
+        'org-1',
+        cashierUser,
+      );
+
+      expect(tx.saleItem.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ unitPrice: 100000 }),
+        }),
+      );
+      expect(tx.auditLog.create).not.toHaveBeenCalled();
+    });
+
+    it('writes no audit row when the client omits the price entirely', async () => {
+      const tx = buildTx();
+      primeCreate(tx);
+
+      await service.create(
+        dtoWithPrice(undefined),
+        'user-1',
+        'org-1',
+        cashierUser,
+      );
+
+      expect(tx.saleItem.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ unitPrice: 100000 }),
+        }),
+      );
+      expect(tx.auditLog.create).not.toHaveBeenCalled();
+    });
+
+    it('tolerates float noise within 0.01 and does not treat it as an override', async () => {
+      const tx = buildTx();
+      primeCreate(tx);
+
+      // A client round-tripping a DECIMAL(10,2) value can land a hair off.
+      await service.create(
+        dtoWithPrice(100000.005),
+        'user-1',
+        'org-1',
+        cashierUser,
+      );
+
+      expect(tx.auditLog.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects a negative override for an ADMIN (defensive, past the DTO)', async () => {
+      const tx = buildTx();
+      primeCreate(tx);
+
+      await expect(
+        service.create(
+          {
+            items: [
+              {
+                productId: 'prod-1',
+                quantity: 1,
+                unitPrice: -50,
+                discountAmount: 0,
+              },
+            ],
+            discountAmount: 0,
+            payments: [{ method: 'CASH' as const, amount: 0 }],
+          } as never,
+          'user-1',
+          'org-1',
+          adminUser,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(tx.sale.create).not.toHaveBeenCalled();
+    });
+
+    it('audits each overridden line separately on a multi-line sale', async () => {
+      const tx = buildTx();
+      primeCreate(tx);
+      prismaMock.product.findFirst
+        .mockResolvedValueOnce(plainProduct)
+        .mockResolvedValueOnce({
+          ...plainProduct,
+          id: 'prod-2',
+          name: 'Second',
+          salePrice: 50000,
+        });
+
+      await service.create(
+        {
+          items: [
+            {
+              productId: 'prod-1',
+              quantity: 1,
+              unitPrice: 90000,
+              discountAmount: 0,
+            },
+            {
+              productId: 'prod-2',
+              quantity: 1,
+              unitPrice: 40000,
+              discountAmount: 0,
+            },
+          ],
+          discountAmount: 0,
+          payments: [{ method: 'CASH' as const, amount: 130000 }],
+        },
+        'user-1',
+        'org-1',
+        adminUser,
+      );
+
+      expect(tx.auditLog.create).toHaveBeenCalledTimes(2);
+      expect(tx.auditLog.create.mock.calls[0][0].data.metadata).toMatchObject({
+        productId: 'prod-1',
+        originalUnitPrice: 100000,
+        overriddenUnitPrice: 90000,
+      });
+      expect(tx.auditLog.create.mock.calls[1][0].data.metadata).toMatchObject({
+        productId: 'prod-2',
+        originalUnitPrice: 50000,
+        overriddenUnitPrice: 40000,
+      });
     });
   });
 });

@@ -51,6 +51,7 @@ export class SalesController {
       createSaleDto,
       user.userId,
       user.organizationId,
+      user,
     );
   }
 
