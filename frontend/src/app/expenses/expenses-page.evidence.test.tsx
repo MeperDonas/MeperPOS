@@ -15,7 +15,6 @@ const useExpensesMock = vi.fn();
 const useExpenseSummaryMock = vi.fn();
 const useExpenseGroupsMock = vi.fn();
 const useSuppliersMock = vi.fn();
-const deleteMutateAsyncMock = vi.fn();
 const duplicateMutateAsyncMock = vi.fn();
 const uploadReceiptMutateAsyncMock = vi.fn();
 const { taxonomyMutationMock } = vi.hoisted(() => ({
@@ -38,7 +37,6 @@ vi.mock("@/hooks/useExpenses", () => ({
   useCreateExpenseLabel: taxonomyMutationMock,
   useUpdateExpenseLabel: taxonomyMutationMock,
   useDeleteExpenseLabel: taxonomyMutationMock,
-  useDeleteExpense: () => ({ mutateAsync: deleteMutateAsyncMock }),
   useDuplicateExpense: () => ({ mutateAsync: duplicateMutateAsyncMock }),
   useUploadExpenseReceipt: () => ({ mutateAsync: uploadReceiptMutateAsyncMock }),
 }));
@@ -154,7 +152,6 @@ describe("Expenses page evidence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     exportDataMock.mockResolvedValue(undefined);
-    deleteMutateAsyncMock.mockResolvedValue({} as never);
     duplicateMutateAsyncMock.mockResolvedValue({} as never);
     uploadReceiptMutateAsyncMock.mockResolvedValue({} as never);
 
@@ -315,18 +312,16 @@ describe("Expenses page evidence", () => {
     expect(button).toHaveAttribute("title", "La salida ya está pagada");
   });
 
-  it("deletes an expense after confirmation (EXP-5)", async () => {
-    const user = userEvent.setup();
-
+  // Absence regression (EXP-5): the owner asked for the per-row delete
+  // affordance to be removed from the interface. Assert the user-visible
+  // affordance is gone, not how the page happens to be implemented.
+  it("does not offer a per-row delete action (EXP-5)", () => {
     render(<ExpensesPage />);
 
-    await user.click(screen.getAllByRole("button", { name: "Eliminar gasto" })[0]);
-    expect(screen.getByText("Eliminar gasto")).toBeTruthy();
-
-    await user.click(screen.getByRole("button", { name: "Sí, eliminar" }));
-
-    expect(deleteMutateAsyncMock).toHaveBeenCalledWith("exp-1");
-    expect(toastSuccessMock).toHaveBeenCalledWith("Gasto eliminado");
+    expect(
+      screen.queryAllByRole("button", { name: "Eliminar gasto" }),
+    ).toHaveLength(0);
+    expect(screen.queryByText("Eliminar gasto")).toBeNull();
   });
 
   it("duplicates an expense after confirmation (EXP-10)", async () => {
