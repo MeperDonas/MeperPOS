@@ -64,15 +64,10 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
   const { data: ordersData } = usePurchaseOrders({ limit: 200 });
 
   const groups = groupsData ?? [];
-  const labelOptions = groups.flatMap((group) => [
-    { value: `group-${group.id}`, label: `— ${group.name} —` },
-    ...(group.labels ?? [])
-      .filter((label) => label.active)
-      .map((label) => ({ value: label.id, label: `${group.name} / ${label.name}` })),
-  ]);
   const suppliers = suppliersData?.data ?? [];
   const orders = ordersData?.data ?? [];
 
+  const [groupId, setGroupId] = useState(expense?.label?.groupId ?? "");
   const [labelId, setLabelId] = useState(expense?.labelId ?? "");
   const [supplierId, setSupplierId] = useState(expense?.supplierId ?? "");
   const [purchaseOrderId, setPurchaseOrderId] = useState(
@@ -90,6 +85,34 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
     null,
   );
 
+  /**
+   * Derived, not synced. A synchronous setState inside an effect body cascades
+   * renders, which is what `react-hooks/set-state-in-effect` flags, so the group
+   * and the label are computed from what the operator chose plus what the loaded
+   * groups say. State keeps the choice; these keep it consistent.
+   *
+   * While the groups are still loading nothing is dropped: an edit form must not
+   * blank a label it cannot validate yet. The lookup is deliberately not filtered
+   * by `active`, so editing an expense that carries a now-inactive label does not
+   * silently clear it.
+   */
+  const groupIdOfLabel = (id: string) =>
+    groups
+      .flatMap((group) => group.labels ?? [])
+      .find((label) => label.id === id)?.groupId ?? "";
+
+  const effectiveGroupId = groupId || groupIdOfLabel(labelId);
+  const effectiveLabelId =
+    groups.length > 0 && groupIdOfLabel(labelId) !== effectiveGroupId
+      ? ""
+      : labelId;
+
+  const labelOptions = effectiveGroupId
+    ? (groups.find((group) => group.id === effectiveGroupId)?.labels ?? [])
+        .filter((label) => label.active)
+        .map((label) => ({ value: label.id, label: label.name }))
+    : [];
+
   const numericTotal = Number(total) || 0;
   const paymentsSum = rows.reduce(
     (acc, row) => acc + (Number(row.amount) || 0),
@@ -103,7 +126,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
       )
     : 0;
 
-  const error = !labelId
+  const error = !effectiveLabelId
     ? "Selecciona una etiqueta de gasto"
     : !date
       ? "Selecciona una fecha"
@@ -126,7 +149,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
         await updateExpense.mutateAsync({
           id: expense.id,
           data: {
-            labelId,
+            labelId: effectiveLabelId,
             supplierId: supplierId || null,
             purchaseOrderId: purchaseOrderId || null,
             description: description.trim() || null,
@@ -137,7 +160,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
         toast.success("Gasto actualizado");
       } else {
         const created = await createExpense.mutateAsync({
-          labelId,
+          labelId: effectiveLabelId,
           supplierId: supplierId || undefined,
           purchaseOrderId: purchaseOrderId || undefined,
           description: description.trim() || undefined,
@@ -191,12 +214,40 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
         {/* Left column: expense data */}
         <div className="space-y-3">
           <BentoSelect
-            label="Grupo y etiqueta"
-            value={labelId}
+            label="Grupo"
+            value={effectiveGroupId}
             disabled={isGroupsLoading}
-            onChange={(value) => setLabelId(value.startsWith("group-") ? "" : value)}
+            onChange={(value) => {
+              setGroupId(value);
+              setLabelId("");
+            }}
             options={[
-              { value: "", label: isGroupsLoading ? "Cargando etiquetas..." : "Selecciona un gasto" },
+              { value: "", label: isGroupsLoading ? "Cargando grupos..." : "Selecciona un grupo" },
+              ...groups
+                .filter((group) => group.active)
+                .map((group) => ({ value: group.id, label: group.name })),
+            ]}
+          />
+
+          <BentoSelect
+            label="Etiqueta"
+            value={effectiveLabelId}
+            disabled={isGroupsLoading || !effectiveGroupId}
+            onChange={(value) => {
+              const belongsToGroup = labelOptions.some((label) => label.value === value);
+              setLabelId(belongsToGroup ? value : "");
+            }}
+            options={[
+              {
+                value: "",
+                label: isGroupsLoading
+                  ? "Cargando etiquetas..."
+                  : !effectiveGroupId
+                    ? "Selecciona un grupo primero"
+                    : labelOptions.length
+                      ? "Selecciona una etiqueta"
+                      : "No hay etiquetas disponibles",
+              },
               ...labelOptions,
             ]}
           />
