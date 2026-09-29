@@ -14,6 +14,8 @@ import { safeSetItem, safeRemoveItem } from "@/lib/utils";
 import {
   setAccessToken,
   clearAccessToken,
+  clearSessionState,
+  USER_DISPLAY_CACHE_KEY,
 } from "@/lib/session";
 import { useRouter } from "next/navigation";
 import { OrganizationSelectModal } from "@/components/auth/OrganizationSelectModal";
@@ -57,16 +59,6 @@ interface AuthTokenResponse {
   refreshToken?: string;
   user?: User;
 }
-
-/** localStorage key for the user object. Display cache only, NOT auth material. */
-const USER_DISPLAY_CACHE_KEY = "user";
-
-/**
- * localStorage key for the SuperAdmin organization scope. The request layer
- * (lib/api.ts) injects it as the X-Organization-Id header and the sidebar writes
- * it, so it is identity-scoped state and must die with the session too.
- */
-const SELECTED_ORGANIZATION_KEY = "selectedOrganizationId";
 
 function extractAccessToken(payload: {
   accessToken?: string;
@@ -284,12 +276,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Best-effort server logout: revokes the refresh token and clears the
     // httpOnly cookies. Errors are ignored — local cleanup happens anyway.
     void api.post("/auth/logout").catch(() => undefined);
-    clearAccessToken();
-    safeRemoveItem(USER_DISPLAY_CACHE_KEY);
-    safeRemoveItem(SELECTED_ORGANIZATION_KEY);
+    // One owner for the session residue, shared with the request layer's
+    // dead-session branch so neither path can forget a piece of it.
+    clearSessionState();
     // Every cached query belongs to the identity that fetched it, and no query
     // key is identity-scoped, so the whole cache dies with the session. Without
     // this the next account is served the previous one's rows until a reload.
+    // Cleared here rather than inside clearSessionState because that module must
+    // not depend on React Query.
     queryClient.clear();
     setUser(null);
     setPendingSelection(null);
