@@ -18,7 +18,7 @@ npm run build           # Production build
 npm run start:prod      # Run production build
 npm run test            # Unit tests (Jest)
 npm run test:e2e        # End-to-end tests
-npm run test -- --testPathPattern=<file>  # Run single test file
+npm run test -- --testPathPatterns=<file> # Run single test file (Jest 30: plural)
 npm run lint            # ESLint with auto-fix
 npm run seed            # Seed database with faker data
 npx prisma migrate dev  # Run migrations
@@ -68,11 +68,13 @@ NestJS modules under `backend/src/`:
 - `prisma/` — singleton `PrismaService` shared across all modules
 - `testing/` — shared test fixtures/helpers
 
-**Auth flow**: Access and refresh tokens both ride **httpOnly cookies**. The refresh token is cookie-ONLY and is stripped from every response body. `applyAuthCookies` / `clearAuthCookies` in `auth/cookies.helper.ts` own that; a CSRF cookie + `cookie-csrf.guard.ts` protect the mutating routes. `JwtAuthGuard` + `JwtStrategy` validate the access token. **The frontend does not keep the access token in `localStorage`** — `setAccessToken`/`clearAccessToken` in `lib/api.ts` hold it in memory for the session, and `refreshSession()` dedupes concurrent refreshes. `localStorage` is used only for `selectedOrganizationId` and UI preferences.
+**Auth flow**: Access and refresh tokens both ride **httpOnly cookies**. The refresh token is cookie-ONLY and is stripped from every response body. `applyAuthCookies` / `clearAuthCookies` in `auth/cookies.helper.ts` own that; a CSRF cookie + `cookie-csrf.guard.ts` protect the mutating routes. `JwtAuthGuard` + `JwtStrategy` validate the access token. **The frontend does not keep the access token in `localStorage`** — `setAccessToken`/`clearAccessToken` in `lib/session.ts` hold it in memory for the session, and `refreshSession()` in `lib/api.ts` dedupes concurrent refreshes. `localStorage` is used only for `selectedOrganizationId` and UI preferences.
 
 **Role system**: `OrgRole` (`prisma/schema.prisma`) is the single role enum — `OWNER`, `ADMIN`, `MEMBER`, `CASHIER`, `INVENTORY_USER`. `SUPER_ADMIN` is a non-persisted pseudo-role carried on `RequestUser`, not a column. `RolesGuard.getInheritedRoles` nests them: `OWNER ⊃ ADMIN ⊃ MEMBER ⊃ CASHIER`; `INVENTORY_USER` inherits nothing. Enforce authorization with `@Roles(...)` on the route — the `DashboardLayout` route map and per-page role checks in the frontend are display only and are never a security boundary.
 
-**Database**: PostgreSQL via Prisma. Key models: `User`, `Product`, `Category`, `Customer`, `Sale`, `SaleItem`, `Payment`, `InventoryMovement`, `Settings`, `AuditLog`, `Organization`, `OrgUser`. There is **no optimistic-concurrency `version` field** on `Product`. Stock concurrency is a compare-and-swap: `updateMany({ id, active: true, stock: { gte: qty } })` inside a `Serializable` transaction, rejecting when `count === 0`.
+**Database**: PostgreSQL via Prisma. Key models: `User`, `Product`, `Category`, `Customer`, `Sale`, `SaleItem`, `Payment`, `InventoryMovement`, `Settings`, `AuditLog`, `Organization`, `OrgUser`.
+
+`Product` carries `version Int @default(0)` and it **is** used for optimistic concurrency: `ProductsService` updates with `where: { id, version: existingProduct.version, active: true }` plus `version: { increment: 1 }`, `PurchaseOrdersService` does the same when receiving stock, and `SettingsService` writes `Organization` under the same guard, answering 409 when the update matches nothing. Separately, the **stock quantity** is a compare-and-swap: `updateMany({ id, active: true, stock: { gte: qty } })` inside a transaction at `Prisma.TransactionIsolationLevel.Serializable`, rejecting when `count === 0`. The two mechanisms coexist — the version guard protects field-level edits, the CAS protects the stock quantity — so neither can be dropped on the assumption that the other covers it.
 
 ### Frontend Structure
 
