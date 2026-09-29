@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Sidebar } from "./Sidebar";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { Sidebar, applyOrganizationScope } from "./Sidebar";
 import { api } from "@/lib/api";
 
 const pushMock = vi.fn();
@@ -49,6 +49,22 @@ function wrapper({ children }: { children: React.ReactNode }) {
   });
   return (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
+//
+// A mounted consumer of a scoped list, so the test exercises an ACTIVE observer
+// rather than only what happens to sit in the cache.
+//
+function ScopedRowsProbe() {
+  const { data } = useQuery({
+    queryKey: ["products", { page: 1, limit: 10 }],
+    queryFn: () => Promise.resolve({ data: [] as Array<{ id: string }> }),
+    staleTime: Infinity,
+  });
+  const rows = (data as { data: Array<{ id: string }> } | undefined)?.data ?? [];
+  return (
+    <div data-testid="scoped-rows">{rows.map((row) => row.id).join(",")}</div>
   );
 }
 
@@ -277,6 +293,42 @@ describe("Sidebar", () => {
     // so the previously selected organization would stay on screen.
     await waitFor(() => {
       expect(queryClient.getQueryData(scopedKey)).toBeUndefined();
+    });
+  });
+
+  it("drops a mounted page's rows when the organization scope changes", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const scopedKey = ["products", { page: 1, limit: 10 }];
+    queryClient.setQueryData(scopedKey, {
+      data: [{ id: "product-from-org-a" }],
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ScopedRowsProbe />
+      </QueryClientProvider>
+    );
+
+    // The probe holds an ACTIVE observer on the scoped key, which is the case an
+    // assertion about the cache alone cannot reach.
+    expect(await screen.findByTestId("scoped-rows")).toHaveTextContent(
+      "product-from-org-a"
+    );
+
+    await act(async () => {
+      applyOrganizationScope(queryClient, "org-a");
+    });
+
+    // Emptying the cache is NOT enough: removeQueries/clear leaves a mounted
+    // observer holding its last result and requests no refetch at all, so the
+    // previous scope's rows can stay on screen indefinitely. Only a reset drops
+    // the displayed state AND refetches the active queries.
+    await waitFor(() => {
+      expect(screen.getByTestId("scoped-rows")).not.toHaveTextContent(
+        "product-from-org-a"
+      );
     });
   });
 });

@@ -92,50 +92,85 @@ organization's data.
 
 Two work units across four frontend files plus tests. One review unit.
 
+## Review finding and the correction it forced
+
+Work unit 2's first fix was `queryClient.clear()`, and the review rejected it with a CRITICAL finding,
+`R3-scope-observers`, `causal_disposition: worsened`:
+
+> Clearing the cache does not establish that mounted page queries stop displaying the previous
+> organization's rows. A mounted query observer can retain its last result after its cache entry is
+> removed; unlike the former invalidation, clearing does not itself request a refetch.
+
+The refuter corroborated it, so the provider required one bounded correction. **The finding is correct,
+and the source explains why:**
+
+- `queryCache.clear()` removes each query from the cache map and calls `query.destroy()`, which is only
+  `clearGcTimeout()` plus `cancel({ silent: true })`. It does **not** reset the query state, and `cancel`
+  notifies nobody. A mounted observer therefore keeps rendering `state.data`, and nothing requests a
+  refetch. That is strictly worse than the `invalidateQueries()` it replaced, which at least refetches
+  active queries. Hence "worsened".
+- `Query.reset()` is `destroy()` **plus** `setState(this.#initialState)`, and `queryClient.resetQueries()`
+  runs `reset()` on every match and then `refetchQueries({ type: 'active' })`. That drops the displayed
+  state (so the previous rows cannot remain) **and** refreshes what is mounted.
+
+`applyOrganizationScope` now calls `resetQueries()`. A three-way isolation experiment confirmed the
+distinction on a mounted observer, all three calls being made directly against a seeded cache entry:
+
+| Call | Rows the mounted observer displayed afterwards |
+| --- | --- |
+| `resetQueries()` | `old-row` → **`fresh-row`** |
+| `clear()` | `old-row` → **still `old-row` after 500 ms** |
+| `invalidateQueries()` | `old-row` → **`fresh-row`** |
+
+The correction also had to give the behaviour a testable seam. The two switcher callbacks duplicated the
+localStorage write and the cache call inline, so driving the mounted-observer assertion through the
+switcher UI was not reliable: a spy proved the click reached `onSwitch` in the cache-only test
+(`resetSpy=1`) but not in the mounted one (`resetSpy=0`). The scope change is now the exported
+`applyOrganizationScope(queryClient, organizationId)`, which both callbacks use; the mounted-observer
+test calls it directly and cannot be defeated by click plumbing.
+
 ## Verification evidence
 
-All commands were run by the parent session with PowerShell on `fix/identity-state-teardown`. Two commits:
-`a0bb7cc` (work unit 1) and `f361e08` (work unit 2).
+All commands were run by the parent session with PowerShell on `fix/identity-state-teardown`. Three
+commits: `a0bb7cc` (work unit 1), `f361e08` (work unit 2) and the correction commit.
 
 | Check | Command | Result |
 |---|---|---|
-| WU1 RED | `npm run test -- src/lib/api.test.ts` | **FAIL 1 of 13** — `expected 'org-a' to be null`: the organization scope survived a dead session. |
-| WU1 GREEN | `npm run test -- src/lib/api.test.ts src/contexts/AuthContext.session.test.tsx` | **PASS 26/26 across 2 files** |
-| WU2 test | `npm run test -- src/components/layout/Sidebar.test.tsx` | **PASS 8/8** (the other seven were already there) |
-| WU2 mutation check | revert `clear()` to `invalidateQueries()`, same command | **FAIL 1 of 8** with the other seven passing, which is the discrimination a RED would have shown |
-| Targeted suites | api + session + Sidebar together | **PASS 34/34 across 3 files** |
-| Full frontend suite | `npm run test` | **PASS 509/509 across 76 files**, with no failure at all, so the known `tasks/page.evidence.test.tsx` flake did not appear either |
+| WU1 RED | `npm run test -- src/lib/api.test.ts` | **FAIL 1** — `expected 'org-a' to be null`: the organization scope survived a dead session. |
+| WU1 GREEN | `npm run test -- src/lib/api.test.ts src/contexts/AuthContext.session.test.tsx` | **PASS 26/26** |
+| WU2 test | `npm run test -- src/components/layout/Sidebar.test.tsx` | **PASS 9/9** |
+| WU2 mutation check | revert `resetQueries()` to `invalidateQueries()`, same command | **FAIL 1 of 8** with the other seven passing |
+| Correction mutation check | revert `resetQueries()` to `clear()`, same command | **FAIL 1 of 9** — the mounted-observer test fails while the cache-only test still passes, which is precisely how the first fix looked sufficient |
+| Targeted suites | api + session + Sidebar | **PASS 35/35 across 3 files** |
+| Full frontend suite | `npm run test` | **PASS 510/510 across 76 files** |
 | Typecheck | `npx tsc --noEmit` | clean, exit 0 |
-| Lint | `npx eslint` on the six touched files | clean, exit 0 |
-| Frontend build | `npm run build` | `Compiled successfully in 9.3s`, 30/30 static pages, exit 0 |
+| Lint | `npx eslint` on the touched files | clean, exit 0 |
+| Frontend build | `npm run build` | clean, 30/30 static pages, exit 0 |
+
+All debug instrumentation used to diagnose this was removed: a grep for `DEBUG`, `console.log`,
+`DebugProbe` and `resetSpy` across the two files returns nothing.
 
 ## Disclosed deviations
 
-1. **Work unit 2's fix was applied before its test, so it has no RED.** The `clear()` change went in while I
-   was still reading the switcher to write the test, which is the wrong order for this project's strict TDD
-   convention. Rather than pretend otherwise or revert and redo it for ceremony, the test was checked by
-   **mutation**: reverting `clear()` to `invalidateQueries()` makes exactly that test fail while the other
-   seven pass. A mutation check proves the same thing a RED proves, so the evidence is equivalent, but the
-   order was still wrong and is recorded as such.
-2. **I broke `Sidebar.tsx` mid-mutation and repaired it in the same step.** The edit that introduced the
-   mutation listed `}}` and `isSuperAdmin` in the text it replaced and did not put them back, which deleted
-   the arrow function's closing brace and the prop. It was caught immediately by reading the region, repaired
-   with the mutation preserved, and afterwards verified: no `MUTATION-CHECK` string remains anywhere in the
-   tree and the block is well formed. Recorded because a silently broken file would have made the mutation
-   result meaningless.
-3. **The `selectedOrganizationId` key now exists in one place.** `Sidebar`, `lib/api.ts` and
-   `AuthContext` all import it from `lib/session.ts`; the duplication this feature inherited is gone. The
-   `user` key was duplicated the same way and is also consolidated.
-4. **`lib/session.ts` now imports `safeRemoveItem` from `lib/utils.ts`**, which it did not before. That is a
-   new dependency in a module whose header comment promises the token never touches `localStorage`; the
-   promise still holds for the token, and the import exists to remove the two non-credential keys. The
-   header comment was not changed, which is worth a reviewer's eye.
-5. **Evidence is source-level plus tests.** No browser check was made of the switcher, so the claim that its
-   own list returns after the clear rests on the test asserting the refetch and on the fact that its observer
-   stays mounted.
-6. **Out of scope and still open**: identity-scoped query keys, the durable invariant behind the original
-   leak. This change removes the data on a transition; it does not make a cross-identity key collision
-   unrepresentable.
+1. **The reviewer caught a real defect in my own change, and it was the more severe kind: my fix was worse
+   than what it replaced.** Recorded first because it is the most important fact about this change.
+2. **The correction overran its declared plan.** The plan said 70 diff lines; the correction is 98 across
+   two files. The overrun is the testable seam (extracting `applyOrganizationScope`) plus replacing a
+   click-driven assertion with a deterministic one. It stays inside the provider's frozen budget of 147.
+3. **Work unit 2's original fix had no RED and was checked by mutation**, because it was applied before its
+   test was written. That is the wrong order for this project's convention and it is what let a critical
+   defect through the first time: the mutation check I ran then used `invalidateQueries()` as the mutant,
+   which the test caught, but nothing tested the case the reviewer later found.
+4. **The mounted-observer test observes a React Query behaviour, not the switcher's UI.** It calls
+   `applyOrganizationScope` directly. The UI path is covered by the cache-only test, which is verified to
+   reach the handler.
+5. **`lib/session.ts` now imports `safeRemoveItem` from `lib/utils.ts`**, a new dependency in a module
+   whose header promises the token never touches `localStorage`. The promise holds for the token; the
+   import exists to remove the two non-credential keys. The header comment is unchanged, which is worth a
+   reviewer's eye.
+6. **Evidence is source-level plus tests.** No browser check was made of the switcher.
+7. **Out of scope and still open**: identity-scoped query keys, the durable invariant behind the original
+   leak.
 
 ## Native review outcome
 
