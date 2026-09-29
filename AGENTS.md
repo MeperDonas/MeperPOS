@@ -84,15 +84,15 @@ Next.js App Router under `frontend/src/`:
 
 **Data fetching**: All server state via TanStack Query (React Query v5). Custom hooks in `hooks/` wrap `api` client calls (e.g., `useProducts`, `useSales`). The `api` singleton in `lib/api.ts` is an Axios instance with auto-JWT injection and 401-redirect handling.
 
-**Layout**: `DashboardLayout` wraps all authenticated pages. It renders the `Sidebar` and enforces role-based redirects. Mobile uses a slide-over sidebar; desktop uses a fixed 256px sidebar with `lg:ml-64` main content offset.
+**Layout**: `DashboardLayout` wraps all authenticated pages. It renders the `Sidebar` and enforces role-based redirects. Mobile uses a slide-over sidebar; on desktop the sidebar is fixed and the main content column is offset with `lg:ml-[320px]`, so the two numbers must be changed together.
 
-**UI Components** (`components/ui/`): `Button`, `Input`, `Card`, `Modal`, `Select`, `Badge`, `ConfirmDialog`, `ImageUpload`. All accept a `className` prop and use the `cn()` utility (clsx + tailwind-merge).
+**UI Components** (`components/ui/`): `Badge`, `BentoSelect`, `Button`, `Card`, `ConfirmDialog`, `CurrencyInput`, `DynamicFallback`, `EmptyState`, `ErrorState`, `FilterBar`, `ImageUpload`, `Input`, `LoadingState`, `MetricCard`, `Modal`, `Pagination`, `Select`, `Stepper`, `Table`. All accept a `className` prop and use the `cn()` utility (clsx + tailwind-merge).
 
 **Styling**: TailwindCSS v4 with CSS variables for theming. Variables defined in `globals.css` under `:root` (light) and `.dark` (dark mode). Key tokens: `--primary` (teal), `--terracotta` (accent), `--card`, `--border`, `--muted`. Theme toggled via `ThemeContext` which sets a `dark` class on `<html>`.
 
-**Fonts**: Manrope (sans) + JetBrains Mono (mono) via `next/font/google`, exposed as CSS variables `--font-manrope` and `--font-jetbrains-mono`.
+**Fonts**: Geist (sans) + JetBrains Mono (mono) via `next/font/google`, exposed as CSS variables `--font-geist` and `--font-jetbrains-mono`.
 
-**POS module**: Maintains client-side cart state with favorites (persisted to `localStorage` under `pos_favorite_product_ids`), paused sales, multi-payment splits, and invoice printing via `useInvoice`.
+**POS module**: Maintains client-side cart state with favorites (persisted to `localStorage` under `pos_favorite_product_ids`), paused sales, multi-payment splits, and invoice printing through `printReceipt` from `useReceipt`.
 
 **Contexts**: `AuthContext` (user + JWT), `ThemeContext` (dark/light), `ToastContext` (notifications).
 
