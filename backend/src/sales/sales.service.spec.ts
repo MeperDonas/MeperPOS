@@ -1423,20 +1423,35 @@ describe('SalesService', () => {
       expect(tx.auditLog.create).not.toHaveBeenCalled();
     });
 
-    it('tolerates float noise within 0.01 and does not treat it as an override', async () => {
-      const tx = buildTx();
-      primeCreate(tx);
+    it.each([100000 + 0.005, 100000 - 0.005])(
+      'persists the server price without an override audit for float noise at %p',
+      async (requestedUnitPrice) => {
+        const tx = buildTx();
+        primeCreate(tx);
 
-      // A client round-tripping a DECIMAL(10,2) value can land a hair off.
-      await service.create(
-        dtoWithPrice(100000.005),
-        'user-1',
-        'org-1',
-        cashierUser,
-      );
+        // Cover both sides of the tolerance without an underpayment failure.
+        await service.create(
+          {
+            ...dtoWithPrice(requestedUnitPrice),
+            payments: [{ method: 'CASH' as const, amount: 100001 }],
+          },
+          'user-1',
+          'org-1',
+          cashierUser,
+        );
 
-      expect(tx.auditLog.create).not.toHaveBeenCalled();
-    });
+        expect(tx.saleItem.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              unitPrice: 100000,
+              subtotal: 100000,
+              total: 100000,
+            }),
+          }),
+        );
+        expect(tx.auditLog.create).not.toHaveBeenCalled();
+      },
+    );
 
     it('rejects a negative override for an ADMIN (defensive, past the DTO)', async () => {
       const tx = buildTx();
