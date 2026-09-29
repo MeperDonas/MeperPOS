@@ -101,9 +101,10 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
       .flatMap((group) => group.labels ?? [])
       .find((label) => label.id === id)?.groupId ?? "";
 
-  const effectiveGroupId = groupId || groupIdOfLabel(labelId);
+  const labelGroupId = groupIdOfLabel(labelId);
+  const effectiveGroupId = groupId || labelGroupId;
   const effectiveLabelId =
-    groups.length > 0 && groupIdOfLabel(labelId) !== effectiveGroupId
+    groups.length > 0 && labelGroupId !== effectiveGroupId
       ? ""
       : labelId;
 
