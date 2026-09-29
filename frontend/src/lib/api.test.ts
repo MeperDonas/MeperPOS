@@ -194,6 +194,25 @@ describe("ApiClient interceptors - in-memory session + refresh flow (issue #48 s
       expect(urls).toEqual(["/orders", "/auth/refresh"]);
     });
 
+    it("removes the selected organization scope when the refresh fails, so it cannot outlive the session", async () => {
+      localStorage.setItem("user", JSON.stringify({ id: "user-1" }));
+      localStorage.setItem("selectedOrganizationId", "org-a");
+      setAccessToken("stale-token");
+      adapter.mockImplementation(async (config) => {
+        if (config.url === "/auth/refresh") throw error401(config);
+        throw error401(config);
+      });
+
+      await expect(axiosInstance.get("/orders")).rejects.toThrow();
+
+      // A dead session must not leave identity-scoped state behind: the request
+      // layer sends this value as X-Organization-Id and the sidebar rehydrates
+      // it, so the next login would inherit an organization it never chose.
+      expect(localStorage.getItem("selectedOrganizationId")).toBeNull();
+      expect(getAccessToken()).toBeNull();
+      expect(localStorage.getItem("user")).toBeNull();
+    });
+
     it("does not trigger a refresh for pre-auth endpoints that return 401", async () => {
       setAccessToken("tok-1");
       adapter.mockImplementation(async (config) => {
