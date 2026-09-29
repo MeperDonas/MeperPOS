@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { BentoSelect } from "@/components/ui/BentoSelect";
@@ -85,22 +85,30 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
     null,
   );
 
-  useEffect(() => {
-    if (!groups.length) return;
-
-    const currentLabel = groups
+  /**
+   * Derived, not synced. A synchronous setState inside an effect body cascades
+   * renders, which is what `react-hooks/set-state-in-effect` flags, so the group
+   * and the label are computed from what the operator chose plus what the loaded
+   * groups say. State keeps the choice; these keep it consistent.
+   *
+   * While the groups are still loading nothing is dropped: an edit form must not
+   * blank a label it cannot validate yet. The lookup is deliberately not filtered
+   * by `active`, so editing an expense that carries a now-inactive label does not
+   * silently clear it.
+   */
+  const groupIdOfLabel = (id: string) =>
+    groups
       .flatMap((group) => group.labels ?? [])
-      .find((label) => label.id === labelId);
+      .find((label) => label.id === id)?.groupId ?? "";
 
-    if (!groupId && currentLabel) {
-      setGroupId(currentLabel.groupId);
-    } else if (labelId && currentLabel && currentLabel.groupId !== groupId) {
-      setLabelId("");
-    }
-  }, [groupId, groups, labelId]);
+  const effectiveGroupId = groupId || groupIdOfLabel(labelId);
+  const effectiveLabelId =
+    groups.length > 0 && groupIdOfLabel(labelId) !== effectiveGroupId
+      ? ""
+      : labelId;
 
-  const labelOptions = groupId
-    ? (groups.find((group) => group.id === groupId)?.labels ?? [])
+  const labelOptions = effectiveGroupId
+    ? (groups.find((group) => group.id === effectiveGroupId)?.labels ?? [])
         .filter((label) => label.active)
         .map((label) => ({ value: label.id, label: label.name }))
     : [];
@@ -118,7 +126,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
       )
     : 0;
 
-  const error = !labelId
+  const error = !effectiveLabelId
     ? "Selecciona una etiqueta de gasto"
     : !date
       ? "Selecciona una fecha"
@@ -141,7 +149,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
         await updateExpense.mutateAsync({
           id: expense.id,
           data: {
-            labelId,
+            labelId: effectiveLabelId,
             supplierId: supplierId || null,
             purchaseOrderId: purchaseOrderId || null,
             description: description.trim() || null,
@@ -152,7 +160,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
         toast.success("Gasto actualizado");
       } else {
         const created = await createExpense.mutateAsync({
-          labelId,
+          labelId: effectiveLabelId,
           supplierId: supplierId || undefined,
           purchaseOrderId: purchaseOrderId || undefined,
           description: description.trim() || undefined,
@@ -207,7 +215,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
         <div className="space-y-3">
           <BentoSelect
             label="Grupo"
-            value={groupId}
+            value={effectiveGroupId}
             disabled={isGroupsLoading}
             onChange={(value) => {
               setGroupId(value);
@@ -223,8 +231,8 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
 
           <BentoSelect
             label="Etiqueta"
-            value={labelId}
-            disabled={isGroupsLoading || !groupId}
+            value={effectiveLabelId}
+            disabled={isGroupsLoading || !effectiveGroupId}
             onChange={(value) => {
               const belongsToGroup = labelOptions.some((label) => label.value === value);
               setLabelId(belongsToGroup ? value : "");
@@ -234,7 +242,7 @@ export function ExpenseFormModal({ isOpen, onClose, expense }: Props) {
                 value: "",
                 label: isGroupsLoading
                   ? "Cargando etiquetas..."
-                  : !groupId
+                  : !effectiveGroupId
                     ? "Selecciona un grupo primero"
                     : labelOptions.length
                       ? "Selecciona una etiqueta"
