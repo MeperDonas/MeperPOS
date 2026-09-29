@@ -1,11 +1,12 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import request from 'supertest';
 import { AppModule } from '../app.module';
 import { configureApp } from '../app-configuration';
+import { waitForAuditRows } from '../testing/wait-for-audit-rows';
 
 /**
  * Login-cycle audit durability (R-LOGIN-1..5, spec audit-event-persistence).
@@ -49,41 +50,6 @@ describe('Auth login-cycle audit rows (R-LOGIN-1..5)', () => {
 
   const sleep = (ms: number) =>
     new Promise((resolve) => setTimeout(resolve, ms));
-
-  /**
-   * Polls AuditLog rows for a precise where filter until the count is stable
-   * across two consecutive polls (the interceptor write races the response),
-   * then returns the rows. Mirrors the stable-row helper in
-   * users.service.int.spec.ts.
-   */
-  const waitForStableAuditRows = async (
-    where: Prisma.AuditLogWhereInput,
-  ): Promise<
-    Array<{
-      id: string;
-      userId: string | null;
-      action: string;
-      resource: string;
-      organizationId: string;
-    }>
-  > => {
-    const fetchRows = () =>
-      prisma.auditLog.findMany({
-        where,
-        orderBy: { createdAt: 'asc' },
-      });
-
-    let previous = await fetchRows();
-    for (let attempt = 0; attempt < 40; attempt += 1) {
-      await sleep(50);
-      const current = await fetchRows();
-      if (current.length === previous.length) {
-        return current;
-      }
-      previous = current;
-    }
-    return previous;
-  };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -184,10 +150,17 @@ describe('Auth login-cycle audit rows (R-LOGIN-1..5)', () => {
     expect(res.status).toBe(201);
     expect(res.body.user.organizationId).toBe(orgAId);
 
-    const rows = await waitForStableAuditRows({
-      userId: singleOrgId,
-      action: 'LOGIN_SUCCESS',
-      organizationId: orgAId,
+    const rows = await waitForAuditRows({
+      expectedCount: 1,
+      fetchRows: () =>
+        prisma.auditLog.findMany({
+          where: {
+            userId: singleOrgId,
+            action: 'LOGIN_SUCCESS',
+            organizationId: orgAId,
+          },
+          orderBy: { createdAt: 'asc' },
+        }),
     });
 
     expect(rows).toHaveLength(1);
@@ -205,10 +178,17 @@ describe('Auth login-cycle audit rows (R-LOGIN-1..5)', () => {
     expect(res.status).toBe(201);
     expect(res.body.user.organizationId).toBe(orgAId);
 
-    const rows = await waitForStableAuditRows({
-      userId: multiOrgId,
-      action: 'LOGIN_SUCCESS',
-      organizationId: orgAId,
+    const rows = await waitForAuditRows({
+      expectedCount: 1,
+      fetchRows: () =>
+        prisma.auditLog.findMany({
+          where: {
+            userId: multiOrgId,
+            action: 'LOGIN_SUCCESS',
+            organizationId: orgAId,
+          },
+          orderBy: { createdAt: 'asc' },
+        }),
     });
 
     expect(rows).toHaveLength(1);
@@ -273,10 +253,17 @@ describe('Auth login-cycle audit rows (R-LOGIN-1..5)', () => {
     expect(res.status).toBe(201);
     expect(res.body.user.organizationId).toBe(orgBId);
 
-    const rows = await waitForStableAuditRows({
-      userId: multiOrgId,
-      action: 'AUTH_ORG_SELECTED',
-      organizationId: orgBId,
+    const rows = await waitForAuditRows({
+      expectedCount: 1,
+      fetchRows: () =>
+        prisma.auditLog.findMany({
+          where: {
+            userId: multiOrgId,
+            action: 'AUTH_ORG_SELECTED',
+            organizationId: orgBId,
+          },
+          orderBy: { createdAt: 'asc' },
+        }),
     });
 
     // RED until task 4.1 wires @AuditAction('AUTH_ORG_SELECTED') onto the
