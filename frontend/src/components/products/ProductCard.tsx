@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { cn, formatCurrency } from "@/lib/utils";
 import { isService, tracksStock } from "@/lib/product-type";
-import { AlertTriangle, Edit3, Package, Plus, Power, RotateCcw, Star, Wrench } from "lucide-react";
+import { AlertTriangle, Package, Plus, Power, RotateCcw, Star, Wrench } from "lucide-react";
 
 type ProductCardData = {
   id: string;
@@ -46,13 +46,23 @@ const STATUS_LABEL: Record<StatusKey, string> = {
   healthy: "Activo",
 };
 
+/**
+ * Chips sit over the photo, so each tone is a near-solid light/dark plate with coloured
+ * text: a translucent tint would take on whatever the photo shows underneath it.
+ */
 const STATUS_TONE: Record<StatusKey, string> = {
-  inactive: "border-border/70 bg-muted text-muted-foreground",
-  service: "border-indigo-500/25 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
-  untracked: "border-indigo-500/25 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
-  depleted: "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300",
-  low: "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300",
-  healthy: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  inactive: "border-zinc-300 bg-white/90 text-zinc-600 dark:border-zinc-600 dark:bg-zinc-900/90 dark:text-zinc-300",
+  service: "border-indigo-300 bg-white/90 text-indigo-700 dark:border-indigo-500/50 dark:bg-zinc-900/90 dark:text-indigo-300",
+  untracked: "border-indigo-300 bg-white/90 text-indigo-700 dark:border-indigo-500/50 dark:bg-zinc-900/90 dark:text-indigo-300",
+  depleted: "border-rose-300 bg-white/90 text-rose-700 dark:border-rose-500/50 dark:bg-zinc-900/90 dark:text-rose-300",
+  low: "border-amber-300 bg-white/90 text-amber-800 dark:border-amber-500/50 dark:bg-zinc-900/90 dark:text-amber-300",
+  healthy: "border-emerald-300 bg-white/90 text-emerald-700 dark:border-emerald-500/50 dark:bg-zinc-900/90 dark:text-emerald-300",
+};
+
+/** The stock count sits on the dark scrim: only an alert status tints it, the rest stay quiet white. */
+const STOCK_TONE: Partial<Record<StatusKey, string>> = {
+  low: "text-amber-300",
+  depleted: "text-rose-300",
 };
 
 /**
@@ -82,14 +92,14 @@ function StatusChip({ status }: { status: StatusKey }) {
     <span
       data-testid={statusTestId(status)}
       className={cn(
-        "inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 font-mono text-[10px] font-bold leading-none",
+        "inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-md border px-1.5 py-0.5 font-mono text-[9px] font-bold leading-none sm:text-[10px]",
         STATUS_TONE[status],
       )}
     >
       {status === "service" ? (
-        <Wrench className="h-3 w-3 shrink-0" aria-hidden="true" />
+        <Wrench className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
       ) : status === "depleted" || status === "low" ? (
-        <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" />
+        <AlertTriangle className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
       ) : (
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" aria-hidden="true" />
       )}
@@ -100,7 +110,7 @@ function StatusChip({ status }: { status: StatusKey }) {
 
 function OfferBadge({ discount }: { discount: number }) {
   return (
-    <span className="inline-flex max-w-full items-center rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-1 font-mono text-[10px] font-bold leading-none text-rose-700 dark:text-rose-300">
+    <span className="inline-flex max-w-full items-center whitespace-nowrap rounded-md border border-rose-300 bg-white/90 px-1.5 py-0.5 font-mono text-[9px] font-bold leading-none text-rose-700 dark:border-rose-500/50 dark:bg-zinc-900/90 dark:text-rose-300 sm:text-[10px]">
       Oferta{discount > 0 ? ` -${discount}%` : ""}
     </span>
   );
@@ -108,12 +118,14 @@ function OfferBadge({ discount }: { discount: number }) {
 
 /**
  * Full-bleed media layer: the photo IS the card, not a framed thumbnail inside it.
- * Absolute so the content sheet, not the image, decides the card height — a card with
- * a second text line grows the sheet and crops the photo instead of resizing it.
+ * Absolute, so the card's fixed shape (not the content) decides how much photo shows.
+ * Every layer inherits the card radius and none uses a backdrop filter: a backdrop-blur
+ * under overflow-hidden + a rounded corner + a hover transform leaves a grey wedge in
+ * the corner, so depth here comes from flat scrims instead.
  */
 function ProductMedia({ product }: { product: ProductCardData }) {
   return (
-    <div data-testid="product-media" className="absolute inset-0 bg-muted/40">
+    <div data-testid="product-media" className="absolute inset-0 overflow-hidden rounded-[inherit] bg-slate-900">
       {product.imageUrl ? (
         <Image
           src={product.imageUrl}
@@ -124,16 +136,24 @@ function ProductMedia({ product }: { product: ProductCardData }) {
         />
       ) : (
         <>
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-muted to-muted/60" />
-          {/* Centred in the visible photo band, not in the card, which the sheet covers. */}
-          <div className="absolute inset-x-0 top-0 flex aspect-[16/10] items-center justify-center">
-            <Package className="h-9 w-9 text-muted-foreground/40" aria-hidden="true" />
+          <div
+            className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-primary/40 via-slate-800 to-slate-900"
+            aria-hidden="true"
+          />
+          {/* Centred in the visible upper half; the content block covers the rest. */}
+          <div className="absolute inset-x-0 top-0 flex h-1/2 items-center justify-center">
+            <Package className="h-10 w-10 text-white/30" aria-hidden="true" />
           </div>
         </>
       )}
-      {/* Depth under the sheet, and contrast behind the control rail on a pale photo. */}
+      {/* Light top scrim: contrast behind the chips and the control rail on a pale photo. */}
       <div
-        className="absolute inset-0 bg-gradient-to-t from-black/20 via-black/5 to-transparent"
+        className="absolute inset-x-0 top-0 h-1/4 rounded-t-[inherit] bg-gradient-to-b from-black/30 to-transparent"
+        aria-hidden="true"
+      />
+      {/* Bottom scrim: keeps the white name, meta and price readable on any photo. */}
+      <div
+        className="absolute inset-x-0 bottom-0 h-[70%] rounded-b-[inherit] bg-gradient-to-t from-black/85 via-black/40 to-transparent"
         aria-hidden="true"
       />
     </div>
@@ -141,8 +161,8 @@ function ProductMedia({ product }: { product: ProductCardData }) {
 }
 
 /**
- * One quiet control in the card's top-right rail: a 44px hit target wrapping a small
- * glass disc, so management and cart controls never become a heavy toolbar.
+ * One quiet control in the card's top-right rail: a 44px hit target wrapping a small,
+ * flat disc, so management and cart controls never become a heavy toolbar.
  */
 function RailButton({
   label,
@@ -168,7 +188,7 @@ function RailButton({
     >
       <span
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/35 text-white shadow-sm backdrop-blur-md transition-colors",
+          "flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white transition-colors",
           tone,
         )}
       >
@@ -194,17 +214,19 @@ export function ProductCard({ product, mode, onClick, onDelete, onReactivate, is
       : 0;
   const sellingPrice = Number(hasPromo ? product.effectiveSalePrice : product.salePrice);
 
-  const service = isService(product);
-  const stockLabel = service ? "Servicio" : !tracksStock(product) ? "Sin inventario" : `${product.stock} uds.`;
+  // Only counted goods carry a stock figure: a service or an untracked good already says so in its chip.
+  const showStock = tracksStock(product);
   const categoryName = product.category?.name || (isInventory ? "Sin categoría" : "General");
-  const inventoryActions = isInventory && (onClick || footerHandler);
-  const railVisible = isInventory ? Boolean(inventoryActions) : Boolean(onClick || onToggleFavorite);
+  // The healthy chip is inventory-only: on the POS floor "everything is fine" is pure noise.
+  const showStatusChip = status !== "healthy" || isInventory;
+  // Inventory edits through the full-card button, so its rail holds deactivation alone.
+  const railVisible = isInventory ? Boolean(footerHandler) : Boolean(onClick || onToggleFavorite);
 
   return (
     <div
       className={cn(
-        "group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xs transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg",
-        isInactive && "bg-muted/20 opacity-60",
+        "group relative isolate flex aspect-[4/5] max-h-[22rem] min-h-[15.5rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-slate-900 shadow-xs transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg",
+        isInactive && "opacity-60",
       )}
     >
       <ProductMedia product={product} />
@@ -217,13 +239,31 @@ export function ProductCard({ product, mode, onClick, onDelete, onReactivate, is
           aria-disabled={isInventory ? undefined : cannotAdd}
           disabled={!isInventory && cannotAdd}
           onClick={onClick}
-          className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="absolute inset-0 z-10 rounded-[inherit] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
         />
       )}
 
+      {/*
+        Chips are click-through overlays parked top-left, over the lightest part of the photo.
+        Being absolute they take no space, so no chip can ever reflow or resize the card.
+      */}
+      {(showStatusChip || hasPromo) && (
+        <div className="pointer-events-none absolute left-2 top-2 z-20 flex max-w-[calc(100%-3.75rem)] flex-col items-start gap-1">
+          {showStatusChip && <StatusChip status={status} />}
+          {hasPromo && <OfferBadge discount={discount} />}
+        </div>
+      )}
+
       {/* Controls live in one corner of the photo, never over its subject. */}
-      {(railVisible) && (
-        <div className="absolute right-1.5 top-1.5 z-20 flex flex-col items-center gap-1.5">
+      {railVisible && (
+        <div
+          className={cn(
+            "absolute right-1.5 top-1.5 z-20 flex flex-col items-center",
+            // Pointer devices reveal the management control on hover/focus; touch always shows it.
+            isInventory &&
+              "transition-opacity focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+          )}
+        >
           {!isInventory && onToggleFavorite && (
             <RailButton
               label={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
@@ -234,7 +274,7 @@ export function ProductCard({ product, mode, onClick, onDelete, onReactivate, is
               }
               onClick={onToggleFavorite}
             >
-              <Star className={cn("h-4 w-4", isFavorite && "fill-current")} aria-hidden="true" />
+              <Star className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} aria-hidden="true" />
             </RailButton>
           )}
           {!isInventory && onClick && (
@@ -244,105 +284,71 @@ export function ProductCard({ product, mode, onClick, onDelete, onReactivate, is
               onClick={onClick}
               disabled={cannotAdd}
             >
-              <Plus className="h-4 w-4" aria-hidden="true" />
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
             </RailButton>
           )}
-          {inventoryActions && (
-            <>
-              {onClick && (
-                <RailButton label="Editar producto" onClick={onClick}>
-                  <Edit3 className="h-4 w-4" aria-hidden="true" />
-                </RailButton>
-              )}
-              {footerHandler && (
-                <RailButton
-                  label={isInactive ? "Reactivar producto" : "Desactivar producto"}
-                  tone={isInactive ? "group-hover/rail:bg-emerald-600/70" : "group-hover/rail:bg-rose-600/70"}
-                  onClick={footerHandler}
-                >
-                  {isInactive ? <RotateCcw className="h-4 w-4" aria-hidden="true" /> : <Power className="h-4 w-4" aria-hidden="true" />}
-                </RailButton>
-              )}
-            </>
+          {isInventory && footerHandler && (
+            <RailButton
+              label={isInactive ? "Reactivar producto" : "Desactivar producto"}
+              tone={isInactive ? "group-hover/rail:bg-emerald-600/70" : "group-hover/rail:bg-rose-600/70"}
+              onClick={footerHandler}
+            >
+              {isInactive ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Power className="h-3.5 w-3.5" aria-hidden="true" />}
+            </RailButton>
           )}
         </div>
       )}
 
       {/*
-        Photo reserve: the picture keeps a share of the card proportional to its width, and a
-        card stretched taller by its grid row shows more photo instead of a gap — the media
-        layer is the card itself, so this spacer never paints.
+        The content block is transparent text straight over the media layer's bottom scrim.
+        It is the only in-flow child, docked to the bottom by mt-auto, and it stays a plain
+        relative block (no glass layer) so the full-card click surface above it still
+        receives every click on the name, meta and price.
       */}
-      <div aria-hidden="true" className="aspect-[16/10] w-full" />
+      <div data-testid="product-sheet" className="relative mt-auto w-full min-w-0 px-3 pb-3 pt-10">
+        <h3 className="line-clamp-2 min-w-0 break-words text-sm font-bold leading-snug text-white">
+          {product.name}
+        </h3>
 
-      {/*
-        The sheet is a separate, non-interactive glass layer plus a relative content block.
-        Keeping the blur off the content block leaves the card's stacking order untouched,
-        so the sheet paints under the full-card click surface while its controls sit above it,
-        and every pixel of the sheet still clicks through to edit or add.
-      */}
-      <div data-testid="product-sheet" className="relative mt-auto w-full">
-        <div
-          className="absolute inset-0 border-t border-white/40 bg-card/90 backdrop-blur-xl dark:border-white/10 dark:bg-card/85"
-          aria-hidden="true"
-        />
-        <div className="relative px-3 pb-3 pt-2.5">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <StatusChip status={status} />
-            {hasPromo && <OfferBadge discount={discount} />}
-          </div>
-
-          <div className="mt-2 min-w-0">
-            <h3 className="line-clamp-2 min-w-0 break-words text-sm font-bold leading-snug tracking-tight text-foreground">
-              {product.name}
-            </h3>
+        {(product.sku || showStock) && (
+          <div className="mt-0.5 flex min-w-0 items-center justify-between gap-2">
             {product.sku && (
-              <span className="mt-0.5 block min-w-0 truncate font-mono text-[10px] text-muted-foreground">
-                {product.sku}
+              <span className="min-w-0 truncate font-mono text-[10px] text-white/60">{product.sku}</span>
+            )}
+            {showStock && (
+              <span
+                data-testid="product-stock"
+                className={cn(
+                  "ml-auto shrink-0 font-mono text-[10px] font-semibold leading-none",
+                  STOCK_TONE[status] ?? "text-white/85",
+                )}
+              >
+                {product.stock} uds.
               </span>
             )}
           </div>
+        )}
 
-          {/* Wraps instead of sharing the row when the card is too narrow for both: the
-              price keeps its full width and the stock pill drops to its own line. */}
-          <div className="mt-2.5 flex min-w-0 flex-wrap items-end gap-2">
-            <div
-              data-testid="product-price-panel"
-              className="min-w-[8.5rem] flex-[1_1_8.5rem] rounded-xl border border-border/60 bg-background/80 px-2.5 py-1.5 shadow-xs"
-            >
-              <div className="flex min-w-0 items-center justify-between gap-1.5">
-                <span className="min-w-0 truncate rounded-full bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-primary">
-                  {categoryName}
-                </span>
-                <span className="shrink-0 font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Precio
-                </span>
-              </div>
-              <div className="mt-1.5 min-w-0">
-                <span
-                  data-testid={hasPromo ? "offer-effective-price" : undefined}
-                  className="block min-w-0 whitespace-nowrap font-mono text-lg font-extrabold leading-none tracking-tight text-foreground"
-                >
-                  {formatCurrency(sellingPrice)}
-                </span>
-                {hasPromo && (
-                  <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-                    <s
-                      data-testid="offer-list-price"
-                      className="min-w-0 whitespace-nowrap font-mono text-[11px] text-muted-foreground line-through"
-                    >
-                      {formatCurrency(Number(product.salePrice))}
-                    </s>
-                  </div>
-                )}
-              </div>
-            </div>
+        <div data-testid="product-price-panel" className="mt-2 min-w-0">
+          <span className="block w-fit max-w-full truncate rounded-md bg-primary px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase leading-none tracking-[0.12em] text-white">
+            {categoryName}
+          </span>
+          {/* Wraps so the list price drops below the selling price instead of overflowing. */}
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
             <span
-              data-testid="product-stock"
-              className="ml-auto shrink-0 rounded-lg border border-border/60 bg-background/80 px-1.5 py-1 font-mono text-[10px] font-semibold leading-none text-muted-foreground"
+              data-testid={hasPromo ? "offer-effective-price" : undefined}
+              className="whitespace-nowrap font-mono text-xl font-extrabold leading-none tabular-nums tracking-tight text-white"
             >
-              {stockLabel}
+              {formatCurrency(sellingPrice)}
             </span>
+            {hasPromo && (
+              <s
+                data-testid="offer-list-price"
+                className="whitespace-nowrap font-mono text-[11px] text-white/60 line-through"
+              >
+                {formatCurrency(Number(product.salePrice))}
+              </s>
+            )}
           </div>
         </div>
       </div>
