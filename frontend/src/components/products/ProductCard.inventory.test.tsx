@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ComponentProps } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProductCard } from "@/components/products/ProductCard";
@@ -84,7 +85,8 @@ describe("ProductCard inventory mode — status chip", () => {
     expect(screen.queryByText("Stock bajo")).toBeNull();
     expect(screen.queryByTestId("stock-alert-icon")).toBeNull();
 
-    expect(screen.getByTestId("product-stock")).toHaveTextContent("Servicio");
+    // The chip already carries the fact: no duplicate stock pill for a service.
+    expect(screen.queryByTestId("product-stock")).toBeNull();
     expect(screen.queryByText("0 uds.")).toBeNull();
   });
 
@@ -111,9 +113,8 @@ describe("ProductCard inventory mode — status chip", () => {
     expect(screen.queryByText("Stock bajo")).toBeNull();
     expect(screen.queryByTestId("stock-alert-icon")).toBeNull();
 
-    const stockBadge = screen.getByTestId("product-stock");
-    expect(stockBadge).toHaveTextContent("Sin inventario");
-    expect(screen.getByText("Precio").parentElement).not.toContainElement(stockBadge);
+    // The chip already says it: no duplicate "Sin inventario" stock pill, and never "0 uds.".
+    expect(screen.queryByTestId("product-stock")).toBeNull();
     expect(screen.queryByText("0 uds.")).toBeNull();
   });
 
@@ -123,7 +124,7 @@ describe("ProductCard inventory mode — status chip", () => {
     );
 
     expect(screen.getByTestId("untracked-chip")).toHaveTextContent("Sin inventario");
-    expect(screen.getByTestId("product-stock")).toHaveTextContent("Sin inventario");
+    expect(screen.queryByTestId("product-stock")).toBeNull();
     expect(screen.queryByText("3 uds.")).toBeNull();
     expect(screen.queryByTestId("stock-alert-icon")).toBeNull();
   });
@@ -143,7 +144,7 @@ describe("ProductCard inventory mode — status chip", () => {
     );
 
     expect(screen.getByTestId("service-chip")).toHaveTextContent("Servicio");
-    expect(screen.getByTestId("product-stock")).toHaveTextContent("Servicio");
+    expect(screen.queryByTestId("product-stock")).toBeNull();
     expect(screen.queryByTestId("untracked-chip")).toBeNull();
   });
 
@@ -183,7 +184,7 @@ describe("ProductCard inventory mode — separate price and stock", () => {
   it("renders stock count apart from the price panel", () => {
     render(<ProductCard product={baseProduct} mode="inventory" />);
     expect(screen.getByText("20 uds.")).toBeInTheDocument();
-    expect(screen.getByText("Precio").parentElement).not.toContainElement(screen.getByTestId("product-stock"));
+    expect(screen.getByTestId("product-price-panel")).not.toContainElement(screen.getByTestId("product-stock"));
   });
 
   it("renders the formatted COP price", () => {
@@ -273,14 +274,15 @@ describe("ProductCard inventory mode — full-card edit target", () => {
     );
 
     const card = container.firstElementChild;
-    const editTarget = screen.getAllByRole("button", { name: /editar producto: camisa de lino natural/i })
-      .find((button) => button.classList.contains("inset-0"));
+    // With the explicit rail edit button gone, exactly one control opens the editor.
+    const editTarget = screen.getByRole("button", { name: /editar producto: camisa de lino natural/i });
+    expect(screen.queryByRole("button", { name: /^editar producto$/i })).toBeNull();
     // JSDOM cannot hit-test CSS. An absolute inset-0 button is the full-card
     // interaction surface, including blank space that has no content element.
     expect(card).toHaveClass("relative");
-    expect(editTarget).toHaveClass("absolute", "inset-0");
-    expect(editTarget?.parentElement).toBe(card);
-    await user.click(editTarget!);
+    expect(editTarget).toHaveClass("absolute", "inset-0", "z-10", "rounded-[inherit]");
+    expect(editTarget.parentElement).toBe(card);
+    await user.click(editTarget);
     expect(onEdit).toHaveBeenCalledTimes(1);
   });
 
@@ -292,16 +294,14 @@ describe("ProductCard inventory mode — full-card edit target", () => {
       <ProductCard product={baseProduct} mode="inventory" onClick={onEdit} onDelete={onDelete} />,
     );
 
-    const editTarget = screen.getAllByRole("button", { name: /editar producto: camisa de lino natural/i })
-      .find((button) => button.classList.contains("inset-0"));
+    const editTarget = screen.getByRole("button", { name: /editar producto: camisa de lino natural/i });
     const deactivate = screen.getByRole("button", { name: /desactivar producto/i });
-    expect(editTarget).toBeDefined();
     expect(editTarget).not.toContainElement(deactivate);
     expect(container.querySelector("button button")).toBeNull();
     await user.click(deactivate);
     expect(onDelete).toHaveBeenCalledTimes(1);
     expect(onEdit).not.toHaveBeenCalled();
-    await user.click(editTarget!);
+    await user.click(editTarget);
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
@@ -314,8 +314,7 @@ describe("ProductCard inventory mode — full-card edit target", () => {
       <ProductCard product={{ ...baseProduct, active: false }} mode="inventory" onClick={onEdit} onReactivate={onReactivate} />,
     );
 
-    const editTarget = screen.getAllByRole("button", { name: /editar producto: camisa de lino natural/i })
-      .find((button) => button.classList.contains("inset-0"));
+    const editTarget = screen.getByRole("button", { name: /editar producto: camisa de lino natural/i });
     const reactivate = screen.getByRole("button", { name: /reactivar producto/i });
     expect(editTarget).toHaveClass("absolute", "inset-0");
     expect(editTarget).not.toContainElement(reactivate);
@@ -514,19 +513,20 @@ describe("ProductCard — responsive action and price hierarchy", () => {
     );
 
     expect(screen.queryByRole("button", { name: /^\+ agregar$/i })).toBeNull();
-    expect(screen.getByRole("button", { name: /editar producto: camisa de lino natural/i })).toBeInTheDocument();
-    const edit = screen.getByRole("button", { name: /^editar producto$/i });
-    expect(edit).toHaveAttribute("title", "Editar producto");
-    expect(edit).toHaveClass("h-11", "w-11");
-    expect(edit).not.toHaveTextContent("Editar");
-    expect(screen.getByRole("button", { name: /desactivar producto/i })).toHaveClass("h-11", "w-11");
+    // The full-card button is the only edit control; the rail keeps deactivation alone.
+    const edit = screen.getByRole("button", { name: /editar producto: camisa de lino natural/i });
+    expect(screen.queryByRole("button", { name: /^editar producto$/i })).toBeNull();
+    const deactivate = screen.getByRole("button", { name: /desactivar producto/i });
+    expect(deactivate).toHaveAttribute("title", "Desactivar producto");
+    expect(deactivate).toHaveClass("h-11", "w-11");
+    expect(deactivate).not.toHaveTextContent("Desactivar");
     await user.click(edit);
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onDelete).not.toHaveBeenCalled();
   });
 
   it.each(["pos", "inventory"] as const)(
-    "prioritizes the promotional selling price before quiet stock in %s mode",
+    "prioritizes the promotional selling price and keeps quiet stock out of the price panel in %s mode",
     (mode) => {
       render(
         <ProductCard
@@ -549,7 +549,8 @@ describe("ProductCard — responsive action and price hierarchy", () => {
       expect(listPrice.textContent).toContain(formatCurrency(10000));
       expect(listPrice.tagName).toBe("S");
       expect(sellingPrice.compareDocumentPosition(listPrice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(listPrice.compareDocumentPosition(stock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // Stock lives on the SKU line above the price block, never inside the price panel.
+      expect(screen.getByTestId("product-price-panel")).not.toContainElement(stock);
       // A two-column phone card must not clip the actual selling price.
       expect(sellingPrice).not.toHaveClass("truncate");
     },
@@ -621,7 +622,7 @@ describe("ProductCard — responsive action and price hierarchy", () => {
     expect(add).not.toBeDisabled();
     expect(card).toHaveAttribute("aria-disabled", "false");
     expect(screen.getByTestId("untracked-chip")).toHaveTextContent("Sin inventario");
-    expect(screen.getByTestId("product-stock")).toHaveTextContent("Sin inventario");
+    expect(screen.queryByTestId("product-stock")).toBeNull();
     expect(screen.queryByText("0 uds.")).toBeNull();
     expect(screen.queryByTestId("stock-alert-icon")).toBeNull();
     await user.click(add);
@@ -680,8 +681,8 @@ describe("ProductCard — premium layout contract", () => {
     expect(media.parentElement).toBe(card);
   });
 
-  it("keeps status and offer chips inside the content sheet, off the photo", () => {
-    render(
+  it("parks status and offer chips top-left as click-through overlays, off the media layer and the content", () => {
+    const { container } = render(
       <ProductCard
         product={{
           ...baseProduct,
@@ -694,16 +695,28 @@ describe("ProductCard — premium layout contract", () => {
       />,
     );
 
+    const card = container.firstElementChild as HTMLElement;
     const media = screen.getByTestId("product-media");
     const sheet = screen.getByTestId("product-sheet");
     const status = screen.getByText("Activo");
     const offer = screen.getByText(/Oferta/);
 
-    // A chip painted over the photo hides the product the cashier must identify.
-    expect(media).not.toContainElement(status);
-    expect(media).not.toContainElement(offer);
-    expect(sheet).toContainElement(status);
-    expect(sheet).toContainElement(offer);
+    for (const chip of [status, offer]) {
+      // A chip inside the content block would push the layout; inside the media layer it
+      // would not be a sibling overlay. Neither may hold a chip.
+      expect(media).not.toContainElement(chip);
+      expect(sheet).not.toContainElement(chip);
+      // Either the chip or one chip container is a direct child of the card, and that host
+      // is absolute and click-through so it never resizes the card nor steals the click.
+      const host = chip.parentElement === card ? chip : (chip.parentElement as HTMLElement);
+      expect(host.parentElement).toBe(card);
+      expect(host).toHaveClass("absolute", "pointer-events-none");
+    }
+
+    // One stacked container holds both chips so they never overlap each other.
+    expect(status.parentElement).toBe(offer.parentElement);
+    expect(status.parentElement).not.toBe(card);
+    expect(status.parentElement).toHaveClass("absolute", "left-2", "top-2", "z-20", "flex", "flex-col");
   });
 
   it("docks the content sheet as the last layer of the card", () => {
@@ -728,9 +741,16 @@ describe("ProductCard — premium layout contract", () => {
 
     const panel = screen.getByTestId("product-price-panel");
 
-    expect(panel).toContainElement(screen.getByText("Ropa"));
-    expect(panel).toContainElement(screen.getByText("Precio"));
-    expect(panel).toContainElement(screen.getByText("$ 45.000"));
+    const category = screen.getByText("Ropa");
+    const price = screen.getByText("$ 45.000");
+
+    expect(panel).toContainElement(category);
+    expect(panel).toContainElement(price);
+    // Category reads first, the price right under it, as one highlighted unit.
+    expect(category.compareDocumentPosition(price) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // No eyebrow caption and no bordered box: the unit sits straight on the photo scrim.
+    expect(screen.queryByText("Precio")).toBeNull();
+    expect(panel.className).not.toMatch(/(?:^|\s)border(?:-\S+)?(?=\s|$)/);
     // Stock is its own fact, never a caption of the price.
     expect(panel).not.toContainElement(screen.getByTestId("product-stock"));
   });
@@ -743,5 +763,293 @@ describe("ProductCard — premium layout contract", () => {
     expect(add.querySelector("svg")).not.toBeNull();
     // Quiet by size: an icon control, not a full-width bar competing with the price.
     expect(add.className).not.toMatch(/(?:^|\s)w-full(?=\s|$)/);
+  });
+});
+
+type CardProduct = ComponentProps<typeof ProductCard>["product"];
+
+const promoProduct: CardProduct = {
+  ...baseProduct,
+  salePrice: 10000,
+  effectiveSalePrice: 8000,
+  promotionType: "PERCENTAGE",
+  promotionValue: 20,
+};
+
+describe("ProductCard — premium card v2: shape and layers", () => {
+  it("gives every card the same fixed 4:5 shape with a height guard", () => {
+    const { container } = render(<ProductCard product={baseProduct} mode="inventory" />);
+
+    // A fixed shape means content can never resize the card: a card stretched by its
+    // grid row just shows more photo.
+    expect(container.firstElementChild).toHaveClass(
+      "relative",
+      "isolate",
+      "overflow-hidden",
+      "rounded-2xl",
+      "aspect-[4/5]",
+      "min-h-[15.5rem]",
+      "max-h-[22rem]",
+    );
+  });
+
+  it.each([
+    { label: "service", product: { ...baseProduct, type: "SERVICE", stock: 0 } },
+    { label: "untracked", product: { ...baseProduct, tracksStock: false, stock: 0 } },
+    { label: "depleted", product: { ...baseProduct, stock: 0, isLowStock: true } },
+    { label: "low-stock", product: { ...baseProduct, stock: 3, isLowStock: true } },
+    { label: "promotional", product: promoProduct },
+    {
+      label: "long-named",
+      product: {
+        ...baseProduct,
+        name: "Camisa de lino natural con cuello mao y botones de coco tallados a mano",
+        sku: "CAMISA-LINO-NATURAL-EXTRA-LARGA-SKU-000001",
+      },
+    },
+  ] satisfies Array<{ label: string; product: CardProduct }>)(
+    "renders a $label POS card with the exact root shape of a plain card",
+    ({ product }) => {
+      const plain = render(<ProductCard product={baseProduct} mode="pos" onClick={vi.fn()} />);
+      const plainClassName = plain.container.firstElementChild?.className;
+      plain.unmount();
+
+      const { container } = render(<ProductCard product={product} mode="pos" onClick={vi.fn()} />);
+
+      // The chip (or the name, or the promo) never changes the card shape.
+      expect(container.firstElementChild).toHaveClass("aspect-[4/5]");
+      expect(container.firstElementChild?.className).toBe(plainClassName);
+    },
+  );
+
+  it.each(["pos", "inventory"] as const)("paints no backdrop filter anywhere in a %s card", (mode) => {
+    const { container } = render(
+      <ProductCard
+        product={{ ...promoProduct, stock: 3, isLowStock: true }}
+        mode={mode}
+        onClick={vi.fn()}
+        onDelete={vi.fn()}
+        onToggleFavorite={vi.fn()}
+        isFavorite
+      />,
+    );
+
+    // backdrop-blur under overflow-hidden + rounded + a hover transform is what leaves a
+    // grey wedge in the rounded corner, so no layer of the card may use one.
+    const card = container.firstElementChild as HTMLElement;
+    const nodes = [card, ...Array.from(card.querySelectorAll("*"))];
+    expect(nodes.length).toBeGreaterThan(10);
+    for (const node of nodes) {
+      expect(node.getAttribute("class") ?? "").not.toMatch(/backdrop-/);
+    }
+  });
+
+  it("paints a dark premium placeholder with a centered icon and both scrims when there is no photo", () => {
+    render(<ProductCard product={baseProduct} mode="pos" />);
+
+    const media = screen.getByTestId("product-media");
+
+    expect(media).toHaveClass("absolute", "inset-0", "rounded-[inherit]");
+    expect(media.querySelector('[class*="from-primary/40"]')).not.toBeNull();
+    expect(media.querySelector("svg")).not.toBeNull();
+    // Bottom scrim keeps white text readable on any photo; top scrim backs the chips.
+    expect(media.querySelector('[class*="from-black/85"]')).not.toBeNull();
+    expect(media.querySelector('[class*="from-black/30"]')).not.toBeNull();
+  });
+
+  it("keeps the content block transparent over the scrim, docked last, with no glass layer", () => {
+    const { container } = render(<ProductCard product={promoProduct} mode="pos" onClick={vi.fn()} />);
+
+    const card = container.firstElementChild;
+    const sheet = screen.getByTestId("product-sheet");
+
+    expect(card?.lastElementChild).toBe(sheet);
+    expect(sheet).toHaveClass("relative", "mt-auto", "px-3", "pb-3", "pt-10");
+    expect(sheet.className).not.toMatch(/(?:^|\s)bg-/);
+    expect(Array.from(sheet.children).some((child) => child.classList.contains("absolute"))).toBe(false);
+  });
+});
+
+describe("ProductCard — premium card v2: chips", () => {
+  const chipCases: Array<{ label: string; product: CardProduct }> = [
+    { label: "Activo", product: baseProduct },
+    { label: "Inactivo", product: { ...baseProduct, active: false } },
+    { label: "Agotado", product: { ...baseProduct, stock: 0, isLowStock: true } },
+    { label: "Stock bajo", product: { ...baseProduct, stock: 3, isLowStock: true } },
+    { label: "Servicio", product: { ...baseProduct, type: "SERVICE", stock: 0 } },
+    { label: "Sin inventario", product: { ...baseProduct, tracksStock: false, stock: 0 } },
+  ];
+
+  it.each(chipCases)("renders the '$label' chip as a compact, photo-safe soft rectangle, never a pill", ({ label, product }) => {
+    render(<ProductCard product={product} mode="inventory" />);
+
+    const chip = screen.getByText(label);
+
+    expect(chip).toHaveClass("rounded-md", "px-1.5", "py-0.5", "bg-white/90", "dark:bg-zinc-900/90");
+    expect(chip).not.toHaveClass("rounded-full");
+  });
+
+  it("renders the offer badge as a compact, photo-safe soft rectangle, never a pill", () => {
+    render(<ProductCard product={promoProduct} mode="inventory" />);
+
+    const offer = screen.getByText(/Oferta/);
+
+    expect(offer).toHaveClass("rounded-md", "px-1.5", "py-0.5", "bg-white/90", "dark:bg-zinc-900/90");
+    expect(offer).not.toHaveClass("rounded-full");
+  });
+
+  it.each(["pos", "inventory"] as const)("renders the category as a strong soft-rectangle chip in %s mode", (mode) => {
+    render(<ProductCard product={baseProduct} mode={mode} />);
+
+    const category = screen.getByText("Ropa");
+
+    expect(category).toHaveClass("rounded-md", "uppercase", "font-mono", "max-w-full", "truncate", "bg-primary", "text-white");
+    expect(category).not.toHaveClass("rounded-full");
+  });
+
+  it("falls back to 'General' for an uncategorized POS card", () => {
+    render(<ProductCard product={{ ...baseProduct, category: null }} mode="pos" />);
+
+    expect(screen.getByText("General")).toBeInTheDocument();
+    expect(screen.queryByText("Sin categoría")).toBeNull();
+  });
+
+  it("shows the healthy 'Activo' chip in inventory mode only", () => {
+    const inventory = render(<ProductCard product={baseProduct} mode="inventory" />);
+    expect(screen.getByText("Activo")).toBeInTheDocument();
+    inventory.unmount();
+
+    render(<ProductCard product={baseProduct} mode="pos" onClick={vi.fn()} />);
+    expect(screen.queryByText("Activo")).toBeNull();
+  });
+
+  it.each([
+    { label: "Inactivo", product: { ...baseProduct, active: false } },
+    { label: "Agotado", product: { ...baseProduct, stock: 0, isLowStock: true } },
+    { label: "Stock bajo", product: { ...baseProduct, stock: 3, isLowStock: true } },
+    { label: "Sin inventario", product: { ...baseProduct, tracksStock: false, stock: 0 } },
+  ] satisfies Array<{ label: string; product: CardProduct }>)("still shows the '$label' chip in POS mode", ({ label, product }) => {
+    render(<ProductCard product={product} mode="pos" onClick={vi.fn()} />);
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
+  it("shows a POS 'Servicio' chip as a click-through overlay and no stock element", () => {
+    const { container } = render(
+      <ProductCard product={{ ...baseProduct, type: "SERVICE", stock: 0 }} mode="pos" onClick={vi.fn()} />,
+    );
+
+    const card = container.firstElementChild as HTMLElement;
+    const chip = screen.getByTestId("service-chip");
+    const host = chip.parentElement === card ? chip : (chip.parentElement as HTMLElement);
+
+    expect(chip.textContent?.trim()).toBe("Servicio");
+    expect(host.parentElement).toBe(card);
+    expect(host).toHaveClass("absolute", "pointer-events-none");
+    expect(screen.queryByTestId("product-stock")).toBeNull();
+    expect(screen.queryByText("0 uds.")).toBeNull();
+  });
+});
+
+describe("ProductCard — premium card v2: content block", () => {
+  it("sets the name, SKU and price in white over the scrim without truncating the price", () => {
+    render(<ProductCard product={baseProduct} mode="inventory" />);
+
+    const name = screen.getByRole("heading", { name: "Camisa de lino natural" });
+    const sku = screen.getByText("SKU-0001");
+    const price = screen.getByText("$ 45.000");
+
+    expect(name).toHaveClass("line-clamp-2", "break-words", "text-sm", "font-bold", "text-white");
+    expect(sku).toHaveClass("min-w-0", "truncate", "font-mono", "text-white/60");
+    expect(price).toHaveClass("font-mono", "text-xl", "font-extrabold", "tabular-nums", "whitespace-nowrap", "text-white");
+    expect(price).not.toHaveClass("truncate");
+  });
+
+  it("shows the stock of tracked goods on the SKU line, outside the price panel", () => {
+    render(<ProductCard product={baseProduct} mode="inventory" />);
+
+    const sku = screen.getByText("SKU-0001");
+    const stock = screen.getByTestId("product-stock");
+
+    expect(stock).toHaveTextContent("20 uds.");
+    expect(stock).toHaveClass("shrink-0");
+    expect(stock.parentElement).toBe(sku.parentElement);
+    // SKU on the left, stock on the right.
+    expect(sku.compareDocumentPosition(stock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByTestId("product-sheet")).toContainElement(stock);
+    expect(screen.getByTestId("product-price-panel")).not.toContainElement(stock);
+  });
+
+  it.each([
+    { label: "healthy", product: baseProduct, tone: /(?:^|\s)text-white\/85(?=\s|$)/ },
+    { label: "low", product: { ...baseProduct, stock: 3, isLowStock: true }, tone: /(?:^|\s)text-amber-\d+(?=\s|$)/ },
+    { label: "depleted", product: { ...baseProduct, stock: 0, isLowStock: true }, tone: /(?:^|\s)text-rose-\d+(?=\s|$)/ },
+  ] satisfies Array<{ label: string; product: CardProduct; tone: RegExp }>)(
+    "tones the stock count of a $label tracked good by its resolved status",
+    ({ product, tone }) => {
+      render(<ProductCard product={product} mode="inventory" />);
+
+      expect(screen.getByTestId("product-stock").className).toMatch(tone);
+    },
+  );
+
+  it("keeps the list price after the effective price and lets it wrap below on a narrow card", () => {
+    render(<ProductCard product={promoProduct} mode="pos" />);
+
+    const effective = screen.getByTestId("offer-effective-price");
+    const list = screen.getByTestId("offer-list-price");
+
+    expect(list.tagName).toBe("S");
+    expect(list).toHaveClass("line-through", "text-white/60");
+    expect(effective.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(list.parentElement).toBe(effective.parentElement);
+    expect(effective.parentElement).toHaveClass("flex", "flex-wrap", "items-baseline");
+    expect(effective).not.toHaveClass("truncate");
+  });
+});
+
+describe("ProductCard — premium card v2: control rail", () => {
+  it("reveals the inventory deactivate control on hover-capable devices and keeps it visible on touch", () => {
+    render(<ProductCard product={baseProduct} mode="inventory" onClick={vi.fn()} onDelete={vi.fn()} />);
+
+    const deactivate = screen.getByRole("button", { name: /desactivar producto/i });
+    const rail = deactivate.parentElement as HTMLElement;
+
+    expect(rail).toHaveClass(
+      "absolute",
+      "right-1.5",
+      "top-1.5",
+      "z-20",
+      "flex-col",
+      "transition-opacity",
+      "[@media(hover:hover)]:opacity-0",
+      "[@media(hover:hover)]:group-hover:opacity-100",
+      "focus-within:opacity-100",
+    );
+    // 44px hit area around a small, flat, quiet disc.
+    expect(deactivate).toHaveClass("h-11", "w-11");
+    expect(deactivate.firstElementChild).toHaveClass("h-7", "w-7", "bg-black/40", "border-white/20", "text-white");
+  });
+
+  it("renders no rail at all in inventory when there is no deactivate or reactivate handler", () => {
+    render(<ProductCard product={baseProduct} mode="inventory" onClick={vi.fn()} />);
+
+    // Only the full-card edit button remains.
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /desactivar producto|reactivar producto/i })).toBeNull();
+  });
+
+  it("keeps the POS favorite and add controls always visible in one quiet rail", () => {
+    render(<ProductCard product={baseProduct} mode="pos" onClick={vi.fn()} onToggleFavorite={vi.fn()} />);
+
+    const favorite = screen.getByRole("button", { name: /agregar a favoritos/i });
+    const add = screen.getByRole("button", { name: /^\+ agregar$/i });
+
+    expect(favorite.parentElement).toBe(add.parentElement);
+    expect(favorite.parentElement?.className).not.toMatch(/opacity-0/);
+    for (const control of [favorite, add]) {
+      expect(control).toHaveClass("h-11", "w-11");
+      expect(control.firstElementChild).toHaveClass("h-7", "w-7");
+    }
   });
 });
