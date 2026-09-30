@@ -663,3 +663,85 @@ describe("ProductCard — responsive action and price hierarchy", () => {
     expect(onAdd).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("ProductCard — premium layout contract", () => {
+  it("lays the photo over the whole card frame instead of an inset sub-frame", () => {
+    const { container } = render(
+      <ProductCard product={baseProduct} mode="inventory" />,
+    );
+
+    const card = container.firstElementChild;
+    const media = screen.getByTestId("product-media");
+
+    // The photo is the card's own background layer: a direct child, edge to edge,
+    // clipped by the card radius so no inner frame ever shows around it.
+    expect(card).toHaveClass("relative", "overflow-hidden");
+    expect(media).toHaveClass("absolute", "inset-0");
+    expect(media.parentElement).toBe(card);
+  });
+
+  it("keeps status and offer chips inside the content sheet, off the photo", () => {
+    render(
+      <ProductCard
+        product={{
+          ...baseProduct,
+          salePrice: 10000,
+          effectiveSalePrice: 8000,
+          promotionType: "PERCENTAGE",
+          promotionValue: 20,
+        }}
+        mode="inventory"
+      />,
+    );
+
+    const media = screen.getByTestId("product-media");
+    const sheet = screen.getByTestId("product-sheet");
+    const status = screen.getByText("Activo");
+    const offer = screen.getByText(/Oferta/);
+
+    // A chip painted over the photo hides the product the cashier must identify.
+    expect(media).not.toContainElement(status);
+    expect(media).not.toContainElement(offer);
+    expect(sheet).toContainElement(status);
+    expect(sheet).toContainElement(offer);
+  });
+
+  it("docks the content sheet as the last layer of the card", () => {
+    const { container } = render(
+      <ProductCard product={baseProduct} mode="inventory" />,
+    );
+
+    const card = container.firstElementChild;
+    const sheet = screen.getByTestId("product-sheet");
+
+    expect(sheet.parentElement).toBe(card);
+    expect(sheet).toHaveClass("relative", "mt-auto");
+    // Reading order matches visual order: the sheet paints above the photo layer.
+    expect(
+      sheet.compareDocumentPosition(screen.getByTestId("product-media")) &
+        Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+  });
+
+  it("highlights the category with the price and keeps stock outside that panel", () => {
+    render(<ProductCard product={baseProduct} mode="inventory" />);
+
+    const panel = screen.getByTestId("product-price-panel");
+
+    expect(panel).toContainElement(screen.getByText("Ropa"));
+    expect(panel).toContainElement(screen.getByText("Precio"));
+    expect(panel).toContainElement(screen.getByText("$ 45.000"));
+    // Stock is its own fact, never a caption of the price.
+    expect(panel).not.toContainElement(screen.getByTestId("product-stock"));
+  });
+
+  it("gives POS a compact icon add control named for assistive tech", () => {
+    const onAdd = vi.fn();
+    render(<ProductCard product={baseProduct} mode="pos" onClick={onAdd} />);
+
+    const add = screen.getByRole("button", { name: /^\+ agregar$/i });
+    expect(add.querySelector("svg")).not.toBeNull();
+    // Quiet by size: an icon control, not a full-width bar competing with the price.
+    expect(add.className).not.toMatch(/(?:^|\s)w-full(?=\s|$)/);
+  });
+});
