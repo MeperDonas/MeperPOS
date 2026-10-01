@@ -94,6 +94,56 @@ describe("BentoSelect", () => {
     expect(screen.getByText("NUEVO")).toBeInTheDocument();
   });
 
+  describe("open direction inside a scroll container", () => {
+    const rects = new Map<string, Partial<DOMRect>>();
+
+    const mockRects = () =>
+      vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+        // The select's own root is the only `relative w-full` element; the scroller is tagged.
+        const key = this.hasAttribute("data-scroller")
+          ? "scroller"
+          : this.className.toString().includes("relative w-full")
+            ? "select"
+            : "";
+        const rect = rects.get(key) ?? {};
+        return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}), ...rect } as DOMRect;
+      });
+
+    const renderInScroller = () =>
+      render(
+        <div data-scroller style={{ overflowY: "auto" }}>
+          <BentoSelect value="" options={baseOptions} onChange={vi.fn()} />
+        </div>,
+      );
+
+    it("opens upwards when the scroll container, not the window, has no room below", () => {
+      // The window is 768px tall, but the modal's scroller ends 60px under the trigger.
+      rects.set("scroller", { top: 0, bottom: 400 });
+      rects.set("select", { top: 300, bottom: 340 });
+      const spy = mockRects();
+      renderInScroller();
+
+      fireEvent.click(screen.getByRole("button"));
+
+      const menu = screen.getByText("Opción A").closest(".absolute")!;
+      expect(menu.className).toContain("bottom-full");
+      spy.mockRestore();
+    });
+
+    it("opens downwards when the scroll container has room for the whole menu", () => {
+      rects.set("scroller", { top: 0, bottom: 700 });
+      rects.set("select", { top: 100, bottom: 140 });
+      const spy = mockRects();
+      renderInScroller();
+
+      fireEvent.click(screen.getByRole("button"));
+
+      const menu = screen.getByText("Opción A").closest(".absolute")!;
+      expect(menu.className).toContain("top-full");
+      spy.mockRestore();
+    });
+  });
+
   it("closes the popover when a mousedown happens outside the container", () => {
     const onChange = vi.fn();
     render(<BentoSelect value="" options={baseOptions} onChange={onChange} />);
