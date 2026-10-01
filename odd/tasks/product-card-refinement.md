@@ -18,12 +18,12 @@ Second pass on the shared inventory/POS `ProductCard` (follow-up to `premium-pro
 - Route: 2 non-trivial files (component + tests) → one delegated writer (`gentle-ai-worker`); parent verifies.
 
 ## Tasks
-- [ ] **CARD-1** — Writer: update the ProductCard tests to the v2 contract (RED), then redesign `ProductCard.tsx` (GREEN). Allowed surfaces: the two files above.
-- [ ] **VERIFY-CARD-2** — Parent: focused Vitest, `tsc --noEmit`, scoped ESLint, and a real-pipeline visual check of the card (POS 2-col mobile incl. a service card, inventory desktop, dark) or an explicit limitation.
-- [ ] **COMMIT-CARD-3** — Work-unit Conventional Commit for the card with its tests; record the SHA here.
-- [ ] **MODAL-4** — Writer (after CARD is committed; writes are single-threaded): opt-in `ImageUpload` hero variant + image-first product modal, tests first (RED) then GREEN.
-- [ ] **VERIFY-MODAL-5** — Parent: focused + full frontend Vitest, `tsc --noEmit`, scoped ESLint, visual check of the modal (phone + desktop) or explicit limitation.
-- [ ] **COMMIT-MODAL-6** — Work-unit Conventional Commit for the modal with its tests; record the SHA here.
+- [x] **CARD-1** — Writer: update the ProductCard tests to the v2 contract (RED), then redesign `ProductCard.tsx` (GREEN). Allowed surfaces: the two files above.
+- [x] **VERIFY-CARD-2** — Parent: focused Vitest, `tsc --noEmit`, scoped ESLint, and a real-pipeline visual check of the card (POS 2-col mobile incl. a service card, inventory desktop, dark) or an explicit limitation.
+- [x] **COMMIT-CARD-3** — Work-unit Conventional Commit for the card with its tests; record the SHA here.
+- [x] **MODAL-4** — Writer (after CARD is committed; writes are single-threaded): opt-in `ImageUpload` hero variant + image-first product modal, tests first (RED) then GREEN.
+- [x] **VERIFY-MODAL-5** — Parent: focused + full frontend Vitest, `tsc --noEmit`, scoped ESLint, visual check of the modal (phone + desktop) or explicit limitation.
+- [x] **COMMIT-MODAL-6** — Work-unit Conventional Commit for the modal with its tests; record the SHA here.
 
 ## Acceptance
 - Photo/placeholder covers the card edge to edge; no framed inner image box.
@@ -36,3 +36,6 @@ Second pass on the shared inventory/POS `ProductCard` (follow-up to `premium-pro
 - Exact check outcomes recorded, including anything not run.
 
 ## Progress
+- Card v2 was committed and merged by the user (PR #194, a2f16df). Follow-up on branch `feat/product-modal-image-first` (from master): `8de4505` removes every gradient (flat dark info panel, flat placeholder) and enlarges the card typography; ProductCard focused suite 87/87, `tsc --noEmit` and scoped ESLint clean. No visual (browser) check was run.
+- MODAL-4/5: writer task muotpe38-1-th1i (could not run commands). Parent verification: `npm.cmd run test -- ImageUpload page.product-form ProductCard page.characterization page.decimal` 131/131 (5 files), `tsc --noEmit` exit clean, scoped ESLint on the 4 files clean. Opt-in `ImageUpload variant=\"hero\"` (4:3 phone, 4:5 md+, overlay icon buttons named Cambiar/Eliminar); inventory modal image column >= 18rem; Descripcion moved into the identity group. ExpenseFormModal untouched (default variant). No visual (browser) check was run.
+- Native review (RDD): START offered for target `sha256:2c862e24...519833f` (workspace, 4 files, 233 lines, medium); consent was DECLINED for this candidate by the human, no lineage created. Candidate-scoped decline; not the kill switch.
