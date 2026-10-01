@@ -92,7 +92,7 @@ function StatusChip({ status }: { status: StatusKey }) {
     <span
       data-testid={statusTestId(status)}
       className={cn(
-        "inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-md border px-1.5 py-0.5 font-mono text-[9px] font-bold leading-none sm:text-[10px]",
+        "inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-md border px-1.5 py-0.5 font-mono text-[10px] font-bold leading-none sm:text-[11px]",
         STATUS_TONE[status],
       )}
     >
@@ -110,7 +110,7 @@ function StatusChip({ status }: { status: StatusKey }) {
 
 function OfferBadge({ discount }: { discount: number }) {
   return (
-    <span className="inline-flex max-w-full items-center whitespace-nowrap rounded-md border border-rose-300 bg-white/90 px-1.5 py-0.5 font-mono text-[9px] font-bold leading-none text-rose-700 dark:border-rose-500/50 dark:bg-zinc-900/90 dark:text-rose-300 sm:text-[10px]">
+    <span className="inline-flex max-w-full items-center whitespace-nowrap rounded-md border border-rose-300 bg-white/90 px-1.5 py-0.5 font-mono text-[10px] font-bold leading-none text-rose-700 dark:border-rose-500/50 dark:bg-zinc-900/90 dark:text-rose-300 sm:text-[11px]">
       Oferta{discount > 0 ? ` -${discount}%` : ""}
     </span>
   );
@@ -121,7 +121,7 @@ function OfferBadge({ discount }: { discount: number }) {
  * Absolute, so the card's fixed shape (not the content) decides how much photo shows.
  * Every layer inherits the card radius and none uses a backdrop filter: a backdrop-blur
  * under overflow-hidden + a rounded corner + a hover transform leaves a grey wedge in
- * the corner, so depth here comes from flat scrims instead.
+ * the corner, so nothing in the card blurs or fades: the info panel is a flat tint.
  */
 function ProductMedia({ product }: { product: ProductCardData }) {
   return (
@@ -136,26 +136,13 @@ function ProductMedia({ product }: { product: ProductCardData }) {
         />
       ) : (
         <>
-          <div
-            className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-primary/40 via-slate-800 to-slate-900"
-            aria-hidden="true"
-          />
+          <div className="absolute inset-0 rounded-[inherit] bg-slate-800" aria-hidden="true" />
           {/* Centred in the visible upper half; the content block covers the rest. */}
           <div className="absolute inset-x-0 top-0 flex h-1/2 items-center justify-center">
             <Package className="h-10 w-10 text-white/30" aria-hidden="true" />
           </div>
         </>
       )}
-      {/* Light top scrim: contrast behind the chips and the control rail on a pale photo. */}
-      <div
-        className="absolute inset-x-0 top-0 h-1/4 rounded-t-[inherit] bg-gradient-to-b from-black/30 to-transparent"
-        aria-hidden="true"
-      />
-      {/* Bottom scrim: keeps the white name, meta and price readable on any photo. */}
-      <div
-        className="absolute inset-x-0 bottom-0 h-[70%] rounded-b-[inherit] bg-gradient-to-t from-black/85 via-black/40 to-transparent"
-        aria-hidden="true"
-      />
     </div>
   );
 }
@@ -300,26 +287,29 @@ export function ProductCard({ product, mode, onClick, onDelete, onReactivate, is
       )}
 
       {/*
-        The content block is transparent text straight over the media layer's bottom scrim.
-        It is the only in-flow child, docked to the bottom by mt-auto, and it stays a plain
-        relative block (no glass layer) so the full-card click surface above it still
-        receives every click on the name, meta and price.
+        The content block is a flat dark panel docked to the bottom of the photo (no gradient,
+        no blur), so white text stays readable on any picture. It is the only in-flow child and
+        a plain relative block, so the full-card click surface above it still receives every
+        click on the name, meta and price.
       */}
-      <div data-testid="product-sheet" className="relative mt-auto w-full min-w-0 px-3 pb-3 pt-10">
-        <h3 className="line-clamp-2 min-w-0 break-words text-sm font-bold leading-snug text-white">
+      <div
+        data-testid="product-sheet"
+        className="relative mt-auto w-full min-w-0 border-t border-white/10 bg-zinc-950/80 px-3 pb-3 pt-3"
+      >
+        <h3 className="line-clamp-2 min-w-0 break-words text-base font-bold leading-snug text-white">
           {product.name}
         </h3>
 
         {(product.sku || showStock) && (
           <div className="mt-0.5 flex min-w-0 items-center justify-between gap-2">
             {product.sku && (
-              <span className="min-w-0 truncate font-mono text-[10px] text-white/60">{product.sku}</span>
+              <span className="min-w-0 truncate font-mono text-[11px] text-white/60">{product.sku}</span>
             )}
             {showStock && (
               <span
                 data-testid="product-stock"
                 className={cn(
-                  "ml-auto shrink-0 font-mono text-[10px] font-semibold leading-none",
+                  "ml-auto shrink-0 font-mono text-[11px] font-semibold leading-none",
                   STOCK_TONE[status] ?? "text-white/85",
                 )}
               >
@@ -330,21 +320,21 @@ export function ProductCard({ product, mode, onClick, onDelete, onReactivate, is
         )}
 
         <div data-testid="product-price-panel" className="mt-2 min-w-0">
-          <span className="block w-fit max-w-full truncate rounded-md bg-primary px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase leading-none tracking-[0.12em] text-white">
+          <span className="block w-fit max-w-full truncate rounded-md bg-primary px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase leading-none tracking-[0.12em] text-white">
             {categoryName}
           </span>
           {/* Wraps so the list price drops below the selling price instead of overflowing. */}
           <div className="mt-1.5 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
             <span
               data-testid={hasPromo ? "offer-effective-price" : undefined}
-              className="whitespace-nowrap font-mono text-xl font-extrabold leading-none tabular-nums tracking-tight text-white"
+              className="whitespace-nowrap font-mono text-[1.375rem] font-extrabold leading-none tabular-nums tracking-tight text-white"
             >
               {formatCurrency(sellingPrice)}
             </span>
             {hasPromo && (
               <s
                 data-testid="offer-list-price"
-                className="whitespace-nowrap font-mono text-[11px] text-white/60 line-through"
+                className="whitespace-nowrap font-mono text-xs text-white/60 line-through"
               >
                 {formatCurrency(Number(product.salePrice))}
               </s>
