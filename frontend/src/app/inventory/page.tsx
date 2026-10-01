@@ -670,16 +670,18 @@ export default function InventoryPage() {
             if (saveInProgressRef.current) event.stopPropagation();
           }}
           aria-busy={isSaving}
+          className="mx-auto w-full max-w-3xl sm:px-4 sm:py-2"
         >
-          <fieldset disabled={isSaving} className="m-0 w-full min-w-0 space-y-4 border-0 p-0 sm:space-y-5">
+          <fieldset disabled={isSaving} className="m-0 w-full min-w-0 space-y-5 border-0 p-0 sm:space-y-7">
           <div role="group" aria-label="Identidad" className="min-w-0 space-y-3">
             <h3 className="text-sm font-semibold text-primary">Datos del producto</h3>
-            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
-              <div className="mx-auto w-full min-w-0 max-w-56 md:max-w-none">
-                <p className="mb-1.5 text-xs font-semibold text-muted-foreground text-center md:text-left">
+            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+              <div className="w-full min-w-0">
+                <p className="mb-1.5 text-xs font-semibold text-muted-foreground">
                   Imagen del producto
                 </p>
                 <ImageUpload
+                  variant="hero"
                   value={formData.imageUrl || ""}
                   file={pendingImageFile}
                   onFileChange={setPendingImageFile}
@@ -744,6 +746,17 @@ export default function InventoryPage() {
                     { value: "SERVICE", label: "Servicio" },
                   ]}
                 />
+                <div className="sm:col-span-2">
+                  <Input
+                    label="Descripción"
+                    value={formData.description || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    textarea
+                    rows={3}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -886,15 +899,6 @@ export default function InventoryPage() {
             </div>
           </div>
 
-          <Input
-            label="Descripción"
-            value={formData.description || ""}
-            onChange={(e) =>
-              setFormData({ ...formData, description: e.target.value })
-            }
-            textarea
-            rows={3}
-          />
           <div className="flex flex-col sm:flex-row gap-2 justify-end pt-3 border-t border-border/40">
             {editingProduct?.active && (
               <Button

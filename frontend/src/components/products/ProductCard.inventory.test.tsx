@@ -844,28 +844,33 @@ describe("ProductCard — premium card v2: shape and layers", () => {
     }
   });
 
-  it("paints a dark premium placeholder with a centered icon and both scrims when there is no photo", () => {
+  it("paints a flat dark placeholder with a centered icon when there is no photo", () => {
     render(<ProductCard product={baseProduct} mode="pos" />);
 
     const media = screen.getByTestId("product-media");
 
     expect(media).toHaveClass("absolute", "inset-0", "rounded-[inherit]");
-    expect(media.querySelector('[class*="from-primary/40"]')).not.toBeNull();
+    expect(media.querySelector('[class*="bg-slate-800"]')).not.toBeNull();
     expect(media.querySelector("svg")).not.toBeNull();
-    // Bottom scrim keeps white text readable on any photo; top scrim backs the chips.
-    expect(media.querySelector('[class*="from-black/85"]')).not.toBeNull();
-    expect(media.querySelector('[class*="from-black/30"]')).not.toBeNull();
   });
 
-  it("keeps the content block transparent over the scrim, docked last, with no glass layer", () => {
+  it.each(["pos", "inventory"] as const)("uses no gradient anywhere in the %s card", (mode) => {
+    const { container } = render(<ProductCard product={promoProduct} mode={mode} onClick={vi.fn()} />);
+
+    for (const node of [container.firstElementChild!, ...Array.from(container.querySelectorAll("*"))]) {
+      expect(node.getAttribute("class") ?? "").not.toMatch(/(?:^|\s)(?:bg-gradient|from-|via-|to-)/);
+    }
+  });
+
+  it("sets the info as a flat dark panel docked last, with no glass layer", () => {
     const { container } = render(<ProductCard product={promoProduct} mode="pos" onClick={vi.fn()} />);
 
     const card = container.firstElementChild;
     const sheet = screen.getByTestId("product-sheet");
 
     expect(card?.lastElementChild).toBe(sheet);
-    expect(sheet).toHaveClass("relative", "mt-auto", "px-3", "pb-3", "pt-10");
-    expect(sheet.className).not.toMatch(/(?:^|\s)bg-/);
+    expect(sheet).toHaveClass("relative", "mt-auto", "px-3", "pb-3", "pt-3", "bg-zinc-950/80");
+    expect(sheet.className).not.toMatch(/backdrop-/);
     expect(Array.from(sheet.children).some((child) => child.classList.contains("absolute"))).toBe(false);
   });
 });
@@ -959,9 +964,9 @@ describe("ProductCard — premium card v2: content block", () => {
     const sku = screen.getByText("SKU-0001");
     const price = screen.getByText("$ 45.000");
 
-    expect(name).toHaveClass("line-clamp-2", "break-words", "text-sm", "font-bold", "text-white");
+    expect(name).toHaveClass("line-clamp-2", "break-words", "text-base", "font-bold", "text-white");
     expect(sku).toHaveClass("min-w-0", "truncate", "font-mono", "text-white/60");
-    expect(price).toHaveClass("font-mono", "text-xl", "font-extrabold", "tabular-nums", "whitespace-nowrap", "text-white");
+    expect(price).toHaveClass("font-mono", "text-[1.375rem]", "font-extrabold", "tabular-nums", "whitespace-nowrap", "text-white");
     expect(price).not.toHaveClass("truncate");
   });
 
