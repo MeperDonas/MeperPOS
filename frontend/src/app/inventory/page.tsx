@@ -670,8 +670,9 @@ export default function InventoryPage() {
             if (saveInProgressRef.current) event.stopPropagation();
           }}
           aria-busy={isSaving}
+          className="mx-auto w-full max-w-3xl sm:px-4 sm:py-2"
         >
-          <fieldset disabled={isSaving} className="m-0 w-full min-w-0 space-y-4 border-0 p-0 sm:space-y-5">
+          <fieldset disabled={isSaving} className="m-0 w-full min-w-0 space-y-5 border-0 p-0 sm:space-y-7">
           <div role="group" aria-label="Identidad" className="min-w-0 space-y-3">
             <h3 className="text-sm font-semibold text-primary">Datos del producto</h3>
             <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">

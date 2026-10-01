@@ -22,6 +22,18 @@ interface BentoSelectProps {
   disabled?: boolean;
 }
 
+/** Nearest ancestor that scrolls vertically (a modal body, a panel), or null when the page scrolls. */
+function findScrollParent(node: HTMLElement | null): HTMLElement | null {
+  for (let el = node?.parentElement ?? null; el; el = el.parentElement) {
+    const { overflowY } = window.getComputedStyle(el);
+    if (overflowY === "auto" || overflowY === "scroll") return el;
+  }
+  return null;
+}
+
+const MENU_ROW_HEIGHT = 36;
+const MENU_MAX_HEIGHT = 240;
+
 export function BentoSelect({
   options,
   value,
@@ -59,10 +71,16 @@ export function BentoSelect({
     if (disabled) return;
     if (!isOpen && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      // If space below is less than 240px and there's more space above, open upwards
-      if (spaceBelow < 240 && spaceAbove > spaceBelow) {
+      // Measure against the visible scroll area, not the window: inside a modal the menu is
+      // clipped by the modal body, and opening downwards there only grows its scroll height.
+      const scroller = findScrollParent(containerRef.current)?.getBoundingClientRect();
+      const visibleTop = Math.max(0, scroller?.top ?? 0);
+      const visibleBottom = Math.min(window.innerHeight, scroller?.bottom ?? window.innerHeight);
+      const spaceBelow = visibleBottom - rect.bottom;
+      const spaceAbove = rect.top - visibleTop;
+      const menuHeight = Math.min(MENU_MAX_HEIGHT, options.length * MENU_ROW_HEIGHT + 12);
+      // Open upwards only when the menu does not fit below and there is more room above.
+      if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
         setOpenUpwards(true);
       } else {
         setOpenUpwards(false);
