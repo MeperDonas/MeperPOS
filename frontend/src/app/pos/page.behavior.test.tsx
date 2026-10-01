@@ -261,9 +261,7 @@ vi.mock("@/contexts/ToastContext", () => ({
 }));
 
 // The POS reads the acting role to decide whether to offer the price-override
-// control. Default to CASHIER (the least-privileged POS role) so every
-// pre-existing test keeps asserting the restricted surface; suites that
-// exercise overriding opt in explicitly.
+// control. Default to CASHIER; permission tests select other roles explicitly.
 const authState = vi.hoisted(() => ({ role: "CASHIER" as string }));
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -732,9 +730,7 @@ describe("POS behavior evidence (#19, #18)", () => {
 describe("POS item price override (pos-edit-item-price)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Overriding is a manager permission (enforced server-side by
-    // SalesService). These tests cover the override UI itself, so they must
-    // act as a role that is actually allowed to override.
+    // SalesService enforces permission; retain ADMIN coverage of the editor.
     authState.role = "ADMIN";
   });
 
@@ -889,7 +885,8 @@ describe("POS item price override (pos-edit-item-price)", () => {
     );
   });
 
-  it("sends the edited unit price (not the original) in the checkout payload", async () => {
+  it.each(["ADMIN", "CASHIER"])("sends the edited unit price (not the original) in the checkout payload for %s", async (role) => {
+    authState.role = role;
     createSaleMutateMock.mockResolvedValue(makeSale());
     renderWithSingleProduct("Producto Ticket", 50000);
     await userEvent.click(screen.getByRole("button", { name: "Producto Ticket" }));
@@ -939,7 +936,7 @@ describe("POS item price override (pos-edit-item-price)", () => {
   });
 });
 
-describe("POS price override permission (manager only)", () => {
+describe("POS price override permission (explicit roles)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createSaleMutateMock.mockResolvedValue(makeSale());
@@ -971,16 +968,20 @@ describe("POS price override permission (manager only)", () => {
     await userEvent.click(screen.getByRole("button", { name }));
     await openDiscountModal();
 
-    // The discount half of the modal still works for a cashier...
+    // The discount half of the modal still works for restricted roles...
     expect(screen.getByPlaceholderText("0.00")).toBeTruthy();
     // ...but the price override is not offered at all.
     expect(screen.queryByRole("button", { name: "Aplicar precio" })).toBeNull();
     expect(screen.queryByPlaceholderText("Precio")).toBeNull();
   }
 
-  it("hides the Aplicar precio control from a CASHIER", async () => {
+  it("shows the Aplicar precio control to a CASHIER", async () => {
     authState.role = "CASHIER";
-    await expectNoPriceControl("Producto Cajero");
+    renderWithSingleProduct("Producto Cajero", 50000);
+    await userEvent.click(screen.getByRole("button", { name: "Producto Cajero" }));
+    await openDiscountModal();
+
+    expect(screen.getByRole("button", { name: "Aplicar precio" })).toBeTruthy();
   });
 
   it("hides the Aplicar precio control from a MEMBER", async () => {
@@ -1013,9 +1014,7 @@ describe("POS price override permission (manager only)", () => {
   });
 
   it("omits unitPrice from the payload for a CASHIER so the server derives it", async () => {
-    // A CASHIER cannot override, so the client must not even claim a price:
-    // if a promotion is applied after the line enters the cart, echoing the
-    // stale cart price would be rejected as an unauthorized override.
+    // Unedited lines omit the price so current promotions remain server-derived.
     authState.role = "CASHIER";
     renderWithSingleProduct("Producto Server", 50000);
     await userEvent.click(screen.getByRole("button", { name: "Producto Server" }));

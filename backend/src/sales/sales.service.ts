@@ -55,18 +55,17 @@ export class SalesService {
   }
 
   /**
-   * Price override is a manager permission, not a cashier one.
-   *
-   * Mirrors the hierarchy enforced by `RolesGuard.getInheritedRoles` — OWNER and
-   * SUPER_ADMIN inherit ADMIN — so the POS control (which only renders for
-   * `hasAnyRole(role, ["ADMIN"])`) and this gate agree on who may override. A
-   * missing `user` is treated as "no manager permission" (deny by default),
-   * because the price is the server's to defend.
+   * Price overrides explicitly allow cashiers and managers, not MEMBER.
+   * Missing principals are denied; this permission does not change role inheritance.
    */
   private canOverridePrice(user: RequestUser | undefined): boolean {
     if (!user) return false;
     if (user.isSuperAdmin || user.role === 'SUPER_ADMIN') return true;
-    return user.role === OrgRole.ADMIN || user.role === OrgRole.OWNER;
+    return (
+      user.role === OrgRole.ADMIN ||
+      user.role === OrgRole.OWNER ||
+      user.role === OrgRole.CASHIER
+    );
   }
 
   /**
@@ -211,7 +210,7 @@ export class SalesService {
 
       if (isOverride && !this.canOverridePrice(user)) {
         throw new ForbiddenException(
-          `Only an ADMIN may override the unit price of ${product.name}`,
+          `Only an ADMIN, OWNER, SUPER_ADMIN or CASHIER may override the unit price of ${product.name}`,
         );
       }
 
