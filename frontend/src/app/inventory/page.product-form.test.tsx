@@ -477,7 +477,7 @@ describe("inventory product modal", () => {
     expect(within(inventory).getByLabelText("Stock")).toBeInTheDocument();
     expect(within(promotion).getByText("Sin oferta")).toBeInTheDocument();
     const media = within(identity).getByTestId("product-image");
-    expect(media.parentElement?.className).toMatch(/mx-auto.*max-w-56/);
+    expect(media.parentElement?.className).not.toMatch(/max-w-56/);
     expect(identity.querySelector(".grid")?.className).toMatch(/md:grid-cols-/);
     expect(prices.querySelector(".grid")?.className).toMatch(/grid-cols-1.*sm:grid-cols-2/);
     expect(inventory.querySelector(".grid")?.className).toMatch(/grid-cols-1.*sm:grid-cols-2/);
@@ -485,5 +485,53 @@ describe("inventory product modal", () => {
     fireEvent.change(within(identity).getByLabelText("Tipo"), { target: { value: "SERVICE" } });
     expect(within(dialog).queryByRole("group", { name: /inventario/i })).not.toBeInTheDocument();
     expect(within(dialog).getByRole("group", { name: /precios/i })).toBeInTheDocument();
+  });
+
+  it("gives the image an 18rem column and a full-width container without the old cap", () => {
+    render(<InventoryPage />);
+    const dialog = openCreate();
+    const identity = within(dialog).getByRole("group", { name: /identidad/i });
+    const grid = identity.querySelector(".grid")!;
+    expect(grid.className).toContain("md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]");
+    expect(grid.className).not.toContain("12rem");
+    const imageColumn = within(identity).getByTestId("product-image").parentElement!;
+    expect(imageColumn.className).not.toContain("max-w-56");
+    expect(imageColumn.className).not.toContain("mx-auto");
+    const label = within(imageColumn).getByText("Imagen del producto");
+    expect(label.className).not.toContain("text-center");
+  });
+
+  it("renders the product image in hero mode", () => {
+    products = [product({ imageUrl: "/images/panela.jpg" })];
+    render(<InventoryPage />);
+    const dialog = openEdit();
+    const media = within(dialog).getByTestId("product-image");
+    const preview = within(media).getByRole("img", { name: "Preview" }).parentElement!;
+    expect(preview).toHaveClass("aspect-[4/3]", "md:aspect-[4/5]");
+    expect(within(media).getByRole("button", { name: "Cambiar" }).textContent?.trim()).toBe("");
+    expect(within(media).getByRole("button", { name: "Eliminar" }).textContent?.trim()).toBe("");
+    cleanup();
+    products = [];
+    render(<InventoryPage />);
+    const createDialog = openCreate();
+    expect(within(createDialog).getByRole("button", { name: /Seleccionar imagen/ })).toHaveClass("aspect-[4/3]", "md:aspect-[4/5]");
+  });
+
+  it("keeps Descripción inside the identity group, spanning both right-column sub-columns, and still edits and saves it", async () => {
+    products = [product()];
+    render(<InventoryPage />);
+    const dialog = openEdit();
+    const identity = within(dialog).getByRole("group", { name: /identidad/i });
+    const description = within(identity).getByLabelText("Descripción");
+    expect(description.tagName).toBe("TEXTAREA");
+    expect(description).toHaveValue("Dulce");
+    expect(description.parentElement).toHaveClass("sm:col-span-2");
+    expect(description.parentElement?.parentElement).toBe(within(identity).getByLabelText("Nombre").parentElement?.parentElement);
+    expect(within(dialog).getAllByLabelText("Descripción")).toHaveLength(1);
+    fireEvent.change(description, { target: { value: "Dulce de caña" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Actualizar" }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ description: "Dulce de caña" }),
+    })));
   });
 });
