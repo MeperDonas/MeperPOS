@@ -243,12 +243,10 @@ export default function POSPage() {
   const createSale = useCreateSale();
   const quickSearchProduct = useQuickSearchProduct();
 
-  // Overriding a line's price is a manager permission, enforced server-side
-  // by SalesService (a non-ADMIN override is rejected with 403). The control is
-  // hidden here so a cashier is never offered an action the API will refuse.
-  // `hasAnyRole` mirrors the backend RolesGuard hierarchy, so OWNER and
-  // SUPER_ADMIN — which inherit ADMIN there — still see it.
-  const canOverridePrice = hasAnyRole(user?.role, ["ADMIN"]);
+  // SalesService explicitly permits CASHIER as well as managers. Keep this
+  // exception local: checking inherited CASHIER would also admit MEMBER.
+  const canOverridePrice =
+    user?.role === "CASHIER" || hasAnyRole(user?.role, ["ADMIN"]);
 
   const customers = customersData?.data || [];
   const totalPages = Math.max(productsData?.meta?.totalPages ?? 1, 1);

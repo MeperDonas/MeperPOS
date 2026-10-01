@@ -10,8 +10,7 @@ import { SalesService } from './sales.service';
 describe('SalesService', () => {
   let service: SalesService;
 
-  // Acting principals for the price-override permission. Only the manager
-  // fixture may deviate from the server-derived price.
+  // Acting principals for the explicit price-override permission.
   const adminUser = {
     userId: 'user-1',
     email: 'admin@example.com',
@@ -1164,11 +1163,9 @@ describe('SalesService', () => {
       });
     });
 
-    it('charges the promotional price when the client echoes the LIST price', async () => {
-      // Behavior change made live by this fix: the client can no longer pin the
-      // sale to list price by sending it. The server derives 8000 from the
-      // PERCENTAGE 20 promotion and the CASHIER's echoed 10000 is treated as
-      // an unauthorized override, not as a valid price.
+    it('rejects a MEMBER echoing the list price instead of the promotional price', async () => {
+      // The server derives 8000 from the PERCENTAGE 20 promotion;
+      // a MEMBER cannot override it by echoing the list price.
       const tx = buildTx();
       primeCreate(tx, promoProduct, 55);
 
@@ -1188,7 +1185,7 @@ describe('SalesService', () => {
           },
           'user-1',
           'org-1',
-          cashierUser,
+          memberUser,
         ),
       ).rejects.toBeInstanceOf(ForbiddenException);
 
@@ -1318,20 +1315,6 @@ describe('SalesService', () => {
       payments: [{ method: 'CASH' as const, amount: unitPrice ?? 100000 }],
     });
 
-    it('rejects a CASHIER override', async () => {
-      const tx = buildTx();
-      primeCreate(tx);
-
-      await expect(
-        service.create(dtoWithPrice(1), 'user-1', 'org-1', cashierUser),
-      ).rejects.toBeInstanceOf(ForbiddenException);
-
-      // Nothing may be persisted for a rejected override.
-      expect(tx.sale.create).not.toHaveBeenCalled();
-      expect(tx.saleItem.create).not.toHaveBeenCalled();
-      expect(tx.auditLog.create).not.toHaveBeenCalled();
-    });
-
     it('rejects a MEMBER override (MEMBER is not a manager)', async () => {
       const tx = buildTx();
       primeCreate(tx);
@@ -1352,11 +1335,11 @@ describe('SalesService', () => {
       expect(tx.sale.create).not.toHaveBeenCalled();
     });
 
-    it('accepts an ADMIN override down to 0 and audits original + new + actor', async () => {
+    it.each([adminUser, cashierUser])('accepts a $role override down to 0 and audits original + new + actor', async (actor) => {
       const tx = buildTx();
       primeCreate(tx);
 
-      await service.create(dtoWithPrice(0), 'user-1', 'org-1', adminUser);
+      await service.create(dtoWithPrice(0), 'user-1', 'org-1', actor);
 
       expect(tx.saleItem.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1381,7 +1364,7 @@ describe('SalesService', () => {
         quantity: 1,
         originalUnitPrice: 100000,
         overriddenUnitPrice: 0,
-        actorRole: 'ADMIN',
+        actorRole: actor.role,
       });
     });
 
