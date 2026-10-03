@@ -90,6 +90,7 @@ describe("printThermalReceipt", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -118,6 +119,48 @@ describe("printThermalReceipt", () => {
     expect(writtenHtml).toContain("window.print()");
     expect(printMock).toHaveBeenCalledTimes(1);
     expect(closeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["load", "error", "timeout"])("waits for logo %s and prints only once", (event) => {
+    vi.useFakeTimers();
+    const image = document.createElement("img");
+    Object.defineProperty(image, "complete", { value: false });
+    const popup = mockPrintWindow();
+    popup.document.querySelector = vi.fn().mockReturnValue(image);
+    vi.spyOn(window, "open").mockReturnValue(popup);
+    printThermalReceipt(makeSale(), "Mi Tienda", {
+      logoUrl: 'https://res.cloudinary.com/demo/image/upload/logos/a.png?x="&y=1',
+    });
+    expect(writeMock.mock.calls[0][0]).toContain('class="receipt-logo"');
+    expect(writeMock.mock.calls[0][0]).toContain('&quot;&amp;y=1');
+    expect(writeMock.mock.calls[0][0]).not.toContain('<script>window.print();</script>');
+    expect(printMock).not.toHaveBeenCalled();
+    if (event === "timeout") vi.advanceTimersByTime(3000);
+    else image.dispatchEvent(new Event(event));
+    expect(printMock).toHaveBeenCalledTimes(1);
+    image.dispatchEvent(new Event("load"));
+    vi.runAllTimers();
+    expect(printMock).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it.each([true, false])("prints once for an already settled logo (loaded: %s)", (loaded) => {
+    const image = document.createElement("img");
+    Object.defineProperty(image, "complete", { value: true });
+    Object.defineProperty(image, "naturalWidth", { value: loaded ? 100 : 0 });
+    const popup = mockPrintWindow();
+    popup.document.querySelector = vi.fn().mockReturnValue(image);
+    vi.spyOn(window, "open").mockReturnValue(popup);
+    printThermalReceipt(makeSale(), "Mi Tienda", { logoUrl: "https://cdn.example/logo.png" });
+    expect(printMock).toHaveBeenCalledTimes(1);
+    expect(image.style.display).toBe(loaded ? "" : "none");
+  });
+
+  it("rejects executable logo URLs", () => {
+    vi.spyOn(window, "open").mockReturnValue(mockPrintWindow());
+    printThermalReceipt(makeSale(), "Mi Tienda", { logoUrl: "javascript:alert(1)" });
+    expect(writeMock.mock.calls[0][0]).not.toContain('<img');
+    expect(printMock).toHaveBeenCalledTimes(1);
   });
 
   it("includes custom header and footer when provided", () => {
