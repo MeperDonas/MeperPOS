@@ -1,5 +1,6 @@
 "use client";
 
+import { safeReceiptLogoUrl } from "@/hooks/useReceipt";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import type { Sale } from "@/types";
 
@@ -8,6 +9,7 @@ interface ThermalReceiptProps {
   organizationName: string;
   header?: string | null;
   footer?: string | null;
+  logoUrl?: string | null;
 }
 
 const paymentMethodLabels: Record<string, string> = {
@@ -21,12 +23,19 @@ export function ThermalReceipt({
   organizationName,
   header,
   footer,
+  logoUrl,
 }: ThermalReceiptProps) {
+  const logo = safeReceiptLogoUrl(logoUrl);
   const change = sale.change ?? 0;
 
   return (
     <div className="thermal-receipt" data-testid="thermal-receipt">
       <header className="receipt-header">
+        {logo && (
+          // A plain image preserves the source in thermal printing without optimization.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logo} alt="Logo" referrerPolicy="no-referrer" className="receipt-logo" style={{ display: "block", width: "30mm", height: "15mm", objectFit: "contain", margin: "0 auto 2mm" }} />
+        )}
         <h2 className="receipt-title">{header || organizationName}</h2>
         <p className="receipt-meta">Comprobante #{sale.saleNumber}</p>
         <p className="receipt-meta">{formatDateTime(sale.createdAt)}</p>

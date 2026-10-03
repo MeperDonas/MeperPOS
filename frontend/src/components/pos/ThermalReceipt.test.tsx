@@ -77,6 +77,14 @@ function makeSale(overrides: Partial<Sale> = {}): Sale {
 }
 
 describe("ThermalReceipt", () => {
+  it("renders a safe logo and omits unsafe or missing logos", () => {
+    const { rerender } = render(<ThermalReceipt sale={makeSale()} organizationName="Mi Tienda" logoUrl="https://cdn.example/logo.png" />);
+    expect(screen.getByRole("img", { name: "Logo" })).toHaveAttribute("src", "https://cdn.example/logo.png");
+    rerender(<ThermalReceipt sale={makeSale()} organizationName="Mi Tienda" logoUrl="javascript:alert(1)" />);
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    rerender(<ThermalReceipt sale={makeSale()} organizationName="Mi Tienda" />);
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
   it("renders organization name, sale number and date", () => {
     const sale = makeSale();
     render(<ThermalReceipt sale={sale} organizationName="Mi Tienda" />);

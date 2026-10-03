@@ -15,6 +15,20 @@ export async function printReceipt(saleId: string) {
 interface ThermalReceiptOptions {
   header?: string | null;
   footer?: string | null;
+  logoUrl?: string | null;
+}
+
+export function safeReceiptLogoUrl(value?: string | null): string | null {
+  if (!value) return null;
+  // Logos are raster data, HTTPS uploads, or the application's local fallback.
+  if (/^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/]+=*$/.test(value)) return value;
+  if (/^\/uploads\/logos\/[A-Za-z0-9_.-]+$/.test(value)) return value;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 const paymentMethodLabels: Record<string, string> = {
@@ -29,6 +43,7 @@ function buildReceiptHtml(
   options: ThermalReceiptOptions = {},
 ): string {
   const { header, footer } = options;
+  const logoUrl = safeReceiptLogoUrl(options.logoUrl);
   const change = sale.change ?? 0;
 
   const itemRows = sale.items
@@ -103,6 +118,7 @@ function buildReceiptHtml(
           }
           .thermal-receipt { line-height: 1.4; }
           .receipt-header { text-align: center; margin-bottom: 8px; }
+          .receipt-logo { display: block; width: 30mm; height: 15mm; object-fit: contain; margin: 0 auto 2mm; }
           .receipt-title { font-size: 14px; font-weight: bold; margin: 0; }
           .receipt-meta { margin: 2px 0; font-size: 11px; }
           .receipt-divider { border: none; border-top: 1px dashed #000; margin: 8px 0; }
@@ -121,6 +137,7 @@ function buildReceiptHtml(
         <button class="print-button no-print" onclick="window.print()">Imprimir Comprobante</button>
         <div class="thermal-receipt">
           <header class="receipt-header">
+            ${logoUrl ? `<img class="receipt-logo" src="${escapeHtml(logoUrl)}" alt="Logo" referrerpolicy="no-referrer" />` : ""}
             <h2 class="receipt-title">${escapeHtml(header || organizationName)}</h2>
             <p class="receipt-meta">Comprobante #${sale.saleNumber}</p>
             <p class="receipt-meta">${formatDateTime(sale.createdAt)}</p>
@@ -161,7 +178,6 @@ function buildReceiptHtml(
             <p>${escapeHtml(footer || "Gracias por su compra")}</p>
           </footer>
         </div>
-        <script>window.print();</script>
       </body>
     </html>
   `;
@@ -193,6 +209,30 @@ export function printThermalReceipt(
 
   printWindow.document.write(buildReceiptHtml(sale, organizationName, options));
   printWindow.document.close();
-  printWindow.focus();
-  printWindow.print();
+  const logo = safeReceiptLogoUrl(options.logoUrl)
+    ? printWindow.document.querySelector<HTMLImageElement>(".receipt-logo")
+    : null;
+  if (!logo) {
+    printWindow.focus();
+    printWindow.print();
+    return;
+  }
+
+  let printed = false;
+  const finish = () => {
+    if (printed) return;
+    printed = true;
+    clearTimeout(timer);
+    logo.removeEventListener("load", finish);
+    logo.removeEventListener("error", finish);
+    if (!logo.complete || logo.naturalWidth === 0) logo.style.display = "none";
+    if (!printWindow.closed) {
+      printWindow.focus();
+      printWindow.print();
+    }
+  };
+  const timer = setTimeout(finish, 3000);
+  logo.addEventListener("load", finish);
+  logo.addEventListener("error", finish);
+  if (logo.complete) finish();
 }

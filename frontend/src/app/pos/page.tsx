@@ -683,6 +683,7 @@ export default function POSPage() {
   const handlePrintThermalReceipt = () => {
     if (lastSale) {
       printThermalReceipt(lastSale, settings?.organization?.name ?? "Mi Negocio", {
+        logoUrl: settings?.organization?.logoUrl,
         header: settings?.invoicing?.printHeader,
         footer: settings?.invoicing?.printFooter,
       });
