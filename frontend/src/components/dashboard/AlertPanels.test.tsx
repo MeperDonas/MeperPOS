@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AlertPanels } from "./AlertPanels";
 
@@ -81,6 +81,21 @@ describe("AlertPanels (DIA-6..8)", () => {
     expect(pushMock).toHaveBeenCalledWith("/inventory?filter=lowStock");
   });
 
+  it("keeps overflow navigation and Reordenar in a bottom-aligned action group", async () => {
+    useLowStockMock.mockReturnValue({
+      data: Array.from({ length: 5 }, (_, i) => ({ id: `p${i}`, name: `Producto ${i}`, stock: 0 })),
+    });
+    render(<AlertPanels />);
+
+    const reorder = screen.getByRole("button", { name: /reordenar/i });
+    const actions = reorder.parentElement!;
+    expect(actions.className).toContain("mt-auto");
+    expect(actions.className).toContain("items-start");
+    expect(actions.parentElement!.className).toContain("flex-col");
+    await userEvent.click(within(actions).getByRole("button", { name: "Ver 1 más" }));
+    expect(pushMock).toHaveBeenCalledWith("/inventory?filter=lowStock");
+  });
+
   // ---- DIA-7: partial expenses ----
   it("lists partial expenses with their pending amounts and total pending in COP", () => {
     useExpensesMock.mockReturnValue({
@@ -133,6 +148,8 @@ describe("AlertPanels (DIA-6..8)", () => {
 
     expect(screen.getByText("Reponer stock")).toBeTruthy();
     expect(screen.getByText("Cerrar caja")).toBeTruthy();
+    expect(within(screen.getByText("Reponer stock").closest("li")!).getByText("Pendiente")).toBeTruthy();
+    expect(within(screen.getByText("Cerrar caja").closest("li")!).getByText("En progreso")).toBeTruthy();
     expect(screen.queryByText("Limpiar")).toBeNull();
     expect(screen.queryByText("Cancelada")).toBeNull();
     // due date is rendered for the open tasks
