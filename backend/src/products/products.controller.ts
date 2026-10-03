@@ -13,6 +13,9 @@ import {
   UploadedFile,
   ParseFilePipeBuilder,
   HttpStatus,
+  ParseEnumPipe,
+  ParseBoolPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,7 +25,7 @@ import {
   ApiConsumes,
   ApiBody,
 } from '@nestjs/swagger';
-import { OrgRole } from '@prisma/client';
+import { OrgRole, ProductType } from '@prisma/client';
 import { ProductsService } from './products.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
@@ -75,6 +78,9 @@ export class ProductsController {
     enum: ['active', 'inactive', 'all'],
     example: 'active',
   })
+  @ApiQuery({ name: 'type', required: false, enum: ProductType })
+  @ApiQuery({ name: 'ids', required: false, description: 'Comma-separated product UUIDs; empty means no products' })
+  @ApiQuery({ name: 'available', required: false, type: Boolean })
   findAll(
     @CurrentUser() user: RequestUser,
     @Query('page') page: number = 1,
@@ -84,7 +90,13 @@ export class ProductsController {
     @Query('status') status: 'active' | 'inactive' | 'all' = 'active',
     @Query('lowStock') lowStock?: string,
     @Query('orderBy') orderBy?: 'name' | 'createdAt',
+    @Query('type', new ParseEnumPipe(ProductType, { optional: true })) type?: ProductType,
+    @Query('ids') ids?: string,
+    @Query('available', new ParseBoolPipe({ optional: true })) available?: boolean,
   ) {
+    if (ids !== undefined && typeof ids !== 'string') {
+      throw new BadRequestException('ids must be a comma-separated string');
+    }
     return this.productsService.findAll(
       user.organizationId,
       page,
@@ -94,6 +106,9 @@ export class ProductsController {
       status,
       lowStock === 'true',
       orderBy,
+      type,
+      ids === undefined ? undefined : ids === '' ? [] : ids.split(','),
+      available ?? false,
     );
   }
 
