@@ -734,7 +734,10 @@ export class SalesService {
   async generateReceipt(id: string, response: Response, user?: RequestUser) {
     const sale = await this.findOne(id, user?.organizationId, user);
     const settings = await this.settingsService.find(user?.organizationId);
-    const pdf = this.receiptsService.generateSaleReceiptPdf(sale, settings);
+    const pdf = await this.receiptsService.generateSaleReceiptPdf(
+      sale,
+      settings,
+    );
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader(
       'Content-Disposition',
