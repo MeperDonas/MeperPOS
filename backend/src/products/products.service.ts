@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { Prisma, ProductType, PromotionType } from '@prisma/client';
+import { isUUID } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   isLowStock,
@@ -253,7 +254,13 @@ export class ProductsService {
     status: 'active' | 'inactive' | 'all' = 'active',
     lowStock?: boolean,
     orderBy: 'name' | 'createdAt' = 'createdAt',
+    type?: ProductType,
+    ids?: string[],
+    available = false,
   ) {
+    if (ids !== undefined && (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string' || !isUUID(id)))) {
+      throw new BadRequestException('ids must contain UUID product IDs');
+    }
     const { skip, take } = computeSkipTake(page, limit);
 
     const where: Record<string, unknown> = { ...(organizationId ? { organizationId } : {}) };
@@ -278,14 +285,29 @@ export class ProductsService {
       where.categoryId = categoryId;
     }
 
+    if (type) where.type = type;
+
     if (lowStock) {
       // Field reference: stock <= minStock is evaluated in the database, so
       // low-stock pages stay coherent without loading every product first.
       where.stock = { lte: this.prisma.product.fields.minStock };
       // A service is never low on stock, and neither is untracked merchandise, so
       // neither can belong on this page.
-      where.type = ProductType.PRODUCT;
+      if (type) where.AND = [{ type: ProductType.PRODUCT }];
+      else where.type = ProductType.PRODUCT;
       where.tracksStock = true;
+    }
+
+    // Explicit [] is restrictive, unlike an omitted filter. Never truncate IDs:
+    // pagination bounds returned rows, not the favorite collection's reachability.
+    if (ids !== undefined) where.id = { in: [...new Set(ids)] };
+    if (available) {
+      const eligibility = { OR: [
+        { type: ProductType.SERVICE },
+        { tracksStock: false },
+        { stock: { gt: 0 } },
+      ] };
+      where.AND = [...((where.AND as unknown[]) ?? []), eligibility];
     }
 
     // 'name' keeps the inventory list's alphabetical presentation coherent
