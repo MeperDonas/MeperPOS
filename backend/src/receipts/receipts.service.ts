@@ -1,14 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { ReceiptLogo, resolveReceiptLogo } from './receipt-logo';
 import { jsPDF } from 'jspdf';
 import { LOCALE, TIMEZONE } from '../common/constants/locale.constants';
-import { buildReceiptData, ReceiptData, ReceiptSale, ReceiptSettings } from './receipt-data';
+import {
+  buildReceiptData,
+  ReceiptData,
+  ReceiptSale,
+  ReceiptSettings,
+} from './receipt-data';
 
 /**
  * Renders sale receipt PDFs (80mm thermal-style layout) with jsPDF.
  *
- * This module owns ALL receipt rendering: the service is pure data-in /
- * Buffer-out (no Response, no database access) so it is unit-testable and the
- * jsPDF dependency stays confined here. SalesService delegates receipt
+ * This module owns ALL receipt rendering: it resolves the optional trusted
+ * logo, then renders data to a Buffer (no Response or database access).
+ * The jsPDF dependency stays confined here. SalesService awaits receipt
  * generation and keeps HTTP response handling.
  *
  * The rendering logic below is a mechanical move of the former SalesService
@@ -17,12 +24,22 @@ import { buildReceiptData, ReceiptData, ReceiptSale, ReceiptSettings } from './r
  */
 @Injectable()
 export class ReceiptsService {
-  generateSaleReceiptPdf(sale: ReceiptSale, settings: ReceiptSettings): Buffer {
+  constructor(@Optional() private readonly config?: ConfigService) {}
+
+  async generateSaleReceiptPdf(
+    sale: ReceiptSale,
+    settings: ReceiptSettings,
+  ): Promise<Buffer> {
     const data: ReceiptData = buildReceiptData(sale, settings);
-    return this.render(data);
+    const logo = await resolveReceiptLogo(
+      data.logoUrl,
+      this.config?.get<string>('CLOUDINARY_CLOUD_NAME'),
+      this.config?.get<string>('LOCAL_UPLOAD_PATH') || './uploads',
+    );
+    return this.render(data, logo);
   }
 
-  private render(data: ReceiptData): Buffer {
+  private render(data: ReceiptData, logo?: ReceiptLogo): Buffer {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -31,19 +48,27 @@ export class ReceiptsService {
     const companyName = data.companyName;
     const printHeader = data.header;
     const printFooter = data.footer;
-    const logoUrl = data.logoUrl;
     const receiptNumber = data.receiptNumber;
 
     const margin = 4;
     const maxWidth = 80 - margin * 2;
     let y = 5;
 
-    if (logoUrl) {
+    if (logo) {
       try {
-        doc.addImage(logoUrl, 'PNG', 40 - 15, y, 30, 15, undefined, 'FAST');
+        doc.addImage(
+          logo.bytes,
+          logo.format,
+          40 - 15,
+          y,
+          30,
+          15,
+          undefined,
+          'FAST',
+        );
         y += 17;
-      } catch (error) {
-        console.error('Error loading logo:', error);
+      } catch {
+        // Invalid image contents degrade to the unchanged no-logo layout.
       }
     }
 
@@ -150,7 +175,11 @@ export class ReceiptsService {
 
     if (data.discount > 0) {
       doc.text('DESCUENTO', margin, y);
-      doc.text(`-${this.formatCurrencyCompact(data.discount)}`, 80 - margin - 15, y);
+      doc.text(
+        `-${this.formatCurrencyCompact(data.discount)}`,
+        80 - margin - 15,
+        y,
+      );
       y += 4;
     }
 
@@ -178,7 +207,11 @@ export class ReceiptsService {
         for (const payment of data.payments) {
           const methodText = this.getPaymentMethodText(payment.method);
           doc.text(`${methodText}:`, margin, y);
-          doc.text(this.formatCurrencyCompact(payment.amount), 80 - margin - 15, y);
+          doc.text(
+            this.formatCurrencyCompact(payment.amount),
+            80 - margin - 15,
+            y,
+          );
           y += 4;
         }
       } else {
@@ -194,7 +227,11 @@ export class ReceiptsService {
 
           if (data.change !== null && data.change > 0) {
             doc.text('CAMBIO:', margin, y);
-            doc.text(this.formatCurrencyCompact(data.change), 80 - margin - 15, y);
+            doc.text(
+              this.formatCurrencyCompact(data.change),
+              80 - margin - 15,
+              y,
+            );
             y += 4;
           }
         }
