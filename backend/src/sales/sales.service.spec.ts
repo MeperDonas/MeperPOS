@@ -1578,7 +1578,7 @@ describe('SalesService.generateReceipt delegation', () => {
     prismaMock.sale.findFirst.mockResolvedValue(receiptSale);
     settingsServiceMock.find.mockResolvedValue(receiptSettings);
     const pdf = Buffer.from('%PDF-delegate');
-    receiptsServiceMock.generateSaleReceiptPdf.mockReturnValue(pdf);
+    receiptsServiceMock.generateSaleReceiptPdf.mockResolvedValue(pdf);
     const response = stubResponse();
 
     await service.generateReceipt('sale-1', response as never, mockUser());

@@ -243,7 +243,7 @@ vi.mock("@/hooks/useReceipt", () => ({
 vi.mock("@/hooks/useSettings", () => ({
   useSettings: () => ({
     data: {
-      organization: { name: "Mi Tienda", logoUrl: null },
+      organization: { name: "Mi Tienda", logoUrl: "https://res.cloudinary.com/demo/image/upload/logos/store.png" },
       invoicing: { printHeader: null, printFooter: null },
       receipt: { prefix: "REC" },
       locale: { currency: "COP", locale: "es-CO", timezone: "America/Bogota" },
@@ -570,7 +570,7 @@ describe("POS behavior evidence (#19, #18)", () => {
       expect(printThermalReceipt).toHaveBeenCalledWith(
         expect.objectContaining({ id: "sale-1", saleNumber: 101 }),
         "Mi Tienda",
-        expect.objectContaining({ header: null, footer: null }),
+        expect.objectContaining({ header: null, footer: null, logoUrl: "https://res.cloudinary.com/demo/image/upload/logos/store.png" }),
       );
     });
   });
