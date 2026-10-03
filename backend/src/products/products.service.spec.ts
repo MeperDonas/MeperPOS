@@ -1035,6 +1035,82 @@ describe('ProductsService — Opt-in tax resolution', () => {
       prismaMock.product.count.mockResolvedValue(0);
     };
 
+    it('intersects IDs and availability with search/type before both paging and count', async () => {
+      setupFindAll();
+      const id = '00000000-0000-4000-8000-000000000001';
+      prismaMock.product.count.mockResolvedValue(7);
+      const result = await Reflect.apply(service.findAll, service, [ORG_ID, 2, 3, 'repair', 'cat-2', 'active', false, 'name', ProductType.SERVICE, [id, id], true]);
+      const rows = prismaMock.product.findMany.mock.calls[0][0];
+      expect(rows).toMatchObject({ skip: 3, take: 3, where: {
+        organizationId: ORG_ID, active: true, categoryId: 'cat-2', type: ProductType.SERVICE,
+        id: { in: [id] }, OR: expect.any(Array),
+        AND: [{ OR: [{ type: ProductType.SERVICE }, { tracksStock: false }, { stock: { gt: 0 } }] }],
+      } });
+      expect(prismaMock.product.count).toHaveBeenCalledWith({ where: rows.where });
+      expect(result.meta).toMatchObject({ total: 7, totalPages: 3 });
+    });
+
+    it('keeps empty IDs restrictive and rejects malformed IDs rather than dropping the filter', async () => {
+      setupFindAll();
+      await Reflect.apply(service.findAll, service, [ORG_ID, 1, 3, undefined, undefined, 'active', false, 'name', undefined, []]);
+      expect(prismaMock.product.findMany.mock.calls[0][0].where.id).toEqual({ in: [] });
+      await expect(Reflect.apply(service.findAll, service, [ORG_ID, 1, 3, undefined, undefined, 'active', false, 'name', undefined, ['bad']])).rejects.toThrow(BadRequestException);
+    });
+
+    it('counts eligibility across zero-stock services, untracked and stocked merchandise before slicing', async () => {
+      const fixture = [
+        buildProduct({ type: ProductType.SERVICE, stock: 0 }),
+        buildProduct({ id: 'untracked', type: ProductType.PRODUCT, tracksStock: false, stock: 0 }),
+        buildProduct({ id: 'stocked', type: ProductType.PRODUCT, tracksStock: true, stock: 2 }),
+        buildProduct({ id: 'empty', type: ProductType.PRODUCT, tracksStock: true, stock: 0 }),
+      ];
+      const select = (where: { AND?: { OR: Record<string, unknown>[] }[] }) => fixture.filter((p) => !where.AND || where.AND.every((clause) => clause.OR.some((branch) =>
+        branch.type === p.type || branch.tracksStock === p.tracksStock || (branch.stock !== undefined && p.stock > 0),
+      )));
+      prismaMock.product.findMany.mockImplementation(async ({ where, skip, take }) => select(where).slice(skip, skip + take));
+      prismaMock.product.count.mockImplementation(async ({ where }) => select(where).length);
+      const result = await Reflect.apply(service.findAll, service, [ORG_ID, 2, 2, undefined, undefined, 'active', false, 'name', undefined, undefined, true]);
+      expect(result.meta).toMatchObject({ total: 3, totalPages: 2 });
+      expect(result.data.map((p: { id: string }) => p.id)).toEqual(['stocked']);
+      const defaultResult = await service.findAll(ORG_ID, 1, 10);
+      expect(defaultResult.meta.total).toBe(4);
+    });
+
+    it('retains every valid ID rather than capping favorites and composes low-stock availability', async () => {
+      setupFindAll();
+      const ids = Array.from({ length: 250 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`);
+      await service.findAll(ORG_ID, 1, 3, 'repair', undefined, 'active', true, 'name', ProductType.SERVICE, ids, true);
+      const where = prismaMock.product.findMany.mock.calls[0][0].where;
+      expect(where.id.in).toEqual(ids);
+      expect(where.AND).toEqual([{ type: ProductType.PRODUCT }, { OR: [{ type: ProductType.SERVICE }, { tracksStock: false }, { stock: { gt: 0 } }] }]);
+      expect(where).toMatchObject({ active: true, organizationId: ORG_ID, type: ProductType.SERVICE, tracksStock: true, stock: { lte: MIN_STOCK_FIELD_REF } });
+      expect(prismaMock.product.count).toHaveBeenCalledWith({ where });
+    });
+
+    it('applies service type before paging and uses the same scoped where for count', async () => {
+      setupFindAll();
+      prismaMock.product.count.mockResolvedValue(25);
+      const result = await Reflect.apply(service.findAll, service, [ORG_ID, 2, 6, 'repair', 'cat-2', 'active', false, 'name', ProductType.SERVICE]);
+      const rows = prismaMock.product.findMany.mock.calls[0][0];
+      expect(rows).toEqual(expect.objectContaining({
+        skip: 6, take: 6,
+        where: expect.objectContaining({ organizationId: ORG_ID, active: true, categoryId: 'cat-2', type: ProductType.SERVICE, OR: expect.any(Array) }),
+      }));
+      expect(prismaMock.product.count).toHaveBeenCalledWith({ where: rows.where });
+      expect(result.meta).toEqual({ total: 25, page: 2, limit: 6, totalPages: 5 });
+    });
+
+    it('intersects service and low-stock filters rather than returning merchandise', async () => {
+      setupFindAll();
+      await Reflect.apply(service.findAll, service, [ORG_ID, 1, 6, undefined, undefined, 'active', true, 'name', ProductType.SERVICE]);
+      const where = prismaMock.product.findMany.mock.calls[0][0].where;
+      expect(where).toEqual(expect.objectContaining({
+        type: ProductType.SERVICE, tracksStock: true,
+        stock: { lte: MIN_STOCK_FIELD_REF }, AND: [{ type: ProductType.PRODUCT }],
+      }));
+      expect(prismaMock.product.count).toHaveBeenCalledWith({ where });
+    });
+
     it('filters stock <= minStock via a field reference when lowStock is true', async () => {
       setupFindAll();
 
