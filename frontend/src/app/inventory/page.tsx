@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import {
   useProducts,
@@ -38,7 +39,9 @@ import { getApiErrorMessage } from "@/lib/api";
 import { cn, resolveTaxFields, toFiniteNumber } from "@/lib/utils";
 import { isService } from "@/lib/product-type";
 
-export default function InventoryPage() {
+function InventoryContent() {
+  const searchParams = useSearchParams();
+  const urlLowStock = searchParams?.get("filter") === "lowStock";
   const toast = useToast();
   const { user } = useAuth();
   const canManageInventory =
@@ -48,7 +51,19 @@ export default function InventoryPage() {
   const [statusFilter, setStatusFilter] = useState<
     "active" | "inactive" | "all"
   >("active");
-  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [lowStockFilter, setLowStockFilter] = useState({
+    urlValue: urlLowStock,
+    enabled: urlLowStock,
+  });
+  const urlFilterChanged = lowStockFilter.urlValue !== urlLowStock;
+  const showLowStockOnly = urlFilterChanged ? urlLowStock : lowStockFilter.enabled;
+
+  // Adjust only on URL transitions: unrelated renders must preserve manual toggles.
+  // Resolve the new query immediately, without fetching a stale page/filter first.
+  if (urlFilterChanged) {
+    setLowStockFilter({ urlValue: urlLowStock, enabled: urlLowStock });
+    setPage(1);
+  }
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
@@ -95,14 +110,14 @@ export default function InventoryPage() {
 
   const toggleLowStockOnly = () => {
     setPage(1);
-    setShowLowStockOnly(!showLowStockOnly);
+    setLowStockFilter({ urlValue: urlLowStock, enabled: !showLowStockOnly });
   };
 
   // Server-side pagination: every request — filtered or not — is bounded to
   // one page of rows. Low stock and alphabetical order are resolved by the
   // backend (findAll lowStock/orderBy) so pages stay coherent.
   const { data, isLoading, isFetching } = useProducts({
-    page,
+    page: urlFilterChanged ? 1 : page,
     limit: 10,
     search: search || undefined,
     categoryId: selectedCategory || undefined,
@@ -499,6 +514,7 @@ export default function InventoryPage() {
               />
               <button
                 onClick={toggleLowStockOnly}
+                aria-pressed={showLowStockOnly}
                 className={cn(
                   "flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all border",
                   showLowStockOnly
@@ -591,7 +607,7 @@ export default function InventoryPage() {
               <Button
                 variant="danger"
                 size="sm"
-                onClick={() => setShowLowStockOnly(true)}
+                onClick={() => setLowStockFilter({ urlValue: urlLowStock, enabled: true })}
               >
                 Ver todos
               </Button>
@@ -612,9 +628,8 @@ export default function InventoryPage() {
             {isFetching && (
               <div
                 role="status"
-                className="flex items-center gap-2 px-1 py-1 text-xs text-muted-foreground"
+                className="sr-only"
               >
-                <Package className="w-3.5 h-3.5 animate-pulse text-primary/60" />
                 Actualizando productos...
               </div>
             )}
@@ -984,5 +999,13 @@ export default function InventoryPage() {
         cancelText="Cancelar"
       />
     </DashboardLayout>
+  );
+}
+
+export default function InventoryPage() {
+  return (
+    <Suspense fallback={<LoadingState icon={<Package className="w-4 h-4 text-primary/50" />} message="Cargando productos..." />}>
+      <InventoryContent />
+    </Suspense>
   );
 }

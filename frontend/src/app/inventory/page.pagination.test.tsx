@@ -12,6 +12,11 @@ import type { ReactNode } from "react";
  */
 
 const useProductsMock = vi.fn();
+let urlParams: URLSearchParams | null = new URLSearchParams();
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => urlParams,
+}));
 let productsResponse: {
   data: {
     data: ReturnType<typeof buildProduct>[];
@@ -170,6 +175,7 @@ function lastQuery(): Record<string, unknown> {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  urlParams = new URLSearchParams();
   setResponse([]);
   useProductsMock.mockImplementation(() => productsResponse);
 });
@@ -179,6 +185,70 @@ afterEach(() => {
 });
 
 describe("Inventory page — real pagination (S2)", () => {
+  it("initializes the first bounded query from the low-stock URL and shows tracked zero stock", () => {
+    urlParams = new URLSearchParams("filter=lowStock");
+    setResponse([
+      buildProduct({ name: "Agotado", stock: 0, minStock: 0, tracksStock: true, isLowStock: true }),
+      buildProduct({ name: "Escaso", stock: 2, tracksStock: true, isLowStock: true }),
+    ]);
+    render(<InventoryPage />);
+
+    expect(useProductsMock.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ page: 1, limit: 10, lowStock: true }),
+    );
+    expect(screen.getByRole("heading", { name: "Agotado" })).toBeInTheDocument();
+    expect(screen.getByText("Escaso")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Stock Bajo/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("synchronizes URL entry/removal at page 1 without clearing other filters or overriding manual toggles", () => {
+    setResponse([buildProduct({ name: "Panela", isLowStock: true })], { total: 35, totalPages: 4 });
+    const { rerender } = render(<InventoryPage />);
+    fireEvent.change(screen.getByLabelText("Todas las categorías"), { target: { value: "cat-2" } });
+    fireEvent.change(screen.getByPlaceholderText("Buscar por nombre, SKU..."), { target: { value: "Panela" } });
+    fireEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+
+    urlParams = new URLSearchParams("filter=lowStock");
+    rerender(<InventoryPage />);
+    expect(lastQuery()).toEqual(expect.objectContaining({ page: 1, lowStock: true, categoryId: "cat-2", search: "Panela" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Stock Bajo/ }));
+    rerender(<InventoryPage />);
+    expect(lastQuery().lowStock).toBeUndefined();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Stock Bajo/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    urlParams = new URLSearchParams("filter=unknown");
+    rerender(<InventoryPage />);
+    expect(lastQuery()).toEqual(expect.objectContaining({ page: 1, categoryId: "cat-2", search: "Panela" }));
+    expect(lastQuery().lowStock).toBeUndefined();
+  });
+
+  it("treats null search params as no URL filter and preserves manual toggles", () => {
+    urlParams = null;
+    const { rerender } = render(<InventoryPage />);
+
+    expect(lastQuery()).toEqual(expect.objectContaining({ page: 1, limit: 10 }));
+    expect(lastQuery().lowStock).toBeUndefined();
+    expect(screen.getByRole("button", { name: /^Stock Bajo/ })).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(screen.getByRole("button", { name: /^Stock Bajo/ }));
+    rerender(<InventoryPage />);
+    expect(lastQuery().lowStock).toBe(true);
+    expect(screen.getByRole("button", { name: /^Stock Bajo/ })).toHaveAttribute("aria-pressed", "true");
+
+    urlParams = new URLSearchParams("filter=lowStock");
+    rerender(<InventoryPage />);
+    urlParams = null;
+    rerender(<InventoryPage />);
+    expect(lastQuery().lowStock).toBeUndefined();
+    expect(screen.getByRole("button", { name: /^Stock Bajo/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("does not activate low stock for an unrelated URL filter", () => {
+    urlParams = new URLSearchParams("filter=unknown");
+    render(<InventoryPage />);
+    expect(lastQuery().lowStock).toBeUndefined();
+  });
   it("every request is bounded to the page size (never 1000), filtered or not", () => {
     setResponse([buildProduct({ name: "Panela" })], { total: 30, totalPages: 3 });
 
@@ -282,7 +352,10 @@ describe("Inventory page — real pagination (S2)", () => {
     rerender(<InventoryPage />);
 
     expect(screen.getByText("Panela")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Actualizando productos...");
+    expect(screen.getByRole("status")).toHaveClass("sr-only");
+    expect(screen.getByText("Panela").closest("[aria-busy]")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
 
     // Page-2 rows arrive: rows update and the indicator clears.
     setResponse([buildProduct({ name: "Arequipe" })], { total: 25, totalPages: 3 });
@@ -291,5 +364,6 @@ describe("Inventory page — real pagination (S2)", () => {
     expect(screen.getByText("Arequipe")).toBeInTheDocument();
     expect(screen.queryByText("Panela")).not.toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByText("Arequipe").closest("[aria-busy]")).toHaveAttribute("aria-busy", "false");
   });
 });
