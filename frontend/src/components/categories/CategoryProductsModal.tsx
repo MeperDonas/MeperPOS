@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useProducts } from "@/hooks/useProducts";
 import { Modal } from "@/components/ui/Modal";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -47,7 +48,7 @@ function ProductRow({ product }: { product: Product }) {
   return (
     <li
       className={cn(
-        "flex items-center gap-3 rounded-xl border border-border/50 bg-card p-2.5 transition-colors hover:border-primary/30",
+        "grid min-w-0 grid-cols-[48px_minmax(0,1fr)] items-start gap-x-3 gap-y-2 rounded-xl border border-border/50 bg-card p-2.5 transition-colors hover:border-primary/30",
         isInactive && "opacity-60",
       )}
     >
@@ -70,10 +71,10 @@ function ProductRow({ product }: { product: Product }) {
 
       {/* Info */}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate text-[13px] font-semibold text-foreground">
+        <p className="[overflow-wrap:anywhere] text-[13px] font-semibold text-foreground">
           {product.name}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 [overflow-wrap:anywhere]">
           <span className="font-mono text-[10px] font-medium text-muted-foreground">
             {product.sku}
           </span>
@@ -86,7 +87,7 @@ function ProductRow({ product }: { product: Product }) {
       </div>
 
       {/* Price + stock */}
-      <div className="flex shrink-0 items-center gap-2.5">
+      <div className="col-span-2 flex min-w-0 flex-wrap items-center justify-between gap-2.5 [overflow-wrap:anywhere]">
         <span className="font-mono text-[13px] font-bold text-foreground">
           {formatCurrency(product.salePrice)}
         </span>
@@ -96,64 +97,111 @@ function ProductRow({ product }: { product: Product }) {
   );
 }
 
-export function CategoryProductsModal({
-  category,
-  onClose,
-}: CategoryProductsModalProps) {
-  const { data, isLoading, isError } = useProducts({
-    categoryId: category?.id,
-    limit: 200,
-    status: "all",
-    enabled: !!category?.id,
+// The budget excludes modal header, padding, count, footer and their gaps.
+// Use the tallest measured card so wrapped text never relies on a fixed height.
+export function categoryPageCapacity(budget: number, width: number, rowHeight: number) {
+  const columns = width >= 640 ? 2 : 1;
+  const rows = Math.max(1, Math.floor((budget + 8) / (Math.max(116, rowHeight) + 8)));
+  return rows * columns;
+}
+
+function CategoryPage({ category, onClose }: { category: Category; onClose: () => void }) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const countRef = useRef<HTMLDivElement>(null);
+  const pagerRef = useRef<HTMLElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const [geometry, setGeometry] = useState(() => ({
+    height: typeof window === "undefined" ? 600 : window.innerHeight,
+    width: typeof window === "undefined" ? 320 : Math.min(896, window.innerWidth) - 80,
+    chrome: 240,
+    rowHeight: 116,
+  }));
+  const limit = categoryPageCapacity(geometry.height - geometry.chrome, geometry.width, geometry.rowHeight);
+  const [paging, setPaging] = useState({ limit, page: 1 });
+  // Adjust during render: never send the old page with a newly calculated limit.
+  const page = paging.limit === limit ? paging.page : 1;
+  if (paging.limit !== limit) setPaging({ limit, page: 1 });
+
+  const { data, isLoading, isError, isPlaceholderData } = useProducts({
+    categoryId: category.id, page, limit, status: "all",
   });
+  // The shared hook keeps previous query data; it is not this request's result.
+  const current = !isPlaceholderData && !isError ? data : undefined;
+  const products = current?.data ?? [];
+  const total = current?.meta.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const clamping = !!current && page > totalPages;
+  if (clamping) setPaging({ limit, page: totalPages });
+  const pending = isLoading || isPlaceholderData || clamping;
 
-  const products = data?.data ?? [];
-  const total = data?.meta?.total ?? 0;
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const content = body.parentElement!;
+    const header = content.previousElementSibling;
+    const measure = () => {
+      const width = body.getBoundingClientRect().width || Math.min(896, window.innerWidth) - 80;
+      const style = getComputedStyle(content);
+      const padding = (parseFloat(style.paddingTop) || 24) + (parseFloat(style.paddingBottom) || 24);
+      const measuredChrome = (header?.getBoundingClientRect().height || 64)
+        + (countRef.current?.getBoundingClientRect().height || 28)
+        + (pagerRef.current?.getBoundingClientRect().height || 64)
+        + padding + (window.innerWidth >= 640 ? 32 : 16) + 26;
+      const measuredRow = Math.max(116, ...Array.from(listRef.current?.children ?? []).map(row => row.getBoundingClientRect().height));
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      setGeometry(previous => {
+        // Keep a high-water mark per width to prevent page-size oscillation.
+        const rowHeight = width === previous.width ? Math.max(previous.rowHeight, measuredRow) : measuredRow;
+        const chrome = width === previous.width ? Math.max(previous.chrome, measuredChrome) : measuredChrome;
+        if (previous.width === width && previous.height === height && previous.chrome === chrome && previous.rowHeight === rowHeight) return previous;
+        return { width, height, chrome, rowHeight };
+      });
+    };
+    measure();
+    const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
+    [body, header, countRef.current, pagerRef.current, listRef.current].forEach(node => { if (node) observer?.observe(node); });
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+    };
+  }, [data, isPlaceholderData]);
 
+  const start = products.length ? (page - 1) * limit + 1 : 0;
+  const end = products.length ? Math.min(total, (page - 1) * limit + products.length) : 0;
   return (
-    <Modal
-      isOpen={!!category}
-      onClose={onClose}
-      title={category ? `Productos · ${category.name}` : ""}
-      size="md"
-    >
-      {isLoading ? (
-        <LoadingState
-          icon={<Package className="w-4 h-4 text-primary/50" />}
-          message="Cargando productos..."
-        />
-      ) : isError ? (
-        <EmptyState
-          icon={<PackageX className="w-6 h-6 text-muted-foreground/30" />}
-          title="No se pudieron cargar los productos"
-          subtitle="Intenta de nuevo más tarde"
-        />
-      ) : products.length === 0 ? (
-        <EmptyState
-          icon={<PackageX className="w-6 h-6 text-muted-foreground/30" />}
-          title="No hay productos en esta categoría"
-          subtitle={total === 0 ? "Aún no se han asignado productos" : undefined}
-        />
-      ) : (
-        <>
-          {/* Count header */}
-          <div className="mb-3 flex items-center justify-between">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-              {total} {total === 1 ? "producto" : "productos"}
-            </span>
-            <span className="text-[11px] text-muted-foreground">
-              Desplázate para ver todos
-            </span>
-          </div>
-
-          {/* Scrollable list */}
-          <ul className="flex max-h-[55vh] flex-col gap-2 overflow-y-auto scrollbar-app pr-1">
-            {products.map((product) => (
-              <ProductRow key={product.id} product={product} />
-            ))}
+    <Modal isOpen onClose={onClose} title={`Productos · ${category.name}`} size="lg" scrollContent={false}>
+      <div ref={bodyRef} className="flex min-w-0 flex-col gap-3">
+        <div ref={countRef} className="text-xs font-semibold text-primary" aria-live="polite">
+          {current && !clamping ? `${total} ${total === 1 ? "producto" : "productos"}` : "Productos"}
+        </div>
+        {pending ? (
+          <LoadingState className="min-h-0 py-2" icon={<Package className="w-4 h-4 text-primary/50" />} message="Cargando productos..." />
+        ) : isError ? (
+          <EmptyState className="min-h-0 py-2" icon={<PackageX className="w-6 h-6 text-muted-foreground/30" />} title="No se pudieron cargar los productos" subtitle="Intenta de nuevo más tarde" />
+        ) : products.length === 0 ? (
+          <EmptyState className="min-h-0 py-2" icon={<PackageX className="w-6 h-6 text-muted-foreground/30" />} title="No hay productos en esta categoría" subtitle={total === 0 ? "Aún no se han asignado productos" : undefined} />
+        ) : (
+          <ul ref={listRef} className={cn("grid items-start gap-2", geometry.width >= 640 ? "grid-cols-2" : "grid-cols-1")}>
+            {products.map(product => <ProductRow key={product.id} product={product} />)}
           </ul>
-        </>
-      )}
+        )}
+        <nav ref={pagerRef} aria-label="Paginación de productos" className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs">
+          <span aria-live="polite" className="w-full text-muted-foreground">
+            {current && !clamping ? `Mostrando ${start}–${end} de ${total}` : "Esperando productos"}
+          </span>
+          <button type="button" aria-label="Página anterior" disabled={pending || isError || page === 1} onClick={() => setPaging({ limit, page: page - 1 })} className="rounded-lg border border-border px-3 py-2 disabled:opacity-40">Anterior</button>
+          <span aria-live="polite">Página {page}{current && !clamping ? ` de ${totalPages}` : ""}</span>
+          <button type="button" aria-label="Página siguiente" disabled={pending || isError || !current || page >= totalPages} onClick={() => setPaging({ limit, page: page + 1 })} className="rounded-lg border border-border px-3 py-2 disabled:opacity-40">Siguiente</button>
+        </nav>
+      </div>
     </Modal>
   );
+}
+
+export function CategoryProductsModal({ category, onClose }: CategoryProductsModalProps) {
+  // Changing category or closing unmounts the local page and geometry state.
+  return category ? <CategoryPage key={category.id} category={category} onClose={onClose} /> : null;
 }
