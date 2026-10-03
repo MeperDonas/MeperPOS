@@ -10,6 +10,8 @@ interface ModalProps {
   title?: string;
   children: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl" | "2xl";
+  /** Opt out only when the consumer measures and fits its content to the viewport. */
+  scrollContent?: boolean;
 }
 
 const sizes = {
@@ -26,6 +28,7 @@ export function Modal({
   title,
   children,
   size = "md",
+  scrollContent = true,
 }: ModalProps) {
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "unset";
@@ -63,7 +66,7 @@ export function Modal({
         {/* Header */}
         {title && (
           <div className="flex items-center justify-between border-b border-border/60 px-4 py-3 sm:px-6 sm:py-4 shrink-0">
-            <h2 className="text-base font-bold text-foreground truncate pr-2">{title}</h2>
+            <h2 className={cn("text-base font-bold text-foreground pr-2", scrollContent ? "truncate" : "min-w-0 [overflow-wrap:anywhere]")}>{title}</h2>
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-xl border border-border/60 bg-muted/40 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-xs shrink-0"
@@ -75,7 +78,7 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className="p-4 sm:p-6 overflow-y-auto scrollbar-app flex-1">{children}</div>
+        <div className={cn("p-4 sm:p-6", scrollContent ? "overflow-y-auto scrollbar-app flex-1" : "shrink-0")}>{children}</div>
       </div>
     </div>
   );
