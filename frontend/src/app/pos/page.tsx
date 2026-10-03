@@ -47,14 +47,14 @@ import {
   Wrench,
 } from "lucide-react";
 import { cn, formatCurrency, safeGetItem, safeSetItem } from "@/lib/utils";
-import { effectiveStock, isService } from "@/lib/product-type";
+import { effectiveStock } from "@/lib/product-type";
 import type { CartItem, Product, Sale } from "@/types";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasAnyRole } from "@/lib/auth";
 import { api, getApiErrorMessage } from "@/lib/api";
 
-const POS_PAGE_SIZE = 20;
+import { observePOSGrid } from "./pos-layout";
 
 // S1 code splitting (#98): the payment modal and mobile cart drawer are the
 // heaviest POS-only components; they load as separate chunks on first open
@@ -160,6 +160,22 @@ export default function POSPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(1);
+  const capacityRef = useRef(1);
+  const capacityAreaRef = useRef<HTMLDivElement>(null);
+  const productGridRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const area = capacityAreaRef.current;
+    const grid = productGridRef.current;
+    if (!area || !grid) return;
+    return observePOSGrid(area, grid, (capacity) => {
+      if (capacityRef.current === capacity) return;
+      capacityRef.current = capacity;
+      setPageSize(capacity);
+      setCurrentPage(1);
+    });
+  }, []);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scannerInputRef = useRef<HTMLInputElement | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -170,8 +186,11 @@ export default function POSPage() {
     const saved = safeGetItem(FAVORITE_PRODUCTS_KEY);
     if (!saved) return [];
     try {
-      const parsed = JSON.parse(saved) as string[];
-      return Array.isArray(parsed) ? parsed : [];
+      const parsed: unknown = JSON.parse(saved);
+      // Ignore malformed entries, not valid favorites later in the saved list.
+      return Array.isArray(parsed) ? [...new Set(parsed.filter((id): id is string =>
+        typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id),
+      ))] : [];
     } catch {
       return [];
     }
@@ -228,13 +247,17 @@ export default function POSPage() {
   }, []);
 
   const {
-    data: productsData,
+    data: queryProductsData,
     isLoading: searching,
     isFetching,
+    isPlaceholderData,
   } = useProducts({
     page: currentPage,
-    limit: POS_PAGE_SIZE,
+    limit: pageSize,
     search: debouncedSearch || undefined,
+    type: showServicesOnly ? "SERVICE" : undefined,
+    ids: showFavoritesOnly ? favoriteProductIds : undefined,
+    available: true,
   });
   const { data: customersData } = useCustomers();
   const { data: settings } = useSettings();
@@ -248,6 +271,9 @@ export default function POSPage() {
   const canOverridePrice =
     user?.role === "CASHIER" || hasAnyRole(user?.role, ["ADMIN"]);
 
+  // A previous page/geometry must not advertise stale totals or overflow the
+  // newly sized area while its replacement is loading.
+  const productsData = isPlaceholderData ? undefined : queryProductsData;
   const customers = customersData?.data || [];
   const totalPages = Math.max(productsData?.meta?.totalPages ?? 1, 1);
   const totalProducts = productsData?.meta?.total ?? 0;
@@ -259,6 +285,12 @@ export default function POSPage() {
     () => Math.max(1, Math.min(currentPage, totalPages)),
     [currentPage, totalPages],
   );
+
+  useEffect(() => {
+    if (!isFetching && !isPlaceholderData && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages, isFetching, isPlaceholderData]);
 
   const goToPage = useCallback(
     (page: number) => {
@@ -302,25 +334,8 @@ export default function POSPage() {
     [],
   );
 
-  // Filter out-of-stock products from POS — they simply don't appear. A service
-  // has no stock ceiling, so it always stays in the grid.
-  const inStockProducts = useMemo(
-    () => products.filter((p) => effectiveStock(p) > 0),
-    [products],
-  );
-
-  const visibleProducts = useMemo(() => {
-    const byType = showServicesOnly
-      ? inStockProducts.filter((product) => isService(product))
-      : inStockProducts;
-    if (!showFavoritesOnly) return byType;
-    return byType.filter((product) => favoriteProductIds.includes(product.id));
-  }, [
-    inStockProducts,
-    showServicesOnly,
-    showFavoritesOnly,
-    favoriteProductIds,
-  ]);
+  // The server applies favorites/type/availability before paging and counting.
+  const visibleProducts = products;
 
   const addToCart = useCallback((product: Product, quantity: number = 1) => {
     if (effectiveStock(product) <= 0) return;
@@ -786,12 +801,12 @@ export default function POSPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col gap-4 lg:grid lg:h-[calc(100vh-6rem)] lg:grid-cols-12 lg:gap-5">
+      <div className={cn("flex flex-col gap-4 lg:grid lg:h-[calc(100dvh-6rem)] lg:min-h-[500px] lg:grid-cols-12 lg:gap-5", cart.length > 0 && "pb-28 lg:pb-0")}>
         {/* Products Panel */}
         <div className="flex min-h-0 flex-col lg:col-span-8 lg:h-full">
-          <div className="h-auto min-h-0 overflow-hidden rounded-3xl border border-primary/30 bg-primary/10 lg:flex lg:h-full lg:flex-col">
+          <div className="flex h-[calc(100dvh-8rem)] min-h-[580px] flex-col rounded-3xl border border-primary/30 bg-primary/10 sm:min-h-[500px] lg:h-full">
             {/* Products Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-primary/20">
+            <div className="flex shrink-0 items-center justify-between px-5 py-3.5 border-b border-primary/20">
               <div className="flex items-center gap-3">
                 <div className="w-1 h-6 rounded-full bg-primary shrink-0" />
                 <h2 className="text-base font-semibold text-foreground">
@@ -808,7 +823,7 @@ export default function POSPage() {
             </div>
 
             {/* Unified search & scanner — types to filter the grid, Enter scans/adds */}
-            <div className="flex flex-col gap-2.5 p-4 border-b border-primary/20 bg-background/40">
+            <div className="flex shrink-0 flex-col gap-2.5 p-4 border-b border-primary/20 bg-background/40">
               <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
                 <div className="relative flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -875,19 +890,15 @@ export default function POSPage() {
             </div>
 
             {/* Product Grid */}
-            <div
-              className={cn(
-                "scrollbar-app overflow-y-auto p-4 lg:flex-1 lg:min-h-0 lg:max-h-none",
-                cart.length > 0 ? "pb-28 lg:pb-4" : "",
-              )}
-            >
+            <div ref={capacityAreaRef} data-testid="pos-capacity-area" className="min-h-[280px] flex-1 p-4">
               <div
+                ref={productGridRef}
                 className={cn(
-                  "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 transition-opacity duration-150",
+                  "grid grid-cols-[repeat(auto-fill,minmax(min(100%,176px),1fr))] auto-rows-[248px] gap-3 transition-opacity duration-150 [&>div]:aspect-auto [&>div]:h-full [&>div]:min-h-0 [&>div]:max-h-none",
                   isFetching && !searching ? "opacity-60" : "opacity-100",
                 )}
               >
-                {searching ? (
+                {searching || isPlaceholderData ? (
                   <LoadingState icon={<Package className="w-4 h-4 text-primary/50" />} message="Buscando productos..." />
                 ) : visibleProducts.length > 0 ? (
                   visibleProducts.map((product) => (
@@ -916,15 +927,19 @@ export default function POSPage() {
                 )}
               </div>
 
-              {/* Pagination Controls */}
-              {totalPages > 1 && !showFavoritesOnly && (
-                <div className="pt-4 mt-3 border-t border-primary/20">
+            </div>
+
+            {/* Always reserve the pager area so counts cannot resize the grid. */}
+            <div data-testid="pos-pager" className="flex min-h-[88px] shrink-0 items-center border-t border-primary/20 px-4 py-3">
+              {totalPages > 1 && (
+                <div className="w-full">
                   <Pagination
+                    className="[&>div]:flex-wrap [&>div]:justify-center"
                     currentPage={visibleCurrentPage}
                     totalPages={totalPages}
                     onPageChange={goToPage}
                     totalItems={totalProducts}
-                    pageSize={POS_PAGE_SIZE}
+                    pageSize={pageSize}
                     itemLabel="producto"
                     isDisabled={isFetching}
                   />
