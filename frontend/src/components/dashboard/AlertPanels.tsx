@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowRight, CheckCircle2, ListTodo, Receipt, ShoppingBag } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
 import { useLowStockProducts } from "@/hooks/useProducts";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useTasks } from "@/hooks/useTasks";
@@ -59,7 +60,7 @@ export function AlertPanels() {
   return (
     <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
       {/* Low stock panel */}
-      <div className="min-w-0 rounded-3xl border border-rose-500/25 bg-card px-6 py-5 text-foreground hover:border-rose-500/40 transition-colors">
+      <div className="flex min-w-0 flex-col rounded-3xl border border-rose-500/25 bg-card px-6 py-5 text-foreground hover:border-rose-500/40 transition-colors">
         <PanelHeader
           icon={<AlertTriangle className="h-5 w-5 text-rose-500" />}
           title="Stock bajo"
@@ -89,24 +90,26 @@ export function AlertPanels() {
             </ul>
           )}
         </div>
-        {lowStockProducts.length > VISIBLE_CAP && (
-          <button
-            type="button"
-            onClick={() => router.push("/inventory?filter=lowStock")}
-            className="mt-3 text-[12px] font-bold text-foreground/70 hover:text-primary"
-          >
-            Ver {lowStockProducts.length - VISIBLE_CAP} más
-          </button>
-        )}
         {lowStockProducts.length > 0 && (
-          <button
-            type="button"
-            onClick={() => router.push("/inventory?filter=lowStock")}
-            className="mt-4 inline-flex items-center gap-1 text-[12px] font-bold text-rose-500 hover:text-rose-400"
-          >
-            REORDENAR
-            <ArrowRight className="h-3 w-3" aria-hidden="true" />
-          </button>
+          <div className="mt-auto flex flex-col items-start gap-3 pt-4">
+            {lowStockProducts.length > VISIBLE_CAP && (
+              <button
+                type="button"
+                onClick={() => router.push("/inventory?filter=lowStock")}
+                className="text-[12px] font-bold text-foreground/70 hover:text-primary"
+              >
+                Ver {lowStockProducts.length - VISIBLE_CAP} más
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => router.push("/inventory?filter=lowStock")}
+              className="inline-flex items-center gap-1 text-[12px] font-bold text-rose-500 hover:text-rose-400"
+            >
+              REORDENAR
+              <ArrowRight className="h-3 w-3" aria-hidden="true" />
+            </button>
+          </div>
         )}
       </div>
 
@@ -194,11 +197,16 @@ export function AlertPanels() {
                         {task.title}
                       </span>
                     </div>
-                    {task.dueDate && (
-                      <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                        {formatDate(task.dueDate)}
-                      </span>
-                    )}
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <Badge variant={task.status === "IN_PROGRESS" ? "primary" : "warning"}>
+                        {task.status === "IN_PROGRESS" ? "En progreso" : "Pendiente"}
+                      </Badge>
+                      {task.dueDate && (
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {formatDate(task.dueDate)}
+                        </span>
+                      )}
+                    </div>
                   </li>
                 );
               })}
