@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import {
   forwardRef,
+  type ButtonHTMLAttributes,
   type ChangeEvent,
   type ComponentType,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -17,6 +19,9 @@ type UseProductsParams = {
   page?: number;
   limit?: number;
   search?: string;
+  type?: "PRODUCT" | "SERVICE";
+  ids?: string[];
+  available?: boolean;
 };
 
 const useProductsMock = vi.fn();
@@ -37,10 +42,11 @@ vi.mock("@/components/layout/DashboardLayout", () => ({
 }));
 
 vi.mock("@/components/products/ProductCard", () => ({
-  ProductCard: ({ product, onClick }: { product: Product; onClick: () => void }) => (
-    <button type="button" onClick={onClick}>
-      {product.name}
-    </button>
+  ProductCard: ({ product, onClick, onToggleFavorite }: { product: Product; onClick: () => void; onToggleFavorite?: () => void }) => (
+    <div>
+      <button type="button" onClick={onClick}>{product.name}</button>
+      <button type="button" aria-label={`Favorito ${product.id}`} onClick={onToggleFavorite}>★</button>
+    </div>
   ),
 }));
 
@@ -157,8 +163,8 @@ vi.mock("@/components/ui/Input", () => {
 });
 
 vi.mock("@/components/ui/Button", () => ({
-  Button: ({ children, onClick, disabled, type }: { children: ReactNode; onClick?: () => void; disabled?: boolean; type?: "button" | "submit" | "reset" }) => (
-    <button type={type ?? "button"} onClick={onClick} disabled={disabled}>
+  Button: ({ children, onClick, disabled, type, "aria-pressed": pressed }: ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button type={type ?? "button"} onClick={onClick} disabled={disabled} aria-pressed={pressed}>
       {children}
     </button>
   ),
@@ -322,6 +328,50 @@ function makeSale(): Sale {
   };
 }
 
+describe("products query service filter", () => {
+  afterEach(cleanup);
+
+  it("isolates IDs/availability cache and placeholders, including explicit empty IDs", async () => {
+    apiGetMock.mockReset();
+    const { useProducts } = await vi.importActual<typeof import("@/hooks/useProducts")>("@/hooks/useProducts");
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    const previous = { data: [makeProduct("p1", "Catalogo")], meta: { total: 80, totalPages: 4 } };
+    apiGetMock.mockResolvedValueOnce({ data: previous }).mockImplementation(() => new Promise(() => {}));
+    const { result, rerender, unmount } = renderHook((params: { ids?: string[]; available?: boolean }) => useProducts({ page: 1, limit: 3, ...params }), { wrapper, initialProps: {} });
+    await waitFor(() => expect(result.current.data).toEqual(previous));
+    rerender({ ids: [] });
+    expect(result.current.data).toBeUndefined();
+    await waitFor(() => expect(apiGetMock).toHaveBeenLastCalledWith("/products", { page: 1, limit: 3, ids: "" }));
+    rerender({ ids: ["b", "a", "b"], available: true });
+    expect(result.current.data).toBeUndefined();
+    await waitFor(() => expect(apiGetMock).toHaveBeenLastCalledWith("/products", { page: 1, limit: 3, ids: "a,b", available: true }));
+    expect(client.getQueryCache().findAll({ queryKey: ["products"] })).toHaveLength(3);
+    unmount();
+    client.clear();
+    apiGetMock.mockReset();
+  });
+
+  it("forwards type in the request and isolates cache/placeholder data across types", async () => {
+    const { useProducts } = await vi.importActual<typeof import("@/hooks/useProducts")>("@/hooks/useProducts");
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    const previous = { data: [makeProduct("p1", "Mercancia")], meta: { total: 80, totalPages: 4 } };
+    apiGetMock.mockResolvedValueOnce({ data: previous }).mockImplementationOnce(() => new Promise(() => {}));
+    const { result, rerender, unmount } = renderHook(({ type }: { type?: "SERVICE" }) => useProducts({ page: 1, limit: 6, type }), { wrapper, initialProps: { type: undefined } as { type?: "SERVICE" } });
+    await waitFor(() => expect(result.current.data).toEqual(previous));
+    rerender({ type: "SERVICE" });
+    expect(result.current.data).toBeUndefined();
+    await waitFor(() => expect(apiGetMock).toHaveBeenLastCalledWith("/products", { page: 1, limit: 6, type: "SERVICE" }));
+    expect(client.getQueryCache().findAll({ queryKey: ["products"] }).map((query) => query.queryKey)).toEqual([
+      ["products", { page: 1, limit: 6, type: undefined }],
+      ["products", { page: 1, limit: 6, type: "SERVICE" }],
+    ]);
+    unmount();
+    client.clear();
+  });
+});
+
 describe("POS behavior evidence (#19, #18)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -331,6 +381,230 @@ describe("POS behavior evidence (#19, #18)", () => {
 
   afterEach(() => {
     cleanup();
+  });
+
+  it("reaches saved favorites beyond the first adaptive page with a multi-page pager", async () => {
+    const list = Array.from({ length: 25 }, (_, i) => makeProduct(`00000000-0000-4000-8000-${String(i).padStart(12, "0")}`, `Favorito ${i}`));
+    const ids = list.slice(10).map((p) => p.id);
+    localStorage.setItem("pos_favorite_product_ids", JSON.stringify([...ids, ids[0], null, {}, "bad"]));
+    useProductsMock.mockImplementation((params: UseProductsParams) => {
+      const filtered = params.ids === undefined ? list : list.filter((p) => params.ids!.includes(p.id));
+      const limit = params.limit!;
+      return { data: { data: filtered.slice((params.page! - 1) * limit, params.page! * limit), meta: { total: filtered.length, totalPages: Math.ceil(filtered.length / limit) } }, isLoading: false, isFetching: false };
+    });
+    render(<POSPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Todos" }));
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ ids, available: true }));
+    expect(screen.getByText("Favorito 10")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /siguiente/i })).toBeTruthy();
+    for (let page = 0; page < 15 && !screen.queryByText("Favorito 24"); page++) {
+      await userEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+    }
+    expect(screen.getByText("Favorito 24")).toBeTruthy();
+    localStorage.removeItem("pos_favorite_product_ids");
+  });
+
+  it("intersects favorite services/search and clamps after removing the last page's favorite", async () => {
+    const ids = [1, 2].map((i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
+    localStorage.setItem("pos_favorite_product_ids", JSON.stringify(ids));
+    const list = ids.map((id, i) => makeProduct(id, `Repair ${i}`, { type: "SERVICE", stock: 0 }));
+    useProductsMock.mockImplementation((params: UseProductsParams) => {
+      const filtered = list.filter((p) => (params.ids === undefined || params.ids.includes(p.id)) && (!params.type || p.type === params.type) && (!params.search || p.name.toLowerCase().includes(params.search.toLowerCase())));
+      return { data: { data: filtered.slice((params.page! - 1) * params.limit!, params.page! * params.limit!), meta: { total: filtered.length, totalPages: Math.ceil(filtered.length / params.limit!) } }, isLoading: false, isFetching: false };
+    });
+    render(<POSPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Todos" }));
+    await userEvent.click(screen.getByRole("button", { name: "Servicios" }));
+    await userEvent.type(screen.getByPlaceholderText("Escanear o buscar por nombre, SKU o código..."), "repair");
+    await waitFor(() => expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ search: "repair", type: "SERVICE", ids, available: true })));
+    await userEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+    expect(screen.getByText("Repair 1")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: `Favorito ${ids[1]}` }));
+    await waitFor(() => expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, ids: [ids[0]] })));
+    expect(screen.getByText("Repair 0")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /siguiente/i })).toBeNull();
+    localStorage.removeItem("pos_favorite_product_ids");
+  });
+
+  it("sends empty favorites as an explicit restrictive IDs filter", async () => {
+    localStorage.setItem("pos_favorite_product_ids", JSON.stringify([null, {}, "bad"]));
+    useProductsMock.mockImplementation((params: UseProductsParams) => ({ data: { data: params.ids === undefined ? [makeProduct("p1", "Catalogo")] : [], meta: { total: params.ids === undefined ? 1 : 0, totalPages: 1 } }, isLoading: false, isFetching: false }));
+    render(<POSPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Todos" }));
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ ids: [], available: true }));
+    expect(screen.queryByText("Catalogo")).toBeNull();
+    localStorage.removeItem("pos_favorite_product_ids");
+  });
+
+  it.each(["pending", "error", "empty"])("keeps repeated Services toggles available during %s while preserving search/favorites", async (state) => {
+    const ids = ["00000000-0000-4000-8000-000000000001"];
+    localStorage.setItem("pos_favorite_product_ids", JSON.stringify(ids));
+    const refetch = vi.fn();
+    useProductsMock.mockImplementation((params: UseProductsParams) => {
+      const serviceOnly = params.type === "SERVICE";
+      return {
+        data: serviceOnly && state !== "empty" ? undefined : {
+          data: serviceOnly ? [] : [makeProduct(ids[0], "Repair product")],
+          meta: { total: serviceOnly ? 0 : 3, totalPages: serviceOnly ? 1 : 3 },
+        },
+        isLoading: serviceOnly && state === "pending",
+        isFetching: serviceOnly && state === "pending",
+        isError: serviceOnly && state === "error",
+        error: new Error("Query failed"),
+        refetch,
+      };
+    });
+    render(<POSPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Todos" }));
+    const search = screen.getByPlaceholderText("Escanear o buscar por nombre, SKU o código...");
+    await userEvent.type(search, "repair");
+    await waitFor(() => expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ search: "repair" })));
+    for (let cycle = 0; cycle < 2; cycle++) {
+      await userEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+      expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
+      await userEvent.click(screen.getByRole("button", { name: "Servicios" }));
+      expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, type: "SERVICE", search: "repair", ids }));
+      expect(screen.getByRole("button", { name: "Servicios" })).not.toBeDisabled();
+      if (state === "pending") expect(screen.getByText("Buscando productos...")).toBeTruthy();
+      if (state === "empty") expect(screen.getByText("No tienes favoritos")).toBeTruthy();
+      if (state === "error") {
+        expect(screen.queryByText("No tienes favoritos")).toBeNull();
+        expect(screen.getByRole("alert")).toHaveTextContent("No se pudieron cargar los productos.");
+        await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+        expect(refetch).toHaveBeenCalledTimes(cycle + 1);
+      }
+      await userEvent.click(screen.getByRole("button", { name: "Servicios" }));
+      expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, type: undefined, search: "repair", ids }));
+      expect(search).toHaveValue("repair");
+      expect(screen.getByRole("button", { name: "Favoritos" })).toBeTruthy();
+      expect(screen.getByText("Repair product")).toBeTruthy();
+    }
+    localStorage.removeItem("pos_favorite_product_ids");
+  });
+
+  it("retries a failed page without advertising cached products or resetting filters/page", async () => {
+    let failed = false;
+    const refetch = vi.fn();
+    useProductsMock.mockImplementation(() => ({
+      data: { data: [makeProduct("p1", "Cached product")], meta: { total: 3, totalPages: 3 } },
+      isLoading: false, isFetching: false, isError: failed, refetch,
+    }));
+    const { rerender } = render(<POSPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Servicios" }));
+    await userEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+    failed = true;
+    rerender(<POSPage />);
+    expect(screen.queryByText("Cached product")).toBeNull();
+    expect(screen.queryByText("No hay productos disponibles")).toBeNull();
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, type: "SERVICE" }));
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    expect(refetch).toHaveBeenCalledOnce();
+    failed = false;
+    rerender(<POSPage />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("Cached product")).toBeTruthy();
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, type: "SERVICE" }));
+  });
+
+  it("exposes the Services selection as a pressed toggle", async () => {
+    useProductsMock.mockReturnValue({ data: { data: [], meta: { total: 0, totalPages: 1 } }, isLoading: false });
+    render(<POSPage />);
+    const toggle = screen.getByRole("button", { name: "Servicios" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("caps the rendered grid tracks using a responsive minimum rather than fixed five columns", () => {
+    useProductsMock.mockReturnValue({ data: { data: [], meta: { total: 0, totalPages: 1 } }, isLoading: false });
+    render(<POSPage />);
+    const grid = screen.getByTestId("pos-capacity-area").firstElementChild as HTMLElement;
+    expect(grid.style.gridTemplateColumns).toBe("repeat(auto-fill, minmax(min(100%, max(176px, calc((100% - 48px) / 5))), 1fr))");
+  });
+
+  it("pages the complete server-filtered service fixture, not the merchandise page", async () => {
+    const merchandise = Array.from({ length: 20 }, (_, i) => makeProduct(`p${i}`, `Mercancia ${i}`));
+    const services = Array.from({ length: 7 }, (_, i) => ({ ...makeProduct(`s${i}`, `Servicio ${i}`), type: "SERVICE" as const, stock: 0 }));
+    useProductsMock.mockImplementation((params: UseProductsParams) => {
+      const list = params.type === "SERVICE" ? services : [...merchandise, ...services];
+      const limit = params.limit ?? 20;
+      const page = params.page ?? 1;
+      return { data: { data: list.slice((page - 1) * limit, page * limit), meta: { total: list.length, totalPages: Math.ceil(list.length / limit) } }, isLoading: false, isFetching: false };
+    });
+    render(<POSPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Servicios" }));
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ type: "SERVICE", page: 1 }));
+    expect(screen.getByText("Servicio 0")).toBeTruthy();
+    expect(screen.getByText("7", { selector: "span" })).toBeTruthy();
+    while (!screen.queryByText("Servicio 6")) {
+      await userEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+    }
+    await userEvent.click(screen.getByRole("button", { name: "Servicios" }));
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ type: undefined, page: 1 }));
+  });
+
+  it("resets on measured capacity change, keeps the pager outside it, and cleans up", async () => {
+    let resize = () => {};
+    let height = 552;
+    const disconnect = vi.fn();
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: () => void) { resize = callback; }
+      observe() {}
+      disconnect = disconnect;
+    });
+    const getStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element) => {
+      if ((element as HTMLElement).dataset.testid === "pos-capacity-area") return { paddingTop: "16px", paddingBottom: "16px" } as CSSStyleDeclaration;
+      if (element.parentElement?.dataset.testid === "pos-capacity-area") return { gridTemplateColumns: "192px 192px 192px", gridAutoRows: "248px", columnGap: "12px", rowGap: "12px" } as CSSStyleDeclaration;
+      return getStyle(element);
+    });
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (this: HTMLElement) { return this.dataset.testid === "pos-capacity-area" ? height : 0; });
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (this: HTMLElement) { return this.parentElement?.dataset.testid === "pos-capacity-area" ? 600 : 0; });
+    useProductsMock.mockImplementation((params: UseProductsParams) => ({
+      data: { data: [makeProduct("p1", "Producto")], meta: { total: 24, totalPages: Math.ceil(24 / params.limit!) } }, isLoading: false, isFetching: false,
+    }));
+    const { unmount } = render(<POSPage />);
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 6, page: 1 }));
+    await userEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
+    const area = screen.getByTestId("pos-capacity-area");
+    expect(area.contains(screen.getByTestId("pos-pager"))).toBe(false);
+    expect(area.className).not.toMatch(/overflow-y-auto/);
+    height = 300;
+    act(() => resize());
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 3, page: 1 }));
+    const calls = useProductsMock.mock.calls.length;
+    act(() => resize());
+    expect(useProductsMock).toHaveBeenCalledTimes(calls);
+    unmount();
+    expect(disconnect).toHaveBeenCalledOnce();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("clamps a page when the settled server total shrinks", async () => {
+    let totalPages = 4;
+    useProductsMock.mockImplementation(() => ({ data: { data: [makeProduct("p1", "Producto")], meta: { total: totalPages, totalPages } }, isLoading: false, isFetching: false }));
+    const { rerender } = render(<POSPage />);
+    await userEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+    await userEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 3 }));
+    totalPages = 1;
+    rerender(<POSPage />);
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 }));
+  });
+
+  it("does not show stale placeholder merchandise counts after toggling services", async () => {
+    useProductsMock.mockImplementation((params: UseProductsParams) => ({
+      data: { data: [makeProduct("p1", "Mercancia anterior")], meta: { total: 80, totalPages: 4 } },
+      isPlaceholderData: params.type === "SERVICE", isFetching: params.type === "SERVICE", isLoading: false,
+    }));
+    render(<POSPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Servicios" }));
+    expect(screen.queryByText("80", { selector: "span" })).toBeNull();
+    expect(screen.queryByText("Mercancia anterior")).toBeNull();
   });
 
   it("#19 paginates products and keeps interaction available during page fetch", async () => {
@@ -684,14 +958,14 @@ describe("POS behavior evidence (#19, #18)", () => {
   });
 
   it("still keeps a zero-stock product out of the grid", async () => {
-    useProductsMock.mockReturnValue({
+    useProductsMock.mockImplementation((params: UseProductsParams) => ({
       data: {
-        data: [makeProduct("7", "Producto Sin Stock", { stock: 0 })],
-        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+        data: params.available ? [] : [makeProduct("7", "Producto Sin Stock", { stock: 0 })],
+        meta: { total: params.available ? 0 : 1, page: 1, limit: 20, totalPages: 1 },
       },
       isLoading: false,
       isFetching: false,
-    });
+    }));
 
     render(<POSPage />);
 
@@ -701,17 +975,17 @@ describe("POS behavior evidence (#19, #18)", () => {
   });
 
   it("filters the grid by item type", async () => {
-    useProductsMock.mockReturnValue({
+    useProductsMock.mockImplementation((params: UseProductsParams) => ({
       data: {
         data: [
           makeProduct("1", "Producto Base", { stock: 5 }),
           makeProduct("9", "Mantenimiento", { type: "SERVICE", stock: 0 }),
-        ],
-        meta: { total: 2, page: 1, limit: 20, totalPages: 1 },
+        ].filter((product) => !params.type || product.type === params.type),
+        meta: { total: params.type ? 1 : 2, page: 1, limit: 20, totalPages: 1 },
       },
       isLoading: false,
       isFetching: false,
-    });
+    }));
 
     render(<POSPage />);
 

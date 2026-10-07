@@ -78,6 +78,41 @@ describe('ProductsController — findAll additive params (D5)', () => {
     jest.clearAllMocks();
   });
 
+  it('forwards the optional service filter without changing organization scope', () => {
+    const controller = new ProductsController(serviceMock as never);
+    Reflect.apply(controller.findAll, controller, [{ organizationId: 'org-1' }, 2, 6, undefined, undefined, 'active', undefined, undefined, 'SERVICE']);
+    expect(serviceMock.findAll).toHaveBeenCalledWith('org-1', 2, 6, undefined, undefined, 'active', false, undefined, 'SERVICE', undefined, false);
+  });
+
+  it('preserves omitted vs empty IDs and forwards availability', () => {
+    const controller = new ProductsController(serviceMock as never);
+    const id = '00000000-0000-4000-8000-000000000001';
+    controller.findAll({ organizationId: 'org-1' } as never, 2, 3, 'repair', undefined, 'active', undefined, 'name', undefined, `${id},${id}`, true);
+    expect(serviceMock.findAll).toHaveBeenLastCalledWith('org-1', 2, 3, 'repair', undefined, 'active', false, 'name', undefined, [id, id], true);
+    controller.findAll({ organizationId: 'org-1' } as never, 1, 3, undefined, undefined, 'active', undefined, undefined, undefined, '');
+    expect(serviceMock.findAll.mock.calls[1][9]).toEqual([]);
+    expect(() => Reflect.apply(controller.findAll, controller, [{ organizationId: 'org-1' }, 1, 3, undefined, undefined, 'active', undefined, undefined, undefined, ['bad']])).toThrow();
+  });
+
+  it('rejects malformed availability at the query boundary and accepts omission', async () => {
+    const metadata = Reflect.getMetadata('__routeArguments__', ProductsController, 'findAll');
+    const query = Object.values(metadata) as { data?: string; pipes: { transform: (value: unknown, metadata: unknown) => unknown }[] }[];
+    const pipe = query.find((entry) => entry.data === 'available')?.pipes[0];
+    await expect(Promise.resolve(pipe!.transform('yes', { type: 'query' }))).rejects.toThrow();
+    await expect(Promise.resolve(pipe!.transform('true', { type: 'query' }))).resolves.toBe(true);
+    await expect(Promise.resolve(pipe!.transform(undefined, { type: 'query' }))).resolves.toBeUndefined();
+  });
+
+  it('validates type at the query boundary and accepts omission', async () => {
+    const metadata = Reflect.getMetadata('__routeArguments__', ProductsController, 'findAll');
+    const query = Object.values(metadata) as { data?: string; pipes: { transform: (value: unknown, metadata: unknown) => unknown }[] }[];
+    const pipe = query.find((entry) => entry.data === 'type')?.pipes[0];
+    expect(pipe).toBeDefined();
+    await expect(Promise.resolve(pipe!.transform('OTHER', { type: 'query' }))).rejects.toThrow();
+    await expect(Promise.resolve(pipe!.transform(undefined, { type: 'query' }))).resolves.toBeUndefined();
+    await expect(Promise.resolve(pipe!.transform('SERVICE', { type: 'query' }))).resolves.toBe('SERVICE');
+  });
+
   it('forwards lowStock and orderBy query params to the service', () => {
     const controller = new ProductsController(serviceMock as never);
     const user = { userId: 'u1', organizationId: 'org-1', role: OrgRole.ADMIN };
@@ -102,6 +137,9 @@ describe('ProductsController — findAll additive params (D5)', () => {
       'active',
       true,
       'name',
+      undefined,
+      undefined,
+      false,
     );
   });
 
@@ -129,6 +167,9 @@ describe('ProductsController — findAll additive params (D5)', () => {
       'active',
       false,
       undefined,
+      undefined,
+      undefined,
+      false,
     );
   });
 });
