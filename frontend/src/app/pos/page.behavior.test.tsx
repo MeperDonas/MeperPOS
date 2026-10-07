@@ -14,6 +14,7 @@ import {
 } from "react";
 import type { Product, Sale } from "@/types";
 import { formatCurrency } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 type UseProductsParams = {
   page?: number;
@@ -38,7 +39,13 @@ vi.mock("next/image", () => ({
 }));
 
 vi.mock("@/components/layout/DashboardLayout", () => ({
-  DashboardLayout: ({ children }: { children: ReactNode }) => <>{children}</>,
+  // Model the real layout's loading gate: POSPage stays mounted and runs its
+  // effects, but its grid DOM mounts only after the shared auth signal clears.
+  // Navigation, sidebar and authorization are outside this geometry regression.
+  DashboardLayout: function DeferredDashboardLayout({ children }: { children: ReactNode }) {
+    const { loading } = useAuth();
+    return loading ? null : <>{children}</>;
+  },
 }));
 
 vi.mock("@/components/products/ProductCard", () => ({
@@ -268,10 +275,10 @@ vi.mock("@/contexts/ToastContext", () => ({
 
 // The POS reads the acting role to decide whether to offer the price-override
 // control. Default to CASHIER; permission tests select other roles explicitly.
-const authState = vi.hoisted(() => ({ role: "CASHIER" as string }));
+const authState = vi.hoisted(() => ({ role: "CASHIER" as string, loading: false }));
 
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ user: authState.role ? { role: authState.role } : null }),
+  useAuth: () => ({ user: authState.role ? { role: authState.role } : null, loading: authState.loading }),
 }));
 
 import POSPage from "./page";
@@ -369,6 +376,92 @@ describe("products query service filter", () => {
     ]);
     unmount();
     client.clear();
+  });
+});
+
+describe("POS capacity attachment across auth readiness", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+    authState.loading = false;
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it.each([false, true])("measures mounted rows, resizes and cleans up (initial auth loading: %s)", async (initialLoading) => {
+    authState.loading = initialLoading;
+    let height = 552;
+    const observers: Array<{ resize: () => void; observe: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> }> = [];
+    vi.stubGlobal("ResizeObserver", class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      constructor(readonly resize: () => void) { observers.push(this); }
+    });
+    const getStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element) => {
+      if ((element as HTMLElement).dataset.testid === "pos-capacity-area") return { paddingTop: "16px", paddingBottom: "16px" } as CSSStyleDeclaration;
+      if (element.parentElement?.dataset.testid === "pos-capacity-area") return { gridTemplateColumns: "192px 192px 192px", gridAutoRows: "248px", columnGap: "12px", rowGap: "12px" } as CSSStyleDeclaration;
+      return getStyle(element);
+    });
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (this: HTMLElement) { return this.dataset.testid === "pos-capacity-area" ? height : 0; });
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (this: HTMLElement) { return this.parentElement?.dataset.testid === "pos-capacity-area" ? 600 : 0; });
+    const addListener = vi.spyOn(window, "addEventListener");
+    const removeListener = vi.spyOn(window, "removeEventListener");
+    const list = Array.from({ length: 24 }, (_, i) => makeProduct(`p${i}`, `Measured product ${i}`));
+    useProductsMock.mockImplementation((params: UseProductsParams) => ({
+      data: { data: list.slice((params.page! - 1) * params.limit!, params.page! * params.limit!), meta: { total: list.length, totalPages: Math.ceil(list.length / params.limit!) } },
+      isLoading: false, isFetching: false,
+    }));
+    const { rerender, unmount } = render(<POSPage />);
+    if (initialLoading) {
+      expect(screen.queryByTestId("pos-capacity-area")).toBeNull();
+      expect(observers).toHaveLength(0);
+      expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 1 }));
+      authState.loading = false;
+      rerender(<POSPage />); // Same POS instance, not route reentry.
+    }
+    expect(screen.getByTestId("pos-capacity-area")).toBeTruthy();
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 6, page: 1 }));
+    expect(screen.getAllByRole("button", { name: /^Measured product/ })).toHaveLength(6);
+    expect(screen.getByText("1 / 4")).toBeTruthy();
+    expect(observers).toHaveLength(1);
+    expect(observers[0].observe).toHaveBeenCalledExactlyOnceWith(screen.getByTestId("pos-capacity-area"));
+    rerender(<POSPage />);
+    expect(observers).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+    expect(screen.getByText("2 / 4")).toBeTruthy();
+    height = 300;
+    act(() => observers[0].resize());
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 3, page: 1 }));
+    expect(screen.getAllByRole("button", { name: /^Measured product/ })).toHaveLength(3);
+    expect(screen.getByText("1 / 8")).toBeTruthy();
+    authState.loading = true;
+    rerender(<POSPage />);
+    expect(screen.queryByTestId("pos-capacity-area")).toBeNull();
+    expect(observers[0].disconnect).toHaveBeenCalledOnce();
+    authState.loading = false;
+    rerender(<POSPage />);
+    expect(observers).toHaveLength(2);
+    expect(observers[1].observe).toHaveBeenCalledExactlyOnceWith(screen.getByTestId("pos-capacity-area"));
+    height = 552;
+    act(() => window.dispatchEvent(new Event("resize")));
+    expect(screen.getAllByRole("button", { name: /^Measured product/ })).toHaveLength(6);
+    expect(screen.getByText("1 / 4")).toBeTruthy();
+    unmount();
+    for (const observer of observers) {
+      expect(observer.disconnect).toHaveBeenCalledOnce();
+      expect(addListener).toHaveBeenCalledWith("resize", observer.resize);
+      expect(removeListener).toHaveBeenCalledWith("resize", observer.resize);
+    }
+    const calls = useProductsMock.mock.calls.length;
+    act(() => {
+      observers.forEach((observer) => observer.resize());
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(useProductsMock).toHaveBeenCalledTimes(calls);
   });
 });
 
