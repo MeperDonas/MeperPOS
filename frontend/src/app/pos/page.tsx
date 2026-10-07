@@ -157,7 +157,7 @@ function isCompactCode(value: string): boolean {
 
 export default function POSPage() {
   const toast = useToast();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -167,6 +167,9 @@ export default function POSPage() {
   const productGridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // DashboardLayout withholds the grid during auth restore; attach only once
+    // its DOM is mounted, and detach if loading hides it again.
+    if (authLoading) return;
     const area = capacityAreaRef.current;
     const grid = productGridRef.current;
     if (!area || !grid) return;
@@ -176,7 +179,7 @@ export default function POSPage() {
       setPageSize(capacity);
       setCurrentPage(1);
     });
-  }, []);
+  }, [authLoading]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scannerInputRef = useRef<HTMLInputElement | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
