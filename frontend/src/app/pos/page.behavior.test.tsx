@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import {
   forwardRef,
+  type ButtonHTMLAttributes,
   type ChangeEvent,
   type ComponentType,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -162,8 +163,8 @@ vi.mock("@/components/ui/Input", () => {
 });
 
 vi.mock("@/components/ui/Button", () => ({
-  Button: ({ children, onClick, disabled, type }: { children: ReactNode; onClick?: () => void; disabled?: boolean; type?: "button" | "submit" | "reset" }) => (
-    <button type={type ?? "button"} onClick={onClick} disabled={disabled}>
+  Button: ({ children, onClick, disabled, type, "aria-pressed": pressed }: ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button type={type ?? "button"} onClick={onClick} disabled={disabled} aria-pressed={pressed}>
       {children}
     </button>
   ),
@@ -433,6 +434,94 @@ describe("POS behavior evidence (#19, #18)", () => {
     expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ ids: [], available: true }));
     expect(screen.queryByText("Catalogo")).toBeNull();
     localStorage.removeItem("pos_favorite_product_ids");
+  });
+
+  it.each(["pending", "error", "empty"])("keeps repeated Services toggles available during %s while preserving search/favorites", async (state) => {
+    const ids = ["00000000-0000-4000-8000-000000000001"];
+    localStorage.setItem("pos_favorite_product_ids", JSON.stringify(ids));
+    const refetch = vi.fn();
+    useProductsMock.mockImplementation((params: UseProductsParams) => {
+      const serviceOnly = params.type === "SERVICE";
+      return {
+        data: serviceOnly && state !== "empty" ? undefined : {
+          data: serviceOnly ? [] : [makeProduct(ids[0], "Repair product")],
+          meta: { total: serviceOnly ? 0 : 3, totalPages: serviceOnly ? 1 : 3 },
+        },
+        isLoading: serviceOnly && state === "pending",
+        isFetching: serviceOnly && state === "pending",
+        isError: serviceOnly && state === "error",
+        error: new Error("Query failed"),
+        refetch,
+      };
+    });
+    render(<POSPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Todos" }));
+    const search = screen.getByPlaceholderText("Escanear o buscar por nombre, SKU o código...");
+    await userEvent.type(search, "repair");
+    await waitFor(() => expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ search: "repair" })));
+    for (let cycle = 0; cycle < 2; cycle++) {
+      await userEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+      expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
+      await userEvent.click(screen.getByRole("button", { name: "Servicios" }));
+      expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, type: "SERVICE", search: "repair", ids }));
+      expect(screen.getByRole("button", { name: "Servicios" })).not.toBeDisabled();
+      if (state === "pending") expect(screen.getByText("Buscando productos...")).toBeTruthy();
+      if (state === "empty") expect(screen.getByText("No tienes favoritos")).toBeTruthy();
+      if (state === "error") {
+        expect(screen.queryByText("No tienes favoritos")).toBeNull();
+        expect(screen.getByRole("alert")).toHaveTextContent("No se pudieron cargar los productos.");
+        await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+        expect(refetch).toHaveBeenCalledTimes(cycle + 1);
+      }
+      await userEvent.click(screen.getByRole("button", { name: "Servicios" }));
+      expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, type: undefined, search: "repair", ids }));
+      expect(search).toHaveValue("repair");
+      expect(screen.getByRole("button", { name: "Favoritos" })).toBeTruthy();
+      expect(screen.getByText("Repair product")).toBeTruthy();
+    }
+    localStorage.removeItem("pos_favorite_product_ids");
+  });
+
+  it("retries a failed page without advertising cached products or resetting filters/page", async () => {
+    let failed = false;
+    const refetch = vi.fn();
+    useProductsMock.mockImplementation(() => ({
+      data: { data: [makeProduct("p1", "Cached product")], meta: { total: 3, totalPages: 3 } },
+      isLoading: false, isFetching: false, isError: failed, refetch,
+    }));
+    const { rerender } = render(<POSPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Servicios" }));
+    await userEvent.click(screen.getByRole("button", { name: /siguiente/i }));
+    failed = true;
+    rerender(<POSPage />);
+    expect(screen.queryByText("Cached product")).toBeNull();
+    expect(screen.queryByText("No hay productos disponibles")).toBeNull();
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, type: "SERVICE" }));
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    expect(refetch).toHaveBeenCalledOnce();
+    failed = false;
+    rerender(<POSPage />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("Cached product")).toBeTruthy();
+    expect(useProductsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, type: "SERVICE" }));
+  });
+
+  it("exposes the Services selection as a pressed toggle", async () => {
+    useProductsMock.mockReturnValue({ data: { data: [], meta: { total: 0, totalPages: 1 } }, isLoading: false });
+    render(<POSPage />);
+    const toggle = screen.getByRole("button", { name: "Servicios" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("caps the rendered grid tracks using a responsive minimum rather than fixed five columns", () => {
+    useProductsMock.mockReturnValue({ data: { data: [], meta: { total: 0, totalPages: 1 } }, isLoading: false });
+    render(<POSPage />);
+    const grid = screen.getByTestId("pos-capacity-area").firstElementChild as HTMLElement;
+    expect(grid.style.gridTemplateColumns).toBe("repeat(auto-fill, minmax(min(100%, max(176px, calc((100% - 48px) / 5))), 1fr))");
   });
 
   it("pages the complete server-filtered service fixture, not the merchandise page", async () => {
