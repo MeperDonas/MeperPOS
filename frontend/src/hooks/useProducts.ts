@@ -7,19 +7,24 @@ import {
   keepPreviousData,
 } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Product, PaginatedResponse, SearchProductResult } from "@/types";
+import type { Product, ProductType, PaginatedResponse, SearchProductResult } from "@/types";
 
 export function useProducts(params?: {
   page?: number;
   limit?: number;
   search?: string;
   categoryId?: string;
+  type?: ProductType;
+  ids?: string[];
+  available?: boolean;
   status?: "active" | "inactive" | "all";
   lowStock?: boolean;
   orderBy?: "name" | "createdAt";
   enabled?: boolean;
 }) {
-  const { enabled = true, ...rest } = params ?? {};
+  const { enabled = true, ids, ...other } = params ?? {};
+  // A string preserves the important empty-list vs omitted distinction on the wire.
+  const rest = { ...other, ...(ids === undefined ? {} : { ids: [...new Set(ids)].sort().join(',') }) };
   return useQuery({
     queryKey: ["products", rest],
     queryFn: () =>
@@ -27,7 +32,11 @@ export function useProducts(params?: {
         (res) => res.data
       ),
     enabled,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) => {
+      const previousParams = previousQuery?.queryKey[1] as { type?: ProductType; ids?: string; available?: boolean } | undefined;
+      return previousParams?.type === rest.type && previousParams?.ids === rest.ids && previousParams?.available === rest.available
+        ? keepPreviousData(previousData) : undefined;
+    },
   });
 }
 
