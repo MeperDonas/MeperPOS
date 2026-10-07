@@ -15,7 +15,8 @@ describe("POS grid measurement lifecycle", () => {
     const grid = document.createElement("div");
     let height = 552;
     Object.defineProperty(area, "clientHeight", { get: () => height });
-    Object.defineProperty(grid, "clientWidth", { value: 600 });
+    let width = 600;
+    Object.defineProperty(grid, "clientWidth", { get: () => width });
     const style = vi.spyOn(window, "getComputedStyle").mockImplementation((element) => (element === area
       ? { paddingTop: "16px", paddingBottom: "16px" }
       : { gridTemplateColumns: "192px 192px 192px", gridAutoRows: "248px", columnGap: "12px", rowGap: "12px" }) as unknown as CSSStyleDeclaration);
@@ -28,7 +29,17 @@ describe("POS grid measurement lifecycle", () => {
     resize();
     expect(update).toHaveBeenLastCalledWith(3);
     expect(observe).toHaveBeenCalledWith(area);
+    width = 4000;
+    resize();
+    expect(update).toHaveBeenLastCalledWith(5);
+    width = 160;
+    window.dispatchEvent(new Event("resize"));
+    expect(update).toHaveBeenLastCalledWith(1);
     stop();
+    const calls = update.mock.calls.length;
+    resize();
+    window.dispatchEvent(new Event("resize"));
+    expect(update).toHaveBeenCalledTimes(calls);
     expect(disconnect).toHaveBeenCalledOnce();
     style.mockRestore();
     vi.unstubAllGlobals();
@@ -47,6 +58,12 @@ describe("POS grid measurement lifecycle", () => {
 });
 
 describe("POS capacity from measured grid geometry", () => {
+  it.each([
+    [160, 1], [363.8, 1], [363.95, 2], [364, 2], [600, 3], [928, 5], [4000, 5],
+  ])("caps columns at five and adapts at width %s", (width, columns) => {
+    expect(getPOSCapacity({ width, height: 508, cardWidth: 176, cardHeight: 248, columnGap: 12, rowGap: 12 })).toBe(columns * 2);
+  });
+
   it("fits only complete cards and gaps, not a fixed twenty", () => {
     expect(getPOSCapacity({ width: 600, height: 520, cardWidth: 192, cardHeight: 248, columnGap: 12, rowGap: 12 })).toBe(6);
     expect(getPOSCapacity({ width: 600, height: 507, cardWidth: 192, cardHeight: 248, columnGap: 12, rowGap: 12 })).toBe(3);

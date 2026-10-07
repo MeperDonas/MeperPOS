@@ -1,3 +1,10 @@
+const MAX_POS_COLUMNS = 5;
+const POS_COLUMN_GAP = 12;
+
+// Grow the minimum track at wide widths so auto-fill cannot create a sixth
+// column, but still allow fewer readable cards on narrow panels.
+export const POS_GRID_TEMPLATE_COLUMNS = `repeat(auto-fill, minmax(min(100%, max(176px, calc((100% - ${(MAX_POS_COLUMNS - 1) * POS_COLUMN_GAP}px) / ${MAX_POS_COLUMNS}))), 1fr))`;
+
 // Observe the available area, not the content height: fetching fewer cards must
 // never change capacity. The pager is a separate, permanently reserved sibling.
 export function observePOSGrid(area: HTMLElement, grid: HTMLElement, update: (capacity: number) => void) {
@@ -46,7 +53,7 @@ export function getPOSCapacity(geometry: GridGeometry): number {
   const { width, height, cardWidth, cardHeight, columnGap, rowGap } = geometry;
   if (![width, height, cardWidth, cardHeight, columnGap, rowGap].every(Number.isFinite) ||
       width <= 0 || height <= 0 || cardWidth <= 0 || cardHeight <= 0) return 1;
-  const columns = Math.max(1, Math.floor((width + columnGap + 0.1) / (cardWidth + columnGap)));
+  const columns = Math.min(MAX_POS_COLUMNS, Math.max(1, Math.floor((width + columnGap + 0.1) / (cardWidth + columnGap))));
   const rows = Math.max(1, Math.floor((height + rowGap + 0.1) / (cardHeight + rowGap)));
   return columns * rows;
 }

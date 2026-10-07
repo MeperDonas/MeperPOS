@@ -25,6 +25,7 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { DynamicFallback } from "@/components/ui/DynamicFallback";
 import { prefetchOnIdle } from "@/lib/prefetch";
@@ -54,7 +55,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { hasAnyRole } from "@/lib/auth";
 import { api, getApiErrorMessage } from "@/lib/api";
 
-import { observePOSGrid } from "./pos-layout";
+import { observePOSGrid, POS_GRID_TEMPLATE_COLUMNS } from "./pos-layout";
 
 // S1 code splitting (#98): the payment modal and mobile cart drawer are the
 // heaviest POS-only components; they load as separate chunks on first open
@@ -251,6 +252,9 @@ export default function POSPage() {
     isLoading: searching,
     isFetching,
     isPlaceholderData,
+    isError: productsFailed,
+    error: productsError,
+    refetch: refetchProducts,
   } = useProducts({
     page: currentPage,
     limit: pageSize,
@@ -273,7 +277,7 @@ export default function POSPage() {
 
   // A previous page/geometry must not advertise stale totals or overflow the
   // newly sized area while its replacement is loading.
-  const productsData = isPlaceholderData ? undefined : queryProductsData;
+  const productsData = isPlaceholderData || productsFailed ? undefined : queryProductsData;
   const customers = customersData?.data || [];
   const totalPages = Math.max(productsData?.meta?.totalPages ?? 1, 1);
   const totalProducts = productsData?.meta?.total ?? 0;
@@ -287,10 +291,10 @@ export default function POSPage() {
   );
 
   useEffect(() => {
-    if (!isFetching && !isPlaceholderData && currentPage > totalPages) {
+    if (!productsFailed && !isFetching && !isPlaceholderData && currentPage > totalPages) {
       setCurrentPage(totalPages);
     }
-  }, [currentPage, totalPages, isFetching, isPlaceholderData]);
+  }, [currentPage, totalPages, isFetching, isPlaceholderData, productsFailed]);
 
   const goToPage = useCallback(
     (page: number) => {
@@ -861,6 +865,7 @@ export default function POSPage() {
                 <Button
                   type="button"
                   variant={showServicesOnly ? "primary" : "secondary"}
+                  aria-pressed={showServicesOnly}
                   size="sm"
                   onClick={() => {
                     setShowServicesOnly((c) => !c);
@@ -894,12 +899,20 @@ export default function POSPage() {
             <div ref={capacityAreaRef} data-testid="pos-capacity-area" className="min-h-[280px] flex-1 p-4">
               <div
                 ref={productGridRef}
+                style={{ gridTemplateColumns: POS_GRID_TEMPLATE_COLUMNS }}
                 className={cn(
-                  "grid grid-cols-[repeat(auto-fill,minmax(min(100%,176px),1fr))] auto-rows-[248px] gap-3 transition-opacity duration-150 [&>div]:aspect-auto [&>div]:h-full [&>div]:min-h-0 [&>div]:max-h-none",
+                  "grid auto-rows-[248px] gap-3 transition-opacity duration-150 [&>div]:aspect-auto [&>div]:h-full [&>div]:min-h-0 [&>div]:max-h-none",
                   isFetching && !searching ? "opacity-60" : "opacity-100",
                 )}
               >
-                {searching || isPlaceholderData ? (
+                {productsFailed ? (
+                  <ErrorState
+                    className="col-span-full"
+                    message={getApiErrorMessage(productsError, "No se pudieron cargar los productos.")}
+                    retryLabel="Reintentar"
+                    onRetry={() => void refetchProducts()}
+                  />
+                ) : searching || isPlaceholderData ? (
                   <LoadingState icon={<Package className="w-4 h-4 text-primary/50" />} message="Buscando productos..." />
                 ) : visibleProducts.length > 0 ? (
                   visibleProducts.map((product) => (
