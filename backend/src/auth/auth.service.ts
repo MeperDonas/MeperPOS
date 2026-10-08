@@ -525,7 +525,21 @@ export class AuthService {
     return result;
   }
 
-  async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
+  /**
+   * Changes the password and revokes EVERY existing session (tokenVersion
+   * bump + refresh-token revocation), then re-issues a token pair for the
+   * calling session only — the same guarantee as the admin reset flow, so
+   * a stolen refresh token cannot outlive the old password. The session
+   * context (org/role) is only used to decide which pair to re-issue; the
+   * membership is re-derived from the database, never from the claim.
+   */
+  async changePassword(
+    userId: string,
+    changePasswordDto: ChangePasswordDto,
+    session?: { organizationId: string | null; role?: OrgRole | 'SUPER_ADMIN' },
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
     const { currentPassword, newPassword } = changePasswordDto;
 
     const user = await this.prisma.user.findUnique({
@@ -552,6 +566,47 @@ export class AuthService {
       data: { password: hashedPassword },
     });
 
+    // Kill every session (not just this one): revokeUserTokens bumps the
+    // tokenVersion — invalidating all outstanding access JWTs — and revokes
+    // every active refresh row. Its return value carries the bumped
+    // tokenVersion, which is exactly what the re-issued pair needs.
+    const updatedUser = await this.revokeUserTokens(userId);
+
+    // Re-issue the caller's own session so the legitimate user stays signed
+    // in while every other session dies (same pattern as login/selectOrg).
+    if (updatedUser.isSuperAdmin || session?.role === 'SUPER_ADMIN') {
+      const superAdminPair = await this.generateTokenPair(
+        updatedUser,
+        { organizationId: null, role: 'SUPER_ADMIN' as const },
+        ipAddress,
+        userAgent,
+      );
+      return { ...superAdminPair, message: 'Password changed successfully' };
+    }
+
+    if (session?.organizationId) {
+      // DB truth, not the claim: the caller must still be a member of the
+      // organization for its org/role pair to be embedded in the new token.
+      const orgUser = await this.prisma.organizationUser.findFirst({
+        where: {
+          userId,
+          organizationId: session.organizationId,
+        },
+      });
+
+      if (orgUser) {
+        const orgPair = await this.generateTokenPair(
+          updatedUser,
+          { organizationId: orgUser.organizationId, role: orgUser.role },
+          ipAddress,
+          userAgent,
+        );
+        return { ...orgPair, message: 'Password changed successfully' };
+      }
+    }
+
+    // No org context to re-issue for (or the membership no longer exists):
+    // return without tokens; the client re-authenticates on the next 401.
     return { message: 'Password changed successfully' };
   }
 

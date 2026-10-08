@@ -1,4 +1,8 @@
-import { UnprocessableEntityException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { OrgRole } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 import { MultiSheetImportService } from './multi-sheet-import.service';
 import * as protectedDiagnostics from '../common/errors/protected-diagnostics';
@@ -114,6 +118,7 @@ describe('MultiSheetImportService', () => {
         makeFile(buffer),
         'user-1',
         'org-1',
+        OrgRole.ADMIN,
       );
 
       await flush();
@@ -153,6 +158,7 @@ describe('MultiSheetImportService', () => {
         makeFile(buffer),
         'user-1',
         'org-1',
+        OrgRole.ADMIN,
       );
 
       await flush();
@@ -186,6 +192,7 @@ describe('MultiSheetImportService', () => {
         makeFile(buffer),
         'user-1',
         'org-1',
+        OrgRole.ADMIN,
       );
 
       await flush();
@@ -227,6 +234,7 @@ describe('MultiSheetImportService', () => {
         makeFile(buffer),
         'user-1',
         'org-1',
+        OrgRole.ADMIN,
       );
 
       await flush();
@@ -262,6 +270,7 @@ describe('MultiSheetImportService', () => {
         makeFile(buffer),
         'user-1',
         'org-1',
+        OrgRole.ADMIN,
       );
 
       await flush();
@@ -291,6 +300,7 @@ describe('MultiSheetImportService', () => {
         makeFile(buffer),
         'user-1',
         'org-1',
+        OrgRole.ADMIN,
       );
 
       await flush();
@@ -318,7 +328,7 @@ describe('MultiSheetImportService', () => {
       ]);
 
       await expect(
-        service.startFullImport(makeFile(buffer), 'user-1', 'org-1'),
+        service.startFullImport(makeFile(buffer), 'user-1', 'org-1', undefined),
       ).rejects.toBeInstanceOf(UnprocessableEntityException);
     });
   });
@@ -340,6 +350,7 @@ describe('MultiSheetImportService', () => {
         makeFile(buffer),
         'user-1',
         'org-1',
+        OrgRole.ADMIN,
       );
 
       await flush();
@@ -378,6 +389,7 @@ describe('MultiSheetImportService', () => {
         makeFile(buffer),
         'user-1',
         'org-1',
+        OrgRole.ADMIN,
       );
 
       await flush();
@@ -386,11 +398,16 @@ describe('MultiSheetImportService', () => {
       expect(status.errorCount).toBe(1);
       expect(status.importedCount).toBe(0);
 
-      await service.retryImportRow(started.jobId, 'user-1', {
-        rowIndex: 2,
-        sheetId: 'clientes',
-        correctedData: { name: 'Cliente Corregido' },
-      });
+      await service.retryImportRow(
+        started.jobId,
+        'user-1',
+        {
+          rowIndex: 2,
+          sheetId: 'clientes',
+          correctedData: { name: 'Cliente Corregido' },
+        },
+        OrgRole.ADMIN,
+      );
 
       status = service.getImportStatus(started.jobId, 'user-1');
       expect(status.errorCount).toBe(0);
@@ -418,6 +435,7 @@ describe('MultiSheetImportService', () => {
         makeFile(buffer),
         'user-1',
         'org-1',
+        OrgRole.ADMIN,
       );
 
       await flush();
@@ -425,11 +443,16 @@ describe('MultiSheetImportService', () => {
       expect(customersService.create).not.toHaveBeenCalled();
       expect(suppliersService.create).not.toHaveBeenCalled();
 
-      await service.retryImportRow(started.jobId, 'user-1', {
-        rowIndex: 2,
-        sheetId: 'proveedores',
-        correctedData: { name: 'Proveedor Corregido' },
-      });
+      await service.retryImportRow(
+        started.jobId,
+        'user-1',
+        {
+          rowIndex: 2,
+          sheetId: 'proveedores',
+          correctedData: { name: 'Proveedor Corregido' },
+        },
+        OrgRole.ADMIN,
+      );
 
       expect(suppliersService.create).toHaveBeenCalledTimes(1);
       expect(customersService.create).not.toHaveBeenCalled();
@@ -467,6 +490,7 @@ describe('MultiSheetImportService', () => {
         makeFile(buffer),
         'user-1',
         'org-1',
+        OrgRole.ADMIN,
       );
 
       await flush();
@@ -506,6 +530,7 @@ describe('MultiSheetImportService', () => {
       makeFile(buffer),
       'user-1',
       'org-1',
+      OrgRole.ADMIN,
       'request-multi-1',
     );
     await flush();
@@ -536,11 +561,140 @@ describe('MultiSheetImportService', () => {
     (service as any).parseWorkbook = jest.fn().mockRejectedValue(new Error(marker));
 
     await expect(
-      service.startFullImport(makeFile(Buffer.from('invalid')), 'user-1', 'org-1', 'request-multi-2'),
+      service.startFullImport(
+        makeFile(Buffer.from('invalid')),
+        'user-1',
+        'org-1',
+        OrgRole.ADMIN,
+        'request-multi-2',
+      ),
     ).rejects.toMatchObject({ message: 'The import file could not be processed' });
     expect(recordDiagnostic).toHaveBeenCalledWith(
       expect.objectContaining({ boundary: 'multi-sheet-import-parser', requestId: 'request-multi-2' }),
       expect.any(Error),
     );
+  });
+
+  describe('usuarios sheet role gate (privilege-escalation fix)', () => {
+    const productosFixture: SheetFixture = {
+      name: 'Productos',
+      headers: ['Nombre', 'Precio Venta', 'Stock'],
+      rows: [['Producto Uno', 5000, 10]],
+    };
+    const usuariosFixture: SheetFixture = {
+      name: 'Usuarios',
+      headers: ['Correo', 'Contraseña', 'Nombre', 'Rol'],
+      rows: [
+        [
+          'attacker@example.com',
+          'correct-horse-battery-staple',
+          'Attacker',
+          'OWNER',
+        ],
+      ],
+    };
+
+    async function importAs(role: OrgRole | 'SUPER_ADMIN' | undefined) {
+      const buffer = await buildWorkbookBuffer([
+        productosFixture,
+        usuariosFixture,
+      ]);
+      const started = await service.startFullImport(
+        makeFile(buffer),
+        'user-1',
+        'org-1',
+        role,
+      );
+      await flush();
+      return service.getImportStatus(started.jobId, 'user-1');
+    }
+
+    interface StatusSheet {
+      sheetId: string;
+      status?: string;
+      imported?: number;
+      roleRejected?: boolean;
+      roleRejectedMessage?: string;
+    }
+
+    function sheetOf(
+      status: { sheets: StatusSheet[] },
+      sheetId: string,
+    ): StatusSheet | undefined {
+      return status.sheets.find((sheet) => sheet.sheetId === sheetId);
+    }
+
+    it.each([OrgRole.CASHIER, OrgRole.MEMBER, OrgRole.INVENTORY_USER])(
+      'rejects the usuarios sheet for a %s caller instead of creating the user',
+      async (role) => {
+        const status = await importAs(role);
+
+        expect(usersService.create).not.toHaveBeenCalled();
+
+        const usuarios = sheetOf(status, 'usuarios');
+        expect(usuarios).toMatchObject({
+          status: 'REJECTED',
+          roleRejected: true,
+          roleRejectedMessage: 'La hoja usuarios requiere rol ADMIN',
+          imported: 0,
+        });
+
+        // The gate is surgical: sibling sheets keep importing.
+        const productos = sheetOf(status, 'productos');
+        expect(productos).toMatchObject({ imported: 1 });
+        expect(productos?.status).not.toBe('REJECTED');
+        expect(productsService.create).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('fails closed when the caller role is missing', async () => {
+      const status = await importAs(undefined);
+
+      expect(usersService.create).not.toHaveBeenCalled();
+      expect(sheetOf(status, 'usuarios')).toMatchObject({
+        status: 'REJECTED',
+        roleRejected: true,
+      });
+    });
+
+    it.each([OrgRole.ADMIN, OrgRole.OWNER, 'SUPER_ADMIN' as const])(
+      'still imports the usuarios sheet for a %s caller',
+      async (role) => {
+        const status = await importAs(role);
+
+        expect(usersService.create).toHaveBeenCalledTimes(1);
+        const usuarios = sheetOf(status, 'usuarios');
+        expect(usuarios).toMatchObject({ imported: 1 });
+        expect(usuarios?.status).not.toBe('REJECTED');
+      },
+    );
+
+    it('forbids a CASHIER from reaching user creation through the retry endpoint', async () => {
+      const buffer = await buildWorkbookBuffer([
+        productosFixture,
+        usuariosFixture,
+      ]);
+      const started = await service.startFullImport(
+        makeFile(buffer),
+        'user-1',
+        'org-1',
+        OrgRole.CASHIER,
+      );
+      await flush();
+
+      await expect(
+        service.retryImportRow(
+          started.jobId,
+          'user-1',
+          {
+            rowIndex: 2,
+            sheetId: 'usuarios',
+            correctedData: { email: 'attacker@example.com' },
+          },
+          OrgRole.CASHIER,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(usersService.create).not.toHaveBeenCalled();
+    });
   });
 });

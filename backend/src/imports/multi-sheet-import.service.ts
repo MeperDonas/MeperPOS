@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   OnModuleDestroy,
@@ -8,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import * as ExcelJS from 'exceljs';
+import { OrgRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanLimitService } from '../plan-limits/plan-limits.service';
 import { ProductsService } from '../products/products.service';
@@ -75,6 +77,8 @@ interface SheetJobState {
   missingRequiredFields?: string[];
   planLimitRejected?: boolean;
   planLimitMessage?: string;
+  roleRejected?: boolean;
+  roleRejectedMessage?: string;
   mapping: Record<string, string>;
   rowErrors: ImportRowError[];
 }
@@ -83,6 +87,7 @@ interface MultiSheetJob {
   id: string;
   userId: string;
   organizationId: string;
+  callerRole: OrgRole | 'SUPER_ADMIN' | undefined;
   status: MultiSheetJobStatus;
   fileName: string;
   totalRows: number;
@@ -143,11 +148,15 @@ export class MultiSheetImportService implements OnModuleDestroy {
    * (Productos -> Clientes -> Proveedores -> Usuarios), rejects any file with
    * no recognisable data and launches one in-memory job that processes each
    * sheet per-sheet, with per-row fault isolation.
+   *
+   * The caller's role travels on the job: the usuarios sheet is rejected
+   * unless the caller may create users (ADMIN, OWNER or SUPER_ADMIN).
    */
   async startFullImport(
     file: Express.Multer.File,
     userId: string,
     organizationId: string | undefined,
+    callerRole: OrgRole | 'SUPER_ADMIN' | undefined,
     correlationId: string = randomUUID(),
   ) {
     if (!organizationId) {
@@ -202,6 +211,7 @@ export class MultiSheetImportService implements OnModuleDestroy {
       file,
       userId,
       organizationId,
+      callerRole,
       parsedSheets,
       correlationId,
     );
@@ -225,7 +235,22 @@ export class MultiSheetImportService implements OnModuleDestroy {
   }
 
   /** Sheet-aware retry: validates and creates a corrected row with the handler for its sheet. */
-  async retryImportRow(jobId: string, userId: string, dto: SheetAwareRetryDto) {
+  async retryImportRow(
+    jobId: string,
+    userId: string,
+    dto: SheetAwareRetryDto,
+    callerRole: OrgRole | 'SUPER_ADMIN' | undefined,
+  ) {
+    // User creation is ADMIN-gated on every other surface; a
+    // lower-privileged caller must not reach it through a retry either
+    // (e.g. after a demotion between the import and the retry).
+    if (
+      dto.sheetId === 'usuarios' &&
+      !this.canImportUsersSheet(callerRole)
+    ) {
+      throw new ForbiddenException('La hoja usuarios requiere rol ADMIN');
+    }
+
     const job = this.getJobOrThrow(jobId, userId);
     const sheet = job.sheets.find((item) => item.sheetId === dto.sheetId);
     if (!sheet) {
@@ -314,6 +339,7 @@ export class MultiSheetImportService implements OnModuleDestroy {
     file: Express.Multer.File,
     userId: string,
     organizationId: string,
+    callerRole: OrgRole | 'SUPER_ADMIN' | undefined,
     parsedSheets: ParsedWorkbookSheet[],
     correlationId: string,
   ): MultiSheetJob {
@@ -339,6 +365,7 @@ export class MultiSheetImportService implements OnModuleDestroy {
       id: randomUUID(),
       userId,
       organizationId,
+      callerRole,
       status: 'PARSING',
       fileName: file.originalname,
       totalRows: sheets.reduce((sum, sheet) => sum + sheet.totalRows, 0),
@@ -396,6 +423,22 @@ export class MultiSheetImportService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Roles allowed to import the usuarios sheet. Mirrors POST /api/users
+   * (@Roles(OrgRole.ADMIN) with OWNER inheriting ADMIN and SUPER_ADMIN
+   * bypassing) so the import cannot become a user-creation bypass for
+   * MEMBER/CASHIER callers. An unknown/missing role fails closed.
+   */
+  private canImportUsersSheet(
+    role: OrgRole | 'SUPER_ADMIN' | undefined,
+  ): boolean {
+    return (
+      role === 'SUPER_ADMIN' ||
+      role === OrgRole.OWNER ||
+      role === OrgRole.ADMIN
+    );
+  }
+
   private async processSheet(
     job: MultiSheetJob,
     sheetId: SheetId,
@@ -404,6 +447,22 @@ export class MultiSheetImportService implements OnModuleDestroy {
     const sheet = job.sheets.find((item) => item.sheetId === sheetId);
     const handler = job.handlers.get(sheetId);
     if (!sheet || !handler) {
+      return;
+    }
+
+    // Role gate (before any data work): a caller who cannot create users
+    // through POST /api/users cannot create them through the import either.
+    // The sheet is rejected and its sibling sheets keep processing.
+    if (sheetId === 'usuarios' && !this.canImportUsersSheet(job.callerRole)) {
+      sheet.status = 'REJECTED';
+      sheet.roleRejected = true;
+      sheet.roleRejectedMessage = 'La hoja usuarios requiere rol ADMIN';
+      this.addEvent(
+        job,
+        'WARNING',
+        'Hoja usuarios rechazada por permisos (requiere rol ADMIN)',
+        1,
+      );
       return;
     }
 
@@ -632,6 +691,8 @@ export class MultiSheetImportService implements OnModuleDestroy {
         missingRequiredFields: sheet.missingRequiredFields,
         planLimitRejected: sheet.planLimitRejected,
         planLimitMessage: sheet.planLimitMessage,
+        roleRejected: sheet.roleRejected,
+        roleRejectedMessage: sheet.roleRejectedMessage,
         rowErrors: sheet.rowErrors.map((error) => this.toPublicRowError(job, error)),
       })),
       errors: job.rowErrors.map((error) => this.toPublicRowError(job, error)),

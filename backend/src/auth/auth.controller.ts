@@ -11,6 +11,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { OrgRole } from '@prisma/client';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import {
@@ -162,9 +163,39 @@ export class AuthController {
   @ApiOperation({ summary: 'Change user password' })
   async changePassword(
     @Body() changePasswordDto: ChangePasswordDto,
-    @Request() req: { user: { userId: string } },
+    @Request()
+    req: {
+      ip?: string;
+      headers?: Record<string, string | string[] | undefined>;
+      cookies?: Record<string, string | undefined>;
+      user: {
+        userId: string;
+        organizationId?: string;
+        role?: OrgRole | 'SUPER_ADMIN';
+      };
+    },
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.changePassword(req.user.userId, changePasswordDto);
+    const userAgent = Array.isArray(req.headers?.['user-agent'])
+      ? req.headers['user-agent'][0]
+      : req.headers?.['user-agent'];
+
+    // The service revokes every session; the caller's org/role context tells
+    // it which session to re-issue so the legitimate user stays signed in.
+    const result = await this.authService.changePassword(
+      req.user.userId,
+      changePasswordDto,
+      {
+        organizationId: req.user.organizationId ?? null,
+        role: req.user.role,
+      },
+      req.ip,
+      userAgent,
+    );
+
+    this.setSessionCookies(res, req, result);
+
+    return this.toResponseBody(result);
   }
 
   /**

@@ -136,6 +136,7 @@ export class ImportsController {
       file,
       user.userId,
       user.organizationId,
+      user.role,
       ...(req.requestId ? [req.requestId] : []),
     );
   }
@@ -166,27 +167,37 @@ export class ImportsController {
   async retryImportRow(
     @Param('jobId') jobId: string,
     @Body() dto: RetryImportRowDto,
-    @Request() req: { user: { userId: string } },
+    @CurrentUser() user: RequestUser,
   ): Promise<any> {
-    const userId = req.user.userId;
+    const userId = user.userId;
 
     if (dto.sheetId && dto.sheetId !== 'productos') {
-      return this.multiSheetImportService.retryImportRow(jobId, userId, {
-        rowIndex: dto.rowIndex,
-        sheetId: dto.sheetId,
-        correctedData: dto.correctedData,
-      });
+      return this.multiSheetImportService.retryImportRow(
+        jobId,
+        userId,
+        {
+          rowIndex: dto.rowIndex,
+          sheetId: dto.sheetId,
+          correctedData: dto.correctedData,
+        },
+        user.role,
+      );
     }
 
     try {
       return this.importsService.retryImportRow(jobId, userId, dto);
     } catch (error) {
       if (error instanceof NotFoundException) {
-        return this.multiSheetImportService.retryImportRow(jobId, userId, {
-          rowIndex: dto.rowIndex,
-          sheetId: dto.sheetId ?? 'productos',
-          correctedData: dto.correctedData,
-        });
+        return this.multiSheetImportService.retryImportRow(
+          jobId,
+          userId,
+          {
+            rowIndex: dto.rowIndex,
+            sheetId: dto.sheetId ?? 'productos',
+            correctedData: dto.correctedData,
+          },
+          user.role,
+        );
       }
       throw error;
     }

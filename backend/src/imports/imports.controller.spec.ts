@@ -63,6 +63,7 @@ describe('ImportsController', () => {
         file,
         'cashier-1',
         'org-1',
+        OrgRole.CASHIER,
       );
     });
 
@@ -75,6 +76,7 @@ describe('ImportsController', () => {
         file,
         'cashier-1',
         'org-1',
+        OrgRole.CASHIER,
         'request-full-1',
       );
     });
@@ -136,13 +138,14 @@ describe('ImportsController', () => {
       await controller.retryImportRow(
         'full-job',
         { rowIndex: 5, sheetId: 'clientes', correctedData: { name: 'X' } },
-        { user: { userId: 'cashier-1' } },
+        cashierUser,
       );
 
       expect(multiSheetImportServiceMock.retryImportRow).toHaveBeenCalledWith(
         'full-job',
         'cashier-1',
         { rowIndex: 5, sheetId: 'clientes', correctedData: { name: 'X' } },
+        OrgRole.CASHIER,
       );
       expect(importsServiceMock.retryImportRow).not.toHaveBeenCalled();
     });
@@ -155,7 +158,7 @@ describe('ImportsController', () => {
       await controller.retryImportRow(
         'product-job',
         { rowIndex: 5, correctedData: { name: 'X' } },
-        { user: { userId: 'cashier-1' } },
+        cashierUser,
       );
 
       expect(importsServiceMock.retryImportRow).toHaveBeenCalledWith(
