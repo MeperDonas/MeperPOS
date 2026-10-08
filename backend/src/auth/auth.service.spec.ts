@@ -1,4 +1,8 @@
-import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrgRole, OrgStatus, PlanType } from '@prisma/client';
@@ -639,6 +643,147 @@ describe('AuthService', () => {
       mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 0 });
 
       await expect(service.logout('unknown-token')).resolves.toBeUndefined();
+    });
+  });
+
+  describe('changePassword (session revocation)', () => {
+    const dto = {
+      currentPassword: 'ClaveActual1',
+      newPassword: 'NuevaClaveSegura123',
+    };
+    const existingUser = {
+      id: 'user-1',
+      email: 'user@example.com',
+      name: 'Test User',
+      password: 'old-hash',
+      tokenVersion: 1,
+      active: true,
+      isSuperAdmin: false,
+    };
+
+    beforeEach(() => {
+      mockPrisma.user.findUnique.mockResolvedValue(existingUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('new-hash');
+      mockPrisma.user.update
+        // 1) the password write
+        .mockResolvedValueOnce({ ...existingUser, password: 'new-hash' })
+        // 2) the tokenVersion bump performed by revokeUserTokens
+        .mockResolvedValueOnce({ ...existingUser, tokenVersion: 2 });
+      mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 3 });
+      mockPrisma.refreshToken.create.mockResolvedValue({ id: 'refresh-1' });
+    });
+
+    it('persists the new password, revokes every session, and re-issues the caller session', async () => {
+      mockPrisma.organizationUser.findFirst.mockResolvedValue({
+        organizationId: 'org-1',
+        role: OrgRole.ADMIN,
+      });
+
+      const result = await service.changePassword('user-1', dto, {
+        organizationId: 'org-1',
+        role: OrgRole.ADMIN,
+      });
+
+      expect(bcrypt.hash).toHaveBeenCalledWith(
+        dto.newPassword,
+        expect.any(Number),
+      );
+      expect(mockPrisma.user.update).toHaveBeenNthCalledWith(1, {
+        where: { id: 'user-1' },
+        data: { password: 'new-hash' },
+      });
+
+      // Every session dies: access JWTs via tokenVersion, refresh rows revoked.
+      expect(mockPrisma.user.update).toHaveBeenNthCalledWith(2, {
+        where: { id: 'user-1' },
+        data: { tokenVersion: { increment: 1 } },
+      });
+      expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+
+      // The replacement pair carries the bumped tokenVersion, so the stolen
+      // access token stays dead instead of being silently resurrected.
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ tokenVersion: 2 }),
+        expect.anything(),
+      );
+      expect(mockPrisma.refreshToken.create).toHaveBeenCalledTimes(1);
+      expect(result).toMatchObject({
+        message: 'Password changed successfully',
+      });
+      expect(result).toHaveProperty('accessToken');
+    });
+
+    it('re-issues the membership role from the database, never from the claim', async () => {
+      mockPrisma.organizationUser.findFirst.mockResolvedValue({
+        organizationId: 'org-1',
+        role: OrgRole.MEMBER,
+      });
+
+      await service.changePassword('user-1', dto, {
+        organizationId: 'org-1',
+        // A tampered/stale claim claiming ADMIN must not reach the new token.
+        role: OrgRole.OWNER,
+      });
+
+      expect(mockPrisma.organizationUser.findFirst).toHaveBeenCalledWith({
+        where: { userId: 'user-1', organizationId: 'org-1' },
+      });
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ role: OrgRole.MEMBER }),
+        expect.anything(),
+      );
+    });
+
+    it('re-issues a SUPER_ADMIN session without an organization', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        ...existingUser,
+        isSuperAdmin: true,
+      });
+
+      const result = await service.changePassword('user-1', dto, {
+        organizationId: null,
+        role: 'SUPER_ADMIN',
+      });
+
+      expect(mockPrisma.organizationUser.findFirst).not.toHaveBeenCalled();
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'SUPER_ADMIN', organizationId: null }),
+        expect.anything(),
+      );
+      expect(result).toHaveProperty('accessToken');
+    });
+
+    it('still revokes every session when there is no org context to re-issue', async () => {
+      const result = await service.changePassword('user-1', dto, {
+        organizationId: null,
+        role: OrgRole.ADMIN,
+      });
+
+      expect(mockPrisma.user.update).toHaveBeenNthCalledWith(2, {
+        where: { id: 'user-1' },
+        data: { tokenVersion: { increment: 1 } },
+      });
+      expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
+      expect(result).toEqual({ message: 'Password changed successfully' });
+    });
+
+    it('rejects a wrong current password without touching the password or the sessions', async () => {
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(
+        service.changePassword('user-1', dto, {
+          organizationId: 'org-1',
+          role: OrgRole.ADMIN,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+      expect(mockPrisma.refreshToken.updateMany).not.toHaveBeenCalled();
+      expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
     });
   });
 });

@@ -41,15 +41,75 @@ describe('AuthController after users boundary centralization', () => {
       currentPassword: 'ClaveActual1',
       newPassword: 'NuevaClaveSegura123',
     };
-    const req = { user: { userId: 'admin-1' } };
+    const req = {
+      user: {
+        userId: 'admin-1',
+        organizationId: 'org-1',
+        role: OrgRole.ADMIN,
+      },
+      ip: '127.0.0.1',
+      headers: { 'user-agent': 'Mozilla/5.0' },
+      cookies: {},
+    };
     const expected = { message: 'Password changed successfully' };
 
     authServiceMock.changePassword.mockResolvedValue(expected);
 
-    await expect(controller.changePassword(dto, req)).resolves.toEqual(
-      expected,
+    await expect(
+      controller.changePassword(dto, req as never, mockRes()),
+    ).resolves.toEqual(expected);
+    expect(authServiceMock.changePassword).toHaveBeenCalledWith(
+      'admin-1',
+      dto,
+      { organizationId: 'org-1', role: OrgRole.ADMIN },
+      '127.0.0.1',
+      'Mozilla/5.0',
     );
-    expect(authServiceMock.changePassword).toHaveBeenCalledWith('admin-1', dto);
+  });
+
+  it('re-issues session cookies after change-password without leaking the refresh token', async () => {
+    const controller = new AuthController(authServiceMock as never);
+    const dto = {
+      currentPassword: 'ClaveActual1',
+      newPassword: 'NuevaClaveSegura123',
+    };
+    const req = {
+      user: {
+        userId: 'admin-1',
+        organizationId: 'org-1',
+        role: OrgRole.ADMIN,
+      },
+      headers: {},
+      cookies: {},
+    } as never;
+    const res = mockRes();
+    authServiceMock.changePassword.mockResolvedValue({
+      accessToken: 'reissued-access',
+      refreshToken: 'reissued-refresh',
+      user: { id: 'admin-1' },
+      message: 'Password changed successfully',
+    });
+
+    const result = await controller.changePassword(dto, req, res);
+
+    // The re-issued pair must be written back into the session cookies.
+    expect(res.cookie).toHaveBeenCalledWith(
+      ACCESS_TOKEN_COOKIE,
+      'reissued-access',
+      expect.objectContaining({ httpOnly: true }),
+    );
+    expect(res.cookie).toHaveBeenCalledWith(
+      REFRESH_TOKEN_COOKIE,
+      'reissued-refresh',
+      expect.objectContaining({ httpOnly: true, path: '/api/auth' }),
+    );
+    // The rotated refresh token stays cookie-only, as on every other surface.
+    expect(result).not.toHaveProperty('refreshToken');
+    expect(result).toEqual({
+      accessToken: 'reissued-access',
+      user: { id: 'admin-1' },
+      message: 'Password changed successfully',
+    });
   });
 
   describe('login', () => {
