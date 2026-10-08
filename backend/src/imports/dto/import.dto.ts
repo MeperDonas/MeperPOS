@@ -167,6 +167,19 @@ export class ImportSheetStatusDto {
   @IsString()
   planLimitMessage?: string;
 
+  @ApiPropertyOptional({
+    example: false,
+    description: 'True when the sheet was rejected by the caller role gate.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  roleRejected?: boolean;
+
+  @ApiPropertyOptional({ example: 'La hoja usuarios requiere rol ADMIN' })
+  @IsOptional()
+  @IsString()
+  roleRejectedMessage?: string;
+
   @ApiProperty({ type: [ImportRowErrorDto] })
   @ValidateNested({ each: true })
   @Type(() => ImportRowErrorDto)

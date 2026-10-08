@@ -66,6 +66,7 @@ describe('ImportsService — Integration (Two-Org Isolation)', () => {
       await buildMultiSheetFile(),
       fixture.userAId,
       fixture.orgAId,
+      'ADMIN',
     );
     multiSheetJobAId = multiSheetStarted.jobId;
   });
