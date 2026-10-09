@@ -234,11 +234,11 @@ export function Sidebar() {
       {/* Brand */}
       <div className="px-5 py-5 border-b border-border/70 flex items-center gap-3">
         <Image
-          src="/brand/meperpos-logo-64.png"
+          src="/brand/meperpos-mark-160.png"
           alt={`${APP_NAME} logo`}
-          width={36}
-          height={36}
-          className="h-9 w-9 shrink-0 rounded-xl ring-1 ring-border/60 shadow-sm shadow-black/10"
+          width={160}
+          height={77}
+          className="h-9 w-auto shrink-0 rounded-lg ring-1 ring-border/60 shadow-sm shadow-black/10"
         />
         <div className="min-w-0">
           <p className="text-base font-extrabold text-foreground truncate leading-tight tracking-tight">
@@ -377,11 +377,11 @@ export function Sidebar() {
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 bg-card border-b border-border">
         <div className="flex items-center gap-2.5">
           <Image
-            src="/brand/meperpos-logo-64.png"
+            src="/brand/meperpos-mark-160.png"
             alt={`${APP_NAME} logo`}
-            width={28}
-            height={28}
-            className="h-7 w-7 shrink-0 rounded-lg ring-1 ring-border/60"
+            width={160}
+            height={77}
+            className="h-8 w-auto shrink-0 rounded-lg ring-1 ring-border/60"
           />
           <span className="text-sm font-bold text-foreground">
             {APP_NAME}
