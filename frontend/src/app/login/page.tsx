@@ -26,7 +26,6 @@ export default function LoginPage() {
   return (
     <AuthCard
       title="Bienvenido de nuevo"
-      subtitle="MeperPOS"
       footer={{
         text: "No tienes cuenta?",
         linkText: "Registrarse",
