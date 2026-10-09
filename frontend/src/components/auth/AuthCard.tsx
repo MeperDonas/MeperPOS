@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Boxes } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { APP_NAME } from "@/lib/constants";
 
 interface AuthCardProps {
   title: string;
@@ -18,9 +18,13 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
         <div className="rounded-3xl p-8 md:p-10 bg-card border border-border/80 shadow-2xl shadow-black/10 space-y-6">
           {/* Logo & Header */}
           <div className="text-center space-y-2">
-            <div className="w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/25 mx-auto mb-4">
-              <Boxes className="w-7 h-7" />
-            </div>
+            <Image
+              src="/brand/meperpos-logo-128.png"
+              alt={`${APP_NAME} logo`}
+              width={56}
+              height={56}
+              className="mx-auto mb-4 block h-14 w-14 rounded-2xl ring-1 ring-border/60 shadow-lg shadow-black/10"
+            />
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               {title}
             </h1>
