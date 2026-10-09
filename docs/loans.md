@@ -569,6 +569,102 @@ Before application, this unit's rollback boundary is the three enum additions,
 retain approved B storage/service and all earlier quantity/reservation safeguards.
 After application, any rollback requires a separately approved data-safe plan.
 
+## Internal physical delivery and return (L3C-C C-C-B; UNWIRED)
+
+**Operational rollout remains OFF; all migrations remain unapplied.** This unit
+adds only direct-call `InventoryLoansService.deliver(id, dto, actor)` and
+`returnItems(id, dto, actor)`. No controller, module registration/export, HTTP
+route, terminal lifecycle activation or inventory-ledger integration is added.
+CREATE's strict OPEN/zero-initial-counter replay shape and existing
+OPEN/CANCELLED query filter remain unchanged.
+
+### Request, actor and stock contract
+
+Both methods accept `{ requestKey, items: [{ itemId, quantity }] }`. Keys are
+trimmed to 1–100 characters; select 1–100 loan-item UUIDs with raw positive Prisma
+Int quantities. Duplicate IDs reject; selected items are canonicalized by ID.
+Nested whitelist validation rejects unknown fields through a ValidationPipe and
+also at the service boundary without HTTP. Tenant, actor, product IDs, prices,
+notes and stock controls are not request fields.
+
+OWNER/ADMIN authorization requires an actual same-organization administrative
+OrganizationUser membership and active User. SUPER_ADMIN needs that membership
+too; cashier collection permissions are not borrowed. The lifecycle actor may
+be different from the loan's original `createdById`.
+
+| Operation | Eligible product | Stock/count effects |
+| --- | --- | --- |
+| DELIVER | Active, tracked physical PRODUCT in the same tenant | Decrease stock and reservedStock equally; increase deliveredQuantity within undelivered reservation |
+| RETURN | Tracked physical PRODUCT in the same tenant, including inactive products with zero reservations | Increase stock only; increase returnedQuantity within delivered outstanding units |
+
+Every count, version and resulting stock/reservation counter must fit Prisma Int.
+Missing, inconsistent, insufficient or overflowing controls fail closed. A return
+never restores a consumed reservation, releases it twice, enables redelivery or
+closes the loan. Full delivery and full return both leave status OPEN. Fresh
+operations on CLOSED/CANCELLED loans reject.
+
+### Atomic claims and immutable replay
+
+One Serializable transaction authorizes the actor and reads the tenant-bound
+loan/items. It claims the OPEN header by organization/ID/status/version and
+increments that version once. InventoryLoanItem has **no version**: each selected
+write pins organization, loan, item/product identity, allocation and all three
+observed counters. Product writes retain both version and physical-stock/
+reservation CAS guards, including eligibility. Products are processed in sorted
+ID order with one aggregated CAS per product. The actual schema has no unique
+loan/product constraint, so multiple same-product items are handled defensively.
+
+After the result is known, the transaction inserts one completed immutable
+operation, then correlated positive-quantity DELIVERED/RETURNED item events, then
+INVENTORY_LOAN_DELIVERED/INVENTORY_LOAN_RETURNED AuditLog. Loan claim, item and
+product writes, operation, every event and audit must roll back together on any
+failure. No Sale, Payment, money obligation or InventoryMovement is written.
+
+The tenant-wide operation key must match actor, operation type, loan and the
+entire canonical selected-ID/quantity payload. Exact replay returns stored JSON,
+not live counts, status, product eligibility or names; current active actor
+membership is still required. P2002/P2034 reconciliation reads completed evidence
+only outside the aborted transaction. Absent/conflicting winners return 409;
+there is no blind retry or overwritable pending operation.
+
+DELIVER/RETURN use their own version-1 receipt, separate from CREATE. It contains
+type/actor metadata, ordered item IDs and safe before/after count projections.
+Validation requires exact keys, tenant/loan identity, one nonnull nonblank
+counterparty, unique ordered item IDs, count/derived invariants and unchanged
+header/product identities. The pure transition helper must reproduce each
+selected request quantity's exact delta; untouched items must remain unchanged.
+Only the validated after projection is returned. Request payloads, receipt
+metadata and before-count evidence never become public response fields.
+
+### Pre-rollout gates and proof limits
+
+- **Product eligibility gate:** existing product conversion guards protect
+  positive reservedStock only. Full delivery can leave outstanding units with
+  zero reservations; conversion to SERVICE/untracked can then normalize stock.
+  This writer rejects such converted products, including RETURN, rather than
+  fabricating a recovery. A separate parent-owned product guard unit is required
+  before rollout; inactive physical return alone does not resolve conversion.
+- **Stock-ledger/report gate:** InventoryMovement has no loan-specific enum or
+  linkage. DELIVERED/RETURNED loan events and AuditLog are not proof of an
+  inventory movement ledger, reporting or export integration. SALE/RETURN
+  movement types are not repurposed.
+- **Remaining lifecycle/HTTP gate:** CANCEL, CLOSE, lifecycle queries, controller
+  permissions/wiring and frontend remain future work. No automatic closure,
+  payment, sale or money semantics are introduced.
+- **L7 database gate:** predicate-aware cloned-store tests prove local success-only
+  commit, CAS predicates, staged rollback and outside-abort reconciliation, not
+  real concurrent interleavings. PostgreSQL constraints, locks, actual rollback,
+  migrations and runtime authentication still need isolated authorized proof.
+  Schema/client are unchanged; prior writer Prisma validate/generate evidence is
+  reused, not rerun. Independent fresh foundation validation remains blocked,
+  not a new pass. The separate informational native R3 CREATE snapshot/payload
+  follow-up is neither fixed nor reopened here.
+
+Before migration application, this unit's rollback boundary is the two methods,
+operation DTO, receipt helpers, expanded local spec and this section. Preserve
+CREATE/read behavior, foundation helpers/storage and all stock-consumer guards.
+No production-readiness or native review approval is claimed.
+
 ## Verification and next slice
 
 Run the focused suite from `backend`:

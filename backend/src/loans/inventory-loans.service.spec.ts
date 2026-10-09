@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ValidationPipe } from '@nestjs/common';
 import { InventoryLoanOperation, OrgRole, Prisma } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
@@ -6,6 +6,7 @@ import { RequestUser } from '../common/interfaces/request-user.interface';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInventoryLoanDto } from './dto/create-inventory-loan.dto';
 import { CounterpartyType } from './dto/create-loan.dto';
+import { InventoryLoanOperationDto } from './dto/inventory-loan-operation.dto';
 import { InventoryLoansService } from './inventory-loans.service';
 
 const p1 = '00000000-0000-4000-8000-000000000001';
@@ -38,6 +39,7 @@ type Product = {
 };
 type Item = {
   id: string;
+  loanId: string;
   productId: string;
   organizationId: string;
   quantity: number;
@@ -50,7 +52,8 @@ type Loan = {
   organizationId: string;
   createdById: string;
   createdAt: Date;
-  status: 'OPEN' | 'CANCELLED';
+  status: 'OPEN' | 'CANCELLED' | 'CLOSED';
+  version: number;
   customerId: string | null;
   supplierId: string | null;
   employeeId: string | null;
@@ -113,6 +116,8 @@ function harness() {
   let fail: string | undefined;
   let transactionError: Error | undefined;
   const calls: string[] = [];
+  const operationLookupPhases: string[] = [];
+  let inTransaction = false;
   const find = (table: 'members' | 'customers' | 'suppliers' | 'products') =>
     jest.fn(
       ({ where }: { where: Row }) =>
@@ -120,6 +125,7 @@ function harness() {
     );
   const operationFind = jest.fn(
     ({ where }: Prisma.InventoryLoanOperationFindUniqueArgs) => {
+      operationLookupPhases.push(inTransaction ? 'inside' : 'outside');
       const key = where.organizationId_requestKey!;
       return (
         working.operations.find(
@@ -135,13 +141,17 @@ function harness() {
     select: Prisma.InventoryLoanSelect | null | undefined,
   ) => {
     const relation = select?.items as { where: Row };
+    const { version, ...publicLoan } = loan;
     return {
-      ...loan,
+      ...publicLoan,
+      ...(select?.version ? { version } : {}),
       items: loan.items
         .filter((item) => matches(item, relation.where))
+        .sort((a, b) => a.id.localeCompare(b.id))
         .map((item) => {
-          const { organizationId, ...data } = item;
+          const { organizationId, loanId, ...data } = item;
           void organizationId;
+          void loanId;
           return data;
         }),
     };
@@ -170,12 +180,17 @@ function harness() {
   );
   const update = jest.fn(({ where, data }: Prisma.ProductUpdateManyArgs) => {
     calls.push('reserve');
-    if (fail === 'cas') return { count: 0 };
+    if (fail === 'cas' || (fail === 'later-product' && where?.id === p2))
+      return { count: 0 };
+    if (fail === 'product-throw') throw new Error('product failure');
     const product = working.products.find((row) => matches(row, where as Row));
     if (!product) return { count: 0 };
-    product.reservedStock += (
-      data.reservedStock as { increment: number }
-    ).increment;
+    if (data.reservedStock)
+      product.reservedStock += (
+        data.reservedStock as { increment: number }
+      ).increment;
+    if (data.stock)
+      product.stock += (data.stock as { increment: number }).increment;
     product.version += (data.version as { increment: number }).increment;
     return { count: 1 };
   });
@@ -193,12 +208,14 @@ function harness() {
         createdById: data.createdById!,
         createdAt: new Date('2026-10-09T00:00:00Z'),
         status: 'OPEN',
+        version: 0,
         customerId: data.customerId ?? null,
         supplierId: data.supplierId ?? null,
         employeeId: data.employeeId ?? null,
         items: items.map((item, index) => ({
           ...item,
-          id: `item-${index}`,
+          id: `00000000-0000-4000-8000-${String(index + 100).padStart(12, '0')}`,
+          loanId: `loan-${working.loans.length}`,
           deliveredQuantity: 0,
           returnedQuantity: 0,
           cancelledQuantity: 0,
@@ -206,6 +223,43 @@ function harness() {
       };
       working.loans.push(loan);
       return scopedLoan(loan, select);
+    },
+  );
+  const loanUpdate = jest.fn(
+    ({ where, data }: Prisma.InventoryLoanUpdateManyArgs) => {
+      calls.push('claim');
+      if (fail === 'claim') return { count: 0 };
+      if (fail === 'claim-throw') throw new Error('loan failure');
+      const row = working.loans.find((row) => matches(row, where as Row));
+      if (!row) return { count: 0 };
+      row.version += (data.version as { increment: number }).increment;
+      return { count: 1 };
+    },
+  );
+  const itemUpdate = jest.fn(
+    ({ where, data }: Prisma.InventoryLoanItemUpdateManyArgs) => {
+      calls.push('item');
+      if (
+        fail === 'item' ||
+        (fail === 'later-item' &&
+          typeof where?.id === 'string' &&
+          where.id.endsWith('101'))
+      )
+        return { count: 0 };
+      if (fail === 'item-throw') throw new Error('item failure');
+      const row = working.loans
+        .flatMap((loan) => loan.items)
+        .find((row) => matches(row, where as Row));
+      if (!row) return { count: 0 };
+      if (data.deliveredQuantity)
+        row.deliveredQuantity += (
+          data.deliveredQuantity as { increment: number }
+        ).increment;
+      if (data.returnedQuantity)
+        row.returnedQuantity += (
+          data.returnedQuantity as { increment: number }
+        ).increment;
+      return { count: 1 };
     },
   );
   const operationCreate = jest.fn(
@@ -224,7 +278,13 @@ function harness() {
   const eventCreate = jest.fn(
     ({ data }: Prisma.InventoryLoanEventCreateArgs) => {
       calls.push('event');
-      if (fail === 'event') throw new Error('event failure');
+      if (
+        fail === 'event' ||
+        (fail === 'later-event' &&
+          typeof data.itemId === 'string' &&
+          data.itemId.endsWith('101'))
+      )
+        throw new Error('event failure');
       const op = working.operations.find(
         (op) =>
           op.id === data.operationId &&
@@ -237,8 +297,8 @@ function harness() {
         ...data,
         id: `event-${working.events.length}`,
         createdAt: new Date(),
-        itemId: null,
-        quantity: null,
+        itemId: data.itemId ?? null,
+        quantity: data.quantity ?? null,
       };
       working.events.push(row);
       return row;
@@ -284,7 +344,9 @@ function harness() {
       findFirst: loanFind,
       findMany: loanMany,
       count: loanCount,
+      updateMany: loanUpdate,
     },
+    inventoryLoanItem: { updateMany: itemUpdate },
     inventoryLoanOperation: {
       findUnique: operationFind,
       create: operationCreate,
@@ -302,6 +364,7 @@ function harness() {
     $transaction: jest.fn(
       async (callback: (tx: Prisma.TransactionClient) => Promise<unknown>) => {
         working = structuredClone(state);
+        inTransaction = true;
         try {
           const result = await callback(
             db as unknown as Prisma.TransactionClient,
@@ -311,6 +374,7 @@ function harness() {
           return result;
         } finally {
           working = state;
+          inTransaction = false;
         }
       },
     ),
@@ -318,6 +382,7 @@ function harness() {
   return {
     db,
     calls,
+    operationLookupPhases,
     service: new InventoryLoansService(db as unknown as PrismaService),
     state: () => state,
     fail: (name: string) => {
@@ -789,6 +854,924 @@ describe('unwired inventory creation', () => {
     },
   );
 });
+
+describe('internal inventory delivery and return', () => {
+  it('returns previously delivered units without restoring a consumed reservation', async () => {
+    const h = harness();
+    const loan = await h.service.create(dto, actor);
+    h.state().loans[0].items[0].deliveredQuantity = 2;
+    Object.assign(h.state().products[0], { stock: 8, reservedStock: 1 });
+    await expect(
+      h.service.returnItems(
+        loan.id,
+        {
+          requestKey: 'return-1',
+          items: [{ itemId: loan.items[0].id, quantity: 1 }],
+        },
+        actor,
+      ),
+    ).resolves.toMatchObject({
+      items: [{ returnedQuantity: 1, outstanding: 1 }],
+    });
+    expect(h.state().products[0]).toMatchObject({ stock: 9, reservedStock: 1 });
+  });
+  it('delivers reserved units and restores only physical stock on return, without closing', async () => {
+    const h = harness();
+    const loan = await h.service.create(dto, actor);
+    const input = {
+      requestKey: 'deliver-1',
+      items: [{ itemId: loan.items[0].id, quantity: 2 }],
+    };
+    await expect(
+      h.service.deliver(loan.id, input, actor),
+    ).resolves.toMatchObject({
+      status: 'OPEN',
+      items: [{ deliveredQuantity: 2, outstanding: 2, reservedRemaining: 0 }],
+    });
+    expect(h.state().products[0]).toMatchObject({ stock: 8, reservedStock: 1 });
+    await expect(
+      h.service.returnItems(
+        loan.id,
+        { ...input, requestKey: 'return-1' },
+        actor,
+      ),
+    ).resolves.toMatchObject({
+      status: 'OPEN',
+      items: [{ deliveredQuantity: 2, returnedQuantity: 2, outstanding: 0 }],
+    });
+    expect(h.state().products[0]).toMatchObject({
+      stock: 10,
+      reservedStock: 1,
+    });
+  });
+});
+
+describe.each(['deliver', 'returnItems'] as const)(
+  'internal %s contract',
+  (method) => {
+    async function prepare(
+      multi = false,
+      counterpartyType = CounterpartyType.CUSTOMER,
+    ) {
+      const h = harness();
+      const loan = await h.service.create(
+        {
+          ...dto,
+          counterpartyType,
+          items: multi
+            ? [...dto.items, { productId: p2, quantity: 2 }]
+            : dto.items,
+        },
+        actor,
+      );
+      if (method === 'returnItems') {
+        await h.service.deliver(
+          loan.id,
+          {
+            requestKey: 'setup-delivery',
+            items: loan.items.map((item) => ({ itemId: item.id, quantity: 2 })),
+          },
+          actor,
+        );
+      }
+      h.calls.length = 0;
+      h.operationLookupPhases.length = 0;
+      jest.clearAllMocks();
+      return {
+        h,
+        loan,
+        input: {
+          requestKey: 'operation-1',
+          items: loan.items.map((item) => ({ itemId: item.id, quantity: 1 })),
+        },
+      };
+    }
+    it('uses sorted item/product CAS, one loan claim and completed operation before correlated item events and audit', async () => {
+      const { h, loan, input } = await prepare(true);
+      const result = await h.service[method](
+        loan.id,
+        { ...input, items: [...input.items].reverse() },
+        { ...actor, userId: 'other' },
+      );
+      expect(result.createdById).toBe('actor');
+      expect(h.state().loans[0].version).toBe(method === 'deliver' ? 1 : 2);
+      expect(h.calls).toEqual([
+        'claim',
+        'item',
+        'item',
+        'reserve',
+        'reserve',
+        'operation',
+        'event',
+        'event',
+        'audit',
+      ]);
+      expect(h.db.inventoryLoan.updateMany).toHaveBeenCalledTimes(1);
+      expect(h.db.inventoryLoan.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: loan.id,
+          organizationId: 'org',
+          status: 'OPEN',
+          version: method === 'deliver' ? 0 : 1,
+        },
+        data: { version: { increment: 1 } },
+      });
+      expect(
+        h.db.inventoryLoanItem.updateMany.mock.calls.map(
+          ([args]) => args.where?.id,
+        ),
+      ).toEqual(loan.items.map((item) => item.id));
+      expect(h.db.inventoryLoanItem.updateMany.mock.calls[0][0].where).toEqual({
+        id: loan.items[0].id,
+        loanId: loan.id,
+        organizationId: 'org',
+        productId: p1,
+        quantity: 2,
+        deliveredQuantity: method === 'deliver' ? 0 : 2,
+        returnedQuantity: 0,
+        cancelledQuantity: 0,
+      });
+      expect(
+        h.db.product.updateMany.mock.calls.map(([args]) => args.where?.id),
+      ).toEqual([p1, p2]);
+      expect(h.db.product.updateMany.mock.calls[0][0]).toEqual({
+        where: {
+          id: p1,
+          organizationId: 'org',
+          active: true,
+          type: 'PRODUCT',
+          tracksStock: true,
+          version: method === 'deliver' ? 8 : 9,
+          stock: {
+            equals: method === 'deliver' ? 10 : 8,
+            gte: method === 'deliver' ? 1 : 0,
+          },
+          reservedStock: {
+            equals: method === 'deliver' ? 3 : 1,
+            gte: method === 'deliver' ? 1 : 0,
+          },
+        },
+        data: {
+          stock: { increment: method === 'deliver' ? -1 : 1 },
+          ...(method === 'deliver' ? { reservedStock: { increment: -1 } } : {}),
+          version: { increment: 1 },
+        },
+      });
+      expect(h.db.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+        isolationLevel: 'Serializable',
+      });
+      const operation = h.state().operations.at(-1)!;
+      expect(operation.actorId).toBe('other');
+      expect(h.state().events.slice(-2)).toMatchObject(
+        input.items.map((item) => ({
+          loanId: loan.id,
+          organizationId: 'org',
+          itemId: item.itemId,
+          quantity: 1,
+          createdById: 'other',
+          operationId: operation.id,
+          type: method === 'deliver' ? 'DELIVERED' : 'RETURNED',
+        })),
+      );
+      expect(h.state().audits.at(-1)).toMatchObject({
+        userId: 'other',
+        organizationId: 'org',
+        resourceId: loan.id,
+        metadata: { operationId: operation.id },
+      });
+      expect(result).not.toHaveProperty('receiptVersion');
+      expect(result).not.toHaveProperty('before');
+      expect(result).not.toHaveProperty('version');
+      expect(h.db.inventoryMovement.create).not.toHaveBeenCalled();
+      expect(h.db.sale.create).not.toHaveBeenCalled();
+      expect(h.db.payment.create).not.toHaveBeenCalled();
+      expect(h.db.moneyLoan.create).not.toHaveBeenCalled();
+    });
+    it.each([
+      'claim',
+      'claim-throw',
+      'item',
+      'item-throw',
+      'later-item',
+      'cas',
+      'product-throw',
+      'later-product',
+      'operation',
+      'event',
+      'later-event',
+      'audit',
+    ])('rolls back all stores on %s failure', async (failure) => {
+      const { h, loan, input } = await prepare(true);
+      const before = structuredClone(h.state());
+      h.fail(failure);
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toBeDefined();
+      expect(h.state()).toEqual(before);
+      if (failure === 'later-product')
+        expect(h.calls).toEqual([
+          'claim',
+          'item',
+          'item',
+          'reserve',
+          'reserve',
+        ]);
+      if (failure === 'later-item')
+        expect(h.calls).toEqual(['claim', 'item', 'item']);
+    });
+    it.each([OrgRole.MEMBER, OrgRole.CASHIER, OrgRole.INVENTORY_USER])(
+      'rejects role %s without transaction',
+      async (role) => {
+        const { h, loan, input } = await prepare();
+        await expect(
+          h.service[method](loan.id, input, { ...actor, role }),
+        ).rejects.toMatchObject({ status: 403 });
+        expect(h.db.$transaction).not.toHaveBeenCalled();
+      },
+    );
+    it.each(['inactive', 'tenant', 'role', 'absent'])(
+      'rejects %s actual membership, including SUPER_ADMIN',
+      async (kind) => {
+        const { h, loan, input } = await prepare();
+        if (kind === 'inactive') h.state().members[0].user = { active: false };
+        if (kind === 'tenant') h.state().members[0].organizationId = 'other';
+        if (kind === 'role') h.state().members[0].role = 'CASHIER';
+        if (kind === 'absent') h.state().members.splice(0, 1);
+        await expect(
+          h.service[method](loan.id, input, { ...actor, role: 'SUPER_ADMIN' }),
+        ).rejects.toMatchObject({ status: 403 });
+        expect(h.calls).toEqual([]);
+      },
+    );
+    it.each([OrgRole.OWNER, 'SUPER_ADMIN' as const])(
+      'permits %s with active administrative membership',
+      async (role) => {
+        const { h, loan, input } = await prepare();
+        await expect(
+          h.service[method](loan.id, input, { ...actor, role }),
+        ).resolves.toMatchObject({ status: 'OPEN' });
+      },
+    );
+    it('rejects missing organization and empty loan identity before transaction', async () => {
+      const { h, loan, input } = await prepare();
+      await expect(
+        h.service[method](loan.id, input, {
+          ...actor,
+          organizationId: undefined,
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+      await expect(h.service[method](' ', input, actor)).rejects.toMatchObject({
+        status: 400,
+      });
+      expect(h.db.$transaction).not.toHaveBeenCalled();
+    });
+    it.each([
+      'missing-loan',
+      'foreign-loan',
+      'missing-item',
+      'foreign-item',
+      'other-loan-item',
+    ])('rejects %s with no committed effects', async (kind) => {
+      const { h, loan, input } = await prepare();
+      if (kind === 'foreign-loan') h.state().loans[0].organizationId = 'other';
+      if (kind === 'foreign-item')
+        h.state().loans[0].items[0].organizationId = 'other';
+      if (kind === 'other-loan-item')
+        h.state().loans[0].items[0].loanId = 'other';
+      if (kind === 'missing-item') input.items[0].itemId = personId;
+      const before = structuredClone(h.state());
+      await expect(
+        h.service[method](
+          kind === 'missing-loan' ? 'missing' : loan.id,
+          input,
+          actor,
+        ),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(h.state()).toEqual(before);
+    });
+    it.each(['CLOSED', 'CANCELLED'] as const)(
+      'rejects fresh %s loan',
+      async (status) => {
+        const { h, loan, input } = await prepare();
+        h.state().loans[0].status = status;
+        await expect(
+          h.service[method](loan.id, input, actor),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.calls).toEqual([]);
+      },
+    );
+    it.each([undefined, -1, 1.5, 2147483647])(
+      'rejects invalid/overflow loan version %s',
+      async (version) => {
+        const { h, loan, input } = await prepare();
+        Object.assign(h.state().loans[0], { version });
+        await expect(
+          h.service[method](loan.id, input, actor),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.calls).toEqual([]);
+      },
+    );
+    it.each([
+      { type: 'SERVICE' },
+      { tracksStock: false },
+      { organizationId: 'other' },
+      { active: undefined },
+      { missing: true },
+    ])('rejects ineligible product %j', async (patch) => {
+      const { h, loan, input } = await prepare();
+      if ('missing' in patch) h.state().products.splice(0, 1);
+      else Object.assign(h.state().products[0], patch);
+      const before = structuredClone(h.state());
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(h.state()).toEqual(before);
+    });
+    it('permits inactive tracked physical return only, and never consumes reservations on return', async () => {
+      const { h, loan, input } = await prepare();
+      Object.assign(h.state().products[0], { active: false, reservedStock: 0 });
+      if (method === 'deliver')
+        await expect(
+          h.service[method](loan.id, input, actor),
+        ).rejects.toMatchObject({ status: 400 });
+      else {
+        await h.service[method](loan.id, input, actor);
+        expect(h.state().products[0]).toMatchObject({
+          active: false,
+          reservedStock: 0,
+          stock: 9,
+        });
+      }
+    });
+    it.each([
+      { stock: -1 },
+      { reservedStock: undefined },
+      { stock: 1.2 },
+      { reservedStock: 11 },
+      { version: undefined },
+      { version: 2147483647 },
+      { stock: 2147483648 },
+    ])('rejects invalid product controls %j', async (patch) => {
+      const { h, loan, input } = await prepare();
+      Object.assign(h.state().products[0], patch);
+      const before = structuredClone(h.state());
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(h.state()).toEqual(before);
+    });
+    it('rejects reservation underflow or inactive physical product with an inconsistent reservation', async () => {
+      const { h, loan, input } = await prepare();
+      Object.assign(
+        h.state().products[0],
+        method === 'deliver'
+          ? { reservedStock: 0 }
+          : { active: false, reservedStock: 1 },
+      );
+      const before = structuredClone(h.state());
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(h.state()).toEqual(before);
+    });
+    it('rejects insufficient reservation/stock on delivery or stock overflow on return', async () => {
+      const { h, loan, input } = await prepare();
+      Object.assign(
+        h.state().products[0],
+        method === 'deliver'
+          ? { stock: 0, reservedStock: 0 }
+          : { stock: 2147483647 },
+      );
+      const before = structuredClone(h.state());
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(h.state()).toEqual(before);
+    });
+    it.each([
+      { quantity: 0 },
+      { deliveredQuantity: 3 },
+      { returnedQuantity: 3 },
+      { cancelledQuantity: 3 },
+      { deliveredQuantity: NaN },
+    ])('rejects malformed live item counts %j', async (patch) => {
+      const { h, loan, input } = await prepare();
+      Object.assign(h.state().loans[0].items[0], patch);
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(h.calls).toEqual([]);
+    });
+    it('rejects quantity beyond remaining reservation/outstanding', async () => {
+      const { h, loan, input } = await prepare();
+      input.items[0].quantity = 3;
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(h.calls).toEqual([]);
+    });
+    it('aggregates multiple same-product items into one product CAS (actual schema has no loan/product unique key)', async () => {
+      const { h, loan, input } = await prepare(true);
+      h.state().loans[0].items[1].productId = p1;
+      Object.assign(h.state().products[0], {
+        reservedStock: method === 'deliver' ? 5 : 1,
+      });
+      await h.service[method](loan.id, input, actor);
+      expect(h.db.product.updateMany).toHaveBeenCalledTimes(1);
+      expect(h.db.product.updateMany.mock.calls[0][0].data).toMatchObject({
+        stock: { increment: method === 'deliver' ? -2 : 2 },
+        version: { increment: 1 },
+      });
+      expect(h.state().products[0].reservedStock).toBe(
+        method === 'deliver' ? 3 : 1,
+      );
+    });
+    it('rejects aggregate quantity overflow before product CAS', async () => {
+      const { h, loan, input } = await prepare(true);
+      for (const item of h.state().loans[0].items)
+        Object.assign(item, {
+          productId: p1,
+          quantity: 2147483647,
+          deliveredQuantity: method === 'deliver' ? 0 : 2147483647,
+        });
+      for (const item of input.items) item.quantity = 2147483647;
+      const before = structuredClone(h.state());
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(h.state()).toEqual(before);
+      expect(h.db.product.updateMany).not.toHaveBeenCalled();
+    });
+    it('replays stored safe result after live status/counts/product/counterparty changes without writes or live lookups', async () => {
+      const { h, loan, input } = await prepare(true);
+      const result = await h.service[method](loan.id, input, {
+        ...actor,
+        userId: 'other',
+      });
+      h.state().loans[0].status = 'CLOSED';
+      h.state().loans[0].items[0].returnedQuantity = 999;
+      Object.assign(h.state().products[0], {
+        active: false,
+        type: 'SERVICE',
+        tracksStock: false,
+        stock: 0,
+      });
+      h.state().customers[0].active = false;
+      const before = structuredClone(h.state());
+      h.calls.length = 0;
+      jest.clearAllMocks();
+      expect(
+        await h.service[method](
+          loan.id,
+          {
+            ...input,
+            requestKey: ' operation-1 ',
+            items: [...input.items].reverse(),
+          },
+          { ...actor, userId: 'other' },
+        ),
+      ).toEqual(result);
+      expect(h.state()).toEqual(before);
+      expect(h.calls).toEqual([]);
+      expect(h.db.inventoryLoan.findFirst).not.toHaveBeenCalled();
+      expect(h.db.product.findFirst).not.toHaveBeenCalled();
+      h.state().members[1].user = { active: false };
+      await expect(
+        h.service[method](loan.id, input, { ...actor, userId: 'other' }),
+      ).rejects.toMatchObject({ status: 403 });
+    });
+    it.each(['actor', 'type', 'loan', 'quantity', 'organization', 'key'])(
+      'rejects replay mismatch %s',
+      async (kind) => {
+        const { h, loan, input } = await prepare();
+        await h.service[method](loan.id, input, actor);
+        const op = h.state().operations.at(-1)!;
+        if (kind === 'type') op.type = 'CREATE';
+        if (kind === 'organization') op.organizationId = 'other';
+        if (kind === 'key') op.requestKey = 'other';
+        const effects = [...h.calls];
+        // Metadata mismatches must be parsed even if a defective store returned the row.
+        if (kind === 'organization' || kind === 'key')
+          h.db.inventoryLoanOperation.findUnique.mockReturnValueOnce(op);
+        await expect(
+          h.service[method](
+            kind === 'loan' ? 'other' : loan.id,
+            kind === 'quantity'
+              ? { ...input, items: [{ ...input.items[0], quantity: 2 }] }
+              : input,
+            kind === 'actor' ? { ...actor, userId: 'other' } : actor,
+          ),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.calls).toEqual(effects);
+      },
+    );
+    it.each(['P2002', 'P2034'])(
+      'reconciles matching completed winner after %s abort outside transaction, not a simulated interleaving',
+      async (code) => {
+        const { h, loan, input } = await prepare();
+        const result = await h.service[method](loan.id, input, actor);
+        const before = structuredClone(h.state());
+        h.calls.length = 0;
+        h.operationLookupPhases.length = 0;
+        h.db.inventoryLoanOperation.findUnique.mockReturnValueOnce(null);
+        h.transactionError(
+          new Prisma.PrismaClientKnownRequestError('abort', {
+            code,
+            clientVersion: 'test',
+          }),
+        );
+        expect(await h.service[method](loan.id, input, actor)).toEqual(result);
+        expect(h.state()).toEqual(before);
+        expect(h.calls).toContain('operation');
+        expect(h.operationLookupPhases).toEqual(['outside']); // hidden first lookup is explicitly mocked
+        expect(h.db.$transaction).toHaveBeenCalledTimes(2);
+      },
+    );
+    it.each(
+      ['P2002', 'P2034'].flatMap((code) =>
+        ['absent', 'conflicting'].map((winner) => ({ code, winner })),
+      ),
+    )(
+      'returns 409 after abort with $winner $code winner, never retries',
+      async ({ code, winner }) => {
+        const { h, loan, input } = await prepare();
+        if (winner === 'conflicting') {
+          await h.service[method](loan.id, input, actor);
+          h.state().operations.at(-1)!.actorId = 'other';
+          h.db.inventoryLoanOperation.findUnique.mockReturnValueOnce(null);
+        }
+        const before = structuredClone(h.state());
+        jest.clearAllMocks();
+        h.transactionError(
+          new Prisma.PrismaClientKnownRequestError('abort', {
+            code,
+            clientVersion: 'test',
+          }),
+        );
+        await expect(
+          h.service[method](loan.id, input, actor),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.state()).toEqual(before);
+        expect(h.db.$transaction).toHaveBeenCalledTimes(1);
+      },
+    );
+  },
+);
+
+describe('physical serving sequence bounds', () => {
+  it('handles exact Prisma Int maximum delivery/return without overflow or autoreservation', async () => {
+    const h = harness();
+    Object.assign(h.state().products[0], {
+      stock: 2147483647,
+      reservedStock: 0,
+    });
+    const loan = await h.service.create(
+      { ...dto, items: [{ productId: p1, quantity: 2147483647 }] },
+      actor,
+    );
+    const input = {
+      requestKey: 'deliver-max',
+      items: [{ itemId: loan.items[0].id, quantity: 2147483647 }],
+    };
+    await h.service.deliver(loan.id, input, actor);
+    expect(h.state().products[0]).toMatchObject({ stock: 0, reservedStock: 0 });
+    const result = await h.service.returnItems(
+      loan.id,
+      { ...input, requestKey: 'return-max' },
+      actor,
+    );
+    expect(h.state().products[0]).toMatchObject({
+      stock: 2147483647,
+      reservedStock: 0,
+    });
+    expect(result).toMatchObject({
+      status: 'OPEN',
+      items: [{ reservedRemaining: 0, outstanding: 0 }],
+    });
+    await expect(
+      h.service.deliver(loan.id, { ...input, requestKey: 'redeliver' }, actor),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      h.service.returnItems(
+        loan.id,
+        { ...input, requestKey: 'return-twice' },
+        actor,
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+  it('respects cancelled allocation while delivering remaining units', async () => {
+    const h = harness();
+    const loan = await h.service.create(dto, actor);
+    h.state().loans[0].items[0].cancelledQuantity = 1;
+    h.state().products[0].reservedStock = 2;
+    const input = {
+      requestKey: 'partial-delivery',
+      items: [{ itemId: loan.items[0].id, quantity: 1 }],
+    };
+    const result = await h.service.deliver(loan.id, input, actor);
+    expect(result.items[0]).toMatchObject({
+      quantity: 2,
+      cancelledQuantity: 1,
+      deliveredQuantity: 1,
+      reservedRemaining: 0,
+    });
+    await expect(
+      h.service.deliver(loan.id, { ...input, requestKey: 'extra' }, actor),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+});
+
+describe('inventory operation DTO pipeline and direct guards', () => {
+  const input = {
+    requestKey: ' operation-1 ',
+    items: [{ itemId: p1, quantity: 1 }],
+  };
+  const pipe = new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transformOptions: { enableImplicitConversion: true },
+  });
+  it('normalizes keys but preserves raw bounded integer quantities in the pipeline', async () => {
+    expect(
+      await pipe.transform(input, {
+        type: 'body',
+        metatype: InventoryLoanOperationDto,
+      }),
+    ).toEqual({ ...input, requestKey: 'operation-1' });
+    expect(
+      await pipe.transform(
+        { ...input, items: [{ itemId: p1, quantity: 2147483647 }] },
+        { type: 'body', metatype: InventoryLoanOperationDto },
+      ),
+    ).toMatchObject({ items: [{ quantity: 2147483647 }] });
+  });
+  it.each([
+    { requestKey: '' },
+    { requestKey: ' ' },
+    { requestKey: 12 },
+    { requestKey: 'x'.repeat(101) },
+    { items: [] },
+    { items: null },
+    { items: [null] },
+    { items: Array.from({ length: 101 }, () => input.items[0]) },
+    { items: [{ itemId: 'bad', quantity: 1 }] },
+    { items: [{ quantity: 1 }] },
+    ...[0, -1, 1.1, '1', null, true, 2147483648, NaN, Infinity, undefined].map(
+      (quantity) => ({ items: [{ itemId: p1, quantity }] }),
+    ),
+    ...['actorId', 'organizationId', 'type', 'loanId', 'notes', 'price'].map(
+      (key) => ({ [key]: 'unknown' }),
+    ),
+    ...[
+      'productId',
+      'stock',
+      'reservedStock',
+      'version',
+      'unitPrice',
+      'notes',
+    ].map((key) => ({ items: [{ ...input.items[0], [key]: 1 }] })),
+  ])(
+    'rejects malformed/unknown input %j through nested whitelist pipeline and both direct methods',
+    async (patch) => {
+      const raw = { ...input, ...patch };
+      await expect(
+        pipe.transform(raw, {
+          type: 'body',
+          metatype: InventoryLoanOperationDto,
+        }),
+      ).rejects.toMatchObject({ status: 400 });
+      const h = harness();
+      for (const method of ['deliver', 'returnItems'] as const)
+        await expect(
+          h.service[method]('loan', raw as InventoryLoanOperationDto, actor),
+        ).rejects.toMatchObject({ status: 400 });
+      expect(h.db.$transaction).not.toHaveBeenCalled();
+    },
+  );
+  it('rejects duplicate selected IDs and null raw bodies directly before any effects', async () => {
+    const h = harness();
+    for (const method of ['deliver', 'returnItems'] as const) {
+      await expect(
+        h.service[method](
+          'loan',
+          { ...input, items: [...input.items, ...input.items] },
+          actor,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      await expect(
+        h.service[method](
+          'loan',
+          null as unknown as InventoryLoanOperationDto,
+          actor,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+    }
+    expect(h.db.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe.each(['deliver', 'returnItems'] as const)(
+  '%s operation-specific receipt validation',
+  (method) => {
+    type Projection = Row & { items: Row[] };
+    type Receipt = Row & { before: Projection; after: Projection };
+    async function completed(counterpartyType = CounterpartyType.CUSTOMER) {
+      const h = harness();
+      const loan = await h.service.create(
+        {
+          ...dto,
+          counterpartyType,
+          items: [...dto.items, { productId: p2, quantity: 2 }],
+        },
+        actor,
+      );
+      if (method === 'returnItems')
+        await h.service.deliver(
+          loan.id,
+          {
+            requestKey: 'setup-delivery',
+            items: loan.items.map((item) => ({ itemId: item.id, quantity: 2 })),
+          },
+          actor,
+        );
+      const input = {
+        requestKey: 'selected-1',
+        items: [{ itemId: loan.items[0].id, quantity: 1 }],
+      };
+      const result = await h.service[method](loan.id, input, {
+        ...actor,
+        userId: 'other',
+      });
+      const operation = h.state().operations.at(-1)!;
+      return {
+        h,
+        loan,
+        input,
+        result,
+        operation,
+        receipt: operation.resultSnapshot as unknown as Receipt,
+      };
+    }
+    function recalculate(item: Row) {
+      item.reservedRemaining =
+        (item.quantity as number) -
+        (item.deliveredQuantity as number) -
+        (item.cancelledQuantity as number);
+      item.outstanding =
+        (item.deliveredQuantity as number) - (item.returnedQuantity as number);
+    }
+    it.each([
+      'receipt-version',
+      'receipt-type',
+      'receipt-actor',
+      'receipt-extra',
+      'after-extra',
+      'before-extra',
+      'loan-mismatch',
+      'organization-mismatch',
+      'creator-empty',
+      'timestamp',
+      'terminal-snapshot',
+      'metadata-divergence',
+      'duplicate-item',
+      'empty-item',
+      'extra-item',
+      'symmetric-selected-ID',
+      'selected-delta',
+      'before-delta',
+      'untouched-delta',
+      'quantity-bound',
+      'derived-counter',
+      'request-quantity',
+      'product-identity',
+    ])(
+      'rejects otherwise valid receipt corruption: %s without live fallback or effects',
+      async (kind) => {
+        const { h, loan, input, receipt, operation } = await completed();
+        if (kind === 'receipt-version') receipt.receiptVersion = 2;
+        if (kind === 'receipt-type')
+          receipt.type = method === 'deliver' ? 'RETURN' : 'DELIVER';
+        if (kind === 'receipt-actor') receipt.actorId = 'actor';
+        if (kind === 'receipt-extra') receipt.private = 'never-public';
+        if (kind === 'after-extra') receipt.after.private = 'never-public';
+        if (kind === 'before-extra') receipt.before.private = 'never-public';
+        if (kind === 'loan-mismatch')
+          receipt.before.id = receipt.after.id = 'wrong';
+        if (kind === 'organization-mismatch')
+          receipt.before.organizationId = receipt.after.organizationId =
+            'wrong';
+        if (kind === 'creator-empty')
+          receipt.before.createdById = receipt.after.createdById = ' ';
+        if (kind === 'timestamp')
+          receipt.before.createdAt = receipt.after.createdAt = 'bad';
+        if (kind === 'terminal-snapshot')
+          receipt.before.status = receipt.after.status = 'CLOSED';
+        if (kind === 'metadata-divergence')
+          receipt.after.createdById = 'new-valid-creator';
+        if (kind === 'duplicate-item')
+          receipt.after.items[1] = { ...receipt.after.items[0] };
+        if (kind === 'empty-item')
+          receipt.before.items = receipt.after.items = [];
+        if (kind === 'extra-item') {
+          for (const projection of [receipt.before, receipt.after])
+            projection.items.push({ ...projection.items[1], id: 'zz-extra' });
+        }
+        if (kind === 'symmetric-selected-ID') {
+          receipt.before.items[0].id = receipt.after.items[0].id =
+            '00000000-0000-4000-8000-000000000099';
+          receipt.itemIds = receipt.before.items.map((item) => item.id);
+        }
+        if (kind === 'selected-delta') {
+          receipt.after.items[0][
+            method === 'deliver' ? 'deliveredQuantity' : 'returnedQuantity'
+          ] = 2;
+          recalculate(receipt.after.items[0]);
+        }
+        if (kind === 'before-delta') {
+          receipt.before.items[0][
+            method === 'deliver' ? 'deliveredQuantity' : 'returnedQuantity'
+          ] = 1;
+          recalculate(receipt.before.items[0]);
+        }
+        if (kind === 'untouched-delta') {
+          receipt.after.items[1][
+            method === 'deliver' ? 'deliveredQuantity' : 'returnedQuantity'
+          ] = 1;
+          recalculate(receipt.after.items[1]);
+        }
+        if (kind === 'quantity-bound')
+          receipt.after.items[0].quantity = 2147483648;
+        if (kind === 'derived-counter')
+          receipt.after.items[0].outstanding = 999;
+        if (kind === 'request-quantity') {
+          // Request and stored payload still match exactly; only receipt delta disagrees.
+          input.items[0].quantity = 2;
+          (
+            operation.requestPayload as unknown as {
+              items: Array<{ quantity: number }>;
+            }
+          ).items[0].quantity = 2;
+        }
+        if (kind === 'product-identity')
+          receipt.after.items[0].productId = personId;
+        const before = structuredClone(h.state());
+        h.calls.length = 0;
+        jest.clearAllMocks();
+        await expect(
+          h.service[method](loan.id, input, { ...actor, userId: 'other' }),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.state()).toEqual(before);
+        expect(h.calls).toEqual([]);
+        expect(h.db.inventoryLoan.findFirst).not.toHaveBeenCalled();
+      },
+    );
+    it.each(
+      (
+        [
+          [CounterpartyType.CUSTOMER, 'customerId'],
+          [CounterpartyType.SUPPLIER, 'supplierId'],
+          [CounterpartyType.EMPLOYEE, 'employeeId'],
+        ] as const
+      ).flatMap(([counterpartyType, selected]) =>
+        (['customerId', 'supplierId', 'employeeId'] as const).flatMap((field) =>
+          (field === selected
+            ? ['', ' ', null, 7, undefined]
+            : ['', ' ', personId, 7, undefined]
+          ).map((value) => ({ counterpartyType, field, value })),
+        ),
+      ),
+    )(
+      'rejects symmetric otherwise-valid counterparty corruption %j',
+      async ({ counterpartyType, field, value }) => {
+        const { h, loan, input, receipt } = await completed(counterpartyType);
+        receipt.before[field] = receipt.after[field] = value;
+        h.calls.length = 0;
+        jest.clearAllMocks();
+        await expect(
+          h.service[method](loan.id, input, { ...actor, userId: 'other' }),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.calls).toEqual([]);
+        expect(h.db.inventoryLoan.findFirst).not.toHaveBeenCalled();
+      },
+    );
+    it.each(Object.values(CounterpartyType))(
+      'replays valid %s with lifecycle actor distinct from original creator',
+      async (counterpartyType) => {
+        const { h, loan, input, result } = await completed(counterpartyType);
+        expect(
+          await h.service[method](loan.id, input, {
+            ...actor,
+            userId: 'other',
+          }),
+        ).toEqual(result);
+        expect(result.createdById).toBe('actor');
+        expect(result).not.toHaveProperty('requestPayload');
+        expect(result).not.toHaveProperty('before');
+      },
+    );
+  },
+);
 
 describe('tenant-bound inventory reads', () => {
   it('composes identical page/count filters and stable ordering with scoped item projection', async () => {
