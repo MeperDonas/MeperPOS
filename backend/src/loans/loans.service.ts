@@ -8,6 +8,7 @@ import {
 import {
   MoneyLoanEventType,
   MoneyLoanStatus,
+  MonetaryLoanType,
   PaymentMethod,
   Prisma,
 } from '@prisma/client';
@@ -17,6 +18,7 @@ import { QueryLoansDto } from './dto/query-loans.dto';
 
 const personSelect = { id: true, name: true } as const;
 const loanSelect = {
+  type: true,
   id: true,
   amount: true,
   status: true,
@@ -86,6 +88,14 @@ function requireOrganization(organizationId: string | undefined): string {
   return organizationId;
 }
 
+function supportedType(type: unknown): MonetaryLoanType | undefined {
+  if (type === undefined) return undefined;
+  if (type !== MonetaryLoanType.MONEY && type !== MonetaryLoanType.SERVICE) {
+    throw new BadRequestException('Tipo de préstamo no soportado');
+  }
+  return type;
+}
+
 function pagination(query: QueryLoansDto) {
   // Defensive bounds also protect internal callers that bypass the DTO pipe.
   const page = Math.min(1000000, Math.max(1, Math.trunc(query.page || 1)));
@@ -103,6 +113,7 @@ export class LoansService {
     organizationId: string | undefined,
   ) {
     const orgId = requireOrganization(organizationId);
+    const type = supportedType(dto.type) ?? MonetaryLoanType.MONEY;
     const issuedAt = new Date(dto.issuedAt);
     const dueAt = dto.dueAt ? new Date(dto.dueAt) : null;
     if (dueAt && dueAt < issuedAt) {
@@ -119,6 +130,7 @@ export class LoansService {
         const loan = await tx.moneyLoan.create({
           data: {
             organizationId: orgId,
+            type,
             amount,
             issuedAt,
             dueAt,
@@ -156,6 +168,7 @@ export class LoansService {
             resource: 'MoneyLoan',
             resourceId: loan.id,
             metadata: {
+              type,
               amount: amount.toFixed(2),
               issuedAt: dto.issuedAt,
               dueAt: dto.dueAt ?? null,
@@ -172,7 +185,9 @@ export class LoansService {
   }
 
   async findAll(query: QueryLoansDto, organizationId: string | undefined) {
-    const where = { organizationId: requireOrganization(organizationId) };
+    const orgId = requireOrganization(organizationId);
+    const type = supportedType(query.type);
+    const where = { organizationId: orgId, ...(type ? { type } : {}) };
     const { page, limit, skip } = pagination(query);
     const [data, total] = await Promise.all([
       this.prisma.moneyLoan.findMany({
@@ -385,6 +400,7 @@ export class LoansService {
             );
           const type = kind as MoneyLoanEventType;
           const result = {
+            type: loan.type,
             loanId: id,
             status,
             ...totals({

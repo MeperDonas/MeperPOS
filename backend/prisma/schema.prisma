@@ -416,8 +416,14 @@ model PurchaseOrderItem {
   @@index([organizationId, productId])
 }
 
-// Standalone MONEY lifecycle; payments are append-only events, never sale Payments.
+// Monetary MONEY/SERVICE tracking only; collections never create sale Payments.
+enum MonetaryLoanType {
+  MONEY
+  SERVICE
+}
+
 model MoneyLoan {
+  type           MonetaryLoanType @default(MONEY)
   id             String       @id @default(uuid())
   organizationId String
   amount         Decimal      @db.Decimal(10, 2)

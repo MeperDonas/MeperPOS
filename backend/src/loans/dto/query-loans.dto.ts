@@ -1,8 +1,23 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { MonetaryLoanType } from '@prisma/client';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Max,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 
 export class QueryLoansDto {
+  @ApiPropertyOptional({ enum: MonetaryLoanType })
+  @Transform(({ obj }: { obj: Record<string, unknown> }) => obj.type)
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsEnum(MonetaryLoanType)
+  type?: MonetaryLoanType;
+
   @ApiPropertyOptional({ default: 1, minimum: 1, maximum: 1000000 })
   @IsOptional()
   @Type(() => Number)

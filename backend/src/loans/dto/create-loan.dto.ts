@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
+import { MonetaryLoanType } from '@prisma/client';
 import {
   IsDateString,
   IsEnum,
@@ -12,6 +13,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 export enum CounterpartyType {
@@ -21,6 +23,16 @@ export enum CounterpartyType {
 }
 
 export class CreateLoanDto {
+  @ApiPropertyOptional({
+    enum: MonetaryLoanType,
+    default: MonetaryLoanType.MONEY,
+  })
+  // Only omission defaults; preserve raw input under global implicit conversion.
+  @Transform(({ obj }: { obj: Record<string, unknown> }) => obj.type)
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsEnum(MonetaryLoanType)
+  type?: MonetaryLoanType;
+
   @ApiProperty({ example: 120.25, minimum: 0.01, maximum: 99999999.99 })
   // Keep the raw JSON number: global implicit conversion must not coerce money.
   @Transform(({ obj }: { obj: Record<string, unknown> }) => obj.amount)

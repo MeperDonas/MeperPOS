@@ -34,6 +34,37 @@ const validateCreate = (value: unknown) =>
   pipe.transform(value, { type: 'body', metatype: CreateLoanDto });
 
 describe('Loan request validation', () => {
+  it.each(['MONEY', 'SERVICE'])('accepts explicit %s type', async (type) => {
+    await expect(validateCreate({ ...valid, type })).resolves.toMatchObject({
+      type,
+    });
+    await expect(
+      pipe.transform(
+        { type, page: '2', limit: '100' },
+        {
+          type: 'query',
+          metatype: QueryLoansDto,
+        },
+      ),
+    ).resolves.toMatchObject({ type, page: 2, limit: 100 });
+  });
+
+  it.each([null, true, false, 'PRODUCTS', 'EQUIPMENT', '', 'service', 1])(
+    'rejects unsupported raw type %j on create and list',
+    async (type) => {
+      await expect(validateCreate({ ...valid, type })).rejects.toThrow();
+      await expect(
+        pipe.transform(
+          { type },
+          {
+            type: 'query',
+            metatype: QueryLoansDto,
+          },
+        ),
+      ).rejects.toThrow();
+    },
+  );
+
   it.each([0.01, 120.25, 99999999.99])(
     'accepts representable amount %s',
     async (amount) => {

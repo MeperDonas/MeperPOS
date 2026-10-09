@@ -3,10 +3,11 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { MonetaryLoanType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoansService } from './loans.service';
 import { CounterpartyType, CreateLoanDto } from './dto/create-loan.dto';
+import { QueryLoansDto } from './dto/query-loans.dto';
 
 const dto: CreateLoanDto = {
   amount: 120.25,
@@ -22,6 +23,10 @@ const objectContaining = (sample: Record<string, unknown>): unknown =>
 
 function fixture() {
   const tx = {
+    sale: { create: jest.fn() },
+    payment: { create: jest.fn() },
+    product: { updateMany: jest.fn() },
+    inventoryMovement: { create: jest.fn() },
     customer: {
       findFirst: jest.fn().mockResolvedValue({ id: dto.counterpartyId }),
     },
@@ -81,6 +86,55 @@ function fixture() {
 }
 
 describe('LoansService creation', () => {
+  it.each([undefined, 'MONEY', 'SERVICE'])(
+    'persists and presents type %s with an audited creation',
+    async (type) => {
+      const { service, tx } = fixture();
+      tx.moneyLoan.create.mockImplementation(({ data, select }) =>
+        Promise.resolve({
+          id: 'loan',
+          amount: new Prisma.Decimal(data.amount as Prisma.Decimal),
+          status: 'OPEN',
+          version: 0,
+          events: [],
+          ...(select?.type ? { type: data.type } : {}),
+        }),
+      );
+      const reason = type === 'SERVICE' ? 'Reparación realizada' : 'Anticipo';
+      const result = await service.create(
+        { ...dto, reason: `  ${reason}  `, type } as CreateLoanDto,
+        'actor',
+        'org-a',
+      );
+      expect(tx.sale.create).not.toHaveBeenCalled();
+      expect(tx.payment.create).not.toHaveBeenCalled();
+      expect(tx.product.updateMany).not.toHaveBeenCalled();
+      expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        type: type ?? 'MONEY',
+        balance: '120.25',
+      });
+      expect(tx.moneyLoan.create).toHaveBeenCalledWith(
+        objectContaining({
+          data: objectContaining({
+            type: type ?? 'MONEY',
+            reason,
+            issuedAt: new Date(dto.issuedAt),
+            dueAt: new Date(dto.dueAt!),
+            customerId: dto.counterpartyId,
+          }),
+        }),
+      );
+      expect(tx.auditLog.create).toHaveBeenCalledWith(
+        objectContaining({
+          data: objectContaining({
+            metadata: objectContaining({ type: type ?? 'MONEY', reason }),
+          }),
+        }),
+      );
+    },
+  );
+
   it.each(Object.values(CounterpartyType))(
     'validates %s inside the creation transaction',
     async (type) => {
@@ -164,12 +218,37 @@ describe('LoansService creation', () => {
     },
   );
 
+  it.each([null, true, 'PRODUCTS', 'EQUIPMENT'])(
+    'rejects unsupported type %j for internal callers without queries',
+    async (type) => {
+      const { service, prisma, tx } = fixture();
+      await expect(
+        service.create(
+          { ...dto, type } as unknown as CreateLoanDto,
+          'actor',
+          'org-a',
+        ),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.findAll({ type } as unknown as QueryLoansDto, 'org-a'),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(tx.moneyLoan.findMany).not.toHaveBeenCalled();
+    },
+  );
+
   const invalidParties = Object.values(CounterpartyType).flatMap((type) =>
-    ['missing', 'foreign', 'inactive'].map((state) => ({ type, state })),
+    ['missing', 'foreign', 'inactive'].flatMap((state) =>
+      Object.values(MonetaryLoanType).map((loanType) => ({
+        type,
+        state,
+        loanType,
+      })),
+    ),
   );
   it.each(invalidParties)(
-    'rejects $type counterparties that are $state',
-    async ({ type, state }) => {
+    'rejects $type counterparties that are $state on $loanType',
+    async ({ type, state, loanType }) => {
       const { service, tx } = fixture();
       const party = {
         id: dto.counterpartyId,
@@ -209,7 +288,11 @@ describe('LoansService creation', () => {
           }),
       );
       await expect(
-        service.create({ ...dto, counterpartyType: type }, 'actor', 'org-a'),
+        service.create(
+          { ...dto, counterpartyType: type, type: loanType },
+          'actor',
+          'org-a',
+        ),
       ).rejects.toThrow(BadRequestException);
       expect(tx.moneyLoan.create).not.toHaveBeenCalled();
       expect(tx.moneyLoanEvent.create).not.toHaveBeenCalled();
@@ -255,6 +338,56 @@ describe('LoansService creation', () => {
 });
 
 describe('LoansService tenant reads', () => {
+  it.each(['MONEY', 'SERVICE'])(
+    'filters %s inside tenant and pagination bounds',
+    async (type) => {
+      const { service, tx } = fixture();
+      const rows = [
+        { id: 'a', organizationId: 'org-a', type: 'SERVICE' },
+        { id: 'b', organizationId: 'org-b', type: 'SERVICE' },
+        { id: 'c', organizationId: 'org-a', type: 'MONEY' },
+      ].map((row) => ({
+        ...row,
+        amount: new Prisma.Decimal('120.25'),
+        events: [],
+      }));
+      type Filter = { where: { organizationId: string; type?: string } };
+      const matches = ({ where }: Filter) =>
+        rows.filter(
+          (row) =>
+            row.organizationId === where.organizationId &&
+            (!where.type || row.type === where.type),
+        );
+      tx.moneyLoan.findMany.mockImplementation(
+        (args: Filter & { skip: number; take: number }) =>
+          Promise.resolve(
+            matches(args).slice(args.skip, args.skip + args.take),
+          ),
+      );
+      tx.moneyLoan.count.mockImplementation((args: Filter) =>
+        Promise.resolve(matches(args).length),
+      );
+      const result = await service.findAll(
+        { type, limit: 1000, organizationId: 'org-b' } as QueryLoansDto,
+        'org-a',
+      );
+      expect(result.total).toBe(1);
+      expect(result.limit).toBe(100);
+      expect(result.data).toEqual([
+        expect.objectContaining({ type, organizationId: 'org-a' }),
+      ]);
+      expect(tx.moneyLoan.count).toHaveBeenCalledWith({
+        where: { organizationId: 'org-a', type },
+      });
+      tx.moneyLoan.findFirst.mockResolvedValue(
+        matches({ where: { organizationId: 'org-a', type } })[0],
+      );
+      await expect(service.findOne('a', 'org-a')).resolves.toMatchObject({
+        type,
+      });
+    },
+  );
+
   it('scopes list and count and bounds pagination', async () => {
     const { service, tx } = fixture();
     const rows = [

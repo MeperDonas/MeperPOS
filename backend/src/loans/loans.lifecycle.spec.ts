@@ -18,8 +18,9 @@ type Event = {
   result: unknown;
 };
 const collection = { requestKey: 'key-1', amount: 40.25, method: 'CASH' };
-function fixture() {
+function lifecycleFixture(type: string) {
   const loan = {
+    type,
     id: 'loan',
     organizationId: 'org',
     amount: new Prisma.Decimal('100.25'),
@@ -28,6 +29,10 @@ function fixture() {
     events: [] as Event[],
   };
   const tx = {
+    sale: { create: jest.fn() },
+    payment: { create: jest.fn() },
+    product: { updateMany: jest.fn(), update: jest.fn() },
+    inventoryMovement: { create: jest.fn() },
     moneyLoan: {
       findFirst: jest.fn(
         ({ where }: { where: { id: string; organizationId: string } }) =>
@@ -80,10 +85,12 @@ function fixture() {
   return { loan, tx, prisma, service, run };
 }
 
-describe('Standalone MONEY lifecycle', () => {
+describe.each(['MONEY', 'SERVICE'])('Standalone %s lifecycle', (type) => {
+  const fixture = () => lifecycleFixture(type);
   it('collects partially then fully without closing, and closes explicitly', async () => {
     const { run, tx, prisma } = fixture();
     await expect(run('COLLECTED', collection)).resolves.toMatchObject({
+      type,
       balance: '60.00',
       collected: '40.25',
       status: 'OPEN',
@@ -118,6 +125,18 @@ describe('Standalone MONEY lifecycle', () => {
       }),
     );
     expect(tx.moneyLoanEvent.create).toHaveBeenCalledTimes(3);
+    expect(tx.sale.create).not.toHaveBeenCalled();
+    expect(tx.payment.create).not.toHaveBeenCalled();
+    expect(tx.product.updateMany).not.toHaveBeenCalled();
+    expect(tx.product.update).not.toHaveBeenCalled();
+    expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
+    expect(tx.moneyLoanEvent.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          result: expect.objectContaining({ type }) as unknown,
+        }) as unknown,
+      }),
+    );
     expect(tx.auditLog.create).toHaveBeenCalledTimes(3);
     expect(prisma.moneyLoan.updateMany).not.toHaveBeenCalled();
     expect(prisma.moneyLoanEvent.create).not.toHaveBeenCalled();
@@ -184,6 +203,7 @@ describe('Standalone MONEY lifecycle', () => {
   it('replays the exact original response without duplicate events or audit', async () => {
     const { run, tx, loan } = fixture();
     const first = await run('COLLECTED', collection);
+    expect(first).toMatchObject({ type });
     loan.status = 'CLOSED';
     expect(await run('COLLECTED', collection)).toEqual(first);
     expect(tx.moneyLoanEvent.create).toHaveBeenCalledTimes(1);
@@ -195,6 +215,16 @@ describe('Standalone MONEY lifecycle', () => {
         requestKey: 'key-1',
       },
     });
+  });
+
+  it('replays stored snapshots without retroactively adding fields', async () => {
+    const { run, loan } = fixture();
+    await run('COLLECTED', collection);
+    const stored = loan.events[0].result as Record<string, unknown>;
+    delete stored.type;
+    const replay = await run('COLLECTED', collection);
+    expect(replay).toEqual({ ...stored, eventId: 'event-1' });
+    expect(replay).not.toHaveProperty('type');
   });
 
   it.each([{ amount: 41 }, { method: 'CARD' }, { kind: 'CLOSED' }])(

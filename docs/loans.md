@@ -1,6 +1,6 @@
-# Standalone money loans: audited collections and explicit closure
+# Monetary obligations: money and performed-service tracking
 
-The L1–L2 backend slices of issue #209 track interest-free MONEY loans independently
+The L1–L3A backend slices of issue #209 track interest-free MONEY and SERVICE obligations independently
 of POS, sales, inventory and financial reports. Partial/full collections update a
 backend-derived balance; full payment does **not** close a loan. An administrator
 must explicitly confirm closure. Corrections preserve original payments through
@@ -13,7 +13,7 @@ All routes are under `/api/loans` and require an organization scope.
 
 | Method and path | Permission | Result |
 | --- | --- | --- |
-| `POST /api/loans` | OWNER, ADMIN | Create a standalone money loan |
+| `POST /api/loans` | OWNER, ADMIN | Create a standalone MONEY or SERVICE obligation |
 | `GET /api/loans` | OWNER, ADMIN, MEMBER, CASHIER | Paginated loans |
 | `GET /api/loans/:id` | OWNER, ADMIN, MEMBER, CASHIER | One scoped loan |
 | `GET /api/loans/:id/history` | OWNER, ADMIN, MEMBER, CASHIER | Paginated history of all transitions |
@@ -44,6 +44,7 @@ cannot change their authenticated organization using that selector or the body.
 
 | Field | Contract |
 | --- | --- |
+| `type` | Optional `MONEY` or `SERVICE`; omission defaults to `MONEY`; null, booleans and inventory types reject |
 | `amount` | JSON number, 0.01–99,999,999.99; at most two fractional digits; no numeric-string coercion |
 | `issuedAt` | Required valid calendar date, exactly `YYYY-MM-DD` |
 | `dueAt` | Optional calendar date; cannot precede `issuedAt`; omission/null means no due date |
@@ -56,9 +57,24 @@ organization. An employee is an existing active User with an OrganizationUser
 membership in that organization; there is no separate employee directory.
 Tenant and actor fields are not accepted in the create body.
 
+### Performed services (tracking only)
+
+Send `type: "SERVICE"` with the same create fields. `reason` describes the
+performed service, `issuedAt` is its performance date, `amount` is the agreed
+monetary debt, and `dueAt` is its optional payment deadline. The same validated
+same-organization customer/supplier/employee is the counterparty. For example,
+use `reason: "Reparación realizada"` with the service date and agreed amount.
+There is no service catalog, quantity, interest or automatic price calculation.
+
+SERVICE uses the identical collection, reversal, explicit zero-balance closure,
+cancellation and authenticated history pipeline as MONEY. Neither creation nor
+collection creates a Sale, sale Payment, stock movement, POS operation, revenue
+or financial report entry. This is debt tracking, not invoicing or recognition of
+service revenue; conversion to a sale is not supported.
+
 ### Read responses
 
-Creation, list and detail return `status` (`OPEN`, `CLOSED`, `CANCELLED`),
+Creation, list and detail return `type` (`MONEY` or `SERVICE`) and `status` (`OPEN`, `CLOSED`, `CANCELLED`),
 `paymentStatus` (`UNPAID`, `PARTIAL`, `PAID`), `collected` and `balance`.
 The two totals are fixed-two-decimal strings derived from collection events minus
 reversal events; the client must not compute authoritative money. A cancelled
@@ -75,6 +91,9 @@ columns serialize as UTC-midnight ISO timestamps.
 List and history accept `page` (default 1, maximum 1,000,000) and `limit` (default
 20, maximum 100), returning `{ data, total, page, limit, totalPages }`. Loans are
 ordered newest-first; history is oldest-first, both with an ID tie-breaker.
+List additionally accepts an optional `type=MONEY` or `type=SERVICE` filter;
+its rows and count always retain the authenticated tenant scope and pagination
+bounds. Omission lists both monetary types; unsupported types reject.
 Unknown and foreign-organization IDs both return 404, including on history.
 History includes `CREATED`, `COLLECTED`, `REVERSED`, `CLOSED` and `CANCELLED`
 events with reason, actor and timestamp. Monetary events expose `amount`, collection
@@ -92,8 +111,11 @@ endpoints.
 
 Collection amounts use the same strict JSON-number and two-decimal bounds as
 creation. Methods reuse `CASH`, `CARD`, `TRANSFER`; they do not create a sale
-`Payment`, cash-register movement, sale, expense or report entry. Mutation results
-are `{ loanId, eventId, status, paymentStatus, collected, balance }`.
+`Payment`, cash-register movement, sale, expense or report entry. New mutation results
+are `{ type, loanId, eventId, status, paymentStatus, collected, balance }`.
+Creation audit metadata and new servicing audit/replay snapshots include `type`.
+Pre-L3A stored replay responses remain unchanged on exact retry; their loans are
+MONEY by migration default.
 
 To correct an abono on an OPEN loan, send
 `{ "requestKey": "reverse-1", "reason": "Corrección de abono" }` to its reversal
@@ -161,6 +183,13 @@ tenant-filter tests, and finally the schema/migration pair. SQL checks and the
 append-only trigger are migration-owned invariants not expressible in Prisma's
 schema. Do not replace this migration with a schema-only database push.
 
+L3A adds only the supported monetary enum and a default-MONEY discriminator to
+MoneyLoan, plus an independent immutable-type trigger. MoneyLoan/MoneyLoanEvent
+names and ORM mappings stay stable; reviewed migrations, existing identity and
+append-only constraints remain unchanged. Existing rows become MONEY without
+rewriting history or audit. Decimal totals are valid for both monetary types;
+future quantity-based inventory obligations must not use this presenter/ledger.
+
 ## Verification and next slice
 
 Run the focused suite from `backend`:
@@ -188,5 +217,5 @@ are not runtime concurrency proof. List/detail currently load each selected loan
 ledger to compute exact totals; very large histories may need a later bounded
 aggregation design without dropping history correctness.
 
-L3–L6 still own inventory/service loans, POS integration and the frontend. No
+L3B–L6 still own inventory loans, POS integration and the frontend. No
 existing sales or expense report includes loans.
