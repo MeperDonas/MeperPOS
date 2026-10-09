@@ -428,12 +428,97 @@ event link, new 090500 migration, operation declaration tests and this section a
 one unit; retain L3C-A and all monetary/reservation safeguards. After population,
 require an authorized data-safe rollback plan, never a table wipe or evidence edit.
 
+## Physical-loan creation and reads (L3C-B second unit; UNWIRED)
+
+`InventoryLoansService` and its nested DTO are implemented for direct test
+instantiation only. **Operational rollout remains OFF.** The service is not
+registered or exported by a Nest module, controller, route or application.
+The foundation/storage sections above describe their earlier isolated units;
+this section adds the unwired writer, not an inventory-loan HTTP API.
+
+### Create contract and reservation
+
+| Input or boundary | Contract |
+| --- | --- |
+| `requestKey` | Raw string trimmed to 1–100 characters; tenant-wide namespace |
+| `counterpartyType`, `counterpartyId` | CUSTOMER, SUPPLIER or EMPLOYEE and one UUID; active same-tenant entity; employees reuse User plus OrganizationUser membership |
+| `items` | 1–100 nested items, each with registered product UUID and raw positive integer quantity up to 2,147,483,647 |
+| Duplicate products | Reject rather than merge; item order is nonsemantic and normalized by product ID |
+| Unknown fields | Reject at header and item level, including prices, tax, cost, stock, reservations, version, actor and tenant; no due-date or notes persistence is claimed |
+| Actor | Authenticated RequestUser, separate from the DTO; OWNER/ADMIN and an active administrative same-tenant membership required |
+| SUPER_ADMIN | No global bypass: also requires an active OWNER/ADMIN OrganizationUser membership in the selected tenant |
+
+Service-side validation also protects direct callers that bypass a future HTTP
+validation pipe. Missing organization fails closed. MEMBER, CASHIER and
+INVENTORY_USER cannot create these obligations. This is service authorization,
+**not implemented HTTP role metadata**; future controllers must enforce their
+own guards and organization selection.
+
+One Serializable transaction validates the actor, counterparty and each active,
+tracked PRODUCT. Sequential product-ID ordering gives a stable reservation lock
+order. Each reservation update pins tenant, eligibility, observed version,
+reservedStock and physical stock, and requires enough stock minus reservations.
+It increments only reservedStock and version; physical stock is unchanged.
+Missing/inconsistent controls, insufficient availability or a lost CAS return
+409. There is no InventoryMovement OUT, Sale, Payment or MoneyLoan write.
+
+Header/items, completed immutable CREATE operation, linked header CREATED event
+and INVENTORY_LOAN_CREATED AuditLog share the transaction. The JSON-safe response
+snapshot is built from created rows with ISO creation time and derived quantities.
+The operation is inserted before its linked event; neither pending placeholders
+nor later event/operation updates are used. Any failure aborts all staged effects.
+
+### Exact replay and public reads
+
+An exact request must match stored actor, CREATE discriminator and the complete
+normalized typed-counterparty/item payload. It returns the stored creation
+snapshot, even after live status, item counts or counterparty eligibility change;
+it never computes a new result from current rows or writes additional evidence.
+Mismatched requests return 409 before reservations. Different tenants may reuse
+one key without sharing lookups or results. Malformed snapshots fail closed.
+
+P2002/P2034 reconciliation re-reads the tenant key only **outside** the aborted
+transaction. A matching completed operation permits replay; missing or mismatched
+evidence returns 409. There is no automatic reservation retry, conflict upsert,
+or assumption that any unique-key violation means success.
+
+List uses one composed tenant/status/typed-counterparty predicate for page and
+count. Supported statuses are OPEN and CANCELLED, never an invented CLOSED.
+Counterparty filters require both type and ID. Page/limit are bounded to
+1–1,000,000 and 1–100, defaulting to 1 and 20. List ordering is createdAt/id
+descending; history is ascending with the same ID tie-breaker. Responses use
+`{ data, total, page, limit, totalPages }`.
+
+Detail and related item selectors retain tenant scope. Derived reservedRemaining
+and outstanding use the existing quantity invariant helper and live item counters.
+History first requires a same-tenant loan, then scopes both page and count to its
+tenant/ID. Public reads expose scalar counterparty/actor IDs and immutable event
+ID, type, item, quantity, actor and timestamp, not membership credentials, internal
+request payloads, operation relations or stored replay records. Wrong-tenant and
+missing loans both return 404.
+
+### Proof limits and lifecycle handoff
+
+The predicate-aware DB mock clones working state and commits only a successful
+callback. Tests demonstrate local rollback on operation/event/audit/CAS failures,
+reservation/read predicates and replay effects; they **do not** prove PostgreSQL
+locking, actual rollback, FK/check/trigger enforcement or concurrent races.
+Schema/client are unchanged in this unit; prior validation/generation evidence
+is reused, not rerun. L7 retains separately authorized isolated database proof.
+
+L3C-C must implement explicit delivery, recorded returns, cancellation and closure,
+add any required lifecycle operation discriminators, then define controller guards
+and read permissions before considering rollout. No pricing decision, POS,
+frontend, financial reporting or monetary replay behavior changes here. The
+second-unit rollback boundary is its DTO/service/spec and this documentation;
+retain checked storage, pure invariants and all stock-consumer safeguards.
+
 ## Verification and next slice
 
 Run the focused suite from `backend`:
 
 ```text
-node node_modules/jest/bin/jest.js --runInBand --no-cache --runTestsByPath src/loans/inventory-loan.invariants.spec.ts src/prisma/inventory-loan-migration.spec.ts
+node node_modules/jest/bin/jest.js --runInBand --no-cache --runTestsByPath src/loans/inventory-loans.service.spec.ts
 ```
 
 Use locally installed Prisma for generation and schema-only validation; validation
@@ -458,6 +543,6 @@ are not runtime concurrency proof. List/detail currently load each selected loan
 ledger to compute exact totals; very large histories may need a later bounded
 aggregation design without dropping history correctness.
 
-The next L3C-B unit owns unwired creation/read/history and runtime replay checks;
+L3C-B now includes unwired creation/read/history and mocked replay checks;
 L3C-C still gates operational inventory loans. L4–L6 own POS integration and the
 frontend. No existing sales or expense report includes loans.
