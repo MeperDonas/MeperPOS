@@ -363,6 +363,71 @@ rules/tests, structural spec and this section. Preserve all monetary and L3B
 reservation guards. After deployment/population, require a separately authorized
 data-safe rollback plan; never discard loan evidence or reset reservations.
 
+## Physical-loan replay storage (L3C-B first unit; UNEXPOSED)
+
+This additive DDL-only unit introduces `InventoryLoanOperation` and an optional
+`InventoryLoanEvent.operationId`. **Reservation writers remain OFF.** No service,
+DTO, route, module wiring or runtime replay matcher is added. Monetary models,
+replay snapshots and the approved L3C-A migration remain unchanged.
+
+### Completed immutable evidence
+
+| Declaration | Contract |
+| --- | --- |
+| `organizationId, requestKey` unique | One tenant-wide namespace, independent of loan and actor; another tenant may reuse the key |
+| `loanId, organizationId` FK | Operation belongs to a loan in the same tenant |
+| `actorId, organizationId` FK | Authenticated actor reuses the existing OrganizationUser membership |
+| `type` | CREATE only; later L3C-C discriminators require an additive migration, not monetary enum changes |
+| `requestPayload, resultSnapshot` | Required nonempty JSON objects, no pending/null placeholders |
+| `requestKey` | Stored normalized text, 1–100 characters, without leading/trailing SQL spaces; future DTO must trim and reject blank/oversized keys |
+| `createdAt` | Required creation timestamp; all operation columns are immutable |
+
+The operation trigger rejects every UPDATE and DELETE, including no-op updates,
+identity/actor/key changes and payload/result/timestamp rewrites. No overwritable
+conflict upsert is permitted. JSON shape checks do not validate business payloads
+or presentation content; the future service owns normalization and safe snapshots.
+Restrictive FKs retain membership and loan evidence against hard deletion; active
+membership and role authorization remain service responsibilities.
+
+A linked event references operation `[id, loanId, organizationId, actorId]` through
+`[operationId, loanId, organizationId, createdById]`, binding the same loan, tenant
+and author. Many header/item events may share one operation; there is no unique
+request key on events. MATCH SIMPLE intentionally permits old events with null
+operationId. All other FK components are required, so a nonnull operationId cannot
+skip loan/tenant/actor checks through a nullable companion. Correlation is supplied
+at event INSERT; the existing append-only event trigger stays intact. This unit
+neither rewrites the foundation migration nor updates historical events.
+
+### Handoff to the unwired L3C-B service unit
+
+1. Normalize the accepted request and key; derive actor/tenant from authentication.
+   Look up the tenant-wide key and require stored actor, operation type and
+   normalized payload to match. Return the stored snapshot on an exact replay;
+   reject a mismatched actor/payload without creating another reservation. Do not
+   re-present a replay from live counts or later history.
+2. In one future Serializable transaction, create header/items and apply guarded
+   reservations, then build a safe presentation snapshot from those created rows.
+3. Insert the completed immutable operation **before** inserting linked append-only
+   events; append audit in the same transaction. Failure at any step must abort
+   header/items, reservations, operation, events and audit together. Handle key/
+   serialization conflicts without overwriting the stored operation.
+
+L3C-C will reuse the operation-to-many-events plan for multi-item delivery, return
+and cancellation requests, with separately reviewed payload/result/state rules.
+No close semantics or lifecycle writer is introduced here. Future read/history
+presenters must not expose internal request payloads or replay records.
+
+### Proof and rollback boundary
+
+SQL/schema assertions verify declarations and alignment only; they do **not**
+execute invalid writes or prove FK, check, trigger, rollback or race enforcement.
+Prisma validation/generation likewise provides no real PostgreSQL proof. L7 still
+requires separately authorized isolated database execution; this migration is
+unapplied. Before application, remove this operation model/reverse relations,
+event link, new 090500 migration, operation declaration tests and this section as
+one unit; retain L3C-A and all monetary/reservation safeguards. After population,
+require an authorized data-safe rollback plan, never a table wipe or evidence edit.
+
 ## Verification and next slice
 
 Run the focused suite from `backend`:
@@ -393,5 +458,6 @@ are not runtime concurrency proof. List/detail currently load each selected loan
 ledger to compute exact totals; very large histories may need a later bounded
 aggregation design without dropping history correctness.
 
-L3C-B/C still own operational inventory loans; L4–L6 own POS integration and the
+The next L3C-B unit owns unwired creation/read/history and runtime replay checks;
+L3C-C still gates operational inventory loans. L4–L6 own POS integration and the
 frontend. No existing sales or expense report includes loans.

@@ -13,6 +13,16 @@ const schema = readFileSync(
   'utf8',
 );
 
+const operationMigrationPath = resolve(
+  __dirname,
+  '../../prisma/migrations/20261009050000_inventory_loan_create_operations/migration.sql',
+);
+const operationSql = existsSync(operationMigrationPath)
+  ? readFileSync(operationMigrationPath, 'utf8')
+  : '';
+const modelBody = (name: string) =>
+  schema.split(`model ${name} {`)[1]?.split('\n}')[0] ?? '';
+
 // Declaration checks only: no PostgreSQL execution, rollback or race proof.
 describe('inventory loan migration declarations', () => {
   it.each(['InventoryLoan', 'InventoryLoanItem', 'InventoryLoanEvent'])(
@@ -109,5 +119,135 @@ describe('inventory loan migration declarations', () => {
     expect(sql).not.toMatch(
       /(?:ALTER|CREATE) TABLE "(?:MoneyLoan|Sale|Payment)"/,
     );
+  });
+});
+
+describe('inventory loan operation declarations (not executed DB behavior)', () => {
+  it('declares completed CREATE-only storage with required JSON and timestamp', () => {
+    const operation = modelBody('InventoryLoanOperation');
+    expect(operation).not.toBe('');
+    expect(operationSql).toContain('CREATE TABLE "InventoryLoanOperation"');
+    expect(schema).toMatch(/enum InventoryLoanOperationType \{\s+CREATE\s+\}/);
+    expect(operationSql).toContain(
+      'CREATE TYPE "InventoryLoanOperationType" AS ENUM (\'CREATE\')',
+    );
+    for (const field of [
+      'id',
+      'organizationId',
+      'loanId',
+      'actorId',
+      'requestKey',
+    ]) {
+      expect(operation).toMatch(new RegExp(`\\b${field}\\s+String\\s`));
+      expect(operationSql).toContain(`"${field}" TEXT NOT NULL`);
+    }
+    expect(operation).toMatch(/type\s+InventoryLoanOperationType\s/);
+    expect(operationSql).toContain(
+      '"type" "InventoryLoanOperationType" NOT NULL',
+    );
+    for (const field of ['requestPayload', 'resultSnapshot']) {
+      expect(operation).toMatch(new RegExp(`\\b${field}\\s+Json\\s`));
+      expect(operationSql).toContain(`"${field}" JSONB NOT NULL`);
+      expect(operationSql).toContain(`jsonb_typeof("${field}") = 'object'`);
+      expect(operationSql).toContain(`"${field}" <> '{}'::jsonb`);
+    }
+    expect(operation).toMatch(/createdAt\s+DateTime\s+@default\(now\(\)\)/);
+    expect(operationSql).toContain(
+      '"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    );
+    expect(operationSql).not.toMatch(
+      /PENDING|ON CONFLICT|UPDATE "InventoryLoan/,
+    );
+  });
+
+  it('declares tenant-wide keys, independent of actor and loan, with bounded normalized text', () => {
+    const operation = modelBody('InventoryLoanOperation');
+    expect(operation).toContain('@@unique([organizationId, requestKey])');
+    expect(operationSql).toContain(
+      'CREATE UNIQUE INDEX "InventoryLoanOperation_organizationId_requestKey_key" ON "InventoryLoanOperation"("organizationId", "requestKey")',
+    );
+    expect(operation).not.toMatch(
+      /@@unique\(\[[^\]]*(?:actorId|loanId)[^\]]*requestKey/,
+    );
+    expect(operationSql).toContain(
+      'char_length("requestKey") BETWEEN 1 AND 100',
+    );
+    expect(operationSql).toContain('"requestKey" = btrim("requestKey")');
+  });
+
+  it('binds operation loan and authenticated membership to the same tenant', () => {
+    const operation = modelBody('InventoryLoanOperation');
+    for (const [fields, target, references] of [
+      ['loanId, organizationId', 'InventoryLoan', 'id, organizationId'],
+      ['actorId, organizationId', 'OrganizationUser', 'userId, organizationId'],
+    ]) {
+      expect(operation).toContain(
+        `fields: [${fields}], references: [${references}]`,
+      );
+      const quoted = (list: string) =>
+        list
+          .split(', ')
+          .map((s) => `"${s}"`)
+          .join(', ');
+      expect(operationSql).toContain(
+        `FOREIGN KEY (${quoted(fields)}) REFERENCES "${target}"(${quoted(references)}) ON DELETE RESTRICT ON UPDATE RESTRICT`,
+      );
+    }
+    expect(modelBody('OrganizationUser')).toContain(
+      'inventoryLoanOperations InventoryLoanOperation[]',
+    );
+    expect(modelBody('InventoryLoan')).toContain(
+      'operations     InventoryLoanOperation[]',
+    );
+  });
+
+  it('adds nullable many-event correlation bound to loan, tenant AND event actor', () => {
+    const event = modelBody('InventoryLoanEvent');
+    const operation = modelBody('InventoryLoanOperation');
+    expect(operationSql).toContain(
+      'ALTER TABLE "InventoryLoanEvent" ADD COLUMN "operationId" TEXT',
+    );
+    expect(event).toMatch(/operationId\s+String\?/);
+    expect(event).toContain(
+      'fields: [operationId, loanId, organizationId, createdById], references: [id, loanId, organizationId, actorId]',
+    );
+    expect(operationSql).toContain(
+      'FOREIGN KEY ("operationId", "loanId", "organizationId", "createdById") REFERENCES "InventoryLoanOperation"("id", "loanId", "organizationId", "actorId") MATCH SIMPLE ON DELETE RESTRICT ON UPDATE RESTRICT',
+    );
+    expect(operation).toContain(
+      '@@unique([id, loanId, organizationId, actorId], map: "InventoryLoanOperation_event_target_key")',
+    );
+    expect(operationSql).toContain(
+      'CREATE UNIQUE INDEX "InventoryLoanOperation_event_target_key" ON "InventoryLoanOperation"("id", "loanId", "organizationId", "actorId")',
+    );
+    expect(operation).toContain('events         InventoryLoanEvent[]');
+    expect(event).not.toMatch(
+      /operationId[^\n]*@unique|@@unique\([^\n]*operationId/,
+    );
+    expect(operationSql).not.toMatch(
+      /CREATE UNIQUE INDEX[^\n]*ON "InventoryLoanEvent"/,
+    );
+    // Existing required components prevent MATCH SIMPLE from skipping a linked event.
+    for (const field of ['loanId', 'organizationId', 'createdById']) {
+      expect(event).toMatch(new RegExp(`\\b${field}\\s+String\\s`));
+      expect(sql).toContain(`"${field}" TEXT NOT NULL`);
+    }
+    expect(operationSql).not.toContain('MATCH FULL');
+  });
+
+  it('unconditionally rejects operation updates/deletes without replacing event protection', () => {
+    expect(operationSql).toMatch(
+      /CREATE FUNCTION "reject_inventory_loan_operation_mutation"\(\) RETURNS trigger AS \$\$\s+BEGIN\s+RAISE EXCEPTION 'Inventory loan operations are immutable';\s+END;\s+\$\$ LANGUAGE plpgsql;/,
+    );
+    expect(operationSql).toContain(
+      'BEFORE UPDATE OR DELETE ON "InventoryLoanOperation"\nFOR EACH ROW EXECUTE FUNCTION "reject_inventory_loan_operation_mutation"()',
+    );
+    expect(operationSql).not.toMatch(
+      /DROP|TRUNCATE|DISABLE TRIGGER|CREATE TABLE "InventoryLoanEvent"/,
+    );
+    expect(operationSql).not.toMatch(
+      /(?:ALTER|CREATE) (?:TABLE|TYPE) "(?:MoneyLoan|MoneyLoanEvent|Sale|Payment)/,
+    );
+    expect(sql).toContain('BEFORE UPDATE OR DELETE ON "InventoryLoanEvent"');
   });
 });
