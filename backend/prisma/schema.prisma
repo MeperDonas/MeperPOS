@@ -416,11 +416,13 @@ model PurchaseOrderItem {
   @@index([organizationId, productId])
 }
 
-// Standalone MONEY creation/read slice; no payment or settlement lifecycle yet.
+// Standalone MONEY lifecycle; payments are append-only events, never sale Payments.
 model MoneyLoan {
   id             String       @id @default(uuid())
   organizationId String
   amount         Decimal      @db.Decimal(10, 2)
+  status         MoneyLoanStatus @default(OPEN)
+  version        Int          @default(0)
   issuedAt       DateTime     @db.Date
   dueAt          DateTime?    @db.Date
   reason         String       @db.VarChar(500)
@@ -440,8 +442,18 @@ model MoneyLoan {
   @@index([organizationId, createdAt, id])
 }
 
+enum MoneyLoanStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
 enum MoneyLoanEventType {
   CREATED
+  COLLECTED
+  REVERSED
+  CLOSED
+  CANCELLED
 }
 
 // Append-only enforcement and loan input checks are in the SQL migration.
@@ -450,6 +462,14 @@ model MoneyLoanEvent {
   loanId         String
   organizationId String
   type           MoneyLoanEventType
+  amount         Decimal?           @db.Decimal(10, 2)
+  method         PaymentMethod?
+  reversesId     String?            @unique
+  requestKey     String?            @db.VarChar(100)
+  requestPayload String?
+  result         Json?
+  reverses       MoneyLoanEvent?    @relation("MoneyLoanReversal", fields: [reversesId, loanId, organizationId], references: [id, loanId, organizationId], onDelete: Restrict)
+  reversals      MoneyLoanEvent[]   @relation("MoneyLoanReversal")
   reason         String             @db.VarChar(500)
   createdById    String
   createdAt      DateTime           @default(now())
@@ -457,6 +477,8 @@ model MoneyLoanEvent {
   loan           MoneyLoan          @relation(fields: [loanId, organizationId], references: [id, organizationId], onDelete: Restrict)
   createdBy      User               @relation("MoneyLoanEventCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
 
+  @@unique([id, loanId, organizationId])
+  @@unique([organizationId, loanId, requestKey])
   @@index([organizationId, loanId, createdAt, id])
 }
 

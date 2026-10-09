@@ -1,63 +1,66 @@
 # Loans: reserved inventory and audited settlement
 
-Implement [issue #209](https://github.com/MeperDonas/MeperPOS/issues/209) in coherent work units. POS initiates; Loans owns follow-up. Start with standalone money loans, without touching existing sales or inventory.
+Implement [issue #209](https://github.com/MeperDonas/MeperPOS/issues/209) in coherent checked work units. POS initiates; Loans owns follow-up. L1 standalone money creation/read is committed and reviewed; continue its payment lifecycle before touching sales or inventory.
 
 ## Scope and safety
 
-- Interest-free money, existing inventory products/equipment, and services. Exactly one same-org customer/supplier/employee counterparty; employees reuse organization users, others are customers.
-- POS creates pending operations and reserves units only. Loans handles collections, returns and closure. Fully paid linked operations require explicit authorized confirmation to create the final sale.
-- Final sale/reservation consumption/linkage/closure/audit must be atomic/idempotent, without duplicate payments or stock deduction. Independent money and returnable equipment never automatically become sales; independent services remain tracking-only unless separately approved.
-- OWNER/ADMIN administer/create/modify/cancel/reverse. OWNER/ADMIN/CASHIER/MEMBER collect/finalize; INVENTORY_USER cannot finalize.
-- Append-only authenticated actor history; tenant isolation; backend-owned Decimal money; preserve immediate sales, stock CAS/version guards, service/untracked semantics and report behavior.
-- Preserve unrelated staged `backend/reset-kevin-password.js`, unread/unmodified/unstaged by this feature, excluded from commits/review.
-- No database migrations/seeds/resets, dependency updates, push/PR/merge. User explicitly authorized local verified work-unit commits for issue #209, with tests/docs and excluding unrelated staged files. Local tools/client/build artifacts are authorized.
+- Interest-free money, existing inventory products/equipment, and services. Exactly one same-org customer/supplier/employee counterparty; employees reuse organization users, other people are customers.
+- POS creates pending operations/reservations only. Loans handles payments/returns/closure. Full payment plus explicit authorized confirmation creates the linked final sale.
+- Final sale, reservation consumption, linkage, closure and audit are atomic/idempotent: no duplicate payments, sales or stock deductions. Independent money/returnable equipment never auto-create sales; independent services tracking-only unless separately approved.
+- OWNER/ADMIN create/administer/modify/cancel/reverse. OWNER/ADMIN/CASHIER/MEMBER collect and finalize paid linked sales; INVENTORY_USER cannot finalize. Independent money administration/closure remains OWNER/ADMIN.
+- Append-only authenticated-actor history, organization isolation, backend Decimal money. Preserve immediate sales, stock CAS/version guards, untracked/service semantics and reporting.
+- User authorized local verified feature commits with tests/docs only. Preserve unrelated staged `backend/reset-kevin-password.js` unread/unmodified and excluded from commits/review. No dependency updates, database migrations/seeds/resets, push/PR/merge authorized.
+- Local node_modules/generated client/build artifacts permitted. Schema-only validate may temporarily set credential-free `postgresql://localhost/schema_validation`, restoring original environment; never use this for DB connections/migrations.
 
 ## Work units
 
 | ID | Outcome | Status | Route |
 | --- | --- | --- | --- |
-| L0 | Restore local backend tools without dependency-version changes | done (environment-only) | independent verifier/setup |
-| L1 | Money-loan create/list/detail, valid counterparties, tenant guards and creation history | in_progress (checks passed; closure pending) | writer + independent verifier |
-| L2 | Collections, settlement/closure, admin corrections/reversals and concurrent balance safety | pending | writer |
-| L3 | Inventory/service loans, reservations/returns, all stock-consumer guards | pending | writer |
+| L0 | Restore backend tools without version changes | done (environment-only) | independent verifier/setup |
+| L1 | Money-loan create/list/detail, counterparty/tenant guards and creation history | done (offline checks/review; runtime follow-up L7) | writer + independent verifier |
+| L2 | Money collections, explicit settlement/closure, admin corrections/reversals and concurrent balance safety | in_progress (implemented; commit/review pending) | writer |
+| L3 | Inventory/service loans, reservations/returns and stock-consumer availability guards | pending | writer |
 | L4 | POS pending operation and atomic/idempotent final sale | pending | writer |
 | L5 | Loans UI/hooks/navigation/history/overdue filters | pending | writer |
 | L6 | POS handoff UI, browser/regression checks and user docs | pending | writer + verifier |
+| L7 | Safe PostgreSQL migration/append-only history/rollback integration proof before delivery | pending (DB setup authorization needed) | independent verifier |
 
-All feature units use delegation because they cross multi-file or financial/inventory boundaries. L0 changed no versioned source: no separate commit applies; environment evidence below is its outcome. L1 cannot be completed without checks, applicable review and authorized work-unit commit evidence.
+Multi-file financial/inventory units are delegated. L0 produced no versioned source and needs no separate commit. L7 is required runtime follow-up, not an excuse to claim DB behavior proven by mocks or approval.
 
 ## Acceptance and checks
 
-- L1: positive two-decimal amount, valid dates/input, exactly one valid same-org counterparty; only OWNER/ADMIN create; permitted operators read only their tenant. Creation/event/AuditLog use one transaction. No payment/POS/inventory/report changes.
-- L2: reject overpayment/concurrent overcollection and invalid closed/cancelled actions; role boundaries, audited correction reasons and explicit independent closure without sales.
-- L3: no over-reservation in concurrent sales/loans/manual stock changes; no release of delivered units before return; honor stock-tracking conventions.
-- L4: full payment/authorized explicit closure, safe retries/failures/concurrent completion; immediate-sale regressions pass.
-- L5/L6: responsive accessible flows, tenant/cache isolation, actual role guards; POS initiation only, follow-up in Loans.
-- Test-first when runnable: observed RED/GREEN/recheck. L1 initial implementation used runner-unavailable fallback; do not manufacture retrospective RED. Formatting corrections have no behavioral RED and require lint plus focused regression recheck.
-- Required from backend: `npm test -- --runInBand --testPathPatterns=src/loans/`; local Prisma validate/generate; file-scoped read-only eslint; `npm run build`.
-- Focused mocked loans specs are DB-independent; broader suites can mutate a DB and are not authorized here. Never backend auto-fixing `npm run lint`.
-- Schema-only validation may use temporary process DATABASE_URL `postgresql://localhost/schema_validation` with original environment restored. It contains no credentials, is not a real environment configuration, and is allowed only for validate, never migrate/connect.
-- Migration remains unapplied. Static schema/SQL and mocked transactions cannot establish PostgreSQL trigger enforcement/rollback. Runtime migration/integration checks remain pending authorization/setup.
-- Derive frontend Vitest commands before UI implementation; browser checks required for UI units.
+- L1: positive two-decimal amount, valid dates/input, exactly one valid same-org counterparty; creation OWNER/ADMIN; scoped operator reads. Loan/event/AuditLog creation one transaction. No payment/POS/inventory/report side effects.
+- L2: backend balance from posted payments; reject overpayment/concurrent overcollection and closed/cancelled mutations. Role restrictions; partial/full collections; fully paid remains pending explicit closure; reversal/correction requires admin/reason and preserves history. Independent closure never creates a sale.
+- L3: prevent over-reservation across concurrent sales/loans/manual stock changes; delivered reservations cannot be released before return; honor stock tracking.
+- L4: payment/permission/state revalidation; failures/retries/concurrent completion never duplicate sale/payment/stock/audit. Immediate sales unchanged.
+- L5/L6: accessible mobile/desktop flows, actual roles and tenant/cache isolation. POS initiates only; Loans follow-up.
+- L7: isolated non-production PostgreSQL setup must be authorized first. Prove migration apply, append-only event trigger and transaction rollback/tenant FK constraints; no production mutation.
+- Test-first now tools available: observed RED before new behavior, GREEN then refactor/recheck. L1 initial runner-unavailable fallback has no retrospective RED; later formatting-only cleanup has no meaningful behavioral RED.
+- Backend focused command: `npm test -- --runInBand --testPathPatterns=src/loans/`; local Prisma validate/generate, scoped read-only eslint, backend build. Never auto-fixing `npm run lint`; no broad DB-mutating suites without approved setup.
+- Derive frontend Vitest commands before UI work; run browser checks then.
 
-## Delivery and remaining decisions
+## Delivery and open decisions
 
-- Branch `worktree-feat-loans-module`; initial boundary `d2c2eae`; RDD on globally, unchanged. Review only provider-bound normalized work-unit/PR-slice scope, excluding unrelated staged script.
-- Delivery strategy `ask-on-risk`; user selected `chain_strategy=feature-branch-chain` (feature/tracker branch chain). Cache this choice for future units; no repeat delivery-shape prompts. Original whole-feature forecast 1,100–1,800 lines is now likely low. Independently confirmed L1 +1,127/-0 before cleanup, excluding task bookkeeping. Committed lines 0; no commits/native review yet.
-- ~400 lines advisory only: keep necessary tests/docs, no cosmetic compression or artificial splitting. L1 is one coherent creation/read API unit with schema/migration/permission/tenant tests; subsequent units will be separate slices. Local work-unit commits explicitly authorized; publishing/push/PR/merge remain unauthorized.
-- Before L4, user must decide creation-time vs finalization-time prices/taxes/costs and changes after collections. Before L3/L4 trace every stock mutator/untracked behavior. Resolve collection/final-sale reporting to avoid double counting, without general accounting expansion.
+- Branch `worktree-feat-loans-module`. User chose cached `chain_strategy=feature-branch-chain` under `ask-on-risk`; do not repeat shape menu. Push/PR/merge still require instruction.
+- Initial boundary `d2c2eae6dc91e8ca3c156c473c73dda4d7e982d6`; next candidate base/last reviewed boundary `8f042b41decf73974a454e9e118b4e1fe2d583ab`.
+- L1 authored feature lines +1143/-0; commit +1206 including task document. Full-feature original estimate 1100–1800 now too low; refine next units. ~400-line heuristic advisory: no omitted tests, compression or artificial splits. Keep coherent behavior/review slices.
+- RDD on globally, unchanged. Review work-unit/PR-slice candidates, not checkbox or full accumulated branch; committed-only range excludes unrelated staged script.
+- Before L4 user must decide creation-time versus finalization-time price/tax/cost snapshots and changes after collections. Before L3/L4 trace all stock mutators/untracked products. Resolve collection/final-sale reporting without double counting or general accounting expansion.
 
 ## Evidence
 
-- Task file/full mirror/read-back/todo preceded source writes. L1 schema/migration/module/DTO/service/controller/specs/app registration/docs authored; no L2–L6 source yet.
-- Initial Jest attempts failed at missing dotenv: no behavioral RED/GREEN. Tools absent, not dependency declaration defects.
-- L0 verifier: `npm --prefix backend ci --include=dev --ignore-scripts` exit0, 892 packages; manifest/lock hashes unchanged throughout. Local Node24/npm11 vs CI22. npm reported 76 vulnerabilities; no remediation within feature scope.
-- Local Prisma generate exit0 (6.19.2); focused Jest exit0 (2 suites/60 tests); backend build exit0; whitespace check exit0. All local verification binaries restored. Setup is complete.
-- Initial direct Prisma validate failed P1012 missing DATABASE_URL; `.env.development` absent. Final schema-only validation passed using temporary credential-free process URL, with original environment restored. No DB connection or runtime migration proof.
-- Scoped two-spec cleanup corrected all 6 Prettier errors and 7 unsafe-any warnings without production changes or dropped test cases. Final scoped lint exit0/no warnings; focused Jest 2 suites/60 tests passed again; backend build passed again. This non-behavioral cleanup has no meaningful behavioral RED.
-- Independent structural spot-check found no additional behavior defect: actual role metadata, tenant/active counterparty filters, Serializable creation+event+audit transaction, scoped list/detail/history.
-- Migration unapplied, DB behavior unverified, unrelated staged script untouched/unread. No verified baseline check failures, no commits or database mutation.
+- Durable task file/full mirror/read-back/todo preceded first source writes.
+- L0 npm ci --include=dev --ignore-scripts: 892 packages; manifest/lock hashes unchanged; Node24/npm11 local versus CI22. npm reported 76 vulnerabilities, no remediation within scope.
+- L1 writer: source/schema/migration/tests/docs. Initial tests blocked by dotenv; tools were absent. No behavioral RED observed; runnable checks followed setup.
+- Prisma client generation passed (6.19.2); build passed twice. Final independent recheck: 2 suites/60 tests passed; scoped eslint zero diagnostics/warnings; schema-only Prisma validation passed with temporary environment restored/no DB connection.
+- Formatting/mock typing cleanup preserved 60 scenarios; feature +1143/-0 independently counted. Production bounded review confirmed tenant filters, role metadata, Serializable creation/event/audit transaction.
+- L1 commit `8f042b41decf73974a454e9e118b4e1fe2d583ab`: feat(loans): add tenant-scoped money loan creation and history. Path-scoped commit preserved unrelated script's staged index entry exactly. No push.
+- Native assessment medium; review due slice_budget_reached. Committed-only lineage `review-dada5f7f9cb5a225`, review-reliability, approved. Exact acknowledge-approved returned native-approved-acknowledgement-completed, authority burned. Review ended; no further STATUS.
+- Advisory R3-database-invariants-unproved at migration.sql:56-58 is informational/nonblocking. No correction offered; do not reopen that candidate. Track runtime proof in L7. No database migration executed or runtime PostgreSQL proof yet.
+- L2 implemented standalone collections/balance/reversal/close/cancel, request replay snapshots and Serializable/version CAS. Writer observed lifecycle RED21 failures then GREEN97, boundary RED9 then GREEN131; final 4 suites/138 tests include all L1 cases. Prisma generation/schema-only validation, scoped clean lint and build passed. Reported authored +1278/-30 including untracked; parent will verify commit scope.
+- L2 closed loans reject new reversals; explicit reopen/refund semantics remain a product gap. Large-ledger aggregation remains a later performance concern, not added scope.
+- Ambient review reminder target contained only unrelated staged script plus task updates when inspected; no START/consent answer for that mixed target. User clarification unanswered. Preserve original feature-only boundaries and review L2 via committed-only range.
 
 ## Next step
 
-Await settled final independent focused L1 recheck. Delivery shape and local commit authorization are now granted. After successful checks, create a path-scoped work-unit commit preserving the unrelated staged script, then inspect/assess/review the committed-only candidate against d2c2eae. Record exact provider review outcome, commit identity and pending runtime checks before closure. Runtime PostgreSQL migration checks require separate safe setup/authorization; do not claim them passed. Do not advance L2 while L1 remains unclosed.
+Create path-scoped authorized L2 work-unit commit, assess and inspect/start only committed-range review against 8f042b41, and follow native transitions. Run an independent focused spot-check per returned verification plan/parent check; no real DB mutation. L2 remains in progress until exact closure evidence. Keep L7 pending authorization; do not advance inventory/POS/UI or expand mixed-target review.

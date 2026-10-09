@@ -1,9 +1,10 @@
-# Standalone money loans: creation and read-only history
+# Standalone money loans: audited collections and explicit closure
 
-This is the L1 backend slice of issue #209. It records an interest-free MONEY
-loan independently of POS, sales, inventory and financial reports. It does **not**
-implement collections, balances, settlement, closure, cancellation or reversals.
-Those lifecycle operations remain pending.
+The L1–L2 backend slices of issue #209 track interest-free MONEY loans independently
+of POS, sales, inventory and financial reports. Partial/full collections update a
+backend-derived balance; full payment does **not** close a loan. An administrator
+must explicitly confirm closure. Corrections preserve original payments through
+separate reversal events, never destructive edits.
 
 ## API quick path
 
@@ -15,7 +16,11 @@ All routes are under `/api/loans` and require an organization scope.
 | `POST /api/loans` | OWNER, ADMIN | Create a standalone money loan |
 | `GET /api/loans` | OWNER, ADMIN, MEMBER, CASHIER | Paginated loans |
 | `GET /api/loans/:id` | OWNER, ADMIN, MEMBER, CASHIER | One scoped loan |
-| `GET /api/loans/:id/history` | OWNER, ADMIN, MEMBER, CASHIER | Paginated creation history |
+| `GET /api/loans/:id/history` | OWNER, ADMIN, MEMBER, CASHIER | Paginated history of all transitions |
+| `POST /api/loans/:id/collections` | OWNER, ADMIN, MEMBER, CASHIER | Partial/full abono |
+| `POST /api/loans/:id/collections/:paymentId/reverse` | OWNER, ADMIN | Reverse one collection, with a reason |
+| `POST /api/loans/:id/close` | OWNER, ADMIN | Confirm closure only when balance is zero |
+| `POST /api/loans/:id/cancel` | OWNER, ADMIN | Cancel only when net collections are zero |
 
 INVENTORY_USER cannot use these routes. Permissions come from the existing
 backend role hierarchy, not a frontend check. SUPER_ADMIN retains the existing
@@ -53,7 +58,13 @@ Tenant and actor fields are not accepted in the create body.
 
 ### Read responses
 
-Creation and detail return the loan's ID, amount, dates, reason, counterparty
+Creation, list and detail return `status` (`OPEN`, `CLOSED`, `CANCELLED`),
+`paymentStatus` (`UNPAID`, `PARTIAL`, `PAID`), `collected` and `balance`.
+The two totals are fixed-two-decimal strings derived from collection events minus
+reversal events; the client must not compute authoritative money. A cancelled
+loan keeps its original unpaid balance as historical evidence, not a write-off.
+
+Creation and detail also return the loan's ID, amount, dates, reason, counterparty
 foreign keys and creation actor/timestamp. Exactly one of `customerId`,
 `supplierId`, `employeeId` is populated. Related customer/supplier/employee/actor
 projections contain only `id` and `name`; no user credentials, email or membership
@@ -65,8 +76,51 @@ List and history accept `page` (default 1, maximum 1,000,000) and `limit` (defau
 20, maximum 100), returning `{ data, total, page, limit, totalPages }`. Loans are
 ordered newest-first; history is oldest-first, both with an ID tie-breaker.
 Unknown and foreign-organization IDs both return 404, including on history.
-History currently contains only `CREATED` events with reason, actor and timestamp.
-There are no update/delete/history-edit endpoints.
+History includes `CREATED`, `COLLECTED`, `REVERSED`, `CLOSED` and `CANCELLED`
+events with reason, actor and timestamp. Monetary events expose `amount`, collection
+`method`, and reversal `reversesId`; the collection event ID is the `paymentId` used
+in a reversal path. Request payloads and internal replay snapshots are not exposed
+in read history. There are no principal/counterparty update, delete or history-edit
+endpoints.
+
+## Collect, correct and close
+
+1. Send a collection body such as
+   `{ "requestKey": "abono-1", "amount": 40.25, "method": "CASH" }`.
+2. Read the server's balance; repeat collections until it is `"0.00"`.
+3. OWNER/ADMIN sends `{ "requestKey": "close-1" }` to `/close`.
+
+Collection amounts use the same strict JSON-number and two-decimal bounds as
+creation. Methods reuse `CASH`, `CARD`, `TRANSFER`; they do not create a sale
+`Payment`, cash-register movement, sale, expense or report entry. Mutation results
+are `{ loanId, eventId, status, paymentStatus, collected, balance }`.
+
+To correct an abono on an OPEN loan, send
+`{ "requestKey": "reverse-1", "reason": "Corrección de abono" }` to its reversal
+path. The reversal negates the original amount, once, while preserving the original
+event. It does not execute a bank/cash refund. Cancellation takes the same reason
+body and requires no net posted collections; otherwise it returns an actionable
+409 asking the administrator to reverse collections first. Reasons are required,
+trimmed strings of 1–500 characters. Cross-loan/tenant reversal targets return 404.
+
+### Retries and final states
+
+Every **L2** mutation requires a caller-generated `requestKey`: a nonblank raw
+string of 1–100 characters. Keep it unchanged on retry. Keys are scoped to tenant
+and loan, shared across operation types, and bound to the authenticated actor and
+normalized operation payload. Exact replays return the original stored result,
+even after later transitions. Reuse with another payload or actor returns 409;
+no extra collection, history event or audit entry is written.
+
+Concurrent conflicts return 409 with instructions to retry the same key. Re-read
+the loan when deciding a new amount; never automatically issue a new key after an
+uncertain response. L1 loan creation remains non-idempotent.
+
+CLOSED/CANCELLED loans reject all **new** collections, reversals and transitions.
+Closure never creates an independent-loan sale. There is no reopen or refund
+workflow: correcting a closed loan needs a separate product decision, not a silent
+reopen. Principal and counterparty identity remain immutable, including after all
+collections are reversed.
 
 ## Persistence and review checks
 
@@ -77,7 +131,7 @@ taken from authentication. Serialization conflicts are surfaced rather than
 silently retrying a non-idempotent create request; duplicate submission prevention
 is not part of L1.
 
-The migration adds only MoneyLoan and MoneyLoanEvent plus their existing-model
+The L1 migration adds only MoneyLoan and MoneyLoanEvent plus their existing-model
 relations. SQL checks enforce a positive amount, date ordering, a nonblank reason
 and exactly one counterparty. A composite event foreign key enforces agreement
 with the loan's tenant. An SQL trigger rejects history updates/deletes. Restrictive
@@ -86,6 +140,22 @@ organization, counterparty or actor; existing soft-deactivation remains possible
 Customer/supplier tenant ownership and employee membership are validated by the
 service inside the transaction, not by additional directory models.
 
+L2 uses the existing append-only MoneyLoanEvent table as its monetary ledger. A
+single Serializable transaction reads the scoped ledger, checks balance/state,
+compares-and-swaps the loan's `version` and OPEN status, appends the event/replay
+snapshot, and appends `AuditLog` (`LOAN_COLLECTED`, `LOAN_REVERSED`, `LOAN_CLOSED`,
+`LOAN_CANCELLED`). All competing mutations contend on the same loan row. There is
+no separately stored balance to drift from history. Event/audit failure propagates
+and must roll back the entire transaction in PostgreSQL.
+
+The additive L2 migration adds status/version and event money/replay columns;
+unique keys prevent duplicate requests and multiple reversals. A composite self-FK
+keeps reversal evidence in the same loan and tenant. Shape checks distinguish
+creation, collection, reversal and transition records. The L1 append-only trigger
+remains unchanged; an additional trigger protects principal/counterparty identity.
+Balance/state enforcement and reversal target type/amount validation are service
+invariants, not claimed as general SQL protection against arbitrary direct writes.
+
 Review the DTO and real RolesGuard metadata tests first, then the transaction and
 tenant-filter tests, and finally the schema/migration pair. SQL checks and the
 append-only trigger are migration-owned invariants not expressible in Prisma's
@@ -93,15 +163,17 @@ schema. Do not replace this migration with a schema-only database push.
 
 ## Verification and next slice
 
-Run from `backend`:
+Run the focused suite from `backend`:
 
 ```text
-npm test -- --runInBand --testPathPatterns=src/loans
-npx prisma validate
-npx prisma generate
-npm run build
-npx eslint src/loans/**/*.ts src/app.module.ts
+npm test -- --runInBand --testPathPatterns=src/loans/
 ```
+
+Use locally installed Prisma for generation and schema-only validation; validation
+uses temporary credential-free `postgresql://localhost/schema_validation` with the
+previous environment restored in `finally`. Run `npm run build` and read-only
+ESLint with explicitly enumerated loan TypeScript files, never backend auto-fix
+lint or database tests without authorization.
 
 Mocked unit tests check transaction-client use and failure propagation; they do
 **not** prove PostgreSQL rollback, trigger execution or runtime migration success.
@@ -109,6 +181,12 @@ Before deployment, apply the migration only in an explicitly authorized test
 environment and verify real rollback on event/audit failure, constraints and
 append-only enforcement. No migration execution is authorized by this unit.
 
-L2 will introduce collections and lifecycle rules with their own concurrency,
-idempotency and reversal design. L3–L6 still own inventory/service loans, POS
-integration and the frontend. No existing sales or expense report includes loans.
+L7 still requires explicitly authorized isolated PostgreSQL proof: migration
+application, append-only/identity triggers, tenant/reversal FKs, atomic rollback
+and real concurrent collection/reversal/closure races. Mock CAS/isolation assertions
+are not runtime concurrency proof. List/detail currently load each selected loan's
+ledger to compute exact totals; very large histories may need a later bounded
+aggregation design without dropping history correctness.
+
+L3–L6 still own inventory/service loans, POS integration and the frontend. No
+existing sales or expense report includes loans.

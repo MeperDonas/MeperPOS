@@ -19,6 +19,12 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { CreateLoanDto } from './dto/create-loan.dto';
+import {
+  CollectLoanDto,
+  LoanOperationDto,
+  ReasonLoanDto,
+  ReverseLoanDto,
+} from './dto/loan-operation.dto';
 import { QueryLoansDto } from './dto/query-loans.dto';
 import { LoansService } from './loans.service';
 
@@ -34,6 +40,71 @@ export class LoansController {
   @Roles(OrgRole.ADMIN)
   create(@Body() dto: CreateLoanDto, @CurrentUser() user: RequestUser) {
     return this.loansService.create(dto, user.userId, user.organizationId);
+  }
+
+  @Post(':id/collections')
+  @Roles(OrgRole.CASHIER)
+  collect(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CollectLoanDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.loansService.mutate(
+      id,
+      'COLLECTED',
+      dto,
+      user.userId,
+      user.organizationId,
+    );
+  }
+
+  @Post(':id/collections/:paymentId/reverse')
+  @Roles(OrgRole.ADMIN)
+  reverse(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('paymentId', ParseUUIDPipe) paymentId: string,
+    @Body() dto: ReverseLoanDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.loansService.mutate(
+      id,
+      'REVERSED',
+      { ...dto, paymentId },
+      user.userId,
+      user.organizationId,
+    );
+  }
+
+  @Post(':id/close')
+  @Roles(OrgRole.ADMIN)
+  close(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: LoanOperationDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.loansService.mutate(
+      id,
+      'CLOSED',
+      dto,
+      user.userId,
+      user.organizationId,
+    );
+  }
+
+  @Post(':id/cancel')
+  @Roles(OrgRole.ADMIN)
+  cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReasonLoanDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.loansService.mutate(
+      id,
+      'CANCELLED',
+      dto,
+      user.userId,
+      user.organizationId,
+    );
   }
 
   @Get()

@@ -34,12 +34,21 @@ function fixture() {
     moneyLoan: {
       create: jest
         .fn<
-          Promise<{ id: string; amount: Prisma.Decimal }>,
+          Promise<{
+            id: string;
+            amount: Prisma.Decimal;
+            status: string;
+            version: number;
+            events: never[];
+          }>,
           [Prisma.MoneyLoanCreateArgs]
         >()
         .mockResolvedValue({
           id: 'loan',
           amount: new Prisma.Decimal(120.25),
+          status: 'OPEN',
+          version: 0,
+          events: [],
         }),
       findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn().mockResolvedValue(0),
@@ -249,8 +258,20 @@ describe('LoansService tenant reads', () => {
   it('scopes list and count and bounds pagination', async () => {
     const { service, tx } = fixture();
     const rows = [
-      { id: 'loan-a', organizationId: 'org-a' },
-      { id: 'loan-b', organizationId: 'org-b' },
+      {
+        id: 'loan-a',
+        organizationId: 'org-a',
+        amount: new Prisma.Decimal('120.25'),
+        status: 'OPEN',
+        events: [],
+      },
+      {
+        id: 'loan-b',
+        organizationId: 'org-b',
+        amount: new Prisma.Decimal('120.25'),
+        status: 'OPEN',
+        events: [],
+      },
     ];
     type Filter = { where: { organizationId: string } };
     tx.moneyLoan.findMany.mockImplementation(
@@ -268,7 +289,17 @@ describe('LoansService tenant reads', () => {
       ),
     );
     expect(await service.findAll({}, 'org-a')).toEqual({
-      data: [rows[0]],
+      data: [
+        {
+          id: 'loan-a',
+          organizationId: 'org-a',
+          amount: rows[0].amount,
+          status: 'OPEN',
+          balance: '120.25',
+          collected: '0.00',
+          paymentStatus: 'UNPAID',
+        },
+      ],
       total: 1,
       page: 1,
       limit: 20,
@@ -330,8 +361,20 @@ describe('LoansService tenant reads', () => {
 
   it('scopes and paginates history with safe actor projection', async () => {
     const { service, tx } = fixture();
-    tx.moneyLoan.findFirst.mockResolvedValue({ id: 'loan' });
-    expect(await service.findOne('loan', 'org-a')).toEqual({ id: 'loan' });
+    tx.moneyLoan.findFirst.mockResolvedValue({
+      id: 'loan',
+      amount: new Prisma.Decimal('120.25'),
+      status: 'OPEN',
+      events: [],
+    });
+    expect(await service.findOne('loan', 'org-a')).toEqual({
+      id: 'loan',
+      amount: new Prisma.Decimal('120.25'),
+      status: 'OPEN',
+      balance: '120.25',
+      collected: '0.00',
+      paymentStatus: 'UNPAID',
+    });
     await service.getHistory('loan', { page: 2, limit: 5 }, 'org-a');
     expect(tx.moneyLoanEvent.findMany).toHaveBeenCalledWith(
       objectContaining({
