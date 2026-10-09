@@ -20,8 +20,57 @@ const operationMigrationPath = resolve(
 const operationSql = existsSync(operationMigrationPath)
   ? readFileSync(operationMigrationPath, 'utf8')
   : '';
+const lifecycleMigrationPath = resolve(
+  __dirname,
+  '../../prisma/migrations/20261009060000_inventory_loan_lifecycle_vocabulary/migration.sql',
+);
+const lifecycleSql = existsSync(lifecycleMigrationPath)
+  ? readFileSync(lifecycleMigrationPath, 'utf8')
+  : '';
 const modelBody = (name: string) =>
   schema.split(`model ${name} {`)[1]?.split('\n}')[0] ?? '';
+
+describe('inventory loan lifecycle vocabulary declarations only', () => {
+  it.each([
+    ['InventoryLoanStatus', ['CLOSED']],
+    ['InventoryLoanEventType', ['CLOSED']],
+    ['InventoryLoanOperationType', ['DELIVER', 'RETURN', 'CANCEL', 'CLOSE']],
+  ] as const)(
+    'extends %s without replacing existing enum values',
+    (name, values) => {
+      const body = schema.split(`enum ${name} {`)[1]?.split('}')[0] ?? '';
+      for (const value of values) {
+        expect(body).toMatch(new RegExp(`\\b${value}\\b`));
+        expect(lifecycleSql).toContain(
+          `ALTER TYPE "${name}" ADD VALUE '${value}'`,
+        );
+      }
+    },
+  );
+
+  it('extends the actual shape constraint with a header-only CLOSED branch', () => {
+    expect(lifecycleSql).toContain(
+      'DROP CONSTRAINT "InventoryLoanEvent_shape"',
+    );
+    expect(lifecycleSql).toContain(
+      'ADD CONSTRAINT "InventoryLoanEvent_shape" CHECK',
+    );
+    expect(lifecycleSql).toContain(
+      `"type"::text IN ('CREATED', 'CANCELLED', 'CLOSED') AND "itemId" IS NULL AND "quantity" IS NULL`,
+    );
+    expect(lifecycleSql).toContain(
+      `"type"::text IN ('DELIVERED', 'RETURNED', 'CANCELLED') AND`,
+    );
+    expect(lifecycleSql).toContain(
+      '"itemId" IS NOT NULL AND "quantity" IS NOT NULL AND "quantity" > 0',
+    );
+    // Text comparison avoids using a newly added enum literal before commit.
+    expect(lifecycleSql).not.toMatch(
+      /UPDATE|DELETE|INSERT|CREATE TABLE|DROP TYPE|TRIGGER|FOREIGN KEY|operationId/,
+    );
+    expect(lifecycleSql.match(/ALTER TABLE/g)).toHaveLength(1);
+  });
+});
 
 // Declaration checks only: no PostgreSQL execution, rollback or race proof.
 describe('inventory loan migration declarations', () => {
@@ -127,7 +176,7 @@ describe('inventory loan operation declarations (not executed DB behavior)', () 
     const operation = modelBody('InventoryLoanOperation');
     expect(operation).not.toBe('');
     expect(operationSql).toContain('CREATE TABLE "InventoryLoanOperation"');
-    expect(schema).toMatch(/enum InventoryLoanOperationType \{\s+CREATE\s+\}/);
+    expect(schema).toMatch(/enum InventoryLoanOperationType \{\s+CREATE\b/);
     expect(operationSql).toContain(
       'CREATE TYPE "InventoryLoanOperationType" AS ENUM (\'CREATE\')',
     );

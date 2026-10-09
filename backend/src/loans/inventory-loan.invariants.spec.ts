@@ -1,5 +1,6 @@
 import {
   deriveInventoryLoanQuantities,
+  planInventoryLoanClose,
   InventoryLoanCounts,
   transitionInventoryLoanItem,
   validateInventoryLoanCounts,
@@ -11,6 +12,147 @@ const initial: InventoryLoanCounts = {
   returnedQuantity: 0,
   cancelledQuantity: 0,
 };
+
+describe('inventory loan close plan', () => {
+  const returned = { ...initial, deliveredQuantity: 3, returnedQuantity: 3 };
+
+  it('releases the undelivered remainder after a partial returned delivery', () => {
+    expect(planInventoryLoanClose([returned])).toEqual([
+      {
+        counts: { ...returned, cancelledQuantity: 7 },
+        reservedRemaining: 0,
+        outstanding: 0,
+        releaseQuantity: 7,
+      },
+    ]);
+  });
+
+  it('rejects outstanding units anywhere in the loan', () => {
+    expect(() =>
+      planInventoryLoanClose([returned, { ...initial, deliveredQuantity: 1 }]),
+    ).toThrow();
+  });
+
+  it('rejects zero activity at aggregate level, even with all reservations released', () => {
+    expect(() => planInventoryLoanClose([initial])).toThrow();
+    expect(() =>
+      planInventoryLoanClose([{ ...initial, cancelledQuantity: 10 }, initial]),
+    ).toThrow();
+  });
+
+  it.each([
+    { ...initial, deliveredQuantity: 10, returnedQuantity: 10 },
+    { ...returned, cancelledQuantity: 7 },
+  ])('accepts fully returned or already released allocations: %p', (counts) => {
+    expect(planInventoryLoanClose([counts])).toEqual([
+      { counts, reservedRemaining: 0, outstanding: 0, releaseQuantity: 0 },
+    ]);
+  });
+
+  it('releases only the remainder, preserving prior cancellations and all deliveries', () => {
+    const counts = { ...returned, cancelledQuantity: 2 };
+    const [result] = planInventoryLoanClose([counts]);
+    expect(result.releaseQuantity).toBe(5);
+    expect(result.counts).toEqual({ ...counts, cancelledQuantity: 7 });
+  });
+
+  it.each([undefined, null, {}, [], [undefined], [null], [{}], new Array(1)])(
+    'rejects malformed or empty aggregate input: %p',
+    (items) => {
+      expect(() =>
+        planInventoryLoanClose(items as InventoryLoanCounts[]),
+      ).toThrow();
+    },
+  );
+
+  it.each([
+    'quantity',
+    'deliveredQuantity',
+    'returnedQuantity',
+    'cancelledQuantity',
+  ])('validates every item %s before proposing release', (field) => {
+    for (const invalid of [
+      -1,
+      0.5,
+      NaN,
+      Infinity,
+      2147483648,
+      Number.MAX_SAFE_INTEGER,
+      '1',
+      true,
+      null,
+      undefined,
+    ]) {
+      expect(() =>
+        planInventoryLoanClose([returned, { ...initial, [field]: invalid }]),
+      ).toThrow();
+    }
+  });
+
+  it.each([
+    { ...initial, quantity: 0 },
+    { ...initial, returnedQuantity: 1 },
+    { ...initial, deliveredQuantity: 11 },
+    { ...returned, cancelledQuantity: 8 },
+    {
+      ...initial,
+      deliveredQuantity: 2147483647,
+      cancelledQuantity: 2147483647,
+    },
+  ])('rejects inconsistent or overflowing allocations: %p', (counts) => {
+    expect(() => planInventoryLoanClose([returned, counts])).toThrow();
+  });
+
+  it('accepts Prisma Int limits per item without summing aggregate quantities', () => {
+    const untouched = { ...initial, quantity: 2147483647 };
+    const complete = {
+      ...untouched,
+      deliveredQuantity: 2147483647,
+      returnedQuantity: 2147483647,
+    };
+    const partial = {
+      ...untouched,
+      deliveredQuantity: 1,
+      returnedQuantity: 1,
+      cancelledQuantity: 1,
+    };
+    const plan = planInventoryLoanClose([complete, partial, untouched]);
+    expect(plan.map((item) => item.releaseQuantity)).toEqual([
+      0, 2147483645, 2147483647,
+    ]);
+    expect(plan.map((item) => item.counts.cancelledQuantity)).toEqual([
+      0, 2147483646, 2147483647,
+    ]);
+    for (const item of plan) {
+      expect(item.reservedRemaining).toBe(0);
+      expect(item.outstanding).toBe(0);
+      expect(() => validateInventoryLoanCounts(item.counts)).not.toThrow();
+    }
+  });
+
+  it('uses frozen fixtures without mutation and returns fresh independent results', () => {
+    const untouched = Object.freeze({ ...initial });
+    const delivered = Object.freeze({ ...returned });
+    const items = Object.freeze([untouched, delivered]);
+    const first = planInventoryLoanClose(items);
+    const second = planInventoryLoanClose(items);
+    expect(first).not.toBe(second);
+    expect(first[0]).not.toBe(second[0]);
+    expect(first[0].counts).not.toBe(untouched);
+    expect(first[1].counts).not.toBe(delivered);
+    first[0].counts.cancelledQuantity = 0;
+    expect(second[0].counts.cancelledQuantity).toBe(10);
+    expect(items).toEqual([initial, returned]);
+    expect(() => planInventoryLoanClose(Object.freeze([untouched]))).toThrow();
+    expect(untouched).toEqual(initial);
+  });
+
+  it('allows untouched items when another item has a returned delivery', () => {
+    const plan = planInventoryLoanClose([initial, returned]);
+    expect(plan.map((item) => item.releaseQuantity)).toEqual([10, 7]);
+    expect(plan[0].counts).toEqual({ ...initial, cancelledQuantity: 10 });
+  });
+});
 
 describe('inventory loan pure accounting', () => {
   it('derives the initial reservation without a physical delivery', () => {

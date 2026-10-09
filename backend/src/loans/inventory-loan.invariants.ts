@@ -40,6 +40,44 @@ export function deriveInventoryLoanQuantities(counts: InventoryLoanCounts) {
   };
 }
 
+// Pure aggregate proposal: no stock delta, terminal status claim or persistence.
+export function planInventoryLoanClose(
+  items: readonly InventoryLoanCounts[],
+): Array<{
+  counts: InventoryLoanCounts;
+  reservedRemaining: number;
+  outstanding: number;
+  releaseQuantity: number;
+}> {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new TypeError('Inventory loan closure requires nonempty items');
+  }
+  const plan = Array.from(items, (counts: InventoryLoanCounts) => {
+    const { reservedRemaining, outstanding } =
+      deriveInventoryLoanQuantities(counts);
+    if (outstanding !== 0) {
+      throw new RangeError(
+        'Inventory loan closure requires all delivered units returned',
+      );
+    }
+    const next = {
+      ...counts,
+      cancelledQuantity: counts.cancelledQuantity + reservedRemaining,
+    };
+    return {
+      counts: next,
+      ...deriveInventoryLoanQuantities(next),
+      releaseQuantity: reservedRemaining,
+    };
+  });
+  if (!plan.some(({ counts }) => counts.deliveredQuantity > 0)) {
+    throw new RangeError(
+      'Zero-delivery inventory loans must be cancelled, not closed',
+    );
+  }
+  return plan;
+}
+
 // Pure accounting proposal only: no persistence, status policy or stock writes.
 export function transitionInventoryLoanItem(
   counts: InventoryLoanCounts,

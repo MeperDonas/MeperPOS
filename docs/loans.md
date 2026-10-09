@@ -318,8 +318,8 @@ units. Stock capacity, availability and transaction policy belong to later write
 Cancellation must resolve delivered outstanding units through recorded returns,
 not by pretending they were undelivered. The item helper only proposes an
 undelivered release; it does not authorize header cancellation. L3C-C owns that
-atomic policy and explicit closure. Inventory status currently has only OPEN and
-CANCELLED; CLOSED and its policy are deliberately deferred, not copied from money.
+atomic policy and explicit closure. The foundation declared OPEN and CANCELLED;
+the additive C-C-A vocabulary and pure close policy are described below.
 
 ### Tenant and evidence boundary
 
@@ -483,7 +483,10 @@ evidence returns 409. There is no automatic reservation retry, conflict upsert,
 or assumption that any unique-key violation means success.
 
 List uses one composed tenant/status/typed-counterparty predicate for page and
-count. Supported statuses are OPEN and CANCELLED, never an invented CLOSED.
+count. The unwired B query validator still accepts only OPEN and CANCELLED;
+its explicit enum-constant allowlist remains OPEN/CANCELLED even after client
+generation adds CLOSED. Lifecycle vocabulary does not expand read-filter semantics
+or the strictly OPEN-only CREATE snapshot.
 Counterparty filters require both type and ID. Page/limit are bounded to
 1–1,000,000 and 1–100, defaulting to 1 and 20. List ordering is createdAt/id
 descending; history is ascending with the same ID tie-breaker. Responses use
@@ -512,6 +515,59 @@ and read permissions before considering rollout. No pricing decision, POS,
 frontend, financial reporting or monetary replay behavior changes here. The
 second-unit rollback boundary is its DTO/service/spec and this documentation;
 retain checked storage, pure invariants and all stock-consumer safeguards.
+
+## Physical-loan close plan (L3C-C C-C-A; UNWIRED)
+
+**Operational rollout remains OFF.** This unit adds lifecycle vocabulary and
+`planInventoryLoanClose`, not transactional servicing, stock writes or HTTP routes.
+The existing CREATE replay validator remains strictly OPEN-only; new enum values
+are not permission to weaken operation-specific payload or snapshot validation.
+
+### Explicit closure policy
+
+| Condition | Pure proposal |
+| --- | --- |
+| Nonempty items with valid Prisma Int counts/allocation | Required; every item is validated, including untouched items |
+| Every item has `deliveredQuantity - returnedQuantity = 0` | Required; all delivered units must have recorded returns |
+| At least one delivered unit somewhere in the loan | Required; zero-delivery loans must use CANCELLED, even if fully released |
+| Partial fulfillment or untouched items | Allowed when another item has a returned delivery |
+| Undelivered remainder | Release `quantity - deliveredQuantity - cancelledQuantity` by increasing cancelledQuantity |
+
+Closure is explicit, never automatic when returns finish. Each plan entry contains
+fresh counts, releaseQuantity and resulting reservedRemaining/outstanding (both
+zero). Quantity, deliveredQuantity and returnedQuantity stay unchanged; prior
+cancellations are preserved. Frozen caller inputs are not mutated, and separate
+calls do not share result objects. Minimum delivery uses a positive-item predicate,
+not an aggregate integer sum. The helper emits no physical stock delta, terminal
+status claim, events, transaction or persistence guarantee.
+
+### Vocabulary versus enforcement
+
+New additive 090600 declares CLOSED status, a CLOSED header-only event with null
+item/quantity, and DELIVER/RETURN/CANCEL/CLOSE operation types alongside CREATE.
+It replaces only the actual event-shape constraint, retaining CREATED and CANCELLED
+headers and positive DELIVERED/RETURNED/CANCELLED item shapes. Undelivered releases
+can retain positive item CANCELLED evidence; CLOSED itself cannot be an item event.
+Nullable operation correlation, same-operation/loan/tenant/author foreign keys and
+immutable event/operation protections remain unchanged. Approved 090400/090500
+are not rewritten; no money, movement linkage or reporting fields are added.
+
+The constraint compares enum text to avoid consuming a newly added enum literal
+before commit. Declaration tests and Prisma validate/generate are **structural**
+checks, not proof of actual migration execution or PostgreSQL-version compatibility.
+All-returned/minimum-delivery and release accounting are pure behavior checks, not
+SQL enforcement of aggregate lifecycle policy. Future parent-owned transactional
+service units must atomically claim status, guard versions/reservations, persist
+counts, operations, correlated events and audit with rollback/replay guarantees.
+Controller wiring, loan-specific movements, frontend and the authorized isolated
+L7 database gate remain pending. No migration was applied or real database used.
+The existing native R3 snapshot/payload consistency warning remains a separate
+follow-up; this unit neither fixes it nor reopens approved B.
+
+Before application, this unit's rollback boundary is the three enum additions,
+090600 migration, close helper/tests, lifecycle declaration checks and this section;
+retain approved B storage/service and all earlier quantity/reservation safeguards.
+After application, any rollback requires a separately approved data-safe plan.
 
 ## Verification and next slice
 

@@ -504,6 +504,7 @@ model MoneyLoanEvent {
 enum InventoryLoanStatus {
   OPEN
   CANCELLED
+  CLOSED
 }
 
 enum InventoryLoanEventType {
@@ -511,6 +512,7 @@ enum InventoryLoanEventType {
   DELIVERED
   RETURNED
   CANCELLED
+  CLOSED
 }
 
 model InventoryLoan {
@@ -558,6 +560,10 @@ model InventoryLoanItem {
 // Completed immutable replay evidence; no pending operation state.
 enum InventoryLoanOperationType {
   CREATE
+  DELIVER
+  RETURN
+  CANCEL
+  CLOSE
 }
 
 model InventoryLoanOperation {

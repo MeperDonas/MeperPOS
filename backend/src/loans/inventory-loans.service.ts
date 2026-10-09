@@ -443,7 +443,8 @@ export class InventoryLoansService {
     const orgId = organization(organizationId);
     if (
       query.status !== undefined &&
-      !Object.values(InventoryLoanStatus).includes(query.status)
+      query.status !== InventoryLoanStatus.OPEN &&
+      query.status !== InventoryLoanStatus.CANCELLED
     ) {
       throw new BadRequestException('Estado de préstamo inválido');
     }
