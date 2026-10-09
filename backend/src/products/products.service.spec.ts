@@ -70,6 +70,7 @@ describe('ProductsService — Opt-in tax resolution', () => {
     taxable: overrides.taxable ?? false,
     taxRate: overrides.taxRate ?? 0,
     stock: 10,
+    reservedStock: 0,
     minStock: 5,
     tracksStock: true,
     imageUrl: null,

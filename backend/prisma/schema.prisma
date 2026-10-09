@@ -165,6 +165,7 @@ model Product {
   taxRate             Decimal             @default(0) @db.Decimal(5, 2)
   taxable             Boolean             @default(false)
   stock               Int                 @default(0)
+  reservedStock       Int                 @default(0)
   minStock            Int                 @default(0)
   type                ProductType         @default(PRODUCT)
   tracksStock         Boolean             @default(true)

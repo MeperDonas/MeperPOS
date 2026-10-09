@@ -57,6 +57,7 @@ describe('ProductsService — product versus service', () => {
     taxable: false,
     taxRate: 0,
     stock: 10,
+    reservedStock: 0,
     minStock: 5,
     type: ProductType.PRODUCT,
     imageUrl: null,

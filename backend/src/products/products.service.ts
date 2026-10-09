@@ -117,6 +117,47 @@ function assertValidPromotion(
   }
 }
 
+// Missing/corrupt counters must not be interpreted as zero or silently repaired.
+function assertReservationCompatible(
+  existing: StockSubject & {
+    stock: number;
+    reservedStock: number;
+    active: boolean;
+  },
+  next: StockSubject & { stock: number; active: boolean },
+): void {
+  const reserved = existing.reservedStock;
+  if (
+    !Number.isInteger(reserved) ||
+    reserved < 0 ||
+    reserved > existing.stock
+  ) {
+    throw new ConflictException(
+      'El inventario reservado del producto es inconsistente',
+    );
+  }
+  if (
+    reserved > 0 &&
+    (!existing.active ||
+      !tracksStock(existing) ||
+      !next.active ||
+      !tracksStock(next) ||
+      next.stock < reserved)
+  ) {
+    throw new ConflictException(
+      'No se puede reducir el stock por debajo de lo reservado, desactivar, eliminar o dejar de controlar un producto con reservas pendientes',
+    );
+  }
+}
+
+function assertNoReservationInput(dto: object): void {
+  if ('reservedStock' in dto) {
+    throw new BadRequestException(
+      'El inventario reservado no se puede modificar desde productos',
+    );
+  }
+}
+
 @Injectable()
 export class ProductsService {
   constructor(
@@ -133,6 +174,7 @@ export class ProductsService {
     if (!organizationId) {
       throw new BadRequestException('Organization ID is required for this operation');
     }
+    assertNoReservationInput(createProductDto);
     const {
       sku,
       barcode: rawBarcode,
@@ -361,6 +403,7 @@ export class ProductsService {
     if (!organizationId) {
       throw new BadRequestException('Organization ID is required for this operation');
     }
+    assertNoReservationInput(updateProductDto);
     const existingProduct = await this.prisma.product.findFirst({
       where: { id, organizationId, active: true },
     });
@@ -434,6 +477,12 @@ export class ProductsService {
       updateProductDto.stock ?? previousStock,
     );
 
+    assertReservationCompatible(existingProduct, {
+      ...effectiveSubject,
+      stock: newStock,
+      active: updateProductDto.active ?? existingProduct.active,
+    });
+
     // Apply the same opt-in tax invariant as create: `taxable=true` requires a
     // positive rate; `taxable=false` forces the stored rate back to 0.
     const taxData =
@@ -458,7 +507,13 @@ export class ProductsService {
     );
 
     const updateResult = await this.prisma.product.updateMany({
-      where: { id, version: existingProduct.version, active: true },
+      where: {
+        id,
+        organizationId,
+        version: existingProduct.version,
+        reservedStock: existingProduct.reservedStock,
+        active: true,
+      },
       data: {
         ...updateProductDto,
         ...taxData,
@@ -474,7 +529,7 @@ export class ProductsService {
     }
 
     const product = await this.prisma.product.findFirst({
-      where: { id, organizationId, active: true },
+      where: { id, organizationId, active: updateProductDto.active ?? true },
       include: { category: true },
     });
 
@@ -524,11 +579,28 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    return this.prisma.product.update({
-      where: { id },
-      data: { active: false },
-      include: { category: true },
-    });
+    assertReservationCompatible(product, { ...product, active: false });
+    try {
+      return await this.prisma.product.update({
+        where: {
+          id,
+          organizationId,
+          active: true,
+          version: product.version,
+          reservedStock: product.reservedStock,
+        },
+        data: { active: false, version: { increment: 1 } },
+        include: { category: true },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new ConflictException('Product was modified by another user');
+      }
+      throw error;
+    }
   }
 
   async remove(id: string, organizationId: string | undefined) {
@@ -543,11 +615,24 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
+    assertReservationCompatible(product, { ...product, active: false });
     try {
       return await this.prisma.product.delete({
-        where: { id },
+        where: {
+          id,
+          organizationId,
+          active: product.active,
+          version: product.version,
+          reservedStock: product.reservedStock,
+        },
       });
     } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new ConflictException('Product was modified by another user');
+      }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2003'

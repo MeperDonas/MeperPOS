@@ -190,6 +190,41 @@ append-only constraints remain unchanged. Existing rows become MONEY without
 rewriting history or audit. Decimal totals are valid for both monetary types;
 future quantity-based inventory obligations must not use this presenter/ledger.
 
+## Reservation foundation (L3B-A; not operational)
+
+`Product.stock` still means physical on-hand units. The additive migration adds
+`reservedStock Int @default(0)` with SQL checks requiring
+`0 <= reservedStock <= stock`; positive reservations require an active, tracked
+`PRODUCT` (the physical product enum also covers equipment). SERVICE, untracked
+and inactive rows must have zero reservations. Existing rows receive zero; a
+negative existing stock fails migration validation instead of being rewritten.
+Deployment preflight and actual constraint enforcement remain L7 checks.
+
+Product edits retain version CAS and additionally compare the read reservation
+quantity and tenant in the conditional write. With reservations, stock equal to
+or above the counter and unrelated edits remain allowed; reductions below it,
+service/untracked conversion, `update(active: false)`, dedicated deactivation and
+hard deletion return 409. Deactivation/deletion also guard version and reservation
+quantity; a stale snapshot conflicts before any inventory movement is written.
+Missing or inconsistent reservation counters fail closed, never default to zero.
+Product create/update reject caller-supplied `reservedStock`; no DTO accepts it.
+
+**Reservation writes remain disabled.** There is no reserve/release/consume API or
+helper, availability field, quantity ledger, inventory loan, POS or reporting
+change in this slice. Existing availability/search/low-stock math is unchanged.
+L3B-B must protect sales/cancellation and audit other stock writers; L3B-C must
+complete server availability contracts before reservation creation is enabled.
+Later L3C owns a separate per-loan quantity ledger updated atomically with this
+counter, not the monetary ledger or a generic inventory/accounting engine.
+
+Review the additive schema/migration pair and the product reservation tests with
+the existing product/service semantics suites. SQL text assertions and mocked
+conditional writes do not prove deployed constraints or PostgreSQL concurrency.
+Before deployment, L7 must prove migration preflight, invalid writes, real races
+and rollback. This unapplied slice can be rolled back as one schema/migration,
+product guards/tests and documentation unit; once deployed, removing a populated
+counter requires a separately approved data-safe rollback plan.
+
 ## Verification and next slice
 
 Run the focused suite from `backend`:
