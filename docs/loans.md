@@ -210,9 +210,9 @@ Missing or inconsistent reservation counters fail closed, never default to zero.
 Product create/update reject caller-supplied `reservedStock`; no DTO accepts it.
 
 **Reservation writes remain disabled.** There is no reserve/release/consume API,
-quantity ledger or inventory loan. L3B-B protects stock consumers and L3B-C adds
-server availability as described below; neither enables reservation creation or
-changes POS or reporting.
+operational quantity ledger or inventory-loan API. L3B-B protects stock consumers
+and L3B-C adds server availability as described below; neither enables reservation
+creation or changes POS or reporting.
 Later L3C owns a separate per-loan quantity ledger updated atomically with this
 counter, not the monetary ledger or a generic inventory/accounting engine.
 
@@ -289,19 +289,96 @@ execution, locking or constraints; L7 retains those proofs. Rollback boundary:
 this availability helper/wiring, its product contract tests/fixtures and this
 section; preserve the L3B-A/B guards and keep reservation writers disabled.
 
+## Physical-loan foundation (L3C-A; UNEXPOSED)
+
+InventoryLoan, InventoryLoanItem and InventoryLoanEvent are separate from the
+MONEY/SERVICE monetary ledger. This slice adds persistence declarations and pure
+quantity rules only: **reservation writers remain OFF**, with no inventory-loan
+endpoint, module wiring, transaction writer, sale, Payment, report or POS change.
+Existing monetary servicing and stored replay snapshots are unchanged.
+
+### Approved accounting: reserve, then explicitly deliver
+
+| Operation | Physical stock | Reservation | Item evidence |
+| --- | --- | --- | --- |
+| Create | Unchanged | Increase by item quantity | Positive quantity; counters start at zero |
+| Explicit delivery | Decrease by delivered units | Decrease by the same units | Increase deliveredQuantity |
+| Recorded return | Increase by returned units | Unchanged; never release twice | Increase returnedQuantity |
+| Undelivered cancellation | Unchanged | Release remaining undelivered units | Increase cancelledQuantity |
+
+Derive `reservedRemaining = quantity - deliveredQuantity - cancelledQuantity`
+and `outstanding = deliveredQuantity - returnedQuantity`; neither is stored.
+Counts must be finite integers within Prisma Int (0–2,147,483,647), with positive
+item quantity, `returnedQuantity <= deliveredQuantity`, and
+`deliveredQuantity <= quantity - cancelledQuantity`. Pure transitions return new
+counts and stock/reservation deltas without mutating inputs or writing anything.
+A return does not reopen the reservation or permit a second delivery of those
+units. Stock capacity, availability and transaction policy belong to later writers.
+
+Cancellation must resolve delivered outstanding units through recorded returns,
+not by pretending they were undelivered. The item helper only proposes an
+undelivered release; it does not authorize header cancellation. L3C-C owns that
+atomic policy and explicit closure. Inventory status currently has only OPEN and
+CANCELLED; CLOSED and its policy are deliberately deferred, not copied from money.
+
+### Tenant and evidence boundary
+
+Exactly one nullable customer/supplier/employee is selected. Composite foreign
+keys bind customers and suppliers to the loan organization; employeeId references
+the existing OrganizationUser `[userId, organizationId]` membership. Default SQL
+MATCH SIMPLE permits the unselected nullable counterparties. Item foreign keys
+bind both loan and Product to the same tenant. An event's optional item references
+`[id, loanId, organizationId]`, preventing cross-loan history even within one org.
+Existing primary-key relations remain intact; additive directory/product unique
+indexes support these foreign keys. Creator/event actors reference User; role and
+active-entity eligibility checks remain later service responsibilities. No
+isLoanable field, new employee directory or database active-entity guarantee exists.
+
+CREATED is a header event with null item/quantity. DELIVERED and RETURNED require
+an item and positive quantity. CANCELLED supports a null-item/null-quantity header
+plus positive per-item undelivered reservation releases. A zero-release item gets
+no item cancellation event; the header can still record cancellation. L3C-B must
+store immutable actor/payload/result and idempotency at **operation level**, since
+one operation can append multiple item events. No per-item unique request key is
+introduced here.
+
+SQL checks enforce quantity bounds/event shapes. Triggers reject event updates or
+deletes, loan/item deletion, identity changes (including item loan/product/quantity)
+and decreasing accumulated item counters. They do not prove ledger/counter/stock
+agreement against arbitrary direct writes. L3C-B creation/read/history/replay and
+L3C-C atomic delivery/return/cancellation must enforce that agreement with tenant,
+role, active tracked PRODUCT, version/CAS, audit and replay checks before rollout.
+
+### Review, proof and rollback
+
+Review pure accounting tests first, then schema/FK/event-shape declarations and
+immutable-evidence triggers. Text assertions prove declarations only; schema
+validation/client generation do not execute PostgreSQL. L7 still needs authorized
+isolated migration execution, FK/check/trigger rejection, atomic rollback and real
+race/reconciliation proof. No migration has been applied by this unit.
+
+Before application, the rollback boundary is these three models, their required
+reverse relations/composite indexes, the inventory foundation migration, pure
+rules/tests, structural spec and this section. Preserve all monetary and L3B
+reservation guards. After deployment/population, require a separately authorized
+data-safe rollback plan; never discard loan evidence or reset reservations.
+
 ## Verification and next slice
 
 Run the focused suite from `backend`:
 
 ```text
-npm test -- --runInBand --testPathPatterns=src/loans/
+node node_modules/jest/bin/jest.js --runInBand --no-cache --runTestsByPath src/loans/inventory-loan.invariants.spec.ts src/prisma/inventory-loan-migration.spec.ts
 ```
 
 Use locally installed Prisma for generation and schema-only validation; validation
 uses temporary credential-free `postgresql://localhost/schema_validation` with the
-previous environment restored in `finally`. Run `npm run build` and read-only
-ESLint with explicitly enumerated loan TypeScript files, never backend auto-fix
-lint or database tests without authorization.
+previous environment restored in `finally`; block dotenv loading, including the
+config import, so no real environment file is read. Run direct
+`node node_modules/typescript/bin/tsc -p tsconfig.build.json --incremental false`
+and read-only ESLint with explicitly enumerated loan TypeScript files, never
+backend auto-fix lint or database tests without authorization. This is not the
+npm production build (whose prebuild hook loads a production environment file).
 
 Mocked unit tests check transaction-client use and failure propagation; they do
 **not** prove PostgreSQL rollback, trigger execution or runtime migration success.
@@ -316,5 +393,5 @@ are not runtime concurrency proof. List/detail currently load each selected loan
 ledger to compute exact totals; very large histories may need a later bounded
 aggregation design without dropping history correctness.
 
-L3B–L6 still own inventory loans, POS integration and the frontend. No
-existing sales or expense report includes loans.
+L3C-B/C still own operational inventory loans; L4–L6 own POS integration and the
+frontend. No existing sales or expense report includes loans.
