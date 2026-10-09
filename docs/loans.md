@@ -212,8 +212,8 @@ Product create/update reject caller-supplied `reservedStock`; no DTO accepts it.
 **Reservation writes remain disabled.** There is no reserve/release/consume API or
 helper, availability field, quantity ledger, inventory loan, POS or reporting
 change in this slice. Existing availability/search/low-stock math is unchanged.
-L3B-B must protect sales/cancellation and audit other stock writers; L3B-C must
-complete server availability contracts before reservation creation is enabled.
+L3B-B protects sales/cancellation and the service backfill as described below;
+L3B-C must complete server availability contracts before reservation creation is enabled.
 Later L3C owns a separate per-loan quantity ledger updated atomically with this
 counter, not the monetary ledger or a generic inventory/accounting engine.
 
@@ -224,6 +224,40 @@ Before deployment, L7 must prove migration preflight, invalid writes, real races
 and rollback. This unapplied slice can be rolled back as one schema/migration,
 product guards/tests and documentation unit; once deployed, removing a populated
 counter requires a separately approved data-safe rollback plan.
+
+## Stock-consumer safeguards (L3B-B; reservations still disabled)
+
+Immediate sales can consume only `stock - reservedStock` for tracked physical
+products. Inside the existing Serializable transaction, each line reads the live
+counter/version and conditionally decrements stock while incrementing version.
+The predicate pins tenant, active tracked PRODUCT eligibility, observed version,
+observed reserved quantity and `stock >= reservedStock + quantity`. A stale or
+insufficient snapshot returns a conflict; reservations are never consumed here.
+Prices, tax, cost snapshots, payments and override audits keep their existing
+semantics. SERVICE and untracked lines still have no inventory effects.
+
+Cancellation first conditionally claims the same-tenant COMPLETED sale inside
+its effect transaction. A losing/repeated cancellation retains the existing
+completed-sale error and cannot restock. Each tracked line uses an atomic stock
+increment plus version increment, guarded by tenant, observed version and
+reservation quantity. A failed restock aborts the transaction, including the
+status claim and any earlier movements; no stale absolute stock write remains.
+RETURNED_PARTIAL continues to change status without restocking. This does not
+introduce a refund, reopen or inventory-loan cancellation policy.
+
+The service backfill pins live tenant/stock/version and requires exactly zero
+reservations before conversion to SERVICE/stock zero. Positive or missing
+counters refuse conversion; a changed counter fails the tested CAS predicate.
+It performs no reservation repair. Purchase receiving already uses versioned
+atomic increments, and product imports delegate to product creation.
+
+Review sale CAS predicates, cancellation claim-before-effects tests, then the
+pure backfill guard consumed by the CLI. DB-free mocks prove predicate structure
+and transaction failure propagation, **not** real concurrent locking or database
+rollback. No backfill CLI or PostgreSQL operation was run for this slice. L7
+still owns those proofs. Rollback boundary: sale safeguards/tests, the backfill
+guard/CLI wiring/tests and this documentation; retain the L3B-A schema/product
+guards and keep all reservation writers disabled.
 
 ## Verification and next slice
 

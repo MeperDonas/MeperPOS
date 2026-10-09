@@ -341,14 +341,37 @@ export class SalesService {
                 tracksStock: saleItem.productTracksStock,
               })
             ) {
+              // Read inside the transaction, including repeated lines for the
+              // same product: each decrement advances its version.
+              const observed = await tx.product.findFirst({
+                where: { id: saleItem.productId, organizationId },
+                select: { stock: true, reservedStock: true, version: true },
+              });
+              if (
+                !observed ||
+                !Number.isInteger(observed.version) ||
+                !Number.isInteger(observed.reservedStock) ||
+                observed.reservedStock < 0 ||
+                observed.stock - observed.reservedStock < saleItem.quantity
+              ) {
+                throw new ConflictException(
+                  `Insufficient stock for product ${saleItem.productId}`,
+                );
+              }
               const updatedProduct = await tx.product.updateMany({
                 where: {
                   id: saleItem.productId,
+                  organizationId,
                   active: true,
-                  stock: { gte: saleItem.quantity },
+                  type: ProductType.PRODUCT,
+                  tracksStock: true,
+                  version: observed.version,
+                  reservedStock: observed.reservedStock,
+                  stock: { gte: observed.reservedStock + saleItem.quantity },
                 },
                 data: {
                   stock: { decrement: saleItem.quantity },
+                  version: { increment: 1 },
                 },
               });
 
@@ -618,6 +641,20 @@ export class SalesService {
 
     if (updateSaleDto.status === 'CANCELLED') {
       await this.prisma.$transaction(async (tx) => {
+        // Sale has no version column. Claim its expected state before effects;
+        // a concurrent loser cannot restore inventory a second time.
+        const claimed = await tx.sale.updateMany({
+          where: { id, organizationId, status: 'COMPLETED' },
+          data: {
+            status: 'CANCELLED',
+            cancelledAt: new Date(),
+            cancelledById: userId,
+            cancelReason: updateSaleDto.cancelReason ?? null,
+          },
+        });
+        if (claimed.count === 0) {
+          throw new BadRequestException('Only completed sales can be updated');
+        }
         for (const item of existingSale.items) {
           const product = await tx.product.findFirst({
             where: {
@@ -627,13 +664,36 @@ export class SalesService {
           });
 
           if (product && tracksStock(product)) {
+            if (
+              !Number.isInteger(product.version) ||
+              !Number.isInteger(product.reservedStock) ||
+              product.reservedStock < 0 ||
+              product.reservedStock > product.stock
+            ) {
+              throw new ConflictException(
+                `Stock changed for product ${item.productId}`,
+              );
+            }
             const previousStock = product.stock;
             const newStock = previousStock + item.quantity;
 
-            await tx.product.update({
-              where: { id: item.productId },
-              data: { stock: newStock },
+            const restored = await tx.product.updateMany({
+              where: {
+                id: item.productId,
+                organizationId,
+                version: product.version,
+                reservedStock: product.reservedStock,
+              },
+              data: {
+                stock: { increment: item.quantity },
+                version: { increment: 1 },
+              },
             });
+            if (restored.count === 0) {
+              throw new ConflictException(
+                `Stock changed for product ${item.productId}`,
+              );
+            }
 
             await tx.inventoryMovement.create({
               data: {
@@ -650,16 +710,6 @@ export class SalesService {
             });
           }
         }
-
-        await tx.sale.update({
-          where: { id },
-          data: {
-            status: 'CANCELLED',
-            cancelledAt: new Date(),
-            cancelledById: userId,
-            cancelReason: updateSaleDto.cancelReason ?? null,
-          },
-        });
       });
 
       return this.findOne(id, organizationId);

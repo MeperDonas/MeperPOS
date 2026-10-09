@@ -9,6 +9,7 @@ import { SalesService } from './sales.service';
 
 describe('SalesService', () => {
   let service: SalesService;
+  const stockRow = () => ({ stock: 10, reservedStock: 0, version: 0 });
 
   // Acting principals for the explicit price-override permission.
   const adminUser = {
@@ -401,7 +402,7 @@ describe('SalesService', () => {
       sale: { create: jest.fn() },
       saleItem: { create: jest.fn() },
       product: {
-        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        findFirst: jest.fn().mockResolvedValue(stockRow()),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       inventoryMovement: { create: jest.fn() },
@@ -483,7 +484,7 @@ describe('SalesService', () => {
       sale: { create: jest.fn() },
       saleItem: { create: jest.fn() },
       product: {
-        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        findFirst: jest.fn().mockResolvedValue(stockRow()),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       inventoryMovement: { create: jest.fn() },
@@ -547,7 +548,7 @@ describe('SalesService', () => {
       sale: { create: jest.fn() },
       saleItem: { create: jest.fn() },
       product: {
-        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        findFirst: jest.fn().mockResolvedValue(stockRow()),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       inventoryMovement: { create: jest.fn() },
@@ -606,7 +607,7 @@ describe('SalesService', () => {
       sale: { create: jest.fn() },
       saleItem: { create: jest.fn() },
       product: {
-        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        findFirst: jest.fn().mockResolvedValue(stockRow()),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       inventoryMovement: { create: jest.fn() },
@@ -699,7 +700,7 @@ describe('SalesService', () => {
       sale: { create: jest.fn() },
       saleItem: { create: jest.fn() },
       product: {
-        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        findFirst: jest.fn().mockResolvedValue(stockRow()),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       inventoryMovement: { create: jest.fn() },
@@ -765,7 +766,7 @@ describe('SalesService', () => {
       sale: { create: jest.fn() },
       saleItem: { create: jest.fn() },
       product: {
-        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        findFirst: jest.fn().mockResolvedValue(stockRow()),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       inventoryMovement: { create: jest.fn() },
@@ -951,11 +952,11 @@ describe('SalesService', () => {
   it('update validates ownership with organizationId and applies cancel fields', async () => {
     const txMock = {
       product: {
-        findFirst: jest.fn().mockResolvedValue({ stock: 5 }),
-        update: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue({ ...stockRow(), stock: 5 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       inventoryMovement: { create: jest.fn() },
-      sale: { update: jest.fn() },
+      sale: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     };
 
     prismaMock.sale.findFirst
@@ -1007,7 +1008,7 @@ describe('SalesService', () => {
       }),
     );
 
-    expect(txMock.sale.update).toHaveBeenCalledWith(
+    expect(txMock.sale.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           status: 'CANCELLED',
@@ -1038,7 +1039,7 @@ describe('SalesService', () => {
       sale: { create: jest.fn() },
       saleItem: { create: jest.fn() },
       product: {
-        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        findFirst: jest.fn().mockResolvedValue(stockRow()),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       inventoryMovement: { create: jest.fn() },
@@ -1278,7 +1279,7 @@ describe('SalesService', () => {
       sale: { create: jest.fn() },
       saleItem: { create: jest.fn() },
       product: {
-        findFirst: jest.fn().mockResolvedValue({ stock: 10 }),
+        findFirst: jest.fn().mockResolvedValue(stockRow()),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       inventoryMovement: { create: jest.fn() },
