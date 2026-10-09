@@ -315,10 +315,11 @@ counts and stock/reservation deltas without mutating inputs or writing anything.
 A return does not reopen the reservation or permit a second delivery of those
 units. Stock capacity, availability and transaction policy belong to later writers.
 
-Cancellation must resolve delivered outstanding units through recorded returns,
-not by pretending they were undelivered. The item helper only proposes an
-undelivered release; it does not authorize header cancellation. L3C-C owns that
-atomic policy and explicit closure. The foundation declared OPEN and CANCELLED;
+Header cancellation is restricted to loans with no historical delivery on any
+item. Once any unit has been delivered, even when fully returned, use explicit
+CLOSED instead; outstanding delivery must first be resolved by recorded returns.
+The item helper only proposes an undelivered release; it does not authorize
+header cancellation. L3C-C owns that atomic policy and explicit closure. The foundation declared OPEN and CANCELLED;
 the additive C-C-A vocabulary and pure close policy are described below.
 
 ### Tenant and evidence boundary
@@ -648,8 +649,9 @@ metadata and before-count evidence never become public response fields.
   linkage. DELIVERED/RETURNED loan events and AuditLog are not proof of an
   inventory movement ledger, reporting or export integration. SALE/RETURN
   movement types are not repurposed.
-- **Remaining lifecycle/HTTP gate:** CANCEL, CLOSE, lifecycle queries, controller
-  permissions/wiring and frontend remain future work. No automatic closure,
+- **Remaining lifecycle/HTTP gate:** internal CANCEL/CLOSE are described below;
+  lifecycle queries, controller permissions/wiring and frontend remain gated.
+  No automatic closure,
   payment, sale or money semantics are introduced.
 - **L7 database gate:** predicate-aware cloned-store tests prove local success-only
   commit, CAS predicates, staged rollback and outside-abort reconciliation, not
@@ -664,6 +666,101 @@ Before migration application, this unit's rollback boundary is the two methods,
 operation DTO, receipt helpers, expanded local spec and this section. Preserve
 CREATE/read behavior, foundation helpers/storage and all stock-consumer guards.
 No production-readiness or native review approval is claimed.
+
+## Internal physical cancellation and closure (L3C-C C-C-C; UNWIRED)
+
+**Operational rollout remains OFF; HTTP is unwired and all migrations remain
+unapplied.** Direct-call `cancel(id, dto, actor)` and `close(id, dto, actor)` add
+explicit terminal transitions only. The existing 090600 event shapes and
+operation storage suffice; this unit changes no schema, SQL, pure helper,
+product-conversion guard, module, controller or public query allowlist.
+
+### Policy and request
+
+Both methods accept only `{ requestKey }`: a raw string trimmed to 1–100
+characters. Runtime validation and the terminal DTO reject unknown fields,
+coercible non-string keys and blank loan identities. Neither reason nor item
+quantities are request fields. Actual same-tenant OWNER/ADMIN membership with
+an active User is required before replay, including SUPER_ADMIN. The actor may
+be different from the original creator; CASHIER has no inherited permission.
+
+| Transition | Required OPEN-loan evidence | Result |
+| --- | --- | --- |
+| CANCEL → CANCELLED | Nonempty valid items; **every deliveredQuantity is zero** | Release all undelivered remaining reservations |
+| CLOSE → CLOSED | Existing pure close plan: nonempty valid items, every outstanding count zero, at least one historical delivery | Release all undelivered remaining reservations |
+
+Historical delivery permanently excludes CANCEL, even after full returns.
+Partial fulfillment and untouched items permit CLOSE when another item has a
+fully returned delivery. Neither full return nor zero remaining reservation
+changes status automatically. Both operations increase only cancelledQuantity
+by the remaining undelivered allocation; quantity, deliveredQuantity,
+returnedQuantity and physical stock are unchanged. Prior cancellations remain.
+There is no autoreservation, restoration, redelivery, reopening, payment, sale,
+MoneyLoan or InventoryMovement write.
+
+### Atomic terminal claim and evidence
+
+1. In one Serializable transaction, authorize the actor, check the tenant-wide
+   key, read the scoped header and validate every item's tenant/loan binding.
+2. Claim OPEN/status/version once, set the terminal status and increment version.
+   Pin **every** item by tenant, loan, item/product IDs, allocation and observed
+   counters, including zero-release items. Items have no version column.
+3. Aggregate positive releases by product, then process sorted product IDs with
+   one reservation-only CAS each. The schema has no unique loan/product key;
+   duplicate products across distinct items are supported, not double-written.
+   Pin active tracked PRODUCT eligibility, tenant, version, stock and reservation
+   counter; reject Int overflow, under-reservation and inconsistent stock. Stock
+   is compared but never modified. Zero-release products are not read or written;
+   they do not fabricate physical restoration or product-conversion safeguards.
+4. Store one completed immutable CANCEL/CLOSE operation before correlated events.
+   Append positive per-item **CANCELLED** release events only when quantity > 0,
+   then exactly one null-item/null-quantity CANCELLED or CLOSED header and the
+   corresponding INVENTORY_LOAN_CANCELLED/INVENTORY_LOAN_CLOSED AuditLog.
+
+Every header/item/product CAS loss or thrown write, operation failure, later
+release event, header event or audit failure aborts all effects together.
+P2002/P2034 reconciliation runs only outside the aborted transaction, rechecks
+active administrative membership, then reads completed tenant-key evidence.
+Absent or conflicting winners return 409; there is no blind retry or upsert.
+
+### Terminal receipt and replay
+
+The separate exact-key version-1 terminal receipt contains type, actor, ordered
+item IDs, positive releases and full safe before/after projections. It does not
+weaken CREATE's parser or the DELIVER/RETURN receipt contract. Canonical requests
+bind operation type and loan identity; operation metadata binds tenant, key and
+actor. Other operation types, actors or payloads using the key conflict.
+
+Validation requires before OPEN and the operation-specific terminal after status,
+valid creator/timestamp, exactly one nonnull nonblank counterparty (others null),
+unique ordered item IDs, nonblank product IDs, bounded counts and derived values.
+Products need not be unique across items. Header/item identities and metadata
+remain identical except status and cancelledQuantity. Recomputing the complete
+pure close plan or never-delivered cancel plan must reproduce every count and
+release, including untouched/zero-release items. Extra/private fields reject.
+Only the validated after projection escapes; payloads, before evidence and receipt
+metadata are not returned. Replays neither mutate evidence nor consult live
+status, counts, product controls or names.
+
+### Review and proof limits
+
+Review terminal policy exclusions first, then all-item CAS and same-product
+aggregation, event order/rollback, strict DTO and corrupt-receipt cases. The
+success-only cloned-store harness proves mocked predicates and staged rollback,
+**not** PostgreSQL constraints, locks, interleavings or actual database rollback.
+No new SQL proof, Prisma validation/generation or migration execution is claimed.
+Prior writer CLI evidence is reused only; independent fresh foundation validation
+remains blocked, not passed. L7 isolated database/runtime authorization proof is
+pending. Product conversion, movement ledger/report/export integration, frontend,
+HTTP permissions/wiring and CLOSED query-filter activation remain separate gates.
+The informational R3 CREATE snapshot/payload and servicing abort-authorization
+follow-ups are not reopened or corrected by this terminal-only unit.
+
+Before application, rollback is confined to terminal methods/receipt helpers,
+terminal DTO, terminal tests/harness extensions and this contract. Preserve
+CREATE, DELIVER/RETURN, OPEN/CANCELLED query behavior and all approved foundation
+storage/helpers and stock-consumer safeguards. No production-readiness or native
+review verdict is claimed.
 
 ## Verification and next slice
 

@@ -6,7 +6,10 @@ import { RequestUser } from '../common/interfaces/request-user.interface';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInventoryLoanDto } from './dto/create-inventory-loan.dto';
 import { CounterpartyType } from './dto/create-loan.dto';
-import { InventoryLoanOperationDto } from './dto/inventory-loan-operation.dto';
+import {
+  InventoryLoanOperationDto,
+  InventoryLoanTerminalDto,
+} from './dto/inventory-loan-operation.dto';
 import { InventoryLoansService } from './inventory-loans.service';
 
 const p1 = '00000000-0000-4000-8000-000000000001';
@@ -140,19 +143,23 @@ function harness() {
     loan: Loan,
     select: Prisma.InventoryLoanSelect | null | undefined,
   ) => {
-    const relation = select?.items as { where: Row };
+    const relation = select?.items as { where?: Row; select?: Row };
     const { version, ...publicLoan } = loan;
     return {
       ...publicLoan,
       ...(select?.version ? { version } : {}),
       items: loan.items
-        .filter((item) => matches(item, relation.where))
+        .filter((item) => matches(item, relation.where ?? {}))
         .sort((a, b) => a.id.localeCompare(b.id))
         .map((item) => {
           const { organizationId, loanId, ...data } = item;
           void organizationId;
           void loanId;
-          return data;
+          return {
+            ...data,
+            ...(relation.select?.organizationId ? { organizationId } : {}),
+            ...(relation.select?.loanId ? { loanId } : {}),
+          };
         }),
     };
   };
@@ -233,6 +240,7 @@ function harness() {
       const row = working.loans.find((row) => matches(row, where as Row));
       if (!row) return { count: 0 };
       row.version += (data.version as { increment: number }).increment;
+      if (typeof data.status === 'string') row.status = data.status;
       return { count: 1 };
     },
   );
@@ -259,6 +267,10 @@ function harness() {
         row.returnedQuantity += (
           data.returnedQuantity as { increment: number }
         ).increment;
+      if (data.cancelledQuantity)
+        row.cancelledQuantity += (
+          data.cancelledQuantity as { increment: number }
+        ).increment;
       return { count: 1 };
     },
   );
@@ -280,6 +292,7 @@ function harness() {
       calls.push('event');
       if (
         fail === 'event' ||
+        (fail === 'header-event' && data.itemId === null) ||
         (fail === 'later-event' &&
           typeof data.itemId === 'string' &&
           data.itemId.endsWith('101'))
@@ -1768,6 +1781,1154 @@ describe.each(['deliver', 'returnItems'] as const)(
         expect(result.createdById).toBe('actor');
         expect(result).not.toHaveProperty('requestPayload');
         expect(result).not.toHaveProperty('before');
+      },
+    );
+  },
+);
+
+describe('internal terminal behavior — initial test-first cases', () => {
+  it('cancels a never-delivered loan and releases only reservations', async () => {
+    const h = harness();
+    const loan = await h.service.create(dto, actor);
+    await expect(
+      h.service.cancel(loan.id, { requestKey: 'cancel-1' }, actor),
+    ).resolves.toMatchObject({
+      status: 'CANCELLED',
+      items: [
+        {
+          quantity: 2,
+          deliveredQuantity: 0,
+          returnedQuantity: 0,
+          cancelledQuantity: 2,
+          reservedRemaining: 0,
+          outstanding: 0,
+        },
+      ],
+    });
+    expect(h.state().products[0]).toMatchObject({
+      stock: 10,
+      reservedStock: 1,
+    });
+    expect(h.state().loans[0].status).toBe('CANCELLED');
+  });
+  it('closes a partial fully-returned delivery and releases the undelivered remainder', async () => {
+    const h = harness();
+    const loan = await h.service.create(dto, actor);
+    const servicing = {
+      requestKey: 'deliver-1',
+      items: [{ itemId: loan.items[0].id, quantity: 1 }],
+    };
+    await h.service.deliver(loan.id, servicing, actor);
+    await h.service.returnItems(
+      loan.id,
+      { ...servicing, requestKey: 'return-1' },
+      actor,
+    );
+    expect(h.state().loans[0].status).toBe('OPEN');
+    await expect(
+      h.service.close(loan.id, { requestKey: 'close-1' }, actor),
+    ).resolves.toMatchObject({
+      status: 'CLOSED',
+      items: [
+        {
+          quantity: 2,
+          deliveredQuantity: 1,
+          returnedQuantity: 1,
+          cancelledQuantity: 1,
+          reservedRemaining: 0,
+          outstanding: 0,
+        },
+      ],
+    });
+    expect(h.state().products[0]).toMatchObject({
+      stock: 10,
+      reservedStock: 1,
+    });
+    expect(h.state().loans[0].status).toBe('CLOSED');
+  });
+});
+
+type TerminalMethod = 'cancel' | 'close';
+async function prepareTerminal(
+  method: TerminalMethod,
+  counterpartyType = CounterpartyType.CUSTOMER,
+) {
+  const h = harness();
+  const loan = await h.service.create(
+    {
+      ...dto,
+      counterpartyType,
+      items: [...dto.items, { productId: p2, quantity: 2 }],
+    },
+    actor,
+  );
+  if (method === 'close') {
+    const input = {
+      requestKey: 'setup-delivery',
+      items: [{ itemId: loan.items[0].id, quantity: 1 }],
+    };
+    await h.service.deliver(loan.id, input, actor);
+    await h.service.returnItems(
+      loan.id,
+      { ...input, requestKey: 'setup-return' },
+      actor,
+    );
+  }
+  h.calls.length = 0;
+  h.operationLookupPhases.length = 0;
+  jest.clearAllMocks();
+  return { h, loan, input: { requestKey: 'terminal-1' } };
+}
+
+describe('terminal policy exclusions', () => {
+  it.each([0, 1, 2])(
+    'CANCEL rejects any historical delivery, even with %s returned units',
+    async (returnedQuantity) => {
+      const { h, loan, input } = await prepareTerminal('cancel');
+      Object.assign(h.state().loans[0].items[0], {
+        deliveredQuantity: 2,
+        returnedQuantity,
+      });
+      await expect(
+        h.service.cancel(loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(h.calls).toEqual([]);
+    },
+  );
+  it.each([false, true])(
+    'CLOSE rejects never-delivered loans, fully released=%s',
+    async (released) => {
+      const { h, loan, input } = await prepareTerminal('cancel');
+      if (released)
+        for (const item of h.state().loans[0].items) item.cancelledQuantity = 2;
+      await expect(
+        h.service.close(loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(h.calls).toEqual([]);
+    },
+  );
+  it('CLOSE rejects outstanding delivery on any item, including an otherwise untouched item', async () => {
+    const { h, loan, input } = await prepareTerminal('close');
+    h.state().loans[0].items[1].deliveredQuantity = 1;
+    await expect(h.service.close(loan.id, input, actor)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(h.calls).toEqual([]);
+  });
+});
+
+describe.each(['cancel', 'close'] as const)(
+  'internal %s terminal contract',
+  (method) => {
+    const status = method === 'cancel' ? 'CANCELLED' : 'CLOSED';
+    it('claims once, pins every item and releases sorted reservations without stock writes; operation precedes all evidence', async () => {
+      const { h, loan, input } = await prepareTerminal(method);
+      const prior = structuredClone(h.state());
+      const result = await h.service[method](loan.id, input, {
+        ...actor,
+        userId: 'other',
+      });
+      expect(result.createdById).toBe('actor');
+      expect(result.status).toBe(status);
+      expect(result.items.map((item) => item.reservedRemaining)).toEqual([
+        0, 0,
+      ]);
+      expect(h.calls).toEqual([
+        'claim',
+        'item',
+        'item',
+        'reserve',
+        'reserve',
+        'operation',
+        'event',
+        'event',
+        'event',
+        'audit',
+      ]);
+      expect(h.db.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+        isolationLevel: 'Serializable',
+      });
+      expect(h.db.inventoryLoan.updateMany).toHaveBeenCalledTimes(1);
+      expect(h.db.inventoryLoan.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: loan.id,
+          organizationId: 'org',
+          status: 'OPEN',
+          version: prior.loans[0].version,
+        },
+        data: { status, version: { increment: 1 } },
+      });
+      for (let index = 0; index < 2; index++) {
+        const old = prior.loans[0].items[index];
+        expect(h.db.inventoryLoanItem.updateMany.mock.calls[index][0]).toEqual({
+          where: {
+            id: old.id,
+            loanId: loan.id,
+            organizationId: 'org',
+            productId: old.productId,
+            quantity: old.quantity,
+            deliveredQuantity: old.deliveredQuantity,
+            returnedQuantity: old.returnedQuantity,
+            cancelledQuantity: old.cancelledQuantity,
+          },
+          data: {
+            cancelledQuantity: {
+              increment:
+                old.quantity - old.deliveredQuantity - old.cancelledQuantity,
+            },
+          },
+        });
+        expect(h.state().loans[0].items[index]).toMatchObject({
+          quantity: old.quantity,
+          deliveredQuantity: old.deliveredQuantity,
+          returnedQuantity: old.returnedQuantity,
+        });
+        const product = prior.products[index];
+        const release =
+          old.quantity - old.deliveredQuantity - old.cancelledQuantity;
+        expect(h.db.product.updateMany.mock.calls[index][0]).toEqual({
+          where: {
+            id: product.id,
+            organizationId: 'org',
+            active: true,
+            type: 'PRODUCT',
+            tracksStock: true,
+            version: product.version,
+            stock: { equals: product.stock, gte: product.reservedStock },
+            reservedStock: { equals: product.reservedStock, gte: release },
+          },
+          data: {
+            reservedStock: { increment: -release },
+            version: { increment: 1 },
+          },
+        });
+        expect(h.state().products[index].stock).toBe(product.stock);
+      }
+      expect(
+        h.db.product.updateMany.mock.calls.map(([args]) => args.where?.id),
+      ).toEqual([p1, p2]);
+      const op = h.state().operations.at(-1)!;
+      expect(op.requestPayload).toEqual({
+        type: method === 'cancel' ? 'CANCEL' : 'CLOSE',
+        loanId: loan.id,
+      });
+      expect(h.state().events.slice(-3)).toMatchObject([
+        {
+          itemId: loan.items[0].id,
+          quantity: method === 'cancel' ? 2 : 1,
+          type: 'CANCELLED',
+          operationId: op.id,
+          createdById: 'other',
+          loanId: loan.id,
+          organizationId: 'org',
+        },
+        {
+          itemId: loan.items[1].id,
+          quantity: 2,
+          type: 'CANCELLED',
+          operationId: op.id,
+          createdById: 'other',
+        },
+        {
+          itemId: null,
+          quantity: null,
+          type: status,
+          operationId: op.id,
+          createdById: 'other',
+        },
+      ]);
+      expect(h.state().audits.at(-1)).toMatchObject({
+        action:
+          method === 'cancel'
+            ? 'INVENTORY_LOAN_CANCELLED'
+            : 'INVENTORY_LOAN_CLOSED',
+        userId: 'other',
+        organizationId: 'org',
+        resource: 'InventoryLoan',
+        resourceId: loan.id,
+        metadata: { operationId: op.id },
+      });
+      for (const key of [
+        'receiptVersion',
+        'before',
+        'releases',
+        'requestPayload',
+        'version',
+      ])
+        expect(result).not.toHaveProperty(key);
+      for (const write of [
+        h.db.inventoryMovement.create,
+        h.db.sale.create,
+        h.db.payment.create,
+        h.db.moneyLoan.create,
+      ])
+        expect(write).not.toHaveBeenCalled();
+    });
+    it.each([
+      'claim',
+      'claim-throw',
+      'item',
+      'item-throw',
+      'later-item',
+      'cas',
+      'product-throw',
+      'later-product',
+      'operation',
+      'event',
+      'later-event',
+      'header-event',
+      'audit',
+    ])('rolls back every staged store on %s failure', async (failure) => {
+      const { h, loan, input } = await prepareTerminal(method);
+      const before = structuredClone(h.state());
+      h.fail(failure);
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toBeDefined();
+      expect(h.state()).toEqual(before);
+      if (failure === 'header-event')
+        expect(h.calls.slice(-4)).toEqual([
+          'operation',
+          'event',
+          'event',
+          'event',
+        ]);
+      if (failure === 'later-product')
+        expect(h.calls).toEqual([
+          'claim',
+          'item',
+          'item',
+          'reserve',
+          'reserve',
+        ]);
+    });
+    it('pins zero-release items, makes no product lookup/write for them, and records exactly one header with no release events', async () => {
+      const { h, loan, input } = await prepareTerminal(method);
+      for (const item of h.state().loans[0].items)
+        item.cancelledQuantity = item.quantity - item.deliveredQuantity;
+      for (const product of h.state().products)
+        Object.assign(product, { type: 'SERVICE', stock: 0, reservedStock: 0 });
+      const products = structuredClone(h.state().products);
+      await h.service[method](loan.id, input, actor);
+      expect(h.db.inventoryLoanItem.updateMany).toHaveBeenCalledTimes(2);
+      expect(
+        h.db.inventoryLoanItem.updateMany.mock.calls.every(
+          ([args]) =>
+            (args.data.cancelledQuantity as { increment: number }).increment ===
+            0,
+        ),
+      ).toBe(true);
+      expect(h.db.product.findFirst).not.toHaveBeenCalled();
+      expect(h.db.product.updateMany).not.toHaveBeenCalled();
+      expect(h.state().products).toEqual(products);
+      expect(h.db.inventoryLoanEvent.create).toHaveBeenCalledTimes(1);
+      expect(h.state().events.at(-1)).toMatchObject({
+        type: status,
+        itemId: null,
+        quantity: null,
+      });
+    });
+    it('rolls back when the CAS on a zero-release item loses', async () => {
+      const { h, loan, input } = await prepareTerminal(method);
+      h.state().loans[0].items[1].cancelledQuantity = 2;
+      const before = structuredClone(h.state());
+      h.fail('later-item');
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(h.state()).toEqual(before);
+      expect(h.db.product.updateMany).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+      'aggregates two same-product items into one CAS; loss=%s rolls back',
+      async (lose) => {
+        const { h, loan, input } = await prepareTerminal(method);
+        h.state().loans[0].items[1].productId = p1;
+        h.state().products[0].reservedStock = method === 'cancel' ? 5 : 4;
+        const before = structuredClone(h.state());
+        if (lose) h.fail('cas');
+        if (lose) {
+          await expect(
+            h.service[method](loan.id, input, actor),
+          ).rejects.toMatchObject({ status: 409 });
+          expect(h.state()).toEqual(before);
+        } else {
+          const result = await h.service[method](loan.id, input, actor);
+          expect(result.items.map((item) => item.productId)).toEqual([p1, p1]);
+          expect(h.state().products[0].reservedStock).toBe(1);
+          expect(await h.service[method](loan.id, input, actor)).toEqual(
+            result,
+          );
+        }
+        expect(h.db.product.updateMany).toHaveBeenCalledTimes(1);
+        expect(h.db.product.updateMany.mock.calls[0][0].data).toEqual({
+          reservedStock: { increment: method === 'cancel' ? -4 : -3 },
+          version: { increment: 1 },
+        });
+      },
+    );
+    it('rejects same-product aggregate overflow before product writes', async () => {
+      const { h, loan, input } = await prepareTerminal(method);
+      for (const item of h.state().loans[0].items)
+        Object.assign(item, { productId: p1, quantity: 2147483647 });
+      const before = structuredClone(h.state());
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(h.state()).toEqual(before);
+      expect(h.db.product.updateMany).not.toHaveBeenCalled();
+    });
+    it('accepts bounded maximum release without changing stock or previous cancellations', async () => {
+      const { h, loan, input } = await prepareTerminal(method);
+      const item = h.state().loans[0].items[1];
+      Object.assign(item, { quantity: 2147483647, cancelledQuantity: 1 });
+      Object.assign(h.state().products[1], {
+        stock: 2147483647,
+        reservedStock: 2147483646,
+      });
+      const result = await h.service[method](loan.id, input, actor);
+      expect(result.items[1]).toMatchObject({
+        quantity: 2147483647,
+        cancelledQuantity: 2147483647,
+        deliveredQuantity: 0,
+        returnedQuantity: 0,
+      });
+      expect(h.state().products[1]).toMatchObject({
+        stock: 2147483647,
+        reservedStock: 0,
+      });
+    });
+    it.each([OrgRole.MEMBER, OrgRole.CASHIER, OrgRole.INVENTORY_USER])(
+      'rejects %s before transaction',
+      async (role) => {
+        const { h, loan, input } = await prepareTerminal(method);
+        await expect(
+          h.service[method](loan.id, input, { ...actor, role }),
+        ).rejects.toMatchObject({ status: 403 });
+        expect(h.db.$transaction).not.toHaveBeenCalled();
+      },
+    );
+    it.each(['inactive', 'tenant', 'role', 'absent'])(
+      'requires actual active ADMIN/OWNER membership before replay: %s',
+      async (kind) => {
+        const { h, loan, input } = await prepareTerminal(method);
+        await h.service[method](loan.id, input, actor);
+        if (kind === 'inactive') h.state().members[0].user = { active: false };
+        if (kind === 'tenant') h.state().members[0].organizationId = 'other';
+        if (kind === 'role') h.state().members[0].role = 'CASHIER';
+        if (kind === 'absent') h.state().members.splice(0, 1);
+        jest.clearAllMocks();
+        await expect(
+          h.service[method](loan.id, input, { ...actor, role: 'SUPER_ADMIN' }),
+        ).rejects.toMatchObject({ status: 403 });
+        expect(h.db.inventoryLoanOperation.findUnique).not.toHaveBeenCalled();
+      },
+    );
+    it.each([OrgRole.OWNER, 'SUPER_ADMIN' as const])(
+      'permits %s only with administrative membership',
+      async (role) => {
+        const { h, loan, input } = await prepareTerminal(method);
+        h.state().members[0].role = 'OWNER';
+        await expect(
+          h.service[method](loan.id, input, { ...actor, role }),
+        ).resolves.toMatchObject({ status });
+      },
+    );
+    it.each(['missing', 'foreign'])(
+      'returns scoped 404 for %s loan',
+      async (kind) => {
+        const { h, loan, input } = await prepareTerminal(method);
+        if (kind === 'foreign') h.state().loans[0].organizationId = 'other';
+        await expect(
+          h.service[method](
+            kind === 'missing' ? 'missing' : loan.id,
+            input,
+            actor,
+          ),
+        ).rejects.toMatchObject({ status: 404 });
+        expect(h.calls).toEqual([]);
+      },
+    );
+    it.each(['organizationId', 'loanId'])(
+      'rejects a foreign %s on any live item rather than silently omitting it',
+      async (field) => {
+        const { h, loan, input } = await prepareTerminal(method);
+        Object.assign(h.state().loans[0].items[1], { [field]: 'other' });
+        await expect(
+          h.service[method](loan.id, input, actor),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.calls).toEqual([]);
+      },
+    );
+    it.each(['CANCELLED', 'CLOSED'] as const)(
+      'rejects fresh %s and cannot reopen',
+      async (priorStatus) => {
+        const { h, loan, input } = await prepareTerminal(method);
+        h.state().loans[0].status = priorStatus;
+        await expect(
+          h.service[method](loan.id, input, actor),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.calls).toEqual([]);
+      },
+    );
+    it.each([undefined, -1, 1.5, '1', 2147483647])(
+      'rejects invalid/overflow header version %s',
+      async (version) => {
+        const { h, loan, input } = await prepareTerminal(method);
+        Object.assign(h.state().loans[0], { version });
+        await expect(
+          h.service[method](loan.id, input, actor),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.calls).toEqual([]);
+      },
+    );
+    it.each([
+      { quantity: 0 },
+      { quantity: 2147483648 },
+      { quantity: '2' },
+      { deliveredQuantity: NaN },
+      { returnedQuantity: 3 },
+      { cancelledQuantity: 3 },
+      { quantity: 1.1 },
+    ])('rejects invalid counts on all items %j', async (patch) => {
+      const { h, loan, input } = await prepareTerminal(method);
+      Object.assign(h.state().loans[0].items[1], patch);
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(h.calls).toEqual([]);
+    });
+    it('rejects empty live item set', async () => {
+      const { h, loan, input } = await prepareTerminal(method);
+      h.state().loans[0].items = [];
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(h.calls).toEqual([]);
+    });
+    it.each([
+      { active: false },
+      { type: 'SERVICE' },
+      { tracksStock: false },
+      { organizationId: 'other' },
+      { active: undefined },
+    ])('rejects ineligible positive-release product %j', async (patch) => {
+      const { h, loan, input } = await prepareTerminal(method);
+      Object.assign(h.state().products[1], patch);
+      const before = structuredClone(h.state());
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(h.state()).toEqual(before);
+    });
+    it.each([
+      { stock: -1 },
+      { reservedStock: 0 },
+      { reservedStock: undefined },
+      { reservedStock: 11 },
+      { stock: 1.1 },
+      { version: 2147483647 },
+      { version: undefined },
+      { version: -1 },
+      { stock: 2147483648 },
+    ])(
+      'rejects insufficient/invalid positive-release product controls %j',
+      async (patch) => {
+        const { h, loan, input } = await prepareTerminal(method);
+        Object.assign(h.state().products[1], patch);
+        const before = structuredClone(h.state());
+        await expect(
+          h.service[method](loan.id, input, actor),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.state()).toEqual(before);
+      },
+    );
+    it('rejects missing positive-release product and rolls back earlier release', async () => {
+      const { h, loan, input } = await prepareTerminal(method);
+      h.state().products.splice(1, 1);
+      const before = structuredClone(h.state());
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(h.state()).toEqual(before);
+    });
+    it('replays immutable safe result despite later live names/counts/status/stock changes, with no live fallback or mutation', async () => {
+      const { h, loan, input } = await prepareTerminal(method);
+      const result = await h.service[method](loan.id, input, {
+        ...actor,
+        userId: 'other',
+      });
+      Object.assign(h.state().loans[0], {
+        status: 'OPEN',
+        customerId: 'changed-live',
+      });
+      h.state().loans[0].items[0].returnedQuantity = 999;
+      Object.assign(h.state().products[0], {
+        stock: 0,
+        reservedStock: 999,
+        type: 'SERVICE',
+      });
+      h.state().customers[0].name = 'changed-live-name';
+      const before = structuredClone(h.state());
+      h.calls.length = 0;
+      jest.clearAllMocks();
+      expect(
+        await h.service[method](
+          loan.id,
+          { requestKey: ' terminal-1 ' },
+          { ...actor, userId: 'other' },
+        ),
+      ).toEqual(result);
+      expect(h.state()).toEqual(before);
+      expect(h.calls).toEqual([]);
+      expect(h.db.inventoryLoan.findFirst).not.toHaveBeenCalled();
+      expect(h.db.product.findFirst).not.toHaveBeenCalled();
+      expect(h.db.customer.findFirst).not.toHaveBeenCalled();
+    });
+    it.each(['actor', 'loan', 'organization', 'key', 'payload', 'type'])(
+      'rejects operation identity/payload mismatch %s without effects',
+      async (kind) => {
+        const { h, loan, input } = await prepareTerminal(method);
+        await h.service[method](loan.id, input, actor);
+        const op = h.state().operations.at(-1)!;
+        if (kind === 'organization') op.organizationId = 'other';
+        if (kind === 'key') op.requestKey = 'other';
+        if (kind === 'type') op.type = method === 'cancel' ? 'CLOSE' : 'CANCEL';
+        if (kind === 'payload')
+          op.requestPayload = {
+            ...(op.requestPayload as Prisma.JsonObject),
+            private: true,
+          };
+        if (kind === 'organization' || kind === 'key')
+          h.db.inventoryLoanOperation.findUnique.mockReturnValueOnce(op);
+        h.calls.length = 0;
+        await expect(
+          h.service[method](
+            kind === 'loan' ? 'other' : loan.id,
+            input,
+            kind === 'actor' ? { ...actor, userId: 'other' } : actor,
+          ),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.calls).toEqual([]);
+      },
+    );
+    it.each(['CREATE', 'DELIVER', 'RETURN', 'CANCEL', 'CLOSE'] as const)(
+      'shares the tenant-wide key with %s and rejects cross-operation reuse',
+      async (otherType) => {
+        const { h, loan } = await prepareTerminal(method);
+        const op = h.state().operations[0];
+        op.type = otherType;
+        await expect(
+          h.service[method](loan.id, { requestKey: dto.requestKey }, actor),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.calls).toEqual([]);
+      },
+    );
+    it.each(['P2002', 'P2034'])(
+      'reconciles completed matching %s winner only outside aborted transaction',
+      async (code) => {
+        const { h, loan, input } = await prepareTerminal(method);
+        const result = await h.service[method](loan.id, input, actor);
+        const winner = structuredClone(h.state().operations.at(-1)!);
+        // Explicit mock winner, not a PostgreSQL interleaving. Live state is eligible for the aborted attempt.
+        h.state().loans[0].status = 'OPEN';
+        for (const item of h.state().loans[0].items) item.cancelledQuantity = 0;
+        for (const product of h.state().products) product.reservedStock = 5;
+        const before = structuredClone(h.state());
+        h.db.inventoryLoanOperation.findUnique
+          .mockReturnValueOnce(null)
+          .mockReturnValueOnce(winner);
+        jest.clearAllMocks();
+        h.transactionError(
+          new Prisma.PrismaClientKnownRequestError('abort', {
+            code,
+            clientVersion: 'test',
+          }),
+        );
+        expect(await h.service[method](loan.id, input, actor)).toEqual(result);
+        expect(h.state()).toEqual(before);
+        expect(h.db.$transaction).toHaveBeenCalledTimes(1);
+        expect(h.db.organizationUser.findFirst).toHaveBeenCalledTimes(2);
+        expect(h.db.inventoryLoanOperation.findUnique).toHaveBeenCalledTimes(2);
+      },
+    );
+    it.each(
+      ['P2002', 'P2034'].flatMap((code) =>
+        ['absent', 'actor', 'type', 'payload'].map((winner) => ({
+          code,
+          winner,
+        })),
+      ),
+    )(
+      'returns 409 for $winner winner after $code, without blind retry',
+      async ({ code, winner }) => {
+        const { h, loan, input } = await prepareTerminal(method);
+        const op = {
+          ...structuredClone(h.state().operations[0]),
+          requestKey: input.requestKey,
+          type: method === 'cancel' ? 'CANCEL' : 'CLOSE',
+          requestPayload: {
+            type: method === 'cancel' ? 'CANCEL' : 'CLOSE',
+            loanId: loan.id,
+          },
+        } as InventoryLoanOperation;
+        if (winner === 'actor') op.actorId = 'other';
+        if (winner === 'type') op.type = 'CREATE';
+        if (winner === 'payload')
+          op.requestPayload = { type: 'other', loanId: loan.id };
+        h.db.inventoryLoanOperation.findUnique
+          .mockReturnValueOnce(null)
+          .mockReturnValueOnce(winner === 'absent' ? null : op);
+        const before = structuredClone(h.state());
+        h.transactionError(
+          new Prisma.PrismaClientKnownRequestError('abort', {
+            code,
+            clientVersion: 'test',
+          }),
+        );
+        await expect(
+          h.service[method](loan.id, input, actor),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.state()).toEqual(before);
+        expect(h.db.$transaction).toHaveBeenCalledTimes(1);
+      },
+    );
+    it('rechecks authorization before outside-abort evidence and propagates a membership refusal', async () => {
+      const { h, loan, input } = await prepareTerminal(method);
+      h.db.organizationUser.findFirst
+        .mockReturnValueOnce(h.state().members[0])
+        .mockReturnValueOnce(null);
+      h.transactionError(
+        new Prisma.PrismaClientKnownRequestError('abort', {
+          code: 'P2034',
+          clientVersion: 'test',
+        }),
+      );
+      await expect(
+        h.service[method](loan.id, input, actor),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(h.operationLookupPhases).toEqual(['inside']);
+      expect(h.db.$transaction).toHaveBeenCalledTimes(1);
+    });
+    it('uses a distinct tenant key namespace without replaying another tenant’s terminal evidence', async () => {
+      const { h, loan, input } = await prepareTerminal(method);
+      await h.service[method](loan.id, input, actor);
+      const original = structuredClone(h.state().loans[0]);
+      h.state().members.push({
+        ...h.state().members[0],
+        organizationId: 'org-2',
+      });
+      h.state().customers.push({
+        ...h.state().customers[0],
+        organizationId: 'org-2',
+      });
+      h.state().products.push({
+        ...h.state().products[0],
+        organizationId: 'org-2',
+        reservedStock: 0,
+      });
+      const secondActor = { ...actor, organizationId: 'org-2' };
+      const second = await h.service.create(
+        { ...dto, requestKey: 'second-create' },
+        secondActor,
+      );
+      if (method === 'close') {
+        const serving = {
+          requestKey: 'second-deliver',
+          items: [{ itemId: second.items[0].id, quantity: 1 }],
+        };
+        await h.service.deliver(second.id, serving, secondActor);
+        await h.service.returnItems(
+          second.id,
+          { ...serving, requestKey: 'second-return' },
+          secondActor,
+        );
+      }
+      const result = await h.service[method](second.id, input, secondActor);
+      expect(result.organizationId).toBe('org-2');
+      expect(result.id).toBe(second.id);
+      expect(h.state().loans[0]).toEqual(original);
+      expect(
+        h
+          .state()
+          .operations.filter(
+            (operation) => operation.requestKey === input.requestKey,
+          ),
+      ).toHaveLength(2);
+      expect(h.db.inventoryLoanOperation.findUnique).toHaveBeenLastCalledWith({
+        where: {
+          organizationId_requestKey: {
+            organizationId: 'org-2',
+            requestKey: input.requestKey,
+          },
+        },
+      });
+    });
+    it('does not reconcile unrelated transaction errors', async () => {
+      const { h, loan, input } = await prepareTerminal(method);
+      const error = new Prisma.PrismaClientKnownRequestError('abort', {
+        code: 'P2025',
+        clientVersion: 'test',
+      });
+      h.transactionError(error);
+      await expect(h.service[method](loan.id, input, actor)).rejects.toBe(
+        error,
+      );
+      expect(h.operationLookupPhases).toEqual(['inside']);
+    });
+  },
+);
+
+describe('strict terminal DTO and direct boundary', () => {
+  const pipe = new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transformOptions: { enableImplicitConversion: true },
+  });
+  it('accepts only normalized raw requestKey and no mandatory reason', async () => {
+    expect(
+      await pipe.transform(
+        { requestKey: ' terminal ' },
+        { type: 'body', metatype: InventoryLoanTerminalDto },
+      ),
+    ).toEqual({ requestKey: 'terminal' });
+  });
+  it.each([
+    { requestKey: '' },
+    { requestKey: ' ' },
+    { requestKey: 1 },
+    { requestKey: true },
+    { requestKey: null },
+    { requestKey: undefined },
+    { requestKey: 'x'.repeat(101) },
+    ...[
+      'items',
+      'reason',
+      'actorId',
+      'organizationId',
+      'loanId',
+      'type',
+      'stock',
+      'quantity',
+      'price',
+    ].map((field) => ({ requestKey: 'valid', [field]: 'forbidden' })),
+  ])(
+    'rejects malformed/unknown %j in pipeline and direct methods',
+    async (raw) => {
+      await expect(
+        pipe.transform(raw, {
+          type: 'body',
+          metatype: InventoryLoanTerminalDto,
+        }),
+      ).rejects.toMatchObject({ status: 400 });
+      const h = harness();
+      for (const method of ['cancel', 'close'] as const)
+        await expect(
+          h.service[method]('loan', raw as InventoryLoanTerminalDto, actor),
+        ).rejects.toMatchObject({ status: 400 });
+      expect(h.db.$transaction).not.toHaveBeenCalled();
+    },
+  );
+  it.each([null, undefined, [], 1, true, 'key'])(
+    'rejects raw body %j directly',
+    async (raw) => {
+      const h = harness();
+      for (const method of ['cancel', 'close'] as const)
+        await expect(
+          h.service[method](
+            'loan',
+            raw as unknown as InventoryLoanTerminalDto,
+            actor,
+          ),
+        ).rejects.toMatchObject({ status: 400 });
+      expect(h.db.$transaction).not.toHaveBeenCalled();
+    },
+  );
+  it.each([undefined, null, 1, true, '', ' '])(
+    'rejects raw loan identity %s directly',
+    async (id) => {
+      const h = harness();
+      for (const method of ['cancel', 'close'] as const)
+        await expect(
+          h.service[method](id as string, { requestKey: 'valid' }, actor),
+        ).rejects.toMatchObject({ status: 400 });
+      expect(h.db.$transaction).not.toHaveBeenCalled();
+    },
+  );
+  it('rejects absent organization and blank actor identity before transaction', async () => {
+    const h = harness();
+    for (const method of ['cancel', 'close'] as const) {
+      await expect(
+        h.service[method](
+          'loan',
+          { requestKey: 'valid' },
+          { ...actor, organizationId: undefined },
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+      await expect(
+        h.service[method](
+          'loan',
+          { requestKey: 'valid' },
+          { ...actor, userId: ' ' },
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+    }
+    expect(h.db.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe.each(['cancel', 'close'] as const)(
+  '%s strict terminal receipt',
+  (method) => {
+    type Projection = Row & { items: Row[] };
+    type Receipt = Row & {
+      before: Projection;
+      after: Projection;
+      releases: Row[];
+    };
+    async function completed(counterpartyType = CounterpartyType.CUSTOMER) {
+      const setup = await prepareTerminal(method, counterpartyType);
+      const result = await setup.h.service[method](setup.loan.id, setup.input, {
+        ...actor,
+        userId: 'other',
+      });
+      return {
+        ...setup,
+        result,
+        receipt: setup.h.state().operations.at(-1)!
+          .resultSnapshot as unknown as Receipt,
+      };
+    }
+    function recalculate(item: Row) {
+      item.reservedRemaining =
+        (item.quantity as number) -
+        (item.deliveredQuantity as number) -
+        (item.cancelledQuantity as number);
+      item.outstanding =
+        (item.deliveredQuantity as number) - (item.returnedQuantity as number);
+    }
+    it.each([
+      'version',
+      'type',
+      'actor',
+      'private-receipt',
+      'private-before',
+      'private-after',
+      'private-item',
+      'loan',
+      'tenant',
+      'creator',
+      'timestamp',
+      'before-status',
+      'after-status',
+      'header-change',
+      'duplicate-ID',
+      'empty-items',
+      'too-many-items',
+      'blank-ID',
+      'blank-product',
+      'product-change',
+      'untouched-ID-change',
+      'wrong-terminal-status',
+      'item-order',
+      'allocation-change',
+      'delivery-change',
+      'return-change',
+      'release-delta',
+      'derived',
+      'itemIds',
+      'releases',
+      'release-private',
+      'no-delivery-close-or-delivered-cancel',
+    ])(
+      'rejects otherwise valid corruption %s without fallback or effects',
+      async (kind) => {
+        const { h, loan, input, receipt } = await completed();
+        if (kind === 'version') receipt.receiptVersion = 2;
+        if (kind === 'type')
+          receipt.type = method === 'cancel' ? 'CLOSE' : 'CANCEL';
+        if (kind === 'actor') receipt.actorId = 'actor';
+        if (kind === 'private-receipt') receipt.private = 'never-public';
+        if (kind === 'private-before') receipt.before.private = 'never-public';
+        if (kind === 'private-after') receipt.after.private = 'never-public';
+        if (kind === 'private-item')
+          receipt.after.items[0].private = 'never-public';
+        if (kind === 'loan') receipt.before.id = receipt.after.id = 'wrong';
+        if (kind === 'tenant')
+          receipt.before.organizationId = receipt.after.organizationId =
+            'wrong';
+        if (kind === 'creator')
+          receipt.before.createdById = receipt.after.createdById = ' ';
+        if (kind === 'timestamp')
+          receipt.before.createdAt = receipt.after.createdAt = 'bad';
+        if (kind === 'before-status') receipt.before.status = 'CANCELLED';
+        if (kind === 'after-status') receipt.after.status = 'OPEN';
+        if (kind === 'header-change') receipt.after.createdById = 'valid-other';
+        if (kind === 'duplicate-ID')
+          receipt.after.items[1] = { ...receipt.after.items[0] };
+        if (kind === 'empty-items')
+          receipt.before.items = receipt.after.items = [];
+        if (kind === 'too-many-items')
+          receipt.before.items = receipt.after.items = Array.from(
+            { length: 101 },
+            (_, index) => ({ ...receipt.before.items[0], id: `item-${index}` }),
+          );
+        if (kind === 'blank-ID')
+          receipt.before.items[1].id = receipt.after.items[1].id = ' ';
+        if (kind === 'blank-product')
+          receipt.before.items[1].productId = receipt.after.items[1].productId =
+            ' ';
+        if (kind === 'product-change')
+          receipt.after.items[1].productId = personId;
+        if (kind === 'untouched-ID-change')
+          receipt.after.items[1].id = 'zz-other-valid-id';
+        if (kind === 'wrong-terminal-status')
+          receipt.after.status = method === 'cancel' ? 'CLOSED' : 'CANCELLED';
+        if (kind === 'item-order') receipt.after.items.reverse();
+        if (kind === 'allocation-change') {
+          receipt.after.items[1].quantity = 3;
+          receipt.after.items[1].cancelledQuantity = 3;
+          recalculate(receipt.after.items[1]);
+        }
+        if (kind === 'delivery-change') {
+          // Valid allocation/zero outstanding, but historical counts changed.
+          receipt.after.items[1].deliveredQuantity = 1;
+          receipt.after.items[1].returnedQuantity = 1;
+          receipt.after.items[1].cancelledQuantity = 1;
+          recalculate(receipt.after.items[1]);
+        }
+        if (kind === 'return-change') {
+          // Isolate the returned counter with otherwise-valid count invariants.
+          receipt.after.items[0].deliveredQuantity = 1;
+          receipt.after.items[0].returnedQuantity = 0;
+          receipt.after.items[0].cancelledQuantity = 1;
+          recalculate(receipt.after.items[0]);
+        }
+        if (kind === 'release-delta') {
+          receipt.after.items[1].cancelledQuantity = 1;
+          recalculate(receipt.after.items[1]);
+        }
+        if (kind === 'derived') receipt.after.items[1].reservedRemaining = 99;
+        if (kind === 'itemIds') receipt.itemIds = [loan.items[0].id];
+        if (kind === 'releases') receipt.releases[1].quantity = 1;
+        if (kind === 'release-private') receipt.releases[0].private = true;
+        if (kind === 'no-delivery-close-or-delivered-cancel') {
+          for (const projection of [receipt.before, receipt.after]) {
+            projection.items[0].deliveredQuantity = method === 'cancel' ? 1 : 0;
+            projection.items[0].returnedQuantity = method === 'cancel' ? 1 : 0;
+            projection.items[0].cancelledQuantity =
+              projection === receipt.before ? 0 : method === 'cancel' ? 1 : 2;
+            recalculate(projection.items[0]);
+          }
+          receipt.releases[0].quantity = method === 'cancel' ? 1 : 2;
+        }
+        const before = structuredClone(h.state());
+        h.calls.length = 0;
+        jest.clearAllMocks();
+        await expect(
+          h.service[method](loan.id, input, { ...actor, userId: 'other' }),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.state()).toEqual(before);
+        expect(h.calls).toEqual([]);
+        expect(h.db.inventoryLoan.findFirst).not.toHaveBeenCalled();
+        expect(h.db.product.findFirst).not.toHaveBeenCalled();
+      },
+    );
+    it.each(
+      (
+        [
+          [CounterpartyType.CUSTOMER, 'customerId'],
+          [CounterpartyType.SUPPLIER, 'supplierId'],
+          [CounterpartyType.EMPLOYEE, 'employeeId'],
+        ] as const
+      ).flatMap(([counterpartyType, selected]) =>
+        (['customerId', 'supplierId', 'employeeId'] as const).flatMap((field) =>
+          (field === selected
+            ? ['', ' ', null, 7, undefined]
+            : ['', ' ', personId, 7, undefined]
+          ).map((value) => ({ counterpartyType, field, value })),
+        ),
+      ),
+    )(
+      'rejects symmetric counterparty corruption %j',
+      async ({ counterpartyType, field, value }) => {
+        const { h, loan, input, receipt } = await completed(counterpartyType);
+        receipt.before[field] = receipt.after[field] = value;
+        const before = structuredClone(h.state());
+        h.calls.length = 0;
+        jest.clearAllMocks();
+        await expect(
+          h.service[method](loan.id, input, { ...actor, userId: 'other' }),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.state()).toEqual(before);
+        expect(h.calls).toEqual([]);
+        expect(h.db.inventoryLoan.findFirst).not.toHaveBeenCalled();
+      },
+    );
+    it.each(
+      [
+        'quantity',
+        'deliveredQuantity',
+        'returnedQuantity',
+        'cancelledQuantity',
+      ].flatMap((field) =>
+        [-1, 1.5, '1', null, undefined, 2147483648].map((value) => ({
+          field,
+          value,
+        })),
+      ),
+    )(
+      'rejects malformed stored count $field=$value without fallback',
+      async ({ field, value }) => {
+        const { h, loan, input, receipt } = await completed();
+        receipt.before.items[1][field] = value;
+        h.calls.length = 0;
+        jest.clearAllMocks();
+        await expect(
+          h.service[method](loan.id, input, { ...actor, userId: 'other' }),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.calls).toEqual([]);
+        expect(h.db.inventoryLoan.findFirst).not.toHaveBeenCalled();
+      },
+    );
+    it.each([null, {}, { receiptVersion: 1 }, { private: 'never-public' }])(
+      'rejects invalid stored terminal receipt %j',
+      async (resultSnapshot) => {
+        const { h, loan, input } = await completed();
+        h.state().operations.at(-1)!.resultSnapshot =
+          resultSnapshot as Prisma.JsonValue;
+        h.calls.length = 0;
+        jest.clearAllMocks();
+        await expect(
+          h.service[method](loan.id, input, { ...actor, userId: 'other' }),
+        ).rejects.toMatchObject({ status: 409 });
+        expect(h.calls).toEqual([]);
+        expect(h.db.inventoryLoan.findFirst).not.toHaveBeenCalled();
+      },
+    );
+    it.each(Object.values(CounterpartyType))(
+      'replays valid %s with actor distinct from creator and no private evidence returned',
+      async (counterpartyType) => {
+        const { h, loan, input, result } = await completed(counterpartyType);
+        expect(
+          await h.service[method](loan.id, input, {
+            ...actor,
+            userId: 'other',
+          }),
+        ).toEqual(result);
+        expect(result.createdById).toBe('actor');
+        expect(Object.keys(result).sort()).toEqual([
+          'createdAt',
+          'createdById',
+          'customerId',
+          'employeeId',
+          'id',
+          'items',
+          'organizationId',
+          'status',
+          'supplierId',
+        ]);
       },
     );
   },

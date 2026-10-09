@@ -13,6 +13,17 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+// Terminal operations accept only the retry key; no quantities or reason fields.
+export class InventoryLoanTerminalDto {
+  @Transform(({ obj }: { obj: Record<string, unknown> }) =>
+    typeof obj.requestKey === 'string' ? obj.requestKey.trim() : obj.requestKey,
+  )
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  requestKey: string;
+}
+
 export class InventoryLoanOperationItemDto {
   @IsUUID()
   itemId: string;

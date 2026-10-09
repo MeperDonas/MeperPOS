@@ -17,10 +17,14 @@ import { RequestUser } from '../common/interfaces/request-user.interface';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInventoryLoanDto } from './dto/create-inventory-loan.dto';
 import { CounterpartyType } from './dto/create-loan.dto';
-import { InventoryLoanOperationDto } from './dto/inventory-loan-operation.dto';
+import {
+  InventoryLoanOperationDto,
+  InventoryLoanTerminalDto,
+} from './dto/inventory-loan-operation.dto';
 import {
   deriveInventoryLoanQuantities,
   InventoryLoanCounts,
+  planInventoryLoanClose,
   transitionInventoryLoanItem,
 } from './inventory-loan.invariants';
 
@@ -414,6 +418,198 @@ function servicingReplay(
   // Only the validated public projection escapes; no private evidence/payload fallback.
   return after;
 }
+type TerminalType = 'CANCEL' | 'CLOSE';
+function terminalStatus(type: TerminalType): 'CANCELLED' | 'CLOSED' {
+  return type === 'CANCEL' ? 'CANCELLED' : 'CLOSED';
+}
+function normalizeTerminal(input: InventoryLoanTerminalDto) {
+  if (!object(input)) throw new BadRequestException('Solicitud inválida');
+  const dto = plainToInstance(InventoryLoanTerminalDto, input);
+  if (
+    validateSync(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      forbidUnknownValues: true,
+    }).length
+  )
+    throw new BadRequestException('Clave de solicitud inválida');
+  return dto;
+}
+function terminalPlan(
+  items: readonly InventoryLoanCounts[],
+  type: TerminalType,
+) {
+  try {
+    if (type === 'CLOSE') return planInventoryLoanClose(items);
+    if (!items.length) throw new Error('Nonempty items required');
+    return items.map((item) => {
+      const { reservedRemaining } = deriveInventoryLoanQuantities(item);
+      if (item.deliveredQuantity !== 0)
+        throw new Error('Historical delivery requires CLOSE');
+      const next = {
+        ...counts(item),
+        cancelledQuantity: item.cancelledQuantity + reservedRemaining,
+      };
+      return {
+        counts: next,
+        ...deriveInventoryLoanQuantities(next),
+        releaseQuantity: reservedRemaining,
+      };
+    });
+  } catch {
+    throw new ConflictException(
+      'Cancelación requiere cero entregas; cierre requiere entregas totalmente devueltas',
+    );
+  }
+}
+
+// Independent strict parser: CREATE and DELIVER/RETURN contracts stay frozen.
+function terminalProjection(
+  value: unknown,
+  operation: Pick<InventoryLoanOperation, 'loanId' | 'organizationId'>,
+  status: InventoryLoanStatus,
+): Snapshot {
+  const invalid = () => new ConflictException('Resultado terminal inválido');
+  if (
+    !object(value) ||
+    !exactKeys(value, [
+      'id',
+      'organizationId',
+      'status',
+      'createdById',
+      'createdAt',
+      'customerId',
+      'supplierId',
+      'employeeId',
+      'items',
+    ]) ||
+    value.id !== operation.loanId ||
+    value.organizationId !== operation.organizationId ||
+    value.status !== status ||
+    typeof value.createdById !== 'string' ||
+    !value.createdById.trim() ||
+    typeof value.createdAt !== 'string' ||
+    !Number.isFinite(Date.parse(value.createdAt)) ||
+    !Array.isArray(value.items) ||
+    !value.items.length ||
+    value.items.length > 100
+  )
+    throw invalid();
+  const counterparties = [value.customerId, value.supplierId, value.employeeId];
+  if (
+    counterparties.filter((id) => id !== null).length !== 1 ||
+    counterparties.some(
+      (id) => id !== null && (typeof id !== 'string' || !id.trim()),
+    )
+  )
+    throw invalid();
+  const ids = new Set<string>();
+  let last = '';
+  for (const item of value.items) {
+    if (
+      !object(item) ||
+      !exactKeys(item, [
+        'id',
+        'productId',
+        ...countKeys,
+        'reservedRemaining',
+        'outstanding',
+      ]) ||
+      typeof item.id !== 'string' ||
+      !item.id.trim() ||
+      ids.has(item.id) ||
+      (last && last.localeCompare(item.id) >= 0) ||
+      typeof item.productId !== 'string' ||
+      !item.productId.trim()
+    )
+      throw invalid();
+    ids.add(item.id);
+    last = item.id;
+    try {
+      const derived = deriveInventoryLoanQuantities(
+        item as unknown as InventoryLoanCounts,
+      );
+      if (
+        derived.reservedRemaining !== item.reservedRemaining ||
+        derived.outstanding !== item.outstanding
+      )
+        throw invalid();
+    } catch {
+      throw invalid();
+    }
+  }
+  return value as Snapshot;
+}
+function terminalReplay(
+  operation: InventoryLoanOperation,
+  actorId: string,
+  orgId: string,
+  requestKey: string,
+  type: TerminalType,
+  request: Prisma.InputJsonObject,
+): Snapshot {
+  const invalid = () => new ConflictException('Resultado terminal inválido');
+  if (
+    operation.actorId !== actorId ||
+    operation.organizationId !== orgId ||
+    operation.requestKey !== requestKey ||
+    operation.type !== type ||
+    operation.loanId !== request.loanId ||
+    canonical(operation.requestPayload) !== canonical(request)
+  )
+    throw new ConflictException('La clave ya pertenece a otra solicitud');
+  const receipt: unknown = operation.resultSnapshot;
+  if (
+    !object(receipt) ||
+    !exactKeys(receipt, [
+      'receiptVersion',
+      'type',
+      'actorId',
+      'itemIds',
+      'releases',
+      'before',
+      'after',
+    ]) ||
+    receipt.receiptVersion !== 1 ||
+    receipt.type !== type ||
+    receipt.actorId !== actorId
+  )
+    throw invalid();
+  const before = terminalProjection(receipt.before, operation, 'OPEN');
+  const after = terminalProjection(
+    receipt.after,
+    operation,
+    terminalStatus(type),
+  );
+  if (
+    canonical(receipt.itemIds) !==
+    canonical(before.items.map((item) => item.id))
+  )
+    throw invalid();
+  const plan = terminalPlan(before.items, type);
+  const expected = {
+    ...before,
+    status: terminalStatus(type),
+    items: before.items.map((item, index) => ({
+      id: item.id,
+      productId: item.productId,
+      ...plan[index].counts,
+      ...deriveInventoryLoanQuantities(plan[index].counts),
+    })),
+  };
+  const releases = before.items.flatMap((item, index) =>
+    plan[index].releaseQuantity
+      ? [{ itemId: item.id, quantity: plan[index].releaseQuantity }]
+      : [],
+  );
+  if (
+    canonical(after) !== canonical(expected) ||
+    canonical(receipt.releases) !== canonical(releases)
+  )
+    throw invalid();
+  return after;
+}
+
 function page(query: InventoryLoanQuery) {
   const bounded = (value: number | undefined, fallback: number, max: number) =>
     value === undefined
@@ -621,6 +817,301 @@ export class InventoryLoansService {
     actor: RequestUser,
   ) {
     return this.serviceItems(id, input, actor, 'RETURN');
+  }
+
+  async cancel(
+    id: string,
+    input: InventoryLoanTerminalDto,
+    actor: RequestUser,
+  ) {
+    return this.terminate(id, input, actor, 'CANCEL');
+  }
+
+  async close(id: string, input: InventoryLoanTerminalDto, actor: RequestUser) {
+    return this.terminate(id, input, actor, 'CLOSE');
+  }
+
+  private async authorizeTerminal(
+    tx: Pick<Prisma.TransactionClient, 'organizationUser'>,
+    orgId: string,
+    actorId: string,
+  ) {
+    const member = await tx.organizationUser.findFirst({
+      where: {
+        organizationId: orgId,
+        userId: actorId,
+        role: { in: [OrgRole.OWNER, OrgRole.ADMIN] },
+        user: { active: true },
+      },
+      select: { userId: true },
+    });
+    if (!member)
+      throw new ForbiddenException(
+        'Administrador activo de la organización requerido',
+      );
+  }
+
+  private async terminate(
+    id: string,
+    input: InventoryLoanTerminalDto,
+    actor: RequestUser,
+    type: TerminalType,
+  ) {
+    const orgId = organization(actor?.organizationId);
+    if (
+      typeof actor.userId !== 'string' ||
+      !actor.userId.trim() ||
+      ![OrgRole.OWNER, OrgRole.ADMIN, 'SUPER_ADMIN'].includes(actor.role)
+    )
+      throw new ForbiddenException('Administrador activo requerido');
+    if (typeof id !== 'string' || !id.trim())
+      throw new BadRequestException('Préstamo inválido');
+    const dto = normalizeTerminal(input);
+    const request: Prisma.InputJsonObject = { type, loanId: id };
+    const key = {
+      organizationId_requestKey: {
+        organizationId: orgId,
+        requestKey: dto.requestKey,
+      },
+    };
+    const replayResult = (op: InventoryLoanOperation) =>
+      terminalReplay(op, actor.userId, orgId, dto.requestKey, type, request);
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          await this.authorizeTerminal(tx, orgId, actor.userId);
+          const previous = await tx.inventoryLoanOperation.findUnique({
+            where: key,
+          });
+          if (previous) return replayResult(previous);
+          const loan = await tx.inventoryLoan.findFirst({
+            where: { id, organizationId: orgId },
+            select: {
+              ...loanSelect(orgId),
+              version: true,
+              items: {
+                select: { ...itemSelect, organizationId: true, loanId: true },
+                orderBy: { id: 'asc' },
+              },
+            },
+          });
+          if (!loan) throw new NotFoundException('Préstamo no encontrado');
+          if (
+            loan.id !== id ||
+            loan.organizationId !== orgId ||
+            loan.status !== 'OPEN' ||
+            !boundedInt(loan.version) ||
+            loan.version === 2147483647
+          )
+            throw new ConflictException(
+              'Préstamo no abierto o versión inválida',
+            );
+          if (
+            loan.items.some(
+              (item) => item.organizationId !== orgId || item.loanId !== id,
+            )
+          )
+            throw new ConflictException('Item fuera del préstamo');
+          const { version, items, ...header } = loan;
+          let before: Snapshot;
+          try {
+            before = present({
+              ...header,
+              items: items.map(({ organizationId, loanId, ...item }) => {
+                void organizationId;
+                void loanId;
+                return item;
+              }),
+            });
+          } catch {
+            throw new ConflictException('Cantidades inválidas');
+          }
+          const identity = { loanId: id, organizationId: orgId };
+          terminalProjection(before, identity, 'OPEN');
+          const plan = terminalPlan(before.items, type);
+          const claim = await tx.inventoryLoan.updateMany({
+            where: { id, organizationId: orgId, status: 'OPEN', version },
+            data: { status: terminalStatus(type), version: { increment: 1 } },
+          });
+          if (claim.count !== 1)
+            throw new ConflictException('El préstamo cambió');
+          const releases = new Map<string, number>();
+          for (let index = 0; index < items.length; index++) {
+            const item = items[index];
+            const release = plan[index].releaseQuantity;
+            // Pin every allocation, including zero-release items; item rows have no version.
+            const changed = await tx.inventoryLoanItem.updateMany({
+              where: {
+                id: item.id,
+                loanId: id,
+                organizationId: orgId,
+                productId: item.productId,
+                ...counts(item),
+              },
+              data: { cancelledQuantity: { increment: release } },
+            });
+            if (changed.count !== 1)
+              throw new ConflictException('El item cambió');
+            if (release) {
+              const total = (releases.get(item.productId) ?? 0) + release;
+              if (!boundedInt(total))
+                throw new ConflictException('Cantidad agregada fuera de rango');
+              releases.set(item.productId, total);
+            }
+          }
+          // No unique loan/product key exists: aggregate positive releases, one sorted CAS/product.
+          for (const [productId, release] of [...releases].sort(([a], [b]) =>
+            a.localeCompare(b),
+          )) {
+            const product = await tx.product.findFirst({
+              where: {
+                id: productId,
+                organizationId: orgId,
+                active: true,
+                type: 'PRODUCT',
+                tracksStock: true,
+              },
+              select: {
+                id: true,
+                organizationId: true,
+                active: true,
+                type: true,
+                tracksStock: true,
+                stock: true,
+                reservedStock: true,
+                version: true,
+              },
+            });
+            if (
+              !product ||
+              product.id !== productId ||
+              product.organizationId !== orgId ||
+              product.active !== true ||
+              product.type !== 'PRODUCT' ||
+              product.tracksStock !== true
+            )
+              throw new BadRequestException(
+                'Producto activo con inventario requerido',
+              );
+            if (
+              ![product.stock, product.reservedStock, product.version].every(
+                boundedInt,
+              ) ||
+              product.version === 2147483647 ||
+              product.reservedStock > product.stock ||
+              product.reservedStock < release
+            )
+              throw new ConflictException('Inventario insuficiente o inválido');
+            const changed = await tx.product.updateMany({
+              where: {
+                id: productId,
+                organizationId: orgId,
+                active: true,
+                type: 'PRODUCT',
+                tracksStock: true,
+                version: product.version,
+                stock: { equals: product.stock, gte: product.reservedStock },
+                reservedStock: { equals: product.reservedStock, gte: release },
+              },
+              data: {
+                reservedStock: { increment: -release },
+                version: { increment: 1 },
+              },
+            });
+            if (changed.count !== 1)
+              throw new ConflictException('El inventario cambió');
+          }
+          const after = {
+            ...before,
+            status: terminalStatus(type),
+            items: before.items.map((item, index) => ({
+              id: item.id,
+              productId: item.productId,
+              ...plan[index].counts,
+              ...deriveInventoryLoanQuantities(plan[index].counts),
+            })),
+          };
+          const positiveReleases = before.items.flatMap((item, index) =>
+            plan[index].releaseQuantity
+              ? [{ itemId: item.id, quantity: plan[index].releaseQuantity }]
+              : [],
+          );
+          const operation = await tx.inventoryLoanOperation.create({
+            data: {
+              organizationId: orgId,
+              loanId: id,
+              actorId: actor.userId,
+              type,
+              requestKey: dto.requestKey,
+              requestPayload: request,
+              resultSnapshot: {
+                receiptVersion: 1,
+                type,
+                actorId: actor.userId,
+                itemIds: before.items.map((item) => item.id),
+                releases: positiveReleases,
+                before,
+                after,
+              },
+            },
+          });
+          const result = replayResult(operation);
+          for (const release of positiveReleases)
+            await tx.inventoryLoanEvent.create({
+              data: {
+                organizationId: orgId,
+                loanId: id,
+                ...release,
+                type: 'CANCELLED',
+                createdById: actor.userId,
+                operationId: operation.id,
+              },
+            });
+          await tx.inventoryLoanEvent.create({
+            data: {
+              organizationId: orgId,
+              loanId: id,
+              itemId: null,
+              quantity: null,
+              type: terminalStatus(type),
+              createdById: actor.userId,
+              operationId: operation.id,
+            },
+          });
+          await tx.auditLog.create({
+            data: {
+              organizationId: orgId,
+              userId: actor.userId,
+              action:
+                type === 'CANCEL'
+                  ? 'INVENTORY_LOAN_CANCELLED'
+                  : 'INVENTORY_LOAN_CLOSED',
+              resource: 'InventoryLoan',
+              resourceId: id,
+              metadata: { operationId: operation.id },
+            },
+          });
+          return result;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        ['P2002', 'P2034'].includes(error.code)
+      ) {
+        // Abort reconciliation is outside-only, still authorized, and never retries effects.
+        await this.authorizeTerminal(this.prisma, orgId, actor.userId);
+        const previous = await this.prisma.inventoryLoanOperation.findUnique({
+          where: key,
+        });
+        if (previous) return replayResult(previous);
+        throw new ConflictException(
+          'Conflicto de inventario; reintente con la misma clave',
+        );
+      }
+      throw error;
+    }
   }
 
   private async serviceItems(
