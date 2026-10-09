@@ -26,6 +26,27 @@ export function tracksStock(item: StockSubject): boolean {
   return item.tracksStock !== false && item.type !== ProductType.SERVICE;
 }
 
+export type AvailabilitySubject = StockSubject & {
+  stock: number;
+  reservedStock: number;
+};
+
+/** Available units are distinct from physical stock; null means inventory is not counted. */
+export function availableStock(item: AvailabilitySubject): number | null {
+  if (
+    (item.type !== ProductType.PRODUCT && item.type !== ProductType.SERVICE) ||
+    typeof item.tracksStock !== 'boolean' ||
+    !Number.isInteger(item.stock) ||
+    item.stock < 0 ||
+    !Number.isInteger(item.reservedStock) ||
+    item.reservedStock < 0 ||
+    item.reservedStock > item.stock
+  ) {
+    throw new Error('Invalid product availability inputs');
+  }
+  return tracksStock(item) ? item.stock - item.reservedStock : null;
+}
+
 /** Stored stock is meaningless for anything untracked, so it is normalised to zero. */
 export function normalizeStock(item: StockSubject, stock: number): number {
   return tracksStock(item) ? stock : 0;

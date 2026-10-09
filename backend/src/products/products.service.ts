@@ -4,10 +4,12 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma, ProductType, PromotionType } from '@prisma/client';
+import { Prisma, Product, ProductType, PromotionType } from '@prisma/client';
 import { isUUID } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  availableStock,
+  type AvailabilitySubject,
   isLowStock,
   normalizeStock,
   resolveInitialStockMovement,
@@ -344,11 +346,13 @@ export class ProductsService {
     // pagination bounds returned rows, not the favorite collection's reachability.
     if (ids !== undefined) where.id = { in: [...new Set(ids)] };
     if (available) {
-      const eligibility = { OR: [
-        { type: ProductType.SERVICE },
-        { tracksStock: false },
-        { stock: { gt: 0 } },
-      ] };
+      const eligibility = {
+        OR: [
+          { type: ProductType.SERVICE },
+          { tracksStock: false },
+          { stock: { gt: this.prisma.product.fields.reservedStock } },
+        ],
+      };
       where.AND = [...((where.AND as unknown[]) ?? []), eligibility];
     }
 
@@ -651,13 +655,19 @@ export class ProductsService {
         'Organization ID is required for this operation',
       );
     }
-    return this.prisma.$queryRaw`
+    const products = await this.prisma.$queryRaw<
+      (Product & { categoryName: string | null })[]
+    >`
       SELECT p.*, c.name as "categoryName"
       FROM "Product" p
       LEFT JOIN "Category" c ON p."categoryId" = c.id
       WHERE p.active = true AND p."organizationId" = ${organizationId} AND p.stock <= p."minStock" AND p."type" = 'PRODUCT' AND p."tracksStock" = true
       ORDER BY p.stock ASC
     `;
+    return products.map((product) => ({
+      ...product,
+      availableStock: availableStock(product),
+    }));
   }
 
   async searchProducts(query: string, limit = 20, organizationId: string | undefined) {
@@ -682,6 +692,7 @@ export class ProductsService {
       barcode: p.barcode,
       salePrice: p.salePrice,
       stock: p.stock,
+      availableStock: availableStock(p),
       taxable: p.taxable,
       taxRate: p.taxRate,
       effectiveTaxRate: resolveEffectiveTaxRate(p, p.category),
@@ -729,6 +740,7 @@ export class ProductsService {
       barcode: product.barcode,
       salePrice: product.salePrice,
       stock: product.stock,
+      availableStock: availableStock(product),
       taxable: product.taxable,
       taxRate: product.taxRate,
       effectiveTaxRate: resolveEffectiveTaxRate(product, product.category),
@@ -797,13 +809,14 @@ export class ProductsService {
 
   /**
    * The single response shape for a persisted product row: promo-aware price, effective
-   * tax rate and the low-stock flag. Every read that returns whole product rows (create,
+   * tax rate, physical low-stock flag and reservation-aware availability. Every read that
+   * returns whole product rows (create,
    * findAll, findOne, update) goes through here, so a new derived field cannot reach only
    * some of the endpoints and leave the client to guess.
    */
   private enrichProduct<
     T extends PromoPricingProduct &
-      StockSubject & {
+      AvailabilitySubject & {
         taxable: boolean;
         taxRate: Prisma.Decimal | number;
         stock: number;
@@ -814,9 +827,12 @@ export class ProductsService {
         } | null;
       },
   >(product: T) {
-    return this.enrichWithLowStock(
-      this.enrichWithEffectiveTax(this.enrichWithPromo(product)),
-    );
+    return {
+      ...this.enrichWithLowStock(
+        this.enrichWithEffectiveTax(this.enrichWithPromo(product)),
+      ),
+      availableStock: availableStock(product),
+    };
   }
 
   private async createInventoryMovement(

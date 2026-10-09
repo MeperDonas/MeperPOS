@@ -209,11 +209,10 @@ quantity; a stale snapshot conflicts before any inventory movement is written.
 Missing or inconsistent reservation counters fail closed, never default to zero.
 Product create/update reject caller-supplied `reservedStock`; no DTO accepts it.
 
-**Reservation writes remain disabled.** There is no reserve/release/consume API or
-helper, availability field, quantity ledger, inventory loan, POS or reporting
-change in this slice. Existing availability/search/low-stock math is unchanged.
-L3B-B protects sales/cancellation and the service backfill as described below;
-L3B-C must complete server availability contracts before reservation creation is enabled.
+**Reservation writes remain disabled.** There is no reserve/release/consume API,
+quantity ledger or inventory loan. L3B-B protects stock consumers and L3B-C adds
+server availability as described below; neither enables reservation creation or
+changes POS or reporting.
 Later L3C owns a separate per-loan quantity ledger updated atomically with this
 counter, not the monetary ledger or a generic inventory/accounting engine.
 
@@ -258,6 +257,37 @@ rollback. No backfill CLI or PostgreSQL operation was run for this slice. L7
 still owns those proofs. Rollback boundary: sale safeguards/tests, the backfill
 guard/CLI wiring/tests and this documentation; retain the L3B-A schema/product
 guards and keep all reservation writers disabled.
+
+## Server-owned availability (L3B-C; reservations still disabled)
+
+Product create/update/list/detail, search, quick-search and low-stock responses
+add `availableStock: number | null`. One backend helper derives tracked PRODUCT
+availability as `stock - reservedStock`; SERVICE and untracked merchandise return
+`null` (no finite inventory), not zero. Actual persisted type, tracking flag,
+physical stock and reservation counter are required. Missing, non-integer,
+negative or over-reserved inputs fail closed, never default or clamp.
+
+`available=true` filters tracked rows with the Prisma field-reference predicate
+`stock > reservedStock`; SERVICE and untracked rows remain eligible even at zero
+physical stock. Tenant, search, category, type, IDs and physical low-stock filters
+are composed before both paging and count. Omitting availability or passing false
+keeps the previous list eligibility.
+
+This is additive: physical `stock`, `isLowStock`/`minStock`, the raw SQL physical
+low-stock predicate, prices, effective tax/promotion fields and Decimal handling
+are unchanged. Thin search payloads keep their prior keys; raw low-stock rows keep
+`categoryName` and all stored fields. Revenue reports are not modified.
+
+**L6 frontend handoff:** update Product types/hooks and POS, inventory and
+ProductCard consumers to read the server field, distinguish null from zero, and
+avoid client subtraction. No frontend or complete UI availability audit is part
+of L3B-C. Reservation writers stay disabled pending L3C and checked consumers.
+
+DB-free tests cover all seven response paths, helper validation, field-reference
+selection and pagination/count parity. They do not prove PostgreSQL field-reference
+execution, locking or constraints; L7 retains those proofs. Rollback boundary:
+this availability helper/wiring, its product contract tests/fixtures and this
+section; preserve the L3B-A/B guards and keep reservation writers disabled.
 
 ## Verification and next slice
 

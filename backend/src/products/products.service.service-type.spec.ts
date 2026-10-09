@@ -60,6 +60,7 @@ describe('ProductsService — product versus service', () => {
     reservedStock: 0,
     minStock: 5,
     type: ProductType.PRODUCT,
+    tracksStock: overrides.type !== ProductType.SERVICE,
     imageUrl: null,
     categoryId: 'cat-1',
     active: true,

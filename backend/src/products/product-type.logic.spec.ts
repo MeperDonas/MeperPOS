@@ -1,5 +1,7 @@
 import { MovementType, ProductType } from '@prisma/client';
 import {
+  availableStock,
+  type AvailabilitySubject,
   isLowStock,
   normalizeStock,
   resolveInitialStockMovement,
@@ -49,6 +51,68 @@ describe('product-type.logic — the single stock-decision authority', () => {
     it('refuses to track a service even when its row claims it does', () => {
       expect(tracksStock(service({ tracksStock: true }))).toBe(false);
     });
+  });
+
+  describe('availableStock', () => {
+    const row: AvailabilitySubject = {
+      type: ProductType.PRODUCT,
+      tracksStock: true,
+      stock: 10,
+      reservedStock: 3,
+    };
+
+    it.each([
+      { reservedStock: 3, expected: 7 },
+      { reservedStock: 0, expected: 10 },
+      { reservedStock: 10, expected: 0 },
+      { stock: 0, reservedStock: 0, expected: 0 },
+      { type: ProductType.SERVICE, tracksStock: false, expected: null },
+      { type: ProductType.SERVICE, tracksStock: true, expected: null },
+      { tracksStock: false, expected: null },
+    ])(
+      'derives availability without changing physical stock: %j',
+      ({ expected, ...controls }) => {
+        const input = { ...row, ...controls };
+        const original = { ...input };
+        expect(availableStock(input)).toBe(expected);
+        expect(input).toEqual(original);
+      },
+    );
+
+    it.each([
+      { stock: -1 },
+      { stock: 1.5 },
+      { stock: NaN },
+      { stock: Infinity },
+      { reservedStock: -1 },
+      { reservedStock: 1.5 },
+      { reservedStock: NaN },
+      { reservedStock: Infinity },
+      { reservedStock: 11 },
+      { type: 'UNKNOWN' },
+      { type: null },
+      { tracksStock: null },
+      { tracksStock: 'true' },
+    ])('rejects corrupt real fields without clamping: %j', (controls) => {
+      const input = { ...row, ...controls } as AvailabilitySubject;
+      expect(() => availableStock(input)).toThrow(
+        'Invalid product availability inputs',
+      );
+    });
+
+    it.each(['type', 'tracksStock', 'stock', 'reservedStock'] as const)(
+      'rejects missing %s even for untracked rows',
+      (field) => {
+        const input: Partial<AvailabilitySubject> = {
+          ...row,
+          tracksStock: false,
+        };
+        delete input[field];
+        expect(() => availableStock(input as AvailabilitySubject)).toThrow(
+          'Invalid product availability inputs',
+        );
+      },
+    );
   });
 
   describe('normalizeStock', () => {
