@@ -46,6 +46,8 @@ model Organization {
   suppliers          Supplier[]
   tasks              Task[]
   taskEvents         TaskEvent[]
+  moneyLoans         MoneyLoan[]
+  moneyLoanEvents    MoneyLoanEvent[]
 
   @@index([status, trialEndsAt])
 }
@@ -70,6 +72,9 @@ model User {
   tasksAssigned      Task[]              @relation("TaskAssignedTo")
   tasksCreated       Task[]              @relation("TaskCreatedBy")
   taskEvents         TaskEvent[]         @relation("TaskEventCreatedBy")
+  moneyLoansCreated  MoneyLoan[]         @relation("MoneyLoanCreatedBy")
+  moneyLoansEmployee MoneyLoan[]         @relation("MoneyLoanEmployee")
+  moneyLoanEvents    MoneyLoanEvent[]    @relation("MoneyLoanEventCreatedBy")
 }
 
 model OrganizationUser {
@@ -225,6 +230,7 @@ model Customer {
   organizationId String
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   sales          Sale[]
+  moneyLoans     MoneyLoan[]
 
   @@unique([organizationId, documentNumber])
   @@index([organizationId, active])
@@ -352,6 +358,7 @@ model Supplier {
   updatedAt      DateTime        @updatedAt
   organizationId String
   expenses       Expense[]
+  moneyLoans     MoneyLoan[]
   preferredBy    Product[]       @relation("PreferredSupplier")
   purchaseOrders PurchaseOrder[]
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -407,6 +414,50 @@ model PurchaseOrderItem {
 
   @@index([organizationId, purchaseOrderId])
   @@index([organizationId, productId])
+}
+
+// Standalone MONEY creation/read slice; no payment or settlement lifecycle yet.
+model MoneyLoan {
+  id             String       @id @default(uuid())
+  organizationId String
+  amount         Decimal      @db.Decimal(10, 2)
+  issuedAt       DateTime     @db.Date
+  dueAt          DateTime?    @db.Date
+  reason         String       @db.VarChar(500)
+  customerId     String?
+  supplierId     String?
+  employeeId     String?
+  createdById    String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  supplier       Supplier?    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  employee       User?        @relation("MoneyLoanEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
+  createdBy      User         @relation("MoneyLoanCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  events         MoneyLoanEvent[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, createdAt, id])
+}
+
+enum MoneyLoanEventType {
+  CREATED
+}
+
+// Append-only enforcement and loan input checks are in the SQL migration.
+model MoneyLoanEvent {
+  id             String             @id @default(uuid())
+  loanId         String
+  organizationId String
+  type           MoneyLoanEventType
+  reason         String             @db.VarChar(500)
+  createdById    String
+  createdAt      DateTime           @default(now())
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  loan           MoneyLoan          @relation(fields: [loanId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  createdBy      User               @relation("MoneyLoanEventCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, loanId, createdAt, id])
 }
 
 model AuditLog {
