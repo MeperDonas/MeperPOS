@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { OrganizationSwitcher } from "@/components/auth/OrganizationSwitcher";
@@ -22,7 +23,6 @@ import {
   User as UserIcon,
   Menu,
   X,
-  Boxes,
   ClipboardList,
   Truck,
   Wallet,
@@ -233,9 +233,13 @@ export function Sidebar() {
     <>
       {/* Brand */}
       <div className="px-5 py-5 border-b border-border/70 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-white shadow-sm shadow-primary/30 shrink-0">
-          <Boxes className="w-4 h-4" />
-        </div>
+        <Image
+          src="/brand/meperpos-logo-64.png"
+          alt={`${APP_NAME} logo`}
+          width={36}
+          height={36}
+          className="h-9 w-9 shrink-0 rounded-xl ring-1 ring-border/60 shadow-sm shadow-black/10"
+        />
         <div className="min-w-0">
           <p className="text-base font-extrabold text-foreground truncate leading-tight tracking-tight">
             {APP_NAME}
@@ -372,9 +376,13 @@ export function Sidebar() {
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 bg-card border-b border-border">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-white shadow-xs">
-            <Boxes className="w-3.5 h-3.5" />
-          </div>
+          <Image
+            src="/brand/meperpos-logo-64.png"
+            alt={`${APP_NAME} logo`}
+            width={28}
+            height={28}
+            className="h-7 w-7 shrink-0 rounded-lg ring-1 ring-border/60"
+          />
           <span className="text-sm font-bold text-foreground">
             {APP_NAME}
           </span>
