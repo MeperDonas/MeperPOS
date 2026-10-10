@@ -2935,6 +2935,101 @@ describe.each(['cancel', 'close'] as const)(
 );
 
 describe('tenant-bound inventory reads', () => {
+  it('filters live CLOSED loans with identical tenant/status/counterparty page and count predicates', async () => {
+    const h = harness();
+    const created = await h.service.create(dto, actor);
+    const live = h.state().loans[0];
+    live.status = 'CLOSED';
+    Object.assign(live.items[0], {
+      deliveredQuantity: 1,
+      returnedQuantity: 1,
+      cancelledQuantity: 1,
+    });
+    h.state().loans.push(
+      { ...live, id: 'closed-newer' },
+      { ...live, id: 'foreign', organizationId: 'other' },
+      { ...live, id: 'open', status: 'OPEN' },
+      { ...live, id: 'cancelled', status: 'CANCELLED' },
+      { ...live, id: 'other-customer', customerId: 'other' },
+    );
+    const result = await h.service.findAll(
+      {
+        status: 'CLOSED',
+        counterpartyType: CounterpartyType.CUSTOMER,
+        counterpartyId: personId,
+        page: 2,
+        limit: 1,
+      },
+      'org',
+    );
+    expect(result).toMatchObject({
+      data: [{ id: 'closed-newer', organizationId: 'org', status: 'CLOSED' }],
+      total: 2,
+      page: 2,
+      limit: 1,
+      totalPages: 2,
+    });
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].items[0]).toMatchObject({
+      reservedRemaining: 0,
+      outstanding: 0,
+    });
+    const where = {
+      organizationId: 'org',
+      status: 'CLOSED',
+      customerId: personId,
+    };
+    const arg = h.db.inventoryLoan.findMany.mock.calls[0][0];
+    expect(arg.where).toEqual(where);
+    expect(arg).toMatchObject({
+      select: { items: { where: { organizationId: 'org' } } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: 1,
+      take: 1,
+    });
+    expect(h.db.inventoryLoan.count).toHaveBeenCalledWith({ where });
+    expect(created.status).toBe('OPEN');
+    expect(await h.service.create(dto, actor)).toEqual(created);
+  });
+  it.each(['OPEN', 'CANCELLED'] as const)(
+    'retains explicit %s filtering and live status without cross-tenant rows',
+    async (status) => {
+      const h = harness();
+      const created = await h.service.create(dto, actor);
+      const live = h.state().loans[0];
+      live.status = status;
+      h.state().loans.push(
+        { ...live, id: 'foreign', organizationId: 'other' },
+        { ...live, id: 'closed', status: 'CLOSED' },
+        {
+          ...live,
+          id: 'alternate',
+          status: status === 'OPEN' ? 'CANCELLED' : 'OPEN',
+        },
+      );
+      const result = await h.service.findAll({ status }, 'org');
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).toMatchObject({ id: created.id, status });
+      expect(result.total).toBe(1);
+      const where = { organizationId: 'org', status };
+      expect(h.db.inventoryLoan.findMany.mock.calls[0][0].where).toEqual(where);
+      expect(h.db.inventoryLoan.count).toHaveBeenCalledWith({ where });
+    },
+  );
+  it('still rejects CLOSED in immutable CREATE evidence without live fallback or writes', async () => {
+    const h = harness();
+    await h.service.create(dto, actor);
+    const stored = h.state().operations[0].resultSnapshot as unknown as Row;
+    stored.status = 'CLOSED';
+    const before = structuredClone(h.state());
+    const effects = [...h.calls];
+    await expect(h.service.create(dto, actor)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(h.state()).toEqual(before);
+    expect(h.calls).toEqual(effects);
+    expect(h.db.inventoryLoan.findFirst).not.toHaveBeenCalled();
+  });
   it('composes identical page/count filters and stable ordering with scoped item projection', async () => {
     const h = harness();
     await h.service.create(dto, actor);
@@ -3059,7 +3154,7 @@ describe('tenant-bound inventory reads', () => {
       await h.service.findAll({ page: 2000000, limit: 200 }, 'org'),
     ).toMatchObject({ page: 1000000, limit: 100 });
     await expect(
-      h.service.findAll({ status: 'CLOSED' as 'OPEN' }, 'org'),
+      h.service.findAll({ status: 'INVALID' as 'OPEN' }, 'org'),
     ).rejects.toMatchObject({ status: 400 });
     await expect(
       h.service.findAll({ counterpartyType: CounterpartyType.CUSTOMER }, 'org'),

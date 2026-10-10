@@ -484,10 +484,11 @@ evidence returns 409. There is no automatic reservation retry, conflict upsert,
 or assumption that any unique-key violation means success.
 
 List uses one composed tenant/status/typed-counterparty predicate for page and
-count. The unwired B query validator still accepts only OPEN and CANCELLED;
-its explicit enum-constant allowlist remains OPEN/CANCELLED even after client
-generation adds CLOSED. Lifecycle vocabulary does not expand read-filter semantics
-or the strictly OPEN-only CREATE snapshot.
+count. The unwired query validator explicitly accepts OPEN, CANCELLED and CLOSED;
+unknown statuses reject. List/detail present live status and counters, while the
+immutable CREATE replay snapshot remains strictly OPEN-only. The earlier B and
+C-C-A/B/C units retained an OPEN/CANCELLED query guard; CLOSED filtering is added
+only by this narrow internal read-query gate, not by enum generation.
 Counterparty filters require both type and ID. Page/limit are bounded to
 1–1,000,000 and 1–100, defaulting to 1 and 20. List ordering is createdAt/id
 descending; history is ascending with the same ID tie-breaker. Responses use
@@ -576,8 +577,9 @@ After application, any rollback requires a separately approved data-safe plan.
 adds only direct-call `InventoryLoansService.deliver(id, dto, actor)` and
 `returnItems(id, dto, actor)`. No controller, module registration/export, HTTP
 route, terminal lifecycle activation or inventory-ledger integration is added.
-CREATE's strict OPEN/zero-initial-counter replay shape and existing
-OPEN/CANCELLED query filter remain unchanged.
+At the time of C-C-B, CREATE's strict OPEN/zero-initial-counter replay shape and
+OPEN/CANCELLED query filter remained unchanged. The later internal read-query
+gate above adds CLOSED filtering without changing CREATE replay.
 
 ### Request, actor and stock contract
 
@@ -659,7 +661,7 @@ metadata and before-count evidence never become public response fields.
   inventory movement ledger, reporting or export integration. SALE/RETURN
   movement types are not repurposed.
 - **Remaining lifecycle/HTTP gate:** internal CANCEL/CLOSE are described below;
-  lifecycle queries, controller permissions/wiring and frontend remain gated.
+  further lifecycle query work, controller permissions/wiring and frontend remain gated.
   No automatic closure,
   payment, sale or money semantics are introduced.
 - **L7 database gate:** predicate-aware cloned-store tests prove local success-only
@@ -688,7 +690,7 @@ updates are not newly transactional.
 unapplied.** Direct-call `cancel(id, dto, actor)` and `close(id, dto, actor)` add
 explicit terminal transitions only. The existing 090600 event shapes and
 operation storage suffice; this unit changes no schema, SQL, pure helper,
-product-conversion guard, module, controller or public query allowlist.
+product-conversion guard, module, controller or query allowlist at that time.
 
 ### Policy and request
 
@@ -767,14 +769,18 @@ No new SQL proof, Prisma validation/generation or migration execution is claimed
 Prior writer CLI evidence is reused only; independent fresh foundation validation
 remains blocked, not passed. L7 isolated database/runtime authorization proof is
 pending. Product conversion, movement ledger/report/export integration, frontend,
-HTTP permissions/wiring and CLOSED query-filter activation remain separate gates.
+HTTP permissions/wiring remain separate gates. CLOSED query-filter activation,
+which was still gated at C-C-C, is now covered by the narrow internal read-query
+gate above; it adds no HTTP or operational activation.
 The informational R3 CREATE snapshot/payload and servicing abort-authorization
 follow-ups are not reopened or corrected by this terminal-only unit.
 
 Before application, rollback is confined to terminal methods/receipt helpers,
 terminal DTO, terminal tests/harness extensions and this contract. Preserve
-CREATE, DELIVER/RETURN, OPEN/CANCELLED query behavior and all approved foundation
-storage/helpers and stock-consumer safeguards. No production-readiness or native
+CREATE, DELIVER/RETURN and all approved foundation storage/helpers and
+stock-consumer safeguards. The OPEN/CANCELLED query guard was unchanged by C-C-C;
+the later CLOSED-filter gate above is an independent rollback boundary (its
+explicit allowlist entry, read tests and query documentation). No production-readiness or native
 review verdict is claimed.
 
 ## Verification and next slice

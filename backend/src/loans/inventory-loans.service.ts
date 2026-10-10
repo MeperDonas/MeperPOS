@@ -1448,7 +1448,8 @@ export class InventoryLoansService {
     if (
       query.status !== undefined &&
       query.status !== InventoryLoanStatus.OPEN &&
-      query.status !== InventoryLoanStatus.CANCELLED
+      query.status !== InventoryLoanStatus.CANCELLED &&
+      query.status !== InventoryLoanStatus.CLOSED
     ) {
       throw new BadRequestException('Estado de préstamo inválido');
     }
