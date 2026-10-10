@@ -639,12 +639,21 @@ metadata and before-count evidence never become public response fields.
 
 ### Pre-rollout gates and proof limits
 
-- **Product eligibility gate:** existing product conversion guards protect
-  positive reservedStock only. Full delivery can leave outstanding units with
-  zero reservations; conversion to SERVICE/untracked can then normalize stock.
-  This writer rejects such converted products, including RETURN, rather than
-  fabricating a recovery. A separate parent-owned product guard unit is required
-  before rollout; inactive physical return alone does not resolve conversion.
+- **Product eligibility gate:** ProductsService now rejects an actual change to
+  the final normalized type/tracksStock pair when any same-tenant/product loan
+  item has deliveredQuantity greater than returnedQuantity, even with zero
+  reservedStock. The field-reference existence query has no loan-status filter:
+  terminal records with outstanding units still block, and cancelledQuantity
+  never substitutes for returnedQuantity. Fully returned, never-delivered and
+  unrelated tenant/product items do not block conversion.
+  Conversion alone uses a Serializable transaction containing this query, the
+  existing tenant/active/version/reservation-pinned product CAS and read, and
+  the existing stock-adjustment movement. Names, prices and normalized same-pair
+  requests remain query-free on the ordinary update path. Reservation guards,
+  service/untracked normalization and inactive tracked physical returns remain
+  unchanged. Cloned-state tests establish local query placement and rollback on
+  CAS loss or late movement failure, not PostgreSQL SSI/race/rollback proof.
+  Independent verification and L7 database proof remain pre-rollout requirements.
 - **Stock-ledger/report gate:** InventoryMovement has no loan-specific enum or
   linkage. DELIVERED/RETURNED loan events and AuditLog are not proof of an
   inventory movement ledger, reporting or export integration. SALE/RETURN
@@ -666,6 +675,12 @@ Before migration application, this unit's rollback boundary is the two methods,
 operation DTO, receipt helpers, expanded local spec and this section. Preserve
 CREATE/read behavior, foundation helpers/storage and all stock-consumer guards.
 No production-readiness or native review approval is claimed.
+
+The product-eligibility work unit can be rolled back independently through
+ProductsService's conversion transaction and movement-delegate extension, its
+service-type/reservation specs and the eligibility documentation above. It adds
+no schema, routes, roles, movement taxonomy or financial behavior; ordinary
+updates are not newly transactional.
 
 ## Internal physical cancellation and closure (L3C-C C-C-C; UNWIRED)
 

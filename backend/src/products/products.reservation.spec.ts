@@ -56,6 +56,11 @@ describe('ProductsService reservation foundation', () => {
     },
     inventoryMovement: { create: jest.fn() },
     auditLog: { create: jest.fn() },
+    inventoryLoanItem: {
+      fields: { returnedQuantity: { name: 'returnedQuantity' } },
+      findFirst: jest.fn(),
+    },
+    $transaction: jest.fn(),
   };
   let service: ProductsService;
 
@@ -71,6 +76,10 @@ describe('ProductsService reservation foundation', () => {
     snapshot = row();
     current = { ...snapshot };
     race = undefined;
+    prisma.inventoryLoanItem.findFirst.mockResolvedValue(null);
+    prisma.$transaction.mockImplementation(
+      (callback: (tx: typeof prisma) => Promise<unknown>) => callback(prisma),
+    );
     prisma.product.findFirst
       .mockImplementationOnce(() => Promise.resolve({ ...snapshot }))
       .mockImplementation(() => Promise.resolve({ ...current }));
@@ -119,6 +128,8 @@ describe('ProductsService reservation foundation', () => {
   ])('rejects incompatible edits %j before writing', async (dto) => {
     await expect(update(dto)).rejects.toBeInstanceOf(ConflictException);
     expect(prisma.product.updateMany).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.inventoryLoanItem.findFirst).not.toHaveBeenCalled();
     expect(current).toEqual(snapshot);
     noEffects();
   });
@@ -186,6 +197,21 @@ describe('ProductsService reservation foundation', () => {
     snapshot.reservedStock = current.reservedStock = 0;
     const result = await update(dto);
     expect(result.reservedStock).toBe(0);
+    if (dto.type === ProductType.SERVICE || dto.tracksStock === false) {
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.inventoryLoanItem.findFirst).toHaveBeenCalledWith({
+        where: {
+          organizationId: 'org-1',
+          productId: 'product-1',
+          deliveredQuantity: {
+            gt: prisma.inventoryLoanItem.fields.returnedQuantity,
+          },
+        },
+      });
+    } else {
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.inventoryLoanItem.findFirst).not.toHaveBeenCalled();
+    }
     if (dto.active === false) {
       expect(result.active).toBe(false);
       expect(prisma.product.findFirst).toHaveBeenLastCalledWith({
