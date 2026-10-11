@@ -331,4 +331,47 @@ describe("Sidebar", () => {
       );
     });
   });
+
+  it("stacks the four sidebar blocks in the approved order", async () => {
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { organizations: [organizations[0]] },
+    });
+
+    render(<Sidebar />, { wrapper });
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith("/auth/organizations");
+    });
+
+    // Document order is the contract: brand -> date/time -> navigation -> user.
+    const blocks = [
+      screen.getByTestId("sidebar-brand"),
+      screen.getByTestId("sidebar-clock"),
+      screen.getByTestId("sidebar-nav"),
+      screen.getByTestId("sidebar-user"),
+    ];
+
+    for (let i = 0; i < blocks.length - 1; i++) {
+      expect(
+        blocks[i].compareDocumentPosition(blocks[i + 1]) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    }
+  });
+
+  it("renders the es-CO date and time as its own block below the brand", async () => {
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { organizations: [organizations[0]] },
+    });
+
+    render(<Sidebar />, { wrapper });
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith("/auth/organizations");
+    });
+
+    const clock = screen.getByTestId("sidebar-clock");
+    expect(clock).toHaveTextContent(/\d{4}/);
+    expect(clock).toHaveTextContent(/\d{1,2}:\d{2}/);
+  });
 });
