@@ -4,16 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { AlertPanels } from "./AlertPanels";
 
 const pushMock = vi.fn();
-const useLowStockMock = vi.fn();
 const useExpensesMock = vi.fn();
 const useTasksMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
-}));
-
-vi.mock("@/hooks/useProducts", () => ({
-  useLowStockProducts: () => useLowStockMock(),
 }));
 
 vi.mock("@/hooks/useExpenses", () => ({
@@ -32,10 +27,9 @@ const expense = (id: string, description: string, total: number, payments: numbe
   payments: payments.map((amount, index) => ({ id: `${id}-p${index}`, amount })),
 });
 
-describe("AlertPanels (DIA-6..8)", () => {
+describe("AlertPanels (compact operational panels)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useLowStockMock.mockReturnValue({ data: [] });
     useExpensesMock.mockReturnValue({ data: { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } } });
     useTasksMock.mockReturnValue({ data: { tasks: [], source: "remote" } });
   });
@@ -44,59 +38,24 @@ describe("AlertPanels (DIA-6..8)", () => {
     cleanup();
   });
 
-  // ---- DIA-6: low stock ----
-  it("lists real low-stock products with name and stock", () => {
-    useLowStockMock.mockReturnValue({
-      data: [
-        { id: "p1", name: "Café", stock: 3 },
-        { id: "p2", name: "Azúcar", stock: 1 },
-      ],
-    });
-
+  it("no longer renders the low-stock panel (now owned by the Stock crítico KPI)", () => {
     render(<AlertPanels />);
 
-    expect(screen.getByText("Café")).toBeTruthy();
-    expect(screen.getByText("3")).toBeTruthy();
-    expect(screen.getByText("Azúcar")).toBeTruthy();
-    expect(screen.getByText("1")).toBeTruthy();
+    expect(screen.queryByText("Stock bajo")).toBeNull();
+    expect(screen.queryByRole("button", { name: /reordenar/i })).toBeNull();
+    expect(screen.queryByText("Stock OK")).toBeNull();
   });
 
-  it("shows 'Stock OK' and no fabricated count when there is no low stock", () => {
-    render(<AlertPanels />);
+  it("lays the two panels side by side at md and stacks them on mobile", () => {
+    const { container } = render(<AlertPanels />);
 
-    expect(screen.getByText("Stock OK")).toBeTruthy();
-    expect(screen.queryByText(/productos en stock crítico/i)).toBeNull();
-    expect(screen.queryByText(/bajo requerido/i)).toBeNull();
-    expect(screen.queryByText(/sin stock/i)).toBeNull();
+    const grid = container.firstElementChild as HTMLElement;
+    expect(grid.className).toContain("grid-cols-1");
+    expect(grid.className).toContain("md:grid-cols-2");
+    expect(grid.children).toHaveLength(2);
   });
 
-  it("routes to the low-stock filter from the Reordenar CTA", async () => {
-    useLowStockMock.mockReturnValue({
-      data: [{ id: "p1", name: "Café", stock: 3 }],
-    });
-
-    render(<AlertPanels />);
-
-    await userEvent.click(screen.getByRole("button", { name: /reordenar/i }));
-    expect(pushMock).toHaveBeenCalledWith("/inventory?filter=lowStock");
-  });
-
-  it("keeps overflow navigation and Reordenar in a bottom-aligned action group", async () => {
-    useLowStockMock.mockReturnValue({
-      data: Array.from({ length: 5 }, (_, i) => ({ id: `p${i}`, name: `Producto ${i}`, stock: 0 })),
-    });
-    render(<AlertPanels />);
-
-    const reorder = screen.getByRole("button", { name: /reordenar/i });
-    const actions = reorder.parentElement!;
-    expect(actions.className).toContain("mt-auto");
-    expect(actions.className).toContain("items-start");
-    expect(actions.parentElement!.className).toContain("flex-col");
-    await userEvent.click(within(actions).getByRole("button", { name: "Ver 1 más" }));
-    expect(pushMock).toHaveBeenCalledWith("/inventory?filter=lowStock");
-  });
-
-  // ---- DIA-7: partial expenses ----
+  // ---- Partial expenses ----
   it("lists partial expenses with their pending amounts and total pending in COP", () => {
     useExpensesMock.mockReturnValue({
       data: {
@@ -123,6 +82,26 @@ describe("AlertPanels (DIA-6..8)", () => {
     expect(useExpensesMock).toHaveBeenCalledWith({ status: "PARTIAL" });
   });
 
+  it("caps the expense list to two entries", () => {
+    useExpensesMock.mockReturnValue({
+      data: {
+        data: [
+          expense("e1", "Gasto 1", 10000, []),
+          expense("e2", "Gasto 2", 10000, []),
+          expense("e3", "Gasto 3", 10000, []),
+        ],
+        meta: { total: 3, page: 1, limit: 10, totalPages: 1 },
+      },
+    });
+
+    render(<AlertPanels />);
+
+    expect(screen.getByText("Gasto 1")).toBeTruthy();
+    expect(screen.getByText("Gasto 2")).toBeTruthy();
+    expect(screen.queryByText("Gasto 3")).toBeNull();
+    expect(screen.getByRole("button", { name: "Ver 1 más" })).toBeTruthy();
+  });
+
   it("shows an empty state (no stale total) when there are no partial expenses", () => {
     render(<AlertPanels />);
 
@@ -130,7 +109,7 @@ describe("AlertPanels (DIA-6..8)", () => {
     expect(screen.queryByText(/\$\s[0-9]/)).toBeNull();
   });
 
-  // ---- DIA-8: open tasks ----
+  // ---- Open tasks ----
   it("lists open tasks with title and due date, excluding COMPLETED/CANCELLED", () => {
     useTasksMock.mockReturnValue({
       data: {
@@ -156,10 +135,10 @@ describe("AlertPanels (DIA-6..8)", () => {
     expect(screen.getAllByText(/2026/).length).toBeGreaterThanOrEqual(2);
   });
 
-  it("caps the open-task list to four entries", () => {
+  it("caps the open-task list to two entries", () => {
     useTasksMock.mockReturnValue({
       data: {
-        tasks: Array.from({ length: 6 }, (_, index) => ({
+        tasks: Array.from({ length: 4 }, (_, index) => ({
           id: `t${index + 1}`,
           title: `Tarea ${index + 1}`,
           status: "PENDING",
@@ -172,9 +151,9 @@ describe("AlertPanels (DIA-6..8)", () => {
     render(<AlertPanels />);
 
     expect(screen.getByText("Tarea 1")).toBeTruthy();
-    expect(screen.getByText("Tarea 4")).toBeTruthy();
-    expect(screen.queryByText("Tarea 5")).toBeNull();
-    expect(screen.queryByText("Tarea 6")).toBeNull();
+    expect(screen.getByText("Tarea 2")).toBeTruthy();
+    expect(screen.queryByText("Tarea 3")).toBeNull();
+    expect(screen.queryByText("Tarea 4")).toBeNull();
   });
 
   it("shows an empty state when all tasks are completed or cancelled", () => {

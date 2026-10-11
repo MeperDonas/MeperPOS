@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import type { DashboardData } from "@/types";
+import type { Customer, DashboardData, Sale } from "@/types";
 
 const pushMock = vi.fn();
 const useDashboardMock = vi.fn();
@@ -10,12 +10,18 @@ const useDailySalesMock = vi.fn();
 const useSalesByCategoryDailyMock = vi.fn();
 const useSalesByPaymentMethodMock = vi.fn();
 const useTopSellingProductsMock = vi.fn();
-const useLowStockMock = vi.fn();
 const useExpensesMock = vi.fn();
 const useTasksMock = vi.fn();
+const useSalesMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
+}));
+
+vi.mock("next/link", () => ({
+  default: ({ href, children }: { href: string; children: ReactNode }) => (
+    <a href={href}>{children}</a>
+  ),
 }));
 
 vi.mock("@/components/layout/DashboardLayout", () => ({
@@ -40,16 +46,16 @@ vi.mock("@/contexts/AuthContext", () => ({
   }),
 }));
 
-vi.mock("@/hooks/useProducts", () => ({
-  useLowStockProducts: () => useLowStockMock(),
-}));
-
 vi.mock("@/hooks/useExpenses", () => ({
   useExpenses: (params: unknown) => useExpensesMock(params),
 }));
 
 vi.mock("@/hooks/useTasks", () => ({
   useTasks: () => useTasksMock(),
+}));
+
+vi.mock("@/hooks/useSales", () => ({
+  useSales: (params: unknown) => useSalesMock(params),
 }));
 
 import DashboardPage from "./page";
@@ -94,6 +100,53 @@ function makeDashboardData(input: Partial<DashboardData>): DashboardData {
       timezone: "America/Bogota",
     },
     ...input,
+  };
+}
+
+function makeCustomer(): Customer {
+  return {
+    id: "customer-1",
+    name: "Cliente Uno",
+    documentType: "CC",
+    documentNumber: "123456",
+    email: null,
+    phone: null,
+    address: null,
+    referencia: null,
+    placaMoto: null,
+    segment: "OCCASIONAL",
+    active: true,
+    createdAt: "2026-01-01T12:00:00.000Z",
+    updatedAt: "2026-01-01T12:00:00.000Z",
+  };
+}
+
+function makeSale(): Sale {
+  return {
+    id: "sale-1",
+    saleNumber: 101,
+    customerId: "customer-1",
+    customer: makeCustomer(),
+    subtotal: 42000,
+    taxAmount: 8000,
+    discountAmount: 0,
+    total: 50000,
+    amountPaid: 50000,
+    change: 0,
+    status: "COMPLETED",
+    userId: "user-1",
+    items: [],
+    payments: [
+      {
+        id: "payment-1",
+        saleId: "sale-1",
+        method: "CASH",
+        amount: 50000,
+        createdAt: "2026-01-01T12:00:00.000Z",
+      },
+    ],
+    createdAt: "2026-01-01T12:00:00.000Z",
+    updatedAt: "2026-01-01T12:00:00.000Z",
   };
 }
 
@@ -152,16 +205,16 @@ describe("Dashboard scope evidence (DIA-4/13/10 — reports no longer duplicated
       },
     });
 
-    useLowStockMock.mockReturnValue({ data: [] });
     useExpensesMock.mockReturnValue({ data: { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } } });
     useTasksMock.mockReturnValue({ data: { tasks: [], source: "remote" } });
+    useSalesMock.mockReturnValue({ data: { data: [] } });
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it("renders the 8-metric KPI grid and operational panels", () => {
+  it("renders the 8-metric KPI grid and the compact operational panels", () => {
     render(<DashboardPage />);
 
     // 8 compact metrics — two rows of four
@@ -174,10 +227,23 @@ describe("Dashboard scope evidence (DIA-4/13/10 — reports no longer duplicated
     expect(screen.getByText("Clientes totales")).toBeTruthy();
     expect(screen.getByText("Stock crítico")).toBeTruthy();
 
-    // Operational panels
-    expect(screen.getByText("Stock bajo")).toBeTruthy();
+    // Compact operational panels (low-stock is no longer duplicated here)
+    expect(screen.queryByText("Stock bajo")).toBeNull();
     expect(screen.getByText("Gastos por pagar")).toBeTruthy();
     expect(screen.getByText("Tareas abiertas")).toBeTruthy();
+  });
+
+  it("renders the recent-sales section between revenue and the alert panels", () => {
+    useSalesMock.mockReturnValue({ data: { data: [makeSale()] } });
+
+    render(<DashboardPage />);
+
+    expect(screen.getByText("Ventas recientes")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /ver todas/i })).toHaveAttribute(
+      "href",
+      "/sales",
+    );
+    expect(screen.getByTestId("recent-sale-row")).toBeTruthy();
   });
 
   it("renders the revenue piece with its default 7-day range", () => {
@@ -214,26 +280,10 @@ describe("Dashboard scope evidence (DIA-4/13/10 — reports no longer duplicated
     expect(screen.queryByText("Inventario actual")).toBeNull();
   });
 
-  it("routes to low-stock inventory filter from the alert reorder CTA", async () => {
-    useLowStockMock.mockReturnValue({
-      data: [{ id: "p1", name: "Café", stock: 3, minStock: 5 }],
-    });
-
+  it("routes to low-stock inventory filter from the Stock crítico KPI action", async () => {
     render(<DashboardPage />);
 
-    await userEvent.click(screen.getByRole("button", { name: "REORDENAR" }));
+    await userEvent.click(screen.getByRole("button", { name: /reordenar/i }));
     expect(pushMock).toHaveBeenCalledWith("/inventory?filter=lowStock");
-  });
-
-  it("shows alert panels with real low-stock data from the hook", () => {
-    useLowStockMock.mockReturnValue({
-      data: [{ id: "p1", name: "Café", stock: 3 }],
-    });
-
-    render(<DashboardPage />);
-
-    const item = screen.getByText("Café").closest("li");
-    expect(item).toBeTruthy();
-    expect(within(item as HTMLElement).getByText("3")).toBeTruthy();
   });
 });
