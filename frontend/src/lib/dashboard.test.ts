@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCategoryColorMap,
+  buildDailyMetricSeries,
+  buildDateWindow,
   buildStackedDailySeries,
   chartHeight,
+  computeDelta,
   computePendingAmount,
   computeTodayMetrics,
   filterOpenTasks,
@@ -182,5 +185,86 @@ describe("sumExpensesOnDate (Salidas hoy)", () => {
   it("returns 0 when the list is empty or undefined", () => {
     expect(sumExpensesOnDate([], today)).toBe(0);
     expect(sumExpensesOnDate(undefined, today)).toBe(0);
+  });
+});
+
+describe("buildDateWindow (dashboard KPI window)", () => {
+  it("returns an inclusive, oldest → newest window ending today", () => {
+    expect(buildDateWindow("2026-08-22", 8)).toEqual([
+      "2026-08-15",
+      "2026-08-16",
+      "2026-08-17",
+      "2026-08-18",
+      "2026-08-19",
+      "2026-08-20",
+      "2026-08-21",
+      "2026-08-22",
+    ]);
+  });
+
+  it("crosses a month boundary correctly", () => {
+    expect(buildDateWindow("2026-03-02", 4)).toEqual([
+      "2026-02-27",
+      "2026-02-28",
+      "2026-03-01",
+      "2026-03-02",
+    ]);
+  });
+
+  it("returns an empty list for a non-positive length", () => {
+    expect(buildDateWindow("2026-08-22", 0)).toEqual([]);
+  });
+});
+
+describe("buildDailyMetricSeries (sparkline series)", () => {
+  const days = ["2026-08-20", "2026-08-21", "2026-08-22"];
+
+  it("aligns one value per requested day, oldest → newest", () => {
+    const series = buildDailyMetricSeries(
+      [
+        { date: "2026-08-22", total: 300, subtotal: 0, tax: 0, count: 3 },
+        { date: "2026-08-20", total: 100, subtotal: 0, tax: 0, count: 1 },
+      ],
+      days,
+      (record) => record.total,
+    );
+
+    expect(series).toEqual([100, 0, 300]);
+  });
+
+  it("defaults missing days to 0 instead of dropping them", () => {
+    const series = buildDailyMetricSeries(undefined, days, (record) => record.count);
+
+    expect(series).toEqual([0, 0, 0]);
+    expect(series).toHaveLength(days.length);
+  });
+
+  it("supports any per-record projection (e.g. the average ticket)", () => {
+    const series = buildDailyMetricSeries(
+      [{ date: "2026-08-22", total: 250000, subtotal: 0, tax: 0, count: 5 }],
+      ["2026-08-22"],
+      (record) => computeTodayMetrics(record).ticket,
+    );
+
+    expect(series).toEqual([50000]);
+  });
+});
+
+describe("computeDelta (today vs yesterday)", () => {
+  it("returns a positive percentage when the current value grows", () => {
+    expect(computeDelta(250000, 200000)).toEqual({ percentage: 25 });
+  });
+
+  it("returns a negative percentage when the current value shrinks", () => {
+    expect(computeDelta(150, 200)).toEqual({ percentage: -25 });
+  });
+
+  it("returns a null percentage when the baseline is 0 (never invents a delta)", () => {
+    expect(computeDelta(250000, 0)).toEqual({ percentage: null });
+  });
+
+  it("returns a null percentage when the baseline is missing", () => {
+    expect(computeDelta(250000, undefined)).toEqual({ percentage: null });
+    expect(computeDelta(250000, null)).toEqual({ percentage: null });
   });
 });

@@ -9,7 +9,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { TodayStats } from "@/components/dashboard/TodayStats";
 import { AlertPanels } from "@/components/dashboard/AlertPanels";
-import { QuickActions } from "@/components/dashboard/QuickActions";
 import { CategoryStackedChart } from "@/components/dashboard/CategoryStackedChart";
 
 export default function DashboardPage() {
@@ -52,10 +51,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick actions (bento 2x2) — placed above the metrics */}
-        <QuickActions />
-
-        {/* Compact 7-metric grid (day KPIs + aggregates) */}
+        {/* 8 KPI cards — two rows of four (day KPIs + accumulated totals) */}
         <TodayStats />
 
         {/* Stacked category chart — replaces the simple revenue bars */}
