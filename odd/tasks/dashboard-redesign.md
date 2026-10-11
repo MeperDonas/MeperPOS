@@ -77,11 +77,11 @@ now deliberately revised by the user:
 - [x] **T3 — Section 2 KPIs**: 8 cards in a 4+4 grid; row 1 carries a real sparkline and a real delta
       vs yesterday; Ticket promedio added (reusing `computeTodayMetrics`); Reordenar moved into the
       Stock crítico card; `QuickActions` deleted. Commit `3429cf3`, corrected by `c3690e5`.
-- [ ] **T4 — Sections 3+4 piece**: 60/40 fixed-height grid; single shared range selector
-      (7d default / 15d / 1m).
-- [ ] **T5 — Stacked bar chart on Recharts**: range-driven title and axis; Recharts tooltip replaces
-      the hand-rolled tooltip (`CategoryStackedChart.tsx:48-55` binary left/right flip).
-- [ ] **T6 — Payment methods (donut) + top-selling products (top 5, no thumbnails)**.
+- [x] **T4 — Sections 3+4 piece**: 60/40 fixed-height grid; single shared range selector
+      (7d default / 15d / 1m). Commit `885fd92`.
+- [x] **T5 — Stacked bar chart on Recharts**: title and axis follow the range; Recharts' own tooltip
+      replaces the hand-rolled binary flip. Commit `885fd92`.
+- [x] **T6 — Payment methods (donut) + top-selling products (top 5, no thumbnails)**. Commit `c2bb8c1`.
 - [ ] **T7 — Recent sales mini table** (5 rows) via `useSales`.
 - [ ] **T8 — Final panels**: drop low stock; compact gastos + tareas.
 - [ ] **T9 — Verification**: `npm run test`, `npm run lint` (frontend), and an on-screen check of the
@@ -151,7 +151,29 @@ strategy is confirmed with the user before the first PR is opened.
 
 ## Next step
 
-T4 (60/40 fixed-height piece + single shared range selector), then T5 (stacked bar chart on Recharts).
+T7 (mini "Ventas recientes" via `useSales`), then T8 (final panels), then T9 (verification).
+
+## Progress (T4–T6)
+
+- 2026-10-11 — **T4+T5+T6 done** as two commits, `c2bb8c1` + `885fd92` (~982 authored additions,
+  12 files: 6 modified, 6 created).
+  - The full-width "Ingresos de {mes}" card is replaced by `<RevenueSection />`: a 60/40 piece with
+    the stacked chart left and the payment-methods + top-products cards stacked right.
+  - **One shared range selector** (7 días default / 15 días / 1 mes) hands the same start/end to all
+    three cards, so they can never disagree.
+  - Height pinned at `lg:h-[26rem]` with `h-full` + `min-h-0` + `overflow-hidden` children, so
+    changing the range changes only the bar count and never resizes the piece.
+  - `CategoryStackedChart` rebuilt on Recharts; the month-hardcoded title/axis and the hand-rolled
+    two-position tooltip are **deleted** (grep for `tooltipTranslate` / `isRightSide` → no matches).
+  - Payment methods: exactly 3 slices (CASH/CARD/TRANSFER), **no "Otros"**. Top products: top 5,
+    **no thumbnails**. Nothing fabricated.
+  - `1 mes` is a **rolling 30-day window**, consistent with the rolling 7/15-day options.
+  - Evidence: vitest on the 6 affected suites → **58 passed (58)**; eslint clean; `tsc --noEmit` clean.
+  - Independent verification: `verified_with_caveats`, **no fabricated data found**. Caveats are
+    wording only: (a) the two right cards are each ~half the left card's height, so it is the right
+    *column* that matches the left card; (b) the card title is static ("Ingresos por categoría") and
+    what follows the range is the "Últimos N días" badge plus the axis.
+  - Caveat the user may want to overturn: `1 mes` = rolling 30 days, not the calendar month.
 
 ## Mirror status
 

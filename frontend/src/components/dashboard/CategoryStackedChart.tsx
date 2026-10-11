@@ -1,288 +1,189 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { Bar, BarChart, Tooltip, XAxis } from "recharts";
+import { useSalesByCategoryDaily } from "@/hooks/useReports";
 import { formatCurrency } from "@/lib/utils";
 import {
-  CATEGORY_CHART_PALETTE,
   buildCategoryColorMap,
+  buildDateWindow,
   buildStackedDailySeries,
+  countDaysInclusive,
+  formatCategoryAxisTick,
+  formatCategoryTooltipDate,
 } from "@/lib/dashboard";
-import type { SaleByCategoryDaily } from "@/types";
 
-const EMPTY_SEGMENT_COLOR = "#3D3D4A";
+/** One chart row: the day's total plus one numeric field per category. */
+interface CategoryChartRow {
+  date: string;
+  total: number;
+  [category: string]: number | string;
+}
 
-export function CategoryStackedChart({
-  data,
-  days,
-}: {
-  data: SaleByCategoryDaily[];
-  days: string[];
-}) {
-  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+/** Shape Recharts hands to a custom tooltip content component. */
+interface CategoryTooltipEntry {
+  dataKey?: string | number;
+  name?: string | number;
+  value?: number | string;
+  color?: string;
+  payload?: CategoryChartRow;
+}
 
-  const series = useMemo(
-    () => buildStackedDailySeries(data, days),
-    [data, days],
-  );
-  const colorMap = useMemo(
-    () => buildCategoryColorMap(data?.map((row) => row.category)),
-    [data],
-  );
-  const maxDayTotal = useMemo(
-    () => Math.max(1, ...series.map((day) => day.total)),
-    [series],
-  );
+interface CategoryTooltipContentProps {
+  active?: boolean;
+  payload?: CategoryTooltipEntry[];
+}
 
-  const hoveredIndex = useMemo(
-    () => series.findIndex((day) => day.date === hoveredDate),
-    [hoveredDate, series],
-  );
-  const hoveredDay = hoveredIndex >= 0 ? series[hoveredIndex] : null;
+/**
+ * Recharts tooltip content: the hovered day's total plus its per-category
+ * breakdown. Recharts owns the positioning — this only renders the body, so
+ * the tooltip can no longer land on top of the bar.
+ */
+export function CategoryTooltipContent({
+  active,
+  payload,
+}: CategoryTooltipContentProps) {
+  if (!active || !payload || payload.length === 0) {
+    return null;
+  }
 
-  /**
-   * Always projects the tooltip towards the side furthest from the chart edge,
-   * leaving a small gap so the hovered bar remains completely visible and unobstructed:
-   * - If ratio >= 0.5 (closer to right edge), reflects to the LEFT with offset.
-   * - If ratio < 0.5 (closer to left edge), reflects to the RIGHT with offset.
-   */
-  const ratio =
-    series.length > 1 && hoveredIndex >= 0
-      ? hoveredIndex / (series.length - 1)
-      : 0.5;
-  const isRightSide = ratio >= 0.5;
-  const tooltipTranslate = isRightSide
-    ? "-translate-x-[calc(100%+8px)]"
-    : "translate-x-2";
-
-  const slot = series.length > 0 ? 400 / series.length : 0;
-  // Keep the daily slots distinct while reducing the visual gap between bars.
-  const barWidth = Math.max(3, slot * 0.86);
-
-  const dayLabel = (date: string) => {
-    const [year, month, day] = date.split("-").map(Number);
-    const safeDate = new Date(
-      Date.UTC(year, (month ?? 1) - 1, day ?? 1, 12, 0, 0),
-    );
-    const weekday = capitalizeLabel(
-      new Intl.DateTimeFormat("es-CO", {
-        weekday: "long",
-        timeZone: "America/Bogota",
-      })
-        .format(safeDate)
-        .replace(".", ""),
-    );
-    const dayNumber = new Intl.DateTimeFormat("es-CO", {
-      day: "numeric",
-      timeZone: "America/Bogota",
-    }).format(safeDate);
-    return `${weekday} ${dayNumber}`;
-  };
+  const row = payload[0]?.payload;
+  const total =
+    typeof row?.total === "number"
+      ? row.total
+      : payload.reduce((sum, entry) => sum + (Number(entry.value) || 0), 0);
+  const segments = payload.filter((entry) => Number(entry.value) > 0);
 
   return (
-    <div className="h-40 w-full relative">
-      <svg
-        className="w-full h-32"
-        preserveAspectRatio="none"
-        viewBox="0 0 400 100"
-        role="img"
-        aria-label="Ventas por categoría del mes"
-      >
-        {series.map((day, index) => {
-          const dayHeight = dayHeightFor(day.total, maxDayTotal);
-          const bars = segmentBars(day.segments, dayHeight, colorMap);
-          const x = index * slot + (slot - barWidth) / 2;
-
-          return (
-            <g key={day.date}>
-              <defs>
-                <clipPath id={`category-stack-${day.date}`}>
-                  <rect
-                    x={x}
-                    y={100 - dayHeight}
-                    width={barWidth}
-                    height={dayHeight}
-                    rx={2}
-                  />
-                </clipPath>
-              </defs>
-              {bars.map((bar) => (
-                <rect
-                  key={`${day.date}:${bar.category}`}
-                  data-testid={
-                    bar.total > 0 ? "category-segment" : "category-empty-bar"
-                  }
-                  data-category={bar.category}
-                  x={x}
-                  y={bar.y}
-                  width={barWidth}
-                  height={bar.height}
-                  fill={bar.color}
-                  clipPath={`url(#category-stack-${day.date})`}
-                  className="category-stack-segment transition-opacity"
-                  style={
-                    hoveredDate && hoveredDate !== day.date
-                      ? { opacity: 0.35 }
-                      : undefined
-                  }
-                />
-              ))}
-            </g>
-          );
-        })}
-      </svg>
-
-      {/* Hover regions per day */}
-      <div className="absolute top-0 left-0 h-32 w-full flex">
-        {series.map((day) => (
-          <div
-            key={day.date}
-            data-testid="category-daily-bar"
-            className="flex-1 cursor-pointer"
-            onMouseEnter={() => setHoveredDate(day.date)}
-            onMouseLeave={() => setHoveredDate(null)}
-            onClick={() =>
-              setHoveredDate((curr) => (curr === day.date ? null : day.date))
-            }
-            onTouchStart={() => setHoveredDate(day.date)}
-          />
-        ))}
-      </div>
-
-      {/* Tooltip with day total + category breakdown */}
-      {hoveredDay && (
-        <div
-          data-testid="category-tooltip"
-          className={`pointer-events-none absolute z-30 min-w-[180px] ${tooltipTranslate} rounded-lg border border-white/10 bg-black/90 px-3 py-2 shadow-xl backdrop-blur-sm`}
-          style={{
-            left: `${hoveredIndex >= 0 ? ((hoveredIndex + 0.5) / Math.max(series.length, 1)) * 100 : 50}%`,
-            top: "0px",
-          }}
-        >
-          <p className="text-center text-[10px] font-semibold uppercase tracking-wider text-white/60">
-            {dayLabel(hoveredDay.date)}
-          </p>
-          <p className="mt-1 text-center text-lg font-bold text-white tabular-nums">
-            {formatCurrency(hoveredDay.total)}
-          </p>
-          {hoveredDay.segments.length > 0 && (
-            <ul className="mt-2 divide-y divide-white/10">
-              {hoveredDay.segments.map((segment) => (
-                <li
-                  key={segment.category}
-                  className="flex items-center justify-between gap-3 py-1 text-[11px]"
-                >
-                  <span className="flex items-center gap-1.5 font-medium text-white/70">
-                    <span
-                      className="inline-block h-2 w-2 rounded-[2px]"
-                      style={{
-                        backgroundColor: colorMap.get(segment.category),
-                      }}
-                    />
-                    {segment.category}
-                  </span>
-                  <span className="font-mono font-bold text-white tabular-nums">
-                    {formatCurrency(segment.total)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {/* Date labels — spaced across the month so ~30 days don't crowd */}
-      <div className="mt-2 flex px-1 text-[8px] uppercase tracking-wider text-muted-foreground/60">
-        {series.map((day) => {
-          const dayNumber = Number(day.date.split("-")[2]);
-          const showLabel = dayNumber === 1 || dayNumber % 5 === 0;
-
-          return (
-            <span
-              key={day.date}
-              data-testid="category-day-label"
-              className="flex-1 text-center leading-none"
+    <div
+      data-testid="category-tooltip"
+      className="min-w-[160px] rounded-lg border border-white/10 bg-black/90 px-3 py-2 shadow-xl backdrop-blur-sm"
+    >
+      <p className="text-center text-[10px] font-semibold uppercase tracking-wider text-white/60">
+        {formatCategoryTooltipDate(typeof row?.date === "string" ? row.date : "")}
+      </p>
+      <p className="mt-1 text-center text-lg font-bold text-white tabular-nums">
+        {formatCurrency(total)}
+      </p>
+      {segments.length > 0 && (
+        <ul className="mt-2 divide-y divide-white/10">
+          {segments.map((entry) => (
+            <li
+              key={String(entry.dataKey)}
+              className="flex items-center justify-between gap-3 py-1 text-[11px]"
             >
-              {showLabel ? dayNumber : ""}
-            </span>
-          );
-        })}
-      </div>
+              <span className="flex items-center gap-1.5 font-medium text-white/70">
+                <span
+                  className="inline-block h-2 w-2 rounded-[2px]"
+                  style={{ backgroundColor: entry.color }}
+                />
+                {entry.name ?? entry.dataKey}
+              </span>
+              <span className="font-mono font-bold text-white tabular-nums">
+                {formatCurrency(Number(entry.value))}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
 
-function capitalizeLabel(value: string) {
-  return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
-}
-
 /**
- * Visible bar height for a day against the series max, mirroring `chartHeight`
- * so the dashboard stays visually consistent with the simple revenue bars.
+ * Stacked daily revenue by category, rebuilt on Recharts. It fetches its own
+ * window (`useSalesByCategoryDaily`) and derives the title, axis and series from
+ * `startDate`/`endDate`, so it no longer hardcodes a month.
  */
-function dayHeightFor(total: number, max: number): number {
-  if (total <= 0 || max <= 0) return 18;
-  const scaled = Math.round((total / max) * 100);
-  return Math.max(18, Math.min(scaled, 100));
-}
+export function CategoryStackedChart({
+  startDate,
+  endDate,
+}: {
+  startDate: string;
+  endDate: string;
+}) {
+  const { data } = useSalesByCategoryDaily(startDate, endDate);
 
-interface SegmentBar {
-  y: number;
-  height: number;
-  color: string;
-  category: string;
-  total: number;
-}
+  const days = useMemo(
+    () => buildDateWindow(endDate, countDaysInclusive(startDate, endDate)),
+    [startDate, endDate],
+  );
 
-/**
- * Splits a day's visible height into proportional segment bars, stacking them
- * from the baseline (y=100) upward. Days without sales render a single muted
- * placeholder segment so the day still has a visible bar.
- */
-function segmentBars(
-  segments: Array<{ category: string; total: number; quantity: number }>,
-  dayHeight: number,
-  colorMap: Map<string, string>,
-): SegmentBar[] {
-  const visible = segments.filter((segment) => segment.total > 0);
-  if (visible.length === 0) {
-    return [
-      {
-        y: 100 - dayHeight,
-        height: dayHeight,
-        color: EMPTY_SEGMENT_COLOR,
-        category: "Sin ventas",
-        total: 0,
-      },
-    ];
-  }
+  const rows = data?.data;
+  const series = useMemo(() => buildStackedDailySeries(rows, days), [rows, days]);
+  const colorMap = useMemo(
+    () => buildCategoryColorMap(rows?.map((row) => row.category)),
+    [rows],
+  );
+  const categories = useMemo(() => Array.from(colorMap.keys()), [colorMap]);
 
-  const totalVisible = visible.reduce((sum, segment) => sum + segment.total, 0);
-  const top = 100 - dayHeight;
-  let cursor = 100;
-  const bars: SegmentBar[] = [];
+  const chartData = useMemo<CategoryChartRow[]>(
+    () =>
+      series.map((day) => {
+        const row: CategoryChartRow = { date: day.date, total: day.total };
+        for (const segment of day.segments) {
+          row[segment.category] = segment.total;
+        }
+        return row;
+      }),
+    [series],
+  );
 
-  visible.forEach((segment, index) => {
-    const isLast = index === visible.length - 1;
-    let height =
-      totalVisible > 0
-        ? (segment.total / totalVisible) * dayHeight
-        : dayHeight / visible.length;
+  const tickInterval = days.length <= 7 ? 0 : days.length <= 15 ? 1 : 4;
 
-    if (isLast) {
-      height = Math.max(2, cursor - top);
-    } else {
-      height = Math.max(2, Math.min(dayHeight, height));
-    }
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-start justify-between gap-2">
+        <p
+          data-testid="category-chart-title"
+          className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground"
+        >
+          Ingresos por categoría
+        </p>
+        <span
+          data-testid="category-chart-range"
+          className="shrink-0 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 font-mono text-[11px] font-bold text-primary"
+        >
+          Últimos {days.length} días
+        </span>
+      </div>
 
-    bars.push({
-      y: cursor - height,
-      height,
-      color: colorMap.get(segment.category) ?? CATEGORY_CHART_PALETTE[0],
-      category: segment.category,
-      total: segment.total,
-    });
-    cursor -= height;
-  });
-
-  return bars;
+      <div
+        data-testid="category-stacked-chart"
+        data-day-count={series.length}
+        data-start-date={startDate}
+        data-end-date={endDate}
+        className="mt-4 min-h-0 w-full flex-1"
+      >
+        <BarChart
+          width="100%"
+          height={300}
+          data={chartData}
+          margin={{ top: 8, right: 8, bottom: 0, left: 8 }}
+        >
+          <XAxis
+            dataKey="date"
+            interval={tickInterval}
+            tickFormatter={formatCategoryAxisTick}
+            tickLine={false}
+            axisLine={{ stroke: "var(--border)" }}
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+          />
+          <Tooltip
+            cursor={{ fill: "var(--primary)", fillOpacity: 0.08 }}
+            content={<CategoryTooltipContent />}
+          />
+          {categories.map((category) => (
+            <Bar
+              key={category}
+              dataKey={category}
+              stackId="revenue"
+              fill={colorMap.get(category)}
+              isAnimationActive={false}
+            />
+          ))}
+        </BarChart>
+      </div>
+    </div>
+  );
 }

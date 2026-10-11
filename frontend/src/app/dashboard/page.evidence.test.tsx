@@ -8,6 +8,8 @@ const pushMock = vi.fn();
 const useDashboardMock = vi.fn();
 const useDailySalesMock = vi.fn();
 const useSalesByCategoryDailyMock = vi.fn();
+const useSalesByPaymentMethodMock = vi.fn();
+const useTopSellingProductsMock = vi.fn();
 const useLowStockMock = vi.fn();
 const useExpensesMock = vi.fn();
 const useTasksMock = vi.fn();
@@ -26,6 +28,10 @@ vi.mock("@/hooks/useReports", () => ({
     useDailySalesMock(startDate, endDate),
   useSalesByCategoryDaily: (startDate: string, endDate: string) =>
     useSalesByCategoryDailyMock(startDate, endDate),
+  useSalesByPaymentMethod: (startDate: string, endDate: string) =>
+    useSalesByPaymentMethodMock(startDate, endDate),
+  useTopSellingProducts: (startDate: string, endDate: string, limit: number) =>
+    useTopSellingProductsMock(startDate, endDate, limit),
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -122,6 +128,30 @@ describe("Dashboard scope evidence (DIA-4/13/10 — reports no longer duplicated
       error: null,
     });
 
+    useSalesByPaymentMethodMock.mockReturnValue({
+      data: {
+        data: [
+          { paymentMethod: "CASH", total: 30000, subtotal: 0, count: 1 },
+          { paymentMethod: "CARD", total: 20000, subtotal: 0, count: 1 },
+          { paymentMethod: "TRANSFER", total: 10000, subtotal: 0, count: 1 },
+        ],
+      },
+    });
+
+    useTopSellingProductsMock.mockReturnValue({
+      data: {
+        data: [
+          {
+            productId: "p-1",
+            productName: "Producto Estrella",
+            quantity: 4,
+            total: 20000,
+            stock: 9,
+          },
+        ],
+      },
+    });
+
     useLowStockMock.mockReturnValue({ data: [] });
     useExpensesMock.mockReturnValue({ data: { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } } });
     useTasksMock.mockReturnValue({ data: { tasks: [], source: "remote" } });
@@ -150,14 +180,17 @@ describe("Dashboard scope evidence (DIA-4/13/10 — reports no longer duplicated
     expect(screen.getByText("Tareas abiertas")).toBeTruthy();
   });
 
-  it("renders the stacked category chart for the full current month", () => {
+  it("renders the revenue piece with its default 7-day range", () => {
     render(<DashboardPage />);
 
-    expect(screen.getByText(/^Ingresos de /)).toBeTruthy();
-    // One bar per day across every day of the current month (>= 28 days).
-    const barsCount = screen.getAllByTestId("category-daily-bar").length;
-    expect(barsCount).toBeGreaterThanOrEqual(28);
-    expect(barsCount).toBeLessThanOrEqual(31);
+    expect(screen.getByText("Ingresos por categoría")).toBeTruthy();
+    // Default range is a rolling 7 days, so the chart renders 7 bar slots.
+    expect(screen.getByTestId("category-stacked-chart")).toHaveAttribute(
+      "data-day-count",
+      "7",
+    );
+    expect(screen.getByTestId("payment-methods-card")).toBeTruthy();
+    expect(screen.getByTestId("top-products-card")).toBeTruthy();
   });
 
   it("does not render a hardcoded sales goal, a fake curve or mislabeled 'Ayer vs Hoy' (DIA-4/DIA-13)", () => {
@@ -177,7 +210,6 @@ describe("Dashboard scope evidence (DIA-4/13/10 — reports no longer duplicated
     expect(screen.queryByText("Economía")).toBeNull();
     expect(screen.queryByText("Caja y pagos")).toBeNull();
     expect(screen.queryByText("Top Clientes")).toBeNull();
-    expect(screen.queryByText("Métodos de Pago")).toBeNull();
     expect(screen.queryByText("Categorías")).toBeNull();
     expect(screen.queryByText("Inventario actual")).toBeNull();
   });
