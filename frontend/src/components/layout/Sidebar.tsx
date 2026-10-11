@@ -231,8 +231,11 @@ export function Sidebar() {
 
   const sidebarContent = (
     <>
-      {/* Brand */}
-      <div className="px-5 py-5 border-b border-border/70 flex items-center gap-3">
+      {/* Block 1: Brand - logo and wordmark sized to read as one lockup */}
+      <div
+        data-testid="sidebar-brand"
+        className="px-5 py-5 border-b border-border/70 flex items-center gap-3 shrink-0"
+      >
         <Image
           src="/brand/meperpos-mark-160.png"
           alt={`${APP_NAME} logo`}
@@ -240,16 +243,61 @@ export function Sidebar() {
           height={89}
           className="h-9 w-auto shrink-0"
         />
-        <div className="min-w-0">
-          <p className="text-base font-extrabold text-foreground truncate leading-tight tracking-tight">
-            {APP_NAME}
-          </p>
+        <p className="min-w-0 text-2xl font-extrabold text-foreground truncate leading-none tracking-tight">
+          {APP_NAME}
+        </p>
+      </div>
+
+      {/* Block 2: Date + time - es-CO formatting with the 60s live tick */}
+      <div data-testid="sidebar-clock" className="px-4 pt-4 shrink-0">
+        <div className="font-mono text-[11px] text-muted-foreground text-center bg-muted/60 py-1.5 rounded-lg border border-border/40">
+          {formattedDate}, {formattedTime}
         </div>
       </div>
 
-      {/* User Bento Card */}
+      {/* Block 3: Navigation - role-filtered, active styling, scroll into view */}
+      <nav
+        data-testid="sidebar-nav"
+        ref={navRef}
+        className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-1 pb-20 lg:pb-3 scrollbar-app"
+      >
+        {filteredItems.map((item) => {
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={closeMobileMenu}
+              className={cn(
+                "sidebar-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150",
+                isActive
+                  ? "active bg-primary-light text-primary relative after:absolute after:left-0 after:w-1 after:h-2/3 after:bg-primary after:rounded-r-full shadow-xs"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              )}
+            >
+              <span
+                className={cn(
+                  "shrink-0 transition-colors duration-150",
+                  isActive ? "text-primary" : "text-muted-foreground"
+                )}
+              >
+                {item.icon}
+              </span>
+              <span className="truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Block 4: User - avatar, name, role badge, theme toggle and logout */}
       {user && (
-        <div className="p-4 border-b border-border/70">
+        <div
+          data-testid="sidebar-user"
+          className="p-4 border-t border-border/70 shrink-0"
+        >
           <div className="rounded-2xl border border-border/80 bg-muted/30 p-3.5 flex flex-col gap-3 shadow-xs">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary-light border border-primary/30 text-primary flex items-center justify-center font-bold text-sm shrink-0">
@@ -306,10 +354,6 @@ export function Sidebar() {
               </button>
             </div>
 
-            <div className="font-mono text-[11px] text-muted-foreground text-center bg-muted/60 py-1.5 rounded-lg border border-border/40">
-              {formattedDate}, {formattedTime}
-            </div>
-
             {user.isSuperAdmin ? (
               <OrganizationSwitcher
                 currentOrganizationId={selectedOrgId}
@@ -332,42 +376,6 @@ export function Sidebar() {
           </div>
         </div>
       )}
-
-      {/* Nav */}
-      <nav
-        ref={navRef}
-        className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-1 pb-20 lg:pb-3 scrollbar-app"
-      >
-        {filteredItems.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={closeMobileMenu}
-              className={cn(
-                "sidebar-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150",
-                isActive
-                  ? "active bg-primary-light text-primary relative after:absolute after:left-0 after:w-1 after:h-2/3 after:bg-primary after:rounded-r-full shadow-xs"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-              )}
-            >
-              <span
-                className={cn(
-                  "shrink-0 transition-colors duration-150",
-                  isActive ? "text-primary" : "text-muted-foreground"
-                )}
-              >
-                {item.icon}
-              </span>
-              <span className="truncate">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
     </>
   );
 
