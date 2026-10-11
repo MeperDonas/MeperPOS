@@ -55,10 +55,10 @@ describe("TodayStats (8 KPI cards in two rows of four)", () => {
     cleanup();
   });
 
-  it("queries useDailySales across the 8-day KPI window ending today", () => {
+  it("queries useDailySales across the 7-day KPI window ending today", () => {
     render(<TodayStatsInner today="2026-08-22" />);
 
-    expect(useDailySalesMock).toHaveBeenCalledWith("2026-08-15", "2026-08-22");
+    expect(useDailySalesMock).toHaveBeenCalledWith("2026-08-16", "2026-08-22");
     expect(screen.getByText("Ventas hoy")).toBeTruthy();
   });
 

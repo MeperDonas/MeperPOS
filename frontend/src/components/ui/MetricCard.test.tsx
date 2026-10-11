@@ -34,8 +34,8 @@ describe("MetricCard (DIA-5)", () => {
     expect(screen.queryByText("Sin base")).toBeNull();
   });
 
-  it("renders 'Sin base' when the delta percentage is null", () => {
-    render(
+  it("renders 'Sin base' with no trend arrow when the delta percentage is null", () => {
+    const { container } = render(
       <MetricCard
         label="Ventas"
         value="$ 100"
@@ -45,6 +45,9 @@ describe("MetricCard (DIA-5)", () => {
     );
 
     expect(screen.getByText("Sin base")).toBeTruthy();
+    // With no baseline there is no direction to imply, so the pill must not
+    // render a trend arrow (an up-arrow would read as growth).
+    expect(container.querySelectorAll("svg")).toHaveLength(0);
   });
 
   it("applies the requested tone (data-tone) and defaults to neutral", () => {

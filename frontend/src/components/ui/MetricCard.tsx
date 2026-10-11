@@ -110,7 +110,14 @@ export function MetricCard({
   sparkline,
   action,
 }: MetricCardProps) {
-  const positive = (delta?.percentage ?? 0) >= 0;
+  const percentage = delta?.percentage ?? null;
+  const hasBaseline = percentage !== null;
+  const positive = (percentage ?? 0) >= 0;
+  const deltaLabel =
+    delta?.label ??
+    (percentage === null
+      ? "Sin base"
+      : `${positive ? "+" : ""}${percentage.toFixed(1)}%`);
 
   return (
     <div
@@ -146,18 +153,19 @@ export function MetricCard({
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[11px] font-bold",
-              positive
-                ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
-                : "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-800",
+              !hasBaseline
+                ? "bg-muted text-muted-foreground border border-border"
+                : positive
+                  ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                  : "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-800",
             )}
           >
-            <span aria-hidden="true">
-              {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-            </span>
-            {delta.label ??
-              (delta.percentage === null
-                ? "Sin base"
-                : `${positive ? "+" : ""}${delta.percentage.toFixed(1)}%`)}
+            {hasBaseline && (
+              <span aria-hidden="true">
+                {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+              </span>
+            )}
+            {deltaLabel}
           </span>
         ) : (
           <span />

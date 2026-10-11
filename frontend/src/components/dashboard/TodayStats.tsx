@@ -19,10 +19,10 @@ import {
 import { MetricCard } from "@/components/ui/MetricCard";
 
 /**
- * KPI window: the last 7 days (for the sparkline) plus yesterday's baseline,
- * i.e. 8 days ending today.
+ * KPI window: the last 7 days ending today. Yesterday — the delta baseline —
+ * already sits inside that window, so no extra day is needed.
  */
-const WINDOW_DAYS = 8;
+const WINDOW_DAYS = 7;
 /** Sparkline length — the newest 7 days of the window. */
 const SPARKLINE_DAYS = 7;
 
