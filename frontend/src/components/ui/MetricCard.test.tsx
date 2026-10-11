@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MetricCard } from "./MetricCard";
 
 describe("MetricCard (DIA-5)", () => {
@@ -54,5 +55,55 @@ describe("MetricCard (DIA-5)", () => {
 
     expect(container.querySelector('[data-tone="rose"]')).toBeTruthy();
     expect(neutral.querySelector('[data-tone="neutral"]')).toBeTruthy();
+  });
+
+  it("renders a sparkline only when the sparkline prop is provided", () => {
+    const { container: withSpark } = render(
+      <MetricCard
+        label="Ventas"
+        value="$ 100"
+        helper="hoy"
+        tone="green"
+        sparkline={[1, 2, 3, 4, 5, 6, 7]}
+      />,
+    );
+    const { container: withoutSpark } = render(
+      <MetricCard label="Ventas" value="$ 100" helper="hoy" tone="green" />,
+    );
+
+    expect(withSpark.querySelector('[data-testid="metric-sparkline"]')).toBeTruthy();
+    expect(withoutSpark.querySelector('[data-testid="metric-sparkline"]')).toBeNull();
+  });
+
+  it("renders the neutral path with a sparkline without requiring a tone", () => {
+    const { container } = render(
+      <MetricCard label="Ventas" value="$ 100" helper="hoy" sparkline={[3, 1, 4]} />,
+    );
+
+    expect(container.querySelector('[data-tone="neutral"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="metric-sparkline"]')).toBeTruthy();
+  });
+
+  it("renders an action button and invokes its handler on click", async () => {
+    const onClick = vi.fn();
+    render(
+      <MetricCard
+        label="Stock crítico"
+        value="2"
+        helper="por reordenar"
+        tone="rose"
+        action={{ label: "Reordenar", onClick }}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Reordenar" }));
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render an action button when no action is provided", () => {
+    render(<MetricCard label="Ventas" value="$ 100" helper="hoy" />);
+
+    expect(screen.queryByRole("button")).toBeNull();
   });
 });

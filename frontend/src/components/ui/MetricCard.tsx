@@ -1,4 +1,5 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { Area, AreaChart } from "recharts";
 import { cn } from "@/lib/utils";
 
 export type MetricCardTone = "primary" | "accent" | "rose" | "green" | "blue";
@@ -8,12 +9,21 @@ export interface MetricCardDelta {
   label?: string;
 }
 
+export interface MetricCardAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface MetricCardProps {
   label: string;
   value: string;
   helper: string;
   delta?: MetricCardDelta;
   tone?: MetricCardTone;
+  /** Last 7 daily values (oldest → newest) rendered as an inline sparkline. */
+  sparkline?: number[];
+  /** Optional CTA rendered at the card footer (e.g. "Reordenar"). */
+  action?: MetricCardAction;
 }
 
 const toneCardClasses: Record<MetricCardTone, string> = {
@@ -32,6 +42,55 @@ const toneValueClasses: Record<MetricCardTone, string> = {
   blue: "text-blue-500",
 };
 
+const toneSparkColor: Record<MetricCardTone, string> = {
+  primary: "#C25E36",
+  accent: "#C25E36",
+  rose: "#F43F5E",
+  green: "#22C55E",
+  blue: "#3B82F6",
+};
+
+const toneActionClasses: Record<MetricCardTone, string> = {
+  primary: "border-primary/30 text-primary hover:bg-primary/10",
+  accent: "border-accent/30 text-accent hover:bg-accent/10",
+  rose: "border-rose-500/30 text-rose-500 hover:bg-rose-500/10",
+  green: "border-green-500/30 text-green-500 hover:bg-green-500/10",
+  blue: "border-blue-500/30 text-blue-500 hover:bg-blue-500/10",
+};
+
+const NEUTRAL_SPARK_COLOR = "#94A3B8";
+
+/**
+ * Tiny axis-less area chart used as a KPI sparkline. It sets a percentage width
+ * directly on the chart (instead of wrapping it in a ResponsiveContainer) so it
+ * stays fluid without needing a ResizeObserver — which jsdom does not provide.
+ */
+function MetricSparkline({ values, color }: { values: number[]; color: string }) {
+  const data = values.map((value, index) => ({ index, value }));
+
+  return (
+    <div data-testid="metric-sparkline" className="mt-2 h-8 w-full">
+      <AreaChart
+        width="100%"
+        height={32}
+        data={data}
+        margin={{ top: 2, right: 0, bottom: 0, left: 0 }}
+      >
+        <Area
+          type="monotone"
+          dataKey="value"
+          stroke={color}
+          strokeWidth={2}
+          fill={color}
+          fillOpacity={0.15}
+          dot={false}
+          isAnimationActive={false}
+        />
+      </AreaChart>
+    </div>
+  );
+}
+
 /**
  * Shared MetricCard for reports and dashboard. Matches the canonical
  * Kinetic Bento pattern: mono uppercase label + JetBrains Mono extrabold
@@ -39,6 +98,8 @@ const toneValueClasses: Record<MetricCardTone, string> = {
  *
  * When no `tone` is provided it renders exactly like the historical reports
  * MetricCard (neutral card surface), so refactors are behavior-preserving.
+ * `sparkline` and `action` are additive and optional; omitting both keeps the
+ * original markup unchanged.
  */
 export function MetricCard({
   label,
@@ -46,6 +107,8 @@ export function MetricCard({
   helper,
   delta,
   tone,
+  sparkline,
+  action,
 }: MetricCardProps) {
   const positive = (delta?.percentage ?? 0) >= 0;
 
@@ -72,6 +135,12 @@ export function MetricCard({
       >
         {value}
       </p>
+      {sparkline && sparkline.length > 0 && (
+        <MetricSparkline
+          values={sparkline}
+          color={tone ? toneSparkColor[tone] : NEUTRAL_SPARK_COLOR}
+        />
+      )}
       <div className="mt-3 flex items-center justify-between gap-2 text-xs">
         {delta ? (
           <span
@@ -95,6 +164,20 @@ export function MetricCard({
         )}
         <span className="text-right text-[11px] text-muted-foreground">{helper}</span>
       </div>
+      {action && (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className={cn(
+            "mt-3 inline-flex items-center gap-1 self-start rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-colors",
+            tone
+              ? toneActionClasses[tone]
+              : "border-border/60 text-foreground hover:bg-muted",
+          )}
+        >
+          {action.label}
+        </button>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import type { Expense, SaleByCategoryDaily, Task, TaskStatus } from "@/types";
+import { shiftDateInputValue } from "@/lib/utils";
+import type { DailySale, Expense, SaleByCategoryDaily, Task, TaskStatus } from "@/types";
 
 export interface TodaySaleRecord {
   total: number;
@@ -24,6 +25,61 @@ export function computeTodayMetrics(rec?: TodaySaleRecord): TodayMetrics {
     transactions: count,
     ticket: count > 0 ? total / count : 0,
   };
+}
+
+// ─── Dashboard KPI window helpers ─────────────────────────────────────────────
+
+/**
+ * Inclusive list of `YYYY-MM-DD` days ending at `endDate`, `length` entries
+ * long, ordered oldest → newest. This is the dashboard KPI window: 8 days give
+ * the sparkline's last 7 days plus yesterday's comparison baseline.
+ */
+export function buildDateWindow(endDate: string, length: number): string[] {
+  if (length <= 0) {
+    return [];
+  }
+
+  return Array.from({ length }, (_, index) =>
+    shiftDateInputValue(endDate, index - (length - 1)),
+  );
+}
+
+/**
+ * Maps `days` (oldest → newest) to a metric extracted from each day's
+ * `DailySale` record, defaulting to 0 for days with no data. The returned array
+ * is aligned 1:1 with `days`, ready to feed a sparkline.
+ */
+export function buildDailyMetricSeries(
+  data: DailySale[] | undefined,
+  days: string[],
+  pick: (record: DailySale) => number,
+): number[] {
+  const byDate = new Map<string, DailySale>();
+  for (const record of data ?? []) {
+    byDate.set(record.date, record);
+  }
+
+  return days.map((day) => {
+    const record = byDate.get(day);
+    return record ? pick(record) : 0;
+  });
+}
+
+/**
+ * Relative delta of `current` against a `previous` baseline, as a percentage.
+ * A missing or zero baseline returns `{ percentage: null }` so the caller
+ * renders the "Sin base" label instead of inventing a comparison — the
+ * dashboard must never fabricate an "Ayer" value it does not have.
+ */
+export function computeDelta(
+  current: number,
+  previous: number | null | undefined,
+): { percentage: number | null } {
+  if (!previous) {
+    return { percentage: null };
+  }
+
+  return { percentage: ((current - previous) / previous) * 100 };
 }
 
 /**

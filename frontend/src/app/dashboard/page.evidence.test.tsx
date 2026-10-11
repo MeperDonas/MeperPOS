@@ -131,17 +131,14 @@ describe("Dashboard scope evidence (DIA-4/13/10 — reports no longer duplicated
     cleanup();
   });
 
-  it("renders the top quick actions, the 7-metric grid and operational panels", () => {
+  it("renders the 8-metric KPI grid and operational panels", () => {
     render(<DashboardPage />);
 
-    // Quick actions bento above the metrics
-    expect(screen.getByText("Nuevo producto")).toBeTruthy();
-    expect(screen.getByText("Nueva venta")).toBeTruthy();
-
-    // 7 compact metrics
+    // 8 compact metrics — two rows of four
     expect(screen.getByText("Ventas hoy")).toBeTruthy();
     expect(screen.getByText("Salidas hoy")).toBeTruthy();
     expect(screen.getByText("Transacciones")).toBeTruthy();
+    expect(screen.getByText("Ticket promedio")).toBeTruthy();
     expect(screen.getByText("Ventas completadas")).toBeTruthy();
     expect(screen.getByText("Productos totales")).toBeTruthy();
     expect(screen.getByText("Clientes totales")).toBeTruthy();
