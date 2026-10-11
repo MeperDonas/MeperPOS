@@ -8,6 +8,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { TodayStats } from "@/components/dashboard/TodayStats";
 import { AlertPanels } from "@/components/dashboard/AlertPanels";
 import { RevenueSection } from "@/components/dashboard/RevenueSection";
+import { RecentSalesCard } from "@/components/dashboard/RecentSalesCard";
 
 export default function DashboardPage() {
   const { isLoading } = useDashboard();
@@ -43,6 +44,9 @@ export default function DashboardPage() {
         {/* Revenue piece — shared range selector over the category chart,
             payment-method donut and top-products list */}
         <RevenueSection />
+
+        {/* Compact peek at the latest sales */}
+        <RecentSalesCard />
 
         {/* Operational alert panels (capped, so the page never grows without bound) */}
         <AlertPanels />

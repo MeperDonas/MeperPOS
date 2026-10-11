@@ -82,10 +82,10 @@ now deliberately revised by the user:
 - [x] **T5 — Stacked bar chart on Recharts**: title and axis follow the range; Recharts' own tooltip
       replaces the hand-rolled binary flip. Commit `885fd92`.
 - [x] **T6 — Payment methods (donut) + top-selling products (top 5, no thumbnails)**. Commit `c2bb8c1`.
-- [ ] **T7 — Recent sales mini table** (5 rows) via `useSales`.
-- [ ] **T8 — Final panels**: drop low stock; compact gastos + tareas.
-- [ ] **T9 — Verification**: `npm run test`, `npm run lint` (frontend), and an on-screen check of the
-      fixed heights and the 4+4 grid.
+- [x] **T7 — Recent sales mini table** (5 rows) via `useSales`. Commit `88d2b9a`.
+- [x] **T8 — Final panels**: drop low stock; compact gastos + tareas. Commit `88d2b9a`.
+- [x] **T9 — Verification**: full frontend suite 611/611, build green, lint at baseline. On-screen
+      check still pending (needs a browser — see progress).
 
 ## Acceptance criteria
 
@@ -98,13 +98,43 @@ now deliberately revised by the user:
 
 ## Delivery strategy
 
-`ask-on-risk` (default). The forecast exceeds ~400 authored changed lines, so the chained-PR
-strategy is confirmed with the user before the first PR is opened.
+**`stacked-to-main`** (chosen by the user on 2026-10-11). Each PR targets the previous PR's branch and
+merges to master in order, so a reviewer sees only that slice's diff. Proposed slices:
+
+| PR | Content | Commits |
+|----|---------|---------|
+| 1 | Sidebar in four blocks | `3ea93f0` |
+| 2 | Recharts + Section 2 (8 KPIs) | `a1a68a7`, `3429cf3`, `c3690e5` |
+| 3 | Range helpers + payment/top-product cards | `a31dc29`, `c2bb8c1` |
+| 4 | 60/40 revenue piece + Recharts chart | `885fd92`, `136c16e` |
+| 5 | Recent sales + final panels | `88d2b9a`, `5b70c0a` |
+
+Pushing to the remote requires explicit user authorization (not yet granted).
+
+### Delivered (2026-10-11)
+
+Tracking issue: **#216** (`status:approved`, `type:feature`, `enhancement`).
+
+The chain was rebased onto `origin/master` (the local `master` had diverged: 478 ahead / 506 behind,
+and the original branch point `4c4273f` was local-only). The only conflict was the brand asset:
+`origin/master` carries the newer "3D MP artwork" (12:13, PRs #213/#215) versus the local brand commit
+(11:46), so the rebased sidebar keeps **origin's** asset and applies only the structural change.
+
+| PR | Base ← Head | Content |
+|----|-------------|---------|
+| [#217](https://github.com/MeperDonas/MeperPOS/pull/217) | `master` ← `feat/dashboard-redesign-pr1` | Sidebar four blocks (147 lines) |
+| [#218](https://github.com/MeperDonas/MeperPOS/pull/218) | `pr1` ← `feat/dashboard-redesign-pr2` | Recharts + KPI section (760) |
+| [#219](https://github.com/MeperDonas/MeperPOS/pull/219) | `pr2` ← `feat/dashboard-redesign-pr3` | Range helpers + cards (682) |
+| [#220](https://github.com/MeperDonas/MeperPOS/pull/220) | `pr3` ← `feat/dashboard-redesign-pr4` | 60/40 revenue piece (956) |
+| [#221](https://github.com/MeperDonas/MeperPOS/pull/221) | `pr4` ← `feat/dashboard-redesign-pr5` | Recent sales + panels (670) — `Closes #216` |
+
+Merge in order. Only the last PR closes the issue. `size:exception` was requested and accepted on
+#216, because four of the five slices exceed the 400-line budget and a finer split would have broken
+up coherent work units.
 
 ## Progress / evidence
 
-- 2026-10-11 — feature document created. No source writes yet.
-- 2026-10-11 — **T2 done**, commit `3ea93f0` `feat(dashboard): restructure sidebar into four blocks`
+- 2026-10-11 — feature document created. No source writes yet.- 2026-10-11 — **T2 done**, commit `3ea93f0` `feat(dashboard): restructure sidebar into four blocks`
   (+99/−48 across `Sidebar.tsx` and `Sidebar.test.tsx`). Sidebar now renders brand → clock → nav →
   user, with the wordmark at `text-2xl` so it reads as one lockup with the 32px logo.
   - Evidence: `npx vitest run src/components/layout/Sidebar.test.tsx` → **11 passed (11)** with a
@@ -149,10 +179,6 @@ strategy is confirmed with the user before the first PR is opened.
   which jsdom lacks. The sparkline sets a percentage width directly on the chart instead, which
   routes through Recharts' `ReadSizeOnceDiv` and renders safely under vitest.
 
-## Next step
-
-T7 (mini "Ventas recientes" via `useSales`), then T8 (final panels), then T9 (verification).
-
 ## Progress (T4–T6)
 
 - 2026-10-11 — **T4+T5+T6 done** as two commits, `c2bb8c1` + `885fd92` (~982 authored additions,
@@ -174,6 +200,36 @@ T7 (mini "Ventas recientes" via `useSales`), then T8 (final panels), then T9 (ve
     *column* that matches the left card; (b) the card title is static ("Ingresos por categoría") and
     what follows the range is the "Últimos N días" badge plus the axis.
   - Caveat the user may want to overturn: `1 mes` = rolling 30 days, not the calendar month.
+
+## Progress (T7–T9)
+
+- 2026-10-11 — **T7+T8 done**, commit `88d2b9a` `feat(dashboard): add recent sales and compact the
+  final panels` (6 files: 4 modified, 2 created).
+  - `RecentSalesCard`: the last 5 sales (`useSales({ limit: 5 })`, plus a `.slice(0,5)` guard) in a
+    minimum-column table (#, hora, cliente, pago, total, estado) with a "Ver todas" link to `/sales`.
+    The list has no overflow utility anywhere in its chain, so it can neither scroll internally nor
+    grow. Payment labels match `/sales` (none → "Sin pago", one → the method, several → "Mixto").
+  - `AlertPanels`: the low-stock panel is **removed** (grep for `useLowStockProducts` → no matches);
+    only "Gastos por pagar" and "Tareas abiertas" remain, capped at 2 rows each and side by side from
+    `md` up.
+  - Evidence: vitest on the 3 affected suites → **24 passed (24)**; eslint clean; `tsc --noEmit` clean.
+  - Independent verification: **`verified`** — all 10 claims confirmed.
+- 2026-10-11 — **T9 done** (verification).
+  - Full frontend suite: **79 files, 611 tests passed**.
+  - `npm run build`: **succeeds**, `/dashboard` prerendered.
+  - `npm run lint`: **26 problems (4 errors, 22 warnings)**, byte-identical to the stashed baseline —
+    no lint regression. All 4 errors are pre-existing (`settings/(advanced)`, `settings/(invoicing)`,
+    `components/ui/CurrencyInput.tsx`). The one warning this work introduced (an unused `userEvent`
+    import in `AlertPanels.test.tsx`) was fixed in `5b70c0a`.
+  - **Still pending: the on-screen check.** The constant piece height and the 4+4 KPI grid were proven
+    by CSS analysis and unit tests, but jsdom has no layout engine, so nobody has looked at it in a
+    real browser yet.
+
+## Next step
+
+Implementation is complete. Delivery is the remaining step: create the stacked PRs, which needs
+explicit push authorization. The on-screen check (constant piece height + the 4+4 KPI grid) still
+needs a browser and is pending on the user.
 
 ## Mirror status
 
