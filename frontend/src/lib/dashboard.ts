@@ -44,6 +44,109 @@ export function buildDateWindow(endDate: string, length: number): string[] {
   );
 }
 
+// ─── Dashboard range selector helpers ─────────────────────────────────────────
+
+export type DashboardRangeKey = "7d" | "15d" | "1m";
+
+export interface DashboardRangeDescriptor {
+  key: DashboardRangeKey;
+  label: string;
+  days: number;
+}
+
+/**
+ * The three dashboard range options. `1m` is a rolling 30-day window, kept
+ * consistent with the rolling 7/15-day options rather than a calendar month.
+ */
+export const DASHBOARD_RANGES: readonly DashboardRangeDescriptor[] = [
+  { key: "7d", label: "7 días", days: 7 },
+  { key: "15d", label: "15 días", days: 15 },
+  { key: "1m", label: "1 mes", days: 30 },
+];
+
+/** Default range: the trailing 7 days. */
+export const DEFAULT_DASHBOARD_RANGE: DashboardRangeKey = "7d";
+
+/**
+ * Resolves a range descriptor by key, falling back to the default range when
+ * the key is unknown so the dashboard never renders an empty window.
+ */
+export function getDashboardRange(
+  key: DashboardRangeKey,
+): DashboardRangeDescriptor {
+  return DASHBOARD_RANGES.find((range) => range.key === key) ?? DASHBOARD_RANGES[0];
+}
+
+/**
+ * Turns a range key plus today's Bogotá `YYYY-MM-DD` into an inclusive
+ * `{ startDate, endDate }` window ending today. Reuses `buildDateWindow` so the
+ * date math stays in one place; `1m` resolves to a rolling 30-day window.
+ */
+export function resolveDashboardRange(
+  key: DashboardRangeKey,
+  today: string,
+): { startDate: string; endDate: string } {
+  const { days } = getDashboardRange(key);
+  const window = buildDateWindow(today, days);
+
+  return {
+    startDate: window[0] ?? today,
+    endDate: window[window.length - 1] ?? today,
+  };
+}
+
+/**
+ * Inclusive day count between two `YYYY-MM-DD` values (`end - start + 1`).
+ * Returns 1 for unparseable input so callers always get a usable window.
+ */
+export function countDaysInclusive(startDate: string, endDate: string): number {
+  const [startYear, startMonth, startDay] = startDate.split("-").map(Number);
+  const [endYear, endMonth, endDay] = endDate.split("-").map(Number);
+
+  if (!startYear || !startMonth || !startDay || !endYear || !endMonth || !endDay) {
+    return 1;
+  }
+
+  const start = Date.UTC(startYear, startMonth - 1, startDay);
+  const end = Date.UTC(endYear, endMonth - 1, endDay);
+  const diff = Math.round((end - start) / 86_400_000) + 1;
+
+  return diff > 0 ? diff : 1;
+}
+
+/**
+ * Compact `d/m` axis tick for a `YYYY-MM-DD` day. Range-driven: it prints the
+ * actual date instead of a month-bound `day % 5 === 0` rule.
+ */
+export function formatCategoryAxisTick(date: string): string {
+  const [, month, day] = date.split("-").map(Number);
+
+  if (!month || !day) {
+    return date;
+  }
+
+  return `${day}/${month}`;
+}
+
+/**
+ * Readable tooltip header for a `YYYY-MM-DD` day, e.g. "21 de ago" (Bogotá).
+ */
+export function formatCategoryTooltipDate(date: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return date;
+  }
+
+  const safeDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+
+  return new Intl.DateTimeFormat("es-CO", {
+    day: "numeric",
+    month: "short",
+    timeZone: "America/Bogota",
+  }).format(safeDate);
+}
+
 /**
  * Maps `days` (oldest → newest) to a metric extracted from each day's
  * `DailySale` record, defaulting to 0 for days with no data. The returned array

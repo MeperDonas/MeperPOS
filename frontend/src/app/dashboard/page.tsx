@@ -1,31 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useDashboard, useSalesByCategoryDaily } from "@/hooks/useReports";
+import { useDashboard } from "@/hooks/useReports";
 import { LayoutDashboard } from "lucide-react";
-import { getBogotaDateInputValue } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { TodayStats } from "@/components/dashboard/TodayStats";
 import { AlertPanels } from "@/components/dashboard/AlertPanels";
-import { CategoryStackedChart } from "@/components/dashboard/CategoryStackedChart";
+import { RevenueSection } from "@/components/dashboard/RevenueSection";
+import { RecentSalesCard } from "@/components/dashboard/RecentSalesCard";
 
 export default function DashboardPage() {
   const { isLoading } = useDashboard();
   const { user } = useAuth();
-  const [now] = useState(() => new Date());
-
-  const chartEndDate = useMemo(() => getBogotaDateInputValue(now), [now]);
-  const chartStartDate = useMemo(
-    () => `${chartEndDate.slice(0, 8)}01`,
-    [chartEndDate],
-  );
-
-  const { data: categoryDaily } = useSalesByCategoryDaily(chartStartDate, chartEndDate);
-
-  const dateRange = useMemo(() => buildMonthRange(chartEndDate), [chartEndDate]);
-  const monthLabel = useMemo(() => buildMonthLabel(now), [now]);
 
   if (isLoading) {
     return (
@@ -54,51 +41,16 @@ export default function DashboardPage() {
         {/* 8 KPI cards — two rows of four (day KPIs + accumulated totals) */}
         <TodayStats />
 
-        {/* Stacked category chart — replaces the simple revenue bars */}
-        <div className="min-w-0 rounded-3xl border border-primary/20 bg-card px-4 sm:px-6 py-6 text-foreground relative hover:border-primary/35 transition-colors">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-              Ingresos de {monthLabel}
-            </p>
-            <span className="font-mono text-[11px] font-bold text-primary px-2.5 py-0.5 rounded-full bg-primary/10 border border-primary/20">
-              Por categoría
-            </span>
-          </div>
-          <div className="mt-6">
-            <CategoryStackedChart data={categoryDaily?.data ?? []} days={dateRange} />
-          </div>
-        </div>
+        {/* Revenue piece — shared range selector over the category chart,
+            payment-method donut and top-products list */}
+        <RevenueSection />
+
+        {/* Compact peek at the latest sales */}
+        <RecentSalesCard />
 
         {/* Operational alert panels (capped, so the page never grows without bound) */}
         <AlertPanels />
       </div>
     </DashboardLayout>
   );
-}
-
-/**
- * Builds the full list of `YYYY-MM-DD` dates for the month that `endDate`
- * (a Bogotá `YYYY-MM-DD` value) belongs to, from the 1st to the last day.
- */
-function buildMonthRange(endDate: string): string[] {
-  const [year, month] = endDate.split("-").map(Number);
-  if (!year || !month) {
-    return [endDate];
-  }
-
-  const daysInMonth = new Date(year, month, 0).getDate();
-  return Array.from(
-    { length: daysInMonth },
-    (_, index) => `${endDate.slice(0, 8)}${String(index + 1).padStart(2, "0")}`,
-  );
-}
-
-/**
- * Spanish month name for the chart title, e.g. "agosto" (Bogotá timezone).
- */
-function buildMonthLabel(date: Date): string {
-  return new Intl.DateTimeFormat("es-CO", {
-    month: "long",
-    timeZone: "America/Bogota",
-  }).format(date);
 }

@@ -1,164 +1,130 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { CategoryStackedChart } from "./CategoryStackedChart";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import {
+  CategoryStackedChart,
+  CategoryTooltipContent,
+} from "./CategoryStackedChart";
 import type { SaleByCategoryDaily } from "@/types";
 
-const days = ["2026-08-20", "2026-08-21", "2026-08-22"];
+const useSalesByCategoryDailyMock = vi.fn();
 
-const data: SaleByCategoryDaily[] = [
+vi.mock("@/hooks/useReports", () => ({
+  useSalesByCategoryDaily: (startDate: string, endDate: string) =>
+    useSalesByCategoryDailyMock(startDate, endDate),
+}));
+
+const rows: SaleByCategoryDaily[] = [
   { date: "2026-08-21", category: "Bebidas", total: 100000, quantity: 2 },
   { date: "2026-08-21", category: "Snacks", total: 50000, quantity: 1 },
   { date: "2026-08-22", category: "Bebidas", total: 25000, quantity: 1 },
 ];
 
-describe("CategoryStackedChart (daily stacked by category)", () => {
+describe("CategoryStackedChart (Recharts stacked by category)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useSalesByCategoryDailyMock.mockReturnValue({ data: { data: rows } });
+  });
+
   afterEach(() => {
     cleanup();
   });
 
-  it("renders one bar per day", () => {
-    render(<CategoryStackedChart data={data} days={days} />);
+  it("fetches its own window from the range props", () => {
+    render(<CategoryStackedChart startDate="2026-08-16" endDate="2026-08-22" />);
 
-    expect(screen.getAllByTestId("category-daily-bar")).toHaveLength(3);
+    expect(useSalesByCategoryDailyMock).toHaveBeenCalledWith(
+      "2026-08-16",
+      "2026-08-22",
+    );
   });
 
-  it("renders a segment per category sold that day", () => {
-    render(<CategoryStackedChart data={data} days={days} />);
+  it("renders one bar slot per day, including days with no sales", () => {
+    render(<CategoryStackedChart startDate="2026-08-16" endDate="2026-08-22" />);
 
-    // Day 21 has two categories, day 22 has one, day 20 has none.
-    expect(screen.getAllByTestId("category-segment")).toHaveLength(3);
+    // 7 days in the window, only 2 have rows — every day still gets a slot.
+    expect(screen.getByTestId("category-stacked-chart")).toHaveAttribute(
+      "data-day-count",
+      "7",
+    );
   });
 
-  it("assigns each category a stable, distinct color", () => {
+  it("shows a range-driven title instead of a hardcoded month", () => {
+    const { unmount } = render(
+      <CategoryStackedChart startDate="2026-08-16" endDate="2026-08-22" />,
+    );
+    expect(screen.getByTestId("category-chart-title").textContent).toBe(
+      "Ingresos por categoría",
+    );
+    expect(screen.getByTestId("category-chart-range").textContent).toBe(
+      "Últimos 7 días",
+    );
+    expect(screen.queryByText(/Ingresos de agosto/)).toBeNull();
+    unmount();
+
+    render(<CategoryStackedChart startDate="2026-08-08" endDate="2026-08-22" />);
+    expect(screen.getByTestId("category-chart-range").textContent).toBe(
+      "Últimos 15 días",
+    );
+  });
+
+  it("labels the x-axis with real dates, not a month-bound modulo", () => {
     const { container } = render(
-      <CategoryStackedChart data={data} days={days} />,
+      <CategoryStackedChart startDate="2026-08-16" endDate="2026-08-22" />,
     );
 
-    const bebidas = container.querySelector(
-      '[data-testid="category-segment"][data-category="Bebidas"]',
-    );
-    const snacks = container.querySelector(
-      '[data-testid="category-segment"][data-category="Snacks"]',
-    );
+    const ticks = Array.from(
+      container.querySelectorAll(".recharts-cartesian-axis-tick-value"),
+    ).map((node) => node.textContent);
 
-    expect(bebidas).toBeTruthy();
-    expect(snacks).toBeTruthy();
-    expect(bebidas?.getAttribute("fill")).not.toBe(
-      snacks?.getAttribute("fill"),
-    );
+    expect(ticks).toContain("16/8");
+    expect(ticks).toContain("22/8");
   });
+});
 
-  it("shows a tooltip with the day total and category breakdown on hover", () => {
-    render(<CategoryStackedChart data={data} days={days} />);
+describe("CategoryTooltipContent (Recharts custom tooltip)", () => {
+  it("shows the day total plus the per-category breakdown", () => {
+    render(
+      <CategoryTooltipContent
+        active
+        payload={[
+          {
+            dataKey: "Bebidas",
+            name: "Bebidas",
+            value: 100000,
+            color: "#C25E36",
+            payload: {
+              date: "2026-08-21",
+              total: 150000,
+              Bebidas: 100000,
+              Snacks: 50000,
+            },
+          },
+          {
+            dataKey: "Snacks",
+            name: "Snacks",
+            value: 50000,
+            color: "#3B82F6",
+            payload: {
+              date: "2026-08-21",
+              total: 150000,
+              Bebidas: 100000,
+              Snacks: 50000,
+            },
+          },
+        ]}
+      />,
+    );
 
-    // Day 21 (index 1) is the first bar with data.
-    fireEvent.mouseEnter(screen.getAllByTestId("category-daily-bar")[1]);
-
+    expect(screen.getByTestId("category-tooltip")).toBeTruthy();
+    expect(screen.getByText(/21 de ago/)).toBeTruthy();
     expect(screen.getByText(/\$\s150\.000/)).toBeTruthy();
     expect(screen.getByText("Bebidas")).toBeTruthy();
     expect(screen.getByText("Snacks")).toBeTruthy();
   });
 
-  it("does not surface a tooltip until a day is hovered", () => {
-    render(<CategoryStackedChart data={data} days={days} />);
+  it("renders nothing until the tooltip is active", () => {
+    render(<CategoryTooltipContent active={false} payload={[]} />);
 
-    expect(screen.queryByText(/\$\s150\.000/)).toBeNull();
-    expect(screen.queryByText("Bebidas")).toBeNull();
-  });
-
-  it("projects the tooltip towards the side furthest from the chart edge", () => {
-    render(<CategoryStackedChart data={data} days={days} />);
-    const bars = screen.getAllByTestId("category-daily-bar");
-
-    // First day (left side) → projects to the right with a small gap.
-    fireEvent.mouseEnter(bars[0]);
-    expect(screen.getByTestId("category-tooltip").className).toContain(
-      "translate-x-2",
-    );
-
-    // Last day (right side) → projects to the left with the same small gap.
-    fireEvent.mouseEnter(bars[bars.length - 1]);
-    expect(screen.getByTestId("category-tooltip").className).toContain(
-      "-translate-x-[calc(100%+8px)]",
-    );
-  });
-});
-
-describe("CategoryStackedChart full-month behavior", () => {
-  const monthDays = Array.from(
-    { length: 30 },
-    (_, index) => `2026-08-${String(index + 1).padStart(2, "0")}`,
-  );
-
-  it("renders one bar per day across the full month", () => {
-    render(<CategoryStackedChart data={data} days={monthDays} />);
-
-    expect(screen.getAllByTestId("category-daily-bar")).toHaveLength(30);
-  });
-
-  it("spaces the day-number labels so a full month does not crowd", () => {
-    render(<CategoryStackedChart data={data} days={monthDays} />);
-
-    const labels = screen.getAllByTestId("category-day-label");
-    expect(labels).toHaveLength(30);
-
-    const visibleLabels = labels
-      .map((label) => label.textContent?.trim())
-      .filter((text) => text);
-    expect(visibleLabels).toEqual(["1", "5", "10", "15", "20", "25", "30"]);
-  });
-
-  it("keeps adjacent bars close while preserving distinct daily slots", () => {
-    const { container } = render(
-      <CategoryStackedChart data={data} days={monthDays} />,
-    );
-
-    const slot = 400 / 30;
-    const bars = container.querySelectorAll(
-      '[data-testid="category-segment"], [data-testid="category-empty-bar"]',
-    );
-    const width = Number(bars[0].getAttribute("width"));
-
-    expect(width).toBeGreaterThan(slot * 0.8);
-    expect(width).toBeLessThan(slot);
-  });
-
-  it("clips the complete stack so segments form one cohesive bar", () => {
-    const { container } = render(
-      <CategoryStackedChart data={data} days={monthDays} />,
-    );
-
-    const segments = container.querySelectorAll(
-      '[data-testid="category-segment"]',
-    );
-    expect(segments[0].getAttribute("clip-path")).toMatch(
-      /^url\(#category-stack-/,
-    );
-    expect(segments[0].getAttribute("rx")).toBeNull();
-    expect(container.querySelector("clipPath rect")?.getAttribute("rx")).toBe(
-      "2",
-    );
-    expect(segments[0].getAttribute("class")).toContain(
-      "category-stack-segment",
-    );
-  });
-
-  it("handles a 31-day month without dropping the last day or overflowing labels", () => {
-    const november = Array.from(
-      { length: 31 },
-      (_, index) => `2026-11-${String(index + 1).padStart(2, "0")}`,
-    );
-
-    render(<CategoryStackedChart data={data} days={november} />);
-
-    // Day 31 is still rendered as a bar.
-    expect(screen.getAllByTestId("category-daily-bar")).toHaveLength(31);
-
-    // Only the stepped days get a numeric label; day 31 stays unlabeled.
-    const labels = screen.getAllByTestId("category-day-label");
-    const visibleLabels = labels
-      .map((label) => label.textContent?.trim())
-      .filter((text) => text);
-    expect(visibleLabels).toEqual(["1", "5", "10", "15", "20", "25", "30"]);
+    expect(screen.queryByTestId("category-tooltip")).toBeNull();
   });
 });

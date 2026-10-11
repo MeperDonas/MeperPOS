@@ -8,7 +8,14 @@ import {
   computeDelta,
   computePendingAmount,
   computeTodayMetrics,
+  countDaysInclusive,
+  DASHBOARD_RANGES,
+  DEFAULT_DASHBOARD_RANGE,
   filterOpenTasks,
+  formatCategoryAxisTick,
+  formatCategoryTooltipDate,
+  getDashboardRange,
+  resolveDashboardRange,
   sumExpensesOnDate,
 } from "./dashboard";
 import type { TaskStatus } from "@/types";
@@ -213,6 +220,61 @@ describe("buildDateWindow (dashboard KPI window)", () => {
 
   it("returns an empty list for a non-positive length", () => {
     expect(buildDateWindow("2026-08-22", 0)).toEqual([]);
+  });
+});
+
+describe("dashboard range helpers", () => {
+  it("exposes the three range descriptors with labels and day counts", () => {
+    expect(DASHBOARD_RANGES.map((range) => range.key)).toEqual([
+      "7d",
+      "15d",
+      "1m",
+    ]);
+    expect(DASHBOARD_RANGES.map((range) => range.label)).toEqual([
+      "7 días",
+      "15 días",
+      "1 mes",
+    ]);
+    expect(DASHBOARD_RANGES.map((range) => range.days)).toEqual([7, 15, 30]);
+    expect(DEFAULT_DASHBOARD_RANGE).toBe("7d");
+  });
+
+  it("falls back to the default range for an unknown key", () => {
+    expect(getDashboardRange("7d").days).toBe(7);
+    // @ts-expect-error deliberately unknown key
+    expect(getDashboardRange("nope").key).toBe("7d");
+  });
+
+  it("resolves each range into an inclusive window ending today", () => {
+    expect(resolveDashboardRange("7d", "2026-08-22")).toEqual({
+      startDate: "2026-08-16",
+      endDate: "2026-08-22",
+    });
+    expect(resolveDashboardRange("15d", "2026-08-22")).toEqual({
+      startDate: "2026-08-08",
+      endDate: "2026-08-22",
+    });
+    // 1m is a rolling 30-day window, not a calendar month.
+    expect(resolveDashboardRange("1m", "2026-08-22")).toEqual({
+      startDate: "2026-07-24",
+      endDate: "2026-08-22",
+    });
+  });
+
+  it("counts inclusive days between two dates and crosses month boundaries", () => {
+    expect(countDaysInclusive("2026-08-16", "2026-08-22")).toBe(7);
+    expect(countDaysInclusive("2026-02-27", "2026-03-02")).toBe(4);
+    expect(countDaysInclusive("2026-08-22", "2026-08-22")).toBe(1);
+  });
+
+  it("formats compact d/m axis ticks from the real date", () => {
+    expect(formatCategoryAxisTick("2026-08-01")).toBe("1/8");
+    expect(formatCategoryAxisTick("2026-11-30")).toBe("30/11");
+    expect(formatCategoryAxisTick("nope")).toBe("nope");
+  });
+
+  it("formats a readable tooltip date", () => {
+    expect(formatCategoryTooltipDate("2026-08-21")).toBe("21 de ago");
   });
 });
 
