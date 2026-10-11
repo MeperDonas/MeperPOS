@@ -111,6 +111,27 @@ merges to master in order, so a reviewer sees only that slice's diff. Proposed s
 
 Pushing to the remote requires explicit user authorization (not yet granted).
 
+### Delivered (2026-10-11)
+
+Tracking issue: **#216** (`status:approved`, `type:feature`, `enhancement`).
+
+The chain was rebased onto `origin/master` (the local `master` had diverged: 478 ahead / 506 behind,
+and the original branch point `4c4273f` was local-only). The only conflict was the brand asset:
+`origin/master` carries the newer "3D MP artwork" (12:13, PRs #213/#215) versus the local brand commit
+(11:46), so the rebased sidebar keeps **origin's** asset and applies only the structural change.
+
+| PR | Base ← Head | Content |
+|----|-------------|---------|
+| [#217](https://github.com/MeperDonas/MeperPOS/pull/217) | `master` ← `feat/dashboard-redesign-pr1` | Sidebar four blocks (147 lines) |
+| [#218](https://github.com/MeperDonas/MeperPOS/pull/218) | `pr1` ← `feat/dashboard-redesign-pr2` | Recharts + KPI section (760) |
+| [#219](https://github.com/MeperDonas/MeperPOS/pull/219) | `pr2` ← `feat/dashboard-redesign-pr3` | Range helpers + cards (682) |
+| [#220](https://github.com/MeperDonas/MeperPOS/pull/220) | `pr3` ← `feat/dashboard-redesign-pr4` | 60/40 revenue piece (956) |
+| [#221](https://github.com/MeperDonas/MeperPOS/pull/221) | `pr4` ← `feat/dashboard-redesign-pr5` | Recent sales + panels (670) — `Closes #216` |
+
+Merge in order. Only the last PR closes the issue. `size:exception` was requested and accepted on
+#216, because four of the five slices exceed the 400-line budget and a finer split would have broken
+up coherent work units.
+
 ## Progress / evidence
 
 - 2026-10-11 — feature document created. No source writes yet.- 2026-10-11 — **T2 done**, commit `3ea93f0` `feat(dashboard): restructure sidebar into four blocks`
