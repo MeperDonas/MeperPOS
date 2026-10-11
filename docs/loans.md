@@ -656,10 +656,10 @@ metadata and before-count evidence never become public response fields.
   unchanged. Cloned-state tests establish local query placement and rollback on
   CAS loss or late movement failure, not PostgreSQL SSI/race/rollback proof.
   Independent verification and L7 database proof remain pre-rollout requirements.
-- **Stock-ledger/report gate:** InventoryMovement has no loan-specific enum or
-  linkage. DELIVERED/RETURNED loan events and AuditLog are not proof of an
-  inventory movement ledger, reporting or export integration. SALE/RETURN
-  movement types are not repurposed.
+- **Stock-ledger/report gate:** At C-C-B, InventoryMovement had no loan-specific
+  enum or linkage. M1 below adds storage declarations only; the service still
+  writes no movements. DELIVERED/RETURNED loan events and AuditLog are not proof
+  of ledger, reporting or export integration. SALE/RETURN types are not repurposed.
 - **Remaining lifecycle/HTTP gate:** internal CANCEL/CLOSE are described below;
   further lifecycle query work, controller permissions/wiring and frontend remain gated.
   No automatic closure,
@@ -782,6 +782,51 @@ stock-consumer safeguards. The OPEN/CANCELLED query guard was unchanged by C-C-C
 the later CLOSED-filter gate above is an independent rollback boundary (its
 explicit allowlist entry, read tests and query documentation). No production-readiness or native
 review verdict is claimed.
+
+## Physical-loan movement storage (M1; NOT OPERATIONAL)
+
+**Storage declarations only; rollout remains OFF and migrations are unapplied.**
+Additive 090700 introduces LOAN_DELIVERY and LOAN_RETURN without repurposing SALE
+or sale RETURN. InventoryMovement has a nullable unique inventoryLoanEventId and
+an optional one-to-one InventoryLoanEvent relation. Existing movements keep null
+links: no backfill, historical rewrite or new validation of unlinked legacy rows.
+The existing event/operation append-only protections remain unchanged.
+
+### Linked evidence contract
+
+| Boundary | Declaration |
+| --- | --- |
+| Cardinality | One movement per immutable item event, not per aggregated product; distinct same-product items remain valid |
+| Identity | INSERT binds event, item, loan, product and completed operation to the same tenant; movement actor matches event author and operation actor, not necessarily loan creator |
+| Discriminators | LOAN_DELIVERY requires DELIVERED event and DELIVER operation; LOAN_RETURN requires RETURNED event and RETURN operation |
+| Quantity | Positive item-event quantity becomes negative delivery or positive return movement quantity |
+| Snapshots | Nonnegative previousStock/newStock; bigint subtraction must equal signed quantity without Int arithmetic overflow |
+| Separation | Required event link and actor, null saleId; legacy movement types cannot acquire a loan link |
+| Immutability | UPDATE rejects OLD or NEW linked/loan-type evidence, including acquisition and no-op updates; DELETE rejects linked/loan-type rows |
+
+The restrictive event FK retains immutable linked history. The insertion guard
+checks product identity/tenant, not live stock or active status. Inactive physical
+returns remain possible; multiple items for one product may use intermediate
+snapshots rather than each claiming the product's final live stock. Ordinary
+unlinked legacy movements retain their prior insert/update/delete behavior.
+
+### Pending writer and verification gates
+
+M2 must write movements atomically **after** completed operations and immutable
+item events, with per-item snapshots and rollback/replay guarantees. M3 owns
+consumers/API integration. No writer, DTO, module, controller, HTTP activation,
+frontend, report or export changes are included here. No Sale, Payment, revenue
+or sales COGS entry is introduced; CURRENT_STOCK_AT_CURRENT_COST reporting remains
+unchanged. This is quantity evidence, not financial recognition.
+
+Structural Jest assertions verify schema/SQL declarations only, not PostgreSQL
+trigger/FK execution, races or rollback. Fresh Prisma validation/client generation
+remain pending under the blocked CLI gate; existing client metadata is not proof
+of this new schema. Independent verification and authorized isolated PostgreSQL
+proof remain required. Before application, rollback is this schema link/reverse
+relation and enum pair, 090700, its declaration tests and this documentation;
+retain frozen 090400/090500/090600 and existing service/reservation safeguards.
+After population, require a separately approved data-safe rollback plan.
 
 ## Verification and next slice
 

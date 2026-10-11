@@ -217,6 +217,8 @@ model InventoryMovement {
   product        Product      @relation(fields: [productId], references: [id])
   sale           Sale?        @relation(fields: [saleId], references: [id])
   user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  inventoryLoanEventId String? @unique
+  inventoryLoanEvent InventoryLoanEvent? @relation(fields: [inventoryLoanEventId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([organizationId, productId, createdAt])
 }
@@ -598,6 +600,7 @@ model InventoryLoanEvent {
   item           InventoryLoanItem? @relation(fields: [itemId, loanId, organizationId], references: [id, loanId, organizationId], onDelete: Restrict, onUpdate: Restrict)
   createdBy      User @relation("InventoryLoanEventCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
   operation      InventoryLoanOperation? @relation(fields: [operationId, loanId, organizationId, createdById], references: [id, loanId, organizationId, actorId], onDelete: Restrict, onUpdate: Restrict, map: "InventoryLoanEvent_operation_fkey")
+  movement       InventoryMovement?
 
   @@index([organizationId, loanId, createdAt, id])
 }
@@ -748,6 +751,8 @@ enum MovementType {
   ADJUSTMENT_OUT
   DAMAGE
   RETURN
+  LOAN_DELIVERY
+  LOAN_RETURN
 }
 
 enum CustomerSegment {

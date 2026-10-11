@@ -59,7 +59,7 @@ export function normalizeStock(item: StockSubject, stock: number): number {
 export function resolveInitialStockMovement(
   item: StockSubject,
   stock: number,
-): { type: MovementType; quantity: number } | null {
+): { type: typeof MovementType.PURCHASE; quantity: number } | null {
   if (!tracksStock(item) || stock === 0) {
     return null;
   }
@@ -83,7 +83,10 @@ export function resolveStockDeltaMovement(
   item: StockSubject,
   previousStock: number,
   nextStock: number,
-): MovementType | null {
+):
+  | typeof MovementType.ADJUSTMENT_IN
+  | typeof MovementType.ADJUSTMENT_OUT
+  | null {
   if (!tracksStock(item) || previousStock === nextStock) {
     return null;
   }

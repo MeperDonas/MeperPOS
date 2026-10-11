@@ -145,10 +145,7 @@ All commits path-scoped; script index preserved, migrations unapplied. Approved 
 
 ## Linux reconciliation and baseline
 
-- User authorized Linux preparation, then explicitly authorized product-guard implementation. Current branch `worktree-feat-loans-module`, HEAD `5f4524f70b98280799d3ea85d2e603b873325d35`: parent verified approved6d5e360 is an ancestor; the sole intervening commit is `odd documentation`, changing only this task file. Committed feature source is preserved. Linux index has no protected script entry; original staging disposition is unknown, never restore or read the script. Repository was clean before this tracking update.
-- Independent locked install: cached Node24.21.0/npm11.19.0, `npm ci --ignore-scripts --no-audit --no-fund`, exit0/893 packages; manifest and lock hashes unchanged. CI Node22 compatibility is NOT established; no Node/global configuration changes.
-- Actual guarded Prisma6.19.2 validate/generate exit0/schema valid/client generated, pinned official engines prepared. Explicit temporary config, credential-free URLs, environment/dotenv/network isolation and cleanup; no repository config/schema/migration changes or SQL execution.
-- Independent Linux baseline1247/1247. Initial tsc2/TS6053 was guard-induced config source denial, lint skipped; corrected probe allowed source reads/not execution, denied.env/dotenv/TCP: tsc0/three-terminal-filelint0/whitespace0. Guards removed; ignored dependencies/cache/dist only. Not build/PG/race/rollback/HTTP proof.
+Historical Linux baseline (not current readiness): branch `worktree-feat-loans-module`, source-identical5f4524f after approved6d5e360 plus tracking-only commit. Protected script absent from Linux index; original staging unknown, never read/restore. CachedNode24.21.0/npm11.19.0 locked `npm ci --ignore-scripts --no-audit --no-fund` passed/893; manifest/lock unchanged, no global changes/CI22 proof. GuardedPrisma6.19.2 validate/generate0 with dummy URLs/pinned engines, no SQL/config/schema change; temporary guards removed. Independent1247/1247; initialTS6053/tsc2 and skippedlint caused config-source guard, corrected source-read/no-execution probe gave tsc0/three-terminal-filelint0/whitespace0 with env/dotenv/TCP blocked. Ignored dependency/cache/dist outputs only; not build/PG/race/rollback/HTTP proof.
 
 ## Current product eligibility work unit
 
@@ -183,9 +180,20 @@ All commits path-scoped; script index preserved, migrations unapplied. Approved 
 - L6 consumes backend availableStock in frontend product types/hooks/POS/inventory/ProductCard. Physical stock/isLowStock/reporting unchanged; service/untracked availability null. Frontend audit/browser checks pending.
 - L7 requires explicit isolated non-production PostgreSQL authorization for actual migrations/checks/FKs/triggers/immutability/rollback/reconciliation/locking/races and deployed SERVICE-safe rollback. Never run broad *.int.spec.ts or connect to the real DB.
 
-## Current CLOSED-query scope and next step
+## CLOSED-query outcome
 
-Scout mv1u5qy5-a-jpcc mapped explicit guard/live reads vs immutable OPEN receipt; no DTO/storage gap. Settled sole writer mv1ucch7-b-97ne changed ONLY service.ts(+2/-1), existing service.spec.ts(+96/-1), docs(+17/-11):128 authored lines. Explicit CLOSED, unknown400, tenant/status/counterparty/page-count/order/live quantities and OPEN/CANCELLED controls; strict CREATE replay unchanged. Docs mark old guards historical.
-- Supplied meaningful RED886pass/1fail before production -> GREEN890; later4controls not retrospectiveRED. Actual INLINEguardedNode24 probe0,11DBfree1369/1369, tsc0, baseline/finaltwo-filelint0/no diagnostics (2intermediatewarnings fixed without suppression), whitespace0. No artifacts/preload; no build/CI22/PG/HTTP proof.
-- Parent ASSESSmedium4paths155lines/runtime-large/nativeunknown/selfverificationstands/no separateverifier. Actual full3filediff/hash matches supplied115/-13; manifest/lock unchanged/whitespace0. Parent repeated exact guarded two-file ESLint0. Old service cast-comment lens findings329/530 unchanged/outside scope. Local work-unit commit/native preflight NEXT, not yet approved.
-- Base **fd064f248c19cc807d8e2400dc69e598112af057**; product guard UNREVIEWED for its exact candidate ONLY. RDDon/newcandidatefreshINSPECT. OverallC-C inprogress, movement/linkage/report/export/HTTP/POS/UI/L4pricing/L7 separate/OFF. No new DTO/schema/migration/routes/stock/money/provider/config/dependencies/DB/publication/rollout or old-receipt reopening.
+Scout mv1u5qy5-a-jpcc/settled writer mv1ucch7-b-97ne: service(+2/-1), spec(+96/-1), docs(+17/-11)=128 source lines. Explicit CLOSED/unknown400, live tenant/status/counterparty/page-count/order/quantities, OPEN/CANCELLED and unchanged strict OPEN CREATE replay; historical docs clarified. Supplied RED886/1 -> GREEN890; later4controls not retrospectiveRED. Inline guardedNode24 probe0/11DBfree1369/tsc0/baseline+finaltwo-filelint0 (2intermediatewarnings fixed)/whitespace0. Parentdiff+hash/manifestlockmatch and repeatedguardedlint0; old lens castcomments329/530 outside scope. No artifacts/build/CI22/PG/HTTP proof.
+- Commit **13611bd3538170ab272d63157a1f85555110a4eb**, `feat(loans): support closed physical loan queries`:4files132/-22=154 incltracking, then clean. Fresh INSPECTfd064f..13611bd blocked managed_assets_outdated/same89fa; target sha256:de3306a64afde4d11b004d9150dac3fb6f879fe98f7743a0d15a2134ee02225b, no START/consent/lineage/decline/approval. Committed ASSESSmedium/runtime-large/unavailable:selfverificationstands/no verifier.
+- User `Si, continua` explicitly left ONLY this committed candidate UNREVIEWED; no approval/consumption/switch change or future exemption. Unit closed; overallC-C remains inprogress/OFF. Priorfd064f exception likewise exact-only; old receipts stay burned.
+
+## Movement ledger gate (L3C-C)
+
+M1 source300/1375PASS/prodTS0; humanUNREVIEWED1919/localcommitpending. M1 source scope:
+- `backend/prisma/schema.prisma`
+- new `backend/prisma/migrations/20261009070000_inventory_loan_movement_linkage/migration.sql`
+- `backend/src/prisma/inventory-loan-migration.spec.ts`
+- `docs/loans.md`
+
+LOAN_DELIVERY/LOAN_RETURN, nullable unique per-item-event link; INSERT correlation tenant/loan/item/product/actor/op/type/quantity, safe signed stock delta/saleIdnull; forbid legacy-to-linked UPDATE and linked/new-type UPDATE/DELETE, preserve ordinary legacy rows. Enum text comparisons; freeze090400/500/600. Quantity-only/current-stock-cost/no salesCOGS. Target220-330lines; no compression/scope expansion.
+Checks: CLI0/gen0/client6.19.2/independent1375PASS; prodNoEmit194roots/0diag; full22specerrors; lintWorkerunavailable. Fixed `backend/src/products/product-type.logic{,.spec}.ts`; scopeTS0/no casts/sinkwidening.
+M2 mapped1914(service1117-1415/spec871+), only2files150-280lines; M3 consumers/API. Parent owns tracking/mirror; no app activation/dependencies/provider/DB/publication. Helpers retained/cleanupNO; untracked.codegraph excluded/unread. Base13611bd/RDDon/futurefreshINSPECT; L4pricing/L7 separate.

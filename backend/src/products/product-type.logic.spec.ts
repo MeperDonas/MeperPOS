@@ -134,6 +134,14 @@ describe('product-type.logic — the single stock-decision authority', () => {
   });
 
   describe('resolveInitialStockMovement', () => {
+    it('exposes only PURCHASE or null to opening movement writers', () => {
+      const movement: {
+        type: typeof MovementType.PURCHASE;
+        quantity: number;
+      } | null = resolveInitialStockMovement(product(), 10);
+      expect(movement).toEqual({ type: MovementType.PURCHASE, quantity: 10 });
+    });
+
     it('records the opening PURCHASE movement for a tracked product', () => {
       expect(resolveInitialStockMovement(product(), 10)).toEqual({
         type: MovementType.PURCHASE,
@@ -178,6 +186,14 @@ describe('product-type.logic — the single stock-decision authority', () => {
   });
 
   describe('resolveStockDeltaMovement', () => {
+    it('exposes only manual adjustment types or null to stock editors', () => {
+      const movement:
+        | typeof MovementType.ADJUSTMENT_IN
+        | typeof MovementType.ADJUSTMENT_OUT
+        | null = resolveStockDeltaMovement(product(), 5, 10);
+      expect(movement).toBe(MovementType.ADJUSTMENT_IN);
+    });
+
     it('records an ADJUSTMENT_IN when tracked stock rises', () => {
       expect(resolveStockDeltaMovement(product(), 5, 10)).toBe(
         MovementType.ADJUSTMENT_IN,

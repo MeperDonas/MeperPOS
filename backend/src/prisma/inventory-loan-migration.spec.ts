@@ -27,8 +27,133 @@ const lifecycleMigrationPath = resolve(
 const lifecycleSql = existsSync(lifecycleMigrationPath)
   ? readFileSync(lifecycleMigrationPath, 'utf8')
   : '';
+const movementMigrationPath = resolve(
+  __dirname,
+  '../../prisma/migrations/20261009070000_inventory_loan_movement_linkage/migration.sql',
+);
+const movementSql = existsSync(movementMigrationPath)
+  ? readFileSync(movementMigrationPath, 'utf8')
+  : '';
+const movementFunction = (name: string) =>
+  movementSql
+    .split(`CREATE FUNCTION "${name}"() RETURNS trigger AS $$`)[1]
+    ?.split('$$ LANGUAGE plpgsql;')[0] ?? '';
 const modelBody = (name: string) =>
   schema.split(`model ${name} {`)[1]?.split('\n}')[0] ?? '';
+
+describe('inventory loan movement declarations (not executed SQL)', () => {
+  const insert = movementFunction('validate_inventory_loan_movement_insert');
+  const mutation = movementFunction('protect_inventory_loan_movement');
+
+  it('adds nullable unique restrictive per-event linkage and distinct enum values', () => {
+    expect(modelBody('InventoryMovement')).toMatch(
+      /inventoryLoanEventId\s+String\?\s+@unique/,
+    );
+    expect(modelBody('InventoryMovement')).toContain(
+      'fields: [inventoryLoanEventId], references: [id], onDelete: Restrict, onUpdate: Restrict',
+    );
+    expect(modelBody('InventoryLoanEvent')).toMatch(
+      /movement\s+InventoryMovement\?/,
+    );
+    expect(movementSql).toContain('ADD COLUMN "inventoryLoanEventId" TEXT');
+    expect(movementSql).toContain(
+      'CREATE UNIQUE INDEX "InventoryMovement_inventoryLoanEventId_key" ON "InventoryMovement"("inventoryLoanEventId")',
+    );
+    expect(movementSql).toContain(
+      'ADD CONSTRAINT "InventoryMovement_inventoryLoanEventId_fkey" FOREIGN KEY ("inventoryLoanEventId") REFERENCES "InventoryLoanEvent"("id") ON DELETE RESTRICT ON UPDATE RESTRICT',
+    );
+    for (const type of ['LOAN_DELIVERY', 'LOAN_RETURN']) {
+      expect(schema.split('enum MovementType {')[1].split('}')[0]).toContain(
+        type,
+      );
+      expect(movementSql).toContain(
+        `ALTER TYPE "MovementType" ADD VALUE '${type}'`,
+      );
+    }
+    expect(movementSql).not.toMatch(
+      /'LOAN_(?:DELIVERY|RETURN)'::"?MovementType/,
+    );
+  });
+
+  it('requires typed links and validates signed snapshots without touching legacy rows', () => {
+    expect(insert).toContain(
+      `IF NEW."type"::text NOT IN ('LOAN_DELIVERY', 'LOAN_RETURN') THEN`,
+    );
+    expect(insert).toMatch(
+      /IF NEW\."inventoryLoanEventId" IS NOT NULL THEN\s+RAISE EXCEPTION/,
+    );
+    expect(insert).toContain(
+      'NEW."inventoryLoanEventId" IS NULL OR NEW."saleId" IS NOT NULL OR NEW."userId" IS NULL',
+    );
+    expect(insert).toContain('NEW."previousStock" < 0 OR NEW."newStock" < 0');
+    expect(insert).toContain(
+      'NEW."newStock"::bigint - NEW."previousStock"::bigint <> NEW."quantity"::bigint',
+    );
+    expect(insert).toContain('NEW."quantity"::bigint = -e."quantity"::bigint');
+    expect(insert).toContain('NEW."quantity"::bigint = e."quantity"::bigint');
+    expect(insert).not.toMatch(/p\."(?:active|stock)"|UPDATE|DELETE/);
+    expect(movementSql).not.toMatch(
+      /UPDATE "|DELETE FROM|(?:ALTER|CREATE) TABLE "(?:Sale|Payment|InventoryLoanEvent|InventoryLoanOperation)"/,
+    );
+  });
+
+  it('correlates item, loan, product, tenant, actor and completed operation', () => {
+    for (const predicate of [
+      'i."id" = e."itemId"',
+      'i."loanId" = e."loanId"',
+      'i."organizationId" = e."organizationId"',
+      'l."id" = e."loanId"',
+      'l."organizationId" = e."organizationId"',
+      'p."id" = i."productId"',
+      'p."organizationId" = e."organizationId"',
+      'o."id" = e."operationId"',
+      'o."loanId" = e."loanId"',
+      'o."organizationId" = e."organizationId"',
+      'o."actorId" = e."createdById"',
+      'e."id" = NEW."inventoryLoanEventId"',
+      'e."organizationId" = NEW."organizationId"',
+      'i."productId" = NEW."productId"',
+      'e."createdById" = NEW."userId"',
+      'e."itemId" IS NOT NULL',
+      'e."quantity" > 0',
+      `e."type"::text = 'DELIVERED' AND o."type"::text = 'DELIVER'`,
+      `e."type"::text = 'RETURNED' AND o."type"::text = 'RETURN'`,
+    ])
+      expect(insert).toContain(predicate);
+    expect(insert).toMatch(/IF NOT EXISTS \(\s+SELECT 1/);
+    expect(insert).toMatch(
+      /\) THEN\s+RAISE EXCEPTION 'Inventory loan movement correlation/,
+    );
+    expect(movementSql).toContain(
+      'BEFORE INSERT ON "InventoryMovement"\nFOR EACH ROW EXECUTE FUNCTION "validate_inventory_loan_movement_insert"()',
+    );
+  });
+
+  it('blocks old or acquired loan evidence on every update and preserves ordinary mutations', () => {
+    expect(mutation).toMatch(
+      /IF TG_OP = 'DELETE' THEN[\s\S]*RETURN OLD;\s+END IF;/,
+    );
+    expect(
+      mutation.match(/OLD\."inventoryLoanEventId" IS NOT NULL/g),
+    ).toHaveLength(2);
+    expect(
+      mutation.match(
+        /OLD\."type"::text IN \('LOAN_DELIVERY', 'LOAN_RETURN'\)/g,
+      ),
+    ).toHaveLength(2);
+    expect(mutation).toContain('NEW."inventoryLoanEventId" IS NOT NULL');
+    expect(mutation).toContain(
+      `NEW."type"::text IN ('LOAN_DELIVERY', 'LOAN_RETURN')`,
+    );
+    expect(mutation).toMatch(
+      /RAISE EXCEPTION 'Inventory loan movements are immutable';\s+END IF;\s+RETURN NEW;/,
+    );
+    expect(mutation).not.toContain('IS DISTINCT FROM');
+    expect(movementSql).toContain(
+      'BEFORE UPDATE OR DELETE ON "InventoryMovement"\nFOR EACH ROW EXECUTE FUNCTION "protect_inventory_loan_movement"()',
+    );
+  });
+});
 
 describe('inventory loan lifecycle vocabulary declarations only', () => {
   it.each([
