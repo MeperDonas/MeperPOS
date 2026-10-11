@@ -237,8 +237,8 @@ export function Sidebar() {
           src="/brand/meperpos-mark-160.png"
           alt={`${APP_NAME} logo`}
           width={160}
-          height={77}
-          className="h-9 w-auto shrink-0 rounded-lg ring-1 ring-border/60 shadow-sm shadow-black/10"
+          height={89}
+          className="h-9 w-auto shrink-0"
         />
         <div className="min-w-0">
           <p className="text-base font-extrabold text-foreground truncate leading-tight tracking-tight">
@@ -380,8 +380,8 @@ export function Sidebar() {
             src="/brand/meperpos-mark-160.png"
             alt={`${APP_NAME} logo`}
             width={160}
-            height={77}
-            className="h-8 w-auto shrink-0 rounded-lg ring-1 ring-border/60"
+            height={89}
+            className="h-8 w-auto shrink-0"
           />
           <span className="text-sm font-bold text-foreground">
             {APP_NAME}

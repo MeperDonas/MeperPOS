@@ -19,11 +19,18 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
           {/* Logo & Header */}
           <div className="text-center space-y-2">
             <Image
-              src="/brand/meperpos-lockup-384.png"
+              src="/brand/meperpos-lockup-on-light-384.png"
               alt={`${APP_NAME} logo`}
               width={384}
-              height={271}
-              className="mx-auto mb-4 block h-auto w-48 rounded-2xl ring-1 ring-border/60 shadow-lg shadow-black/10"
+              height={247}
+              className="mx-auto mb-4 block h-auto w-48 dark:hidden"
+            />
+            <Image
+              src="/brand/meperpos-lockup-on-dark-384.png"
+              alt={`${APP_NAME} logo`}
+              width={384}
+              height={247}
+              className="mx-auto mb-4 hidden h-auto w-48 dark:block"
             />
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               {title}
