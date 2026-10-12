@@ -49,6 +49,7 @@ model Organization {
   moneyLoans         MoneyLoan[]
   moneyLoanEvents    MoneyLoanEvent[]
   inventoryLoans     InventoryLoan[]
+  posLoanSaleIntents PosLoanSaleIntent[]
 
   @@index([status, trialEndsAt])
 }
@@ -242,6 +243,7 @@ model Customer {
   sales          Sale[]
   moneyLoans     MoneyLoan[]
   inventoryLoans InventoryLoan[]
+  posLoanSaleIntents PosLoanSaleIntent[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, documentNumber])
@@ -273,7 +275,9 @@ model Sale {
   organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user               User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   items              SaleItem[]
+  posLoanSaleIntent  PosLoanSaleIntent?
 
+  @@unique([id, organizationId, customerId])
   @@unique([organizationId, saleNumber])
   @@index([organizationId, createdAt, status])
   @@index([organizationId, userId])
@@ -457,9 +461,29 @@ model MoneyLoan {
   employee       User?        @relation("MoneyLoanEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
   createdBy      User         @relation("MoneyLoanCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   events         MoneyLoanEvent[]
+  posLoanSaleIntent PosLoanSaleIntent?
 
   @@unique([id, organizationId])
+  @@unique([id, organizationId, customerId])
   @@index([organizationId, createdAt, id])
+}
+
+// Intent presence is reserved for the future dedicated POS initiation path.
+model PosLoanSaleIntent {
+  id             String       @id @default(uuid())
+  organizationId String
+  loanId         String       @unique
+  customerId     String
+  createdAt      DateTime     @default(now())
+  finalSaleId    String?      @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  customer       Customer     @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
+  loan           MoneyLoan    @relation(fields: [loanId, organizationId, customerId], references: [id, organizationId, customerId], onDelete: Restrict, onUpdate: Restrict)
+  finalSale      Sale?        @relation(fields: [finalSaleId, organizationId, customerId], references: [id, organizationId, customerId], onDelete: Restrict, onUpdate: Restrict)
+
+  // Composite keys declare the one-to-one relation tuples to Prisma.
+  @@unique([loanId, organizationId, customerId])
+  @@unique([finalSaleId, organizationId, customerId])
 }
 
 enum MoneyLoanStatus {
