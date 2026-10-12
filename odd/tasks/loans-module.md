@@ -188,12 +188,13 @@ Scout mv1u5qy5-a-jpcc/settled writer mv1ucch7-b-97ne: service(+2/-1), spec(+96/-
 
 ## Movement ledger gate (L3C-C)
 
-M1 source300/1375PASS/prodTS0; humanUNREVIEWED1919/localcommitpending. M1 source scope:
-- `backend/prisma/schema.prisma`
-- new `backend/prisma/migrations/20261009070000_inventory_loan_movement_linkage/migration.sql`
-- `backend/src/prisma/inventory-loan-migration.spec.ts`
-- `docs/loans.md`
+M1 `49721fc8ea7ffdb2bfbd4eba1093e9b13767fb19`: source300/commit326diff; humanUNREVIEWED1919/nativeblocked1917/no receipt. CLI/gen0/client6.19.2/1375PASS/prodNoEmit0; full22specerrors/lintunavailable/PGnotrun.
 
-LOAN_DELIVERY/LOAN_RETURN, nullable unique per-item-event link; INSERT correlation tenant/loan/item/product/actor/op/type/quantity, safe signed stock delta/saleIdnull; forbid legacy-to-linked UPDATE and linked/new-type UPDATE/DELETE, preserve ordinary legacy rows. Enum text comparisons; freeze090400/500/600. Quantity-only/current-stock-cost/no salesCOGS. Target220-330lines; no compression/scope expansion.
-Checks: CLI0/gen0/client6.19.2/independent1375PASS; prodNoEmit194roots/0diag; full22specerrors; lintWorkerunavailable. Fixed `backend/src/products/product-type.logic{,.spec}.ts`; scopeTS0/no casts/sinkwidening.
-M2 mapped1914(service1117-1415/spec871+), only2files150-280lines; M3 consumers/API. Parent owns tracking/mirror; no app activation/dependencies/provider/DB/publication. Helpers retained/cleanupNO; untracked.codegraph excluded/unread. Base13611bd/RDDon/futurefreshINSPECT; L4pricing/L7 separate.
+M2 SOURCE167/00322024+60aad324; 894+1379/prodNoEmit0 GREEN1942; humanUNREVIEWED1944/RESUMED/local commit next.
+Allowed source surfaces:
+- `backend/src/loans/inventory-loans.service.ts`
+- `backend/src/loans/inventory-loans.service.spec.ts`
+
+Serializable order: loan/itemCAS -> sorted productCAS -> completedop -> itemevent.create.id -> linkedmovement -> audit. Signed LOAN_DELIVERY/RETURN; tenant/item/product/actor/op correlation, saleIdnull. Same-product items need distinct event IDs/chained stock snapshots; inactive RETURN allowed. Replay no writes; movementfailure rollsback ALLstores. Keep financial prohibitions/CREATECANCELCLOSE no movements. Target150-280lines/stop>400/no test deletion. FocusedRED/GREEN; parentindependent11/types.
+
+M1schema/090400-090700/client frozen. No API/DB/deps/publication. Helpers0600/cache126 retained/cleanupNO; .codegraph excluded/unread. Base49721fc/RDDon/M2freshINSPECT mandatory, no inherited M1 bypass. M3consumers/API, L4pricing/L7 separate.

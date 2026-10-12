@@ -8,6 +8,7 @@ import {
 import {
   InventoryLoanOperation,
   InventoryLoanStatus,
+  MovementType,
   OrgRole,
   Prisma,
 } from '@prisma/client';
@@ -1260,6 +1261,7 @@ export class InventoryLoansService {
               throw new ConflictException('Cantidad agregada fuera de rango');
             deltas.set(item.productId, delta);
           }
+          const movementStocks = new Map<string, number>();
           // Actual schema has no unique loan/product key: aggregate defensively, one CAS/product.
           for (const [productId, delta] of [...deltas].sort(([a], [b]) =>
             a.localeCompare(b),
@@ -1305,6 +1307,7 @@ export class InventoryLoansService {
                 product.stock + delta.stock
             )
               throw new ConflictException('Inventario insuficiente o inválido');
+            movementStocks.set(productId, product.stock);
             const changed = await tx.product.updateMany({
               where: {
                 id: productId,
@@ -1367,18 +1370,49 @@ export class InventoryLoansService {
             },
           });
           const result = replayResult(operation);
-          for (const item of dto.items) {
-            await tx.inventoryLoanEvent.create({
+          // Proposals retain normalized item order; shared products chain from the pre-CAS stock.
+          for (const proposal of proposals) {
+            const { item, quantity, stockDelta } = proposal;
+            const previousStock = movementStocks.get(item.productId);
+            if (
+              previousStock === undefined ||
+              !boundedInt(previousStock) ||
+              !boundedInt(previousStock + stockDelta)
+            )
+              throw new ConflictException('Inventario insuficiente o inválido');
+            const newStock = previousStock + stockDelta;
+            const event = await tx.inventoryLoanEvent.create({
               data: {
                 organizationId: orgId,
                 loanId: id,
-                itemId: item.itemId,
-                quantity: item.quantity,
+                itemId: item.id,
+                quantity,
                 type: type === 'DELIVER' ? 'DELIVERED' : 'RETURNED',
                 createdById: actor.userId,
                 operationId: operation.id,
               },
             });
+            await tx.inventoryMovement.create({
+              data: {
+                organizationId: orgId,
+                productId: item.productId,
+                userId: actor.userId,
+                saleId: null,
+                inventoryLoanEventId: event.id,
+                type:
+                  type === 'DELIVER'
+                    ? MovementType.LOAN_DELIVERY
+                    : MovementType.LOAN_RETURN,
+                quantity: stockDelta,
+                previousStock,
+                newStock,
+                reason:
+                  type === 'DELIVER'
+                    ? 'Entrega de préstamo de inventario'
+                    : 'Devolución de préstamo de inventario',
+              },
+            });
+            movementStocks.set(item.productId, newStock);
           }
           await tx.auditLog.create({
             data: {

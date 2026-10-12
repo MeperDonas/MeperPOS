@@ -1,5 +1,10 @@
 import { ConflictException, ValidationPipe } from '@nestjs/common';
-import { InventoryLoanOperation, OrgRole, Prisma } from '@prisma/client';
+import {
+  InventoryLoanOperation,
+  MovementType,
+  OrgRole,
+  Prisma,
+} from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import { RequestUser } from '../common/interfaces/request-user.interface';
@@ -70,6 +75,7 @@ type State = {
   loans: Loan[];
   operations: InventoryLoanOperation[];
   events: Row[];
+  movements: Row[];
   audits: Row[];
 };
 // Predicate-aware local store, NOT a PostgreSQL simulator. Commit only on success.
@@ -113,6 +119,7 @@ function harness() {
     loans: [],
     operations: [],
     events: [],
+    movements: [],
     audits: [],
   };
   let working = state;
@@ -317,6 +324,63 @@ function harness() {
       return row;
     },
   );
+  const movementCreate = jest.fn(
+    ({ data }: Prisma.InventoryMovementCreateArgs) => {
+      calls.push('movement');
+      const event = working.events.find(
+        (row) => row.id === data.inventoryLoanEventId,
+      );
+      const item = working.loans
+        .flatMap((loan) => loan.items)
+        .find(
+          (row) =>
+            row.id === event?.itemId &&
+            row.loanId === event?.loanId &&
+            row.organizationId === event?.organizationId,
+        );
+      const operation = working.operations.find(
+        (row) => row.id === event?.operationId,
+      );
+      const delivery = data.type === MovementType.LOAN_DELIVERY;
+      if (
+        !event ||
+        !item ||
+        !operation ||
+        (data.type !== MovementType.LOAN_DELIVERY &&
+          data.type !== MovementType.LOAN_RETURN) ||
+        data.saleId !== null ||
+        data.userId !== event.createdById ||
+        data.userId !== operation.actorId ||
+        data.organizationId !== event.organizationId ||
+        item.organizationId !== event.organizationId ||
+        item.loanId !== event.loanId ||
+        operation.loanId !== event.loanId ||
+        operation.organizationId !== event.organizationId ||
+        data.productId !== item.productId ||
+        event.type !== (delivery ? 'DELIVERED' : 'RETURNED') ||
+        operation.type !== (delivery ? 'DELIVER' : 'RETURN') ||
+        typeof event.quantity !== 'number' ||
+        event.quantity <= 0 ||
+        data.quantity !== (delivery ? -event.quantity : event.quantity) ||
+        data.previousStock < 0 ||
+        data.newStock < 0 ||
+        data.newStock - data.previousStock !== data.quantity
+      )
+        throw new Error('invalid loan movement');
+      if (
+        working.movements.some((row) => row.inventoryLoanEventId === event.id)
+      )
+        throw new Error('duplicate event movement');
+      if (
+        fail === 'movement' ||
+        (fail === 'later-movement' && item.id.endsWith('101'))
+      )
+        throw new Error('movement failure');
+      const row = { ...data, id: `movement-${working.movements.length}` };
+      working.movements.push(row);
+      return row;
+    },
+  );
   const auditCreate = jest.fn(({ data }: Prisma.AuditLogCreateArgs) => {
     calls.push('audit');
     if (fail === 'audit') throw new Error('audit failure');
@@ -370,7 +434,7 @@ function harness() {
       count: eventCount,
     },
     auditLog: { create: auditCreate },
-    inventoryMovement: { create: forbiddenWrite },
+    inventoryMovement: { create: movementCreate },
     sale: { create: forbiddenWrite },
     payment: { create: forbiddenWrite },
     moneyLoan: { create: forbiddenWrite },
@@ -976,7 +1040,9 @@ describe.each(['deliver', 'returnItems'] as const)(
         'reserve',
         'operation',
         'event',
+        'movement',
         'event',
+        'movement',
         'audit',
       ]);
       expect(h.db.inventoryLoan.updateMany).toHaveBeenCalledTimes(1);
@@ -1055,7 +1121,27 @@ describe.each(['deliver', 'returnItems'] as const)(
       expect(result).not.toHaveProperty('receiptVersion');
       expect(result).not.toHaveProperty('before');
       expect(result).not.toHaveProperty('version');
-      expect(h.db.inventoryMovement.create).not.toHaveBeenCalled();
+      expect(h.db.inventoryMovement.create).toHaveBeenCalledTimes(2);
+      expect(h.state().movements.slice(-2)).toMatchObject(
+        h
+          .state()
+          .events.slice(-2)
+          .map((event, index) => ({
+            inventoryLoanEventId: event.id,
+            productId: [p1, p2][index],
+            organizationId: 'org',
+            userId: 'other',
+            saleId: null,
+            type:
+              method === 'deliver'
+                ? MovementType.LOAN_DELIVERY
+                : MovementType.LOAN_RETURN,
+            quantity: method === 'deliver' ? -1 : 1,
+            previousStock: method === 'deliver' ? 10 : 8,
+            newStock: 9,
+            reason: expect.any(String),
+          })),
+      );
       expect(h.db.sale.create).not.toHaveBeenCalled();
       expect(h.db.payment.create).not.toHaveBeenCalled();
       expect(h.db.moneyLoan.create).not.toHaveBeenCalled();
@@ -1072,6 +1158,8 @@ describe.each(['deliver', 'returnItems'] as const)(
       'operation',
       'event',
       'later-event',
+      'movement',
+      'later-movement',
       'audit',
     ])('rolls back all stores on %s failure', async (failure) => {
       const { h, loan, input } = await prepare(true);
@@ -1081,6 +1169,12 @@ describe.each(['deliver', 'returnItems'] as const)(
         h.service[method](loan.id, input, actor),
       ).rejects.toBeDefined();
       expect(h.state()).toEqual(before);
+      if (failure === 'movement' || failure === 'later-movement') {
+        expect(h.db.auditLog.create).not.toHaveBeenCalled();
+        expect(h.db.inventoryMovement.create).toHaveBeenCalledTimes(
+          failure === 'movement' ? 1 : 2,
+        );
+      }
       if (failure === 'later-product')
         expect(h.calls).toEqual([
           'claim',
@@ -1214,6 +1308,13 @@ describe.each(['deliver', 'returnItems'] as const)(
           reservedStock: 0,
           stock: 9,
         });
+        expect(h.state().movements.at(-1)).toMatchObject({
+          type: MovementType.LOAN_RETURN,
+          inventoryLoanEventId: h.state().events.at(-1)!.id,
+          quantity: 1,
+          previousStock: 8,
+          newStock: 9,
+        });
       }
     });
     it.each([
@@ -1298,6 +1399,23 @@ describe.each(['deliver', 'returnItems'] as const)(
       expect(h.state().products[0].reservedStock).toBe(
         method === 'deliver' ? 3 : 1,
       );
+      const movements = h.state().movements.slice(-2);
+      expect(movements).toMatchObject(
+        h
+          .state()
+          .events.slice(-2)
+          .map((event, index) => ({
+            inventoryLoanEventId: event.id,
+            productId: p1,
+            quantity: method === 'deliver' ? -1 : 1,
+            previousStock: method === 'deliver' ? 10 - index : 8 + index,
+            newStock: method === 'deliver' ? 9 - index : 9 + index,
+          })),
+      );
+      expect(
+        new Set(movements.map((row) => row.inventoryLoanEventId)).size,
+      ).toBe(2);
+      expect(movements[1].newStock).toBe(h.state().products[0].stock);
     });
     it('rejects aggregate quantity overflow before product CAS', async () => {
       const { h, loan, input } = await prepare(true);
@@ -1348,6 +1466,7 @@ describe.each(['deliver', 'returnItems'] as const)(
       expect(h.calls).toEqual([]);
       expect(h.db.inventoryLoan.findFirst).not.toHaveBeenCalled();
       expect(h.db.product.findFirst).not.toHaveBeenCalled();
+      expect(h.db.inventoryMovement.create).not.toHaveBeenCalled();
       h.state().members[1].user = { active: false };
       await expect(
         h.service[method](loan.id, input, { ...actor, userId: 'other' }),
