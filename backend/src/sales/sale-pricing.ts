@@ -93,3 +93,24 @@ export function resolveSaleItemPricing(
 export type PricedSaleItem = ReturnType<
   typeof resolveSaleItemPricing
 >['pricedItem'];
+
+/** In-memory value only: copies server-resolved prices, without sale activation. */
+export function buildSaleQuote(
+  rows: ReadonlyArray<
+    Pick<
+      PricedSaleItem,
+      'productId' | 'quantity' | 'unitPrice' | 'discountAmount'
+    >
+  >,
+  agreedCustomerTotal: number,
+) {
+  const items = rows.map((row) =>
+    Object.freeze({
+      productId: row.productId,
+      quantity: row.quantity,
+      resolvedUnitPrice: row.unitPrice,
+      discountAmount: row.discountAmount,
+    }),
+  );
+  return Object.freeze({ items: Object.freeze(items), agreedCustomerTotal });
+}

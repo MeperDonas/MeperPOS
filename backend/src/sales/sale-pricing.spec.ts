@@ -3,7 +3,7 @@ import { Category, Prisma, Product, PromotionType } from '@prisma/client';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { CreateSaleDto, SaleItemDto } from './dto/sales.dto';
 import { SalesService } from './sales.service';
-import { resolveSaleItemPricing } from './sale-pricing';
+import { buildSaleQuote, resolveSaleItemPricing } from './sale-pricing';
 
 type PricingProduct = Pick<
   Product,
@@ -103,6 +103,113 @@ const cases: PricingCase[] = [
     error: 'Item discount for product Coffee cannot exceed item subtotal',
   },
 ];
+
+describe('buildSaleQuote value ownership', () => {
+  const resolvedRow = () =>
+    resolveSaleItemPricing(
+      productFixture(),
+      { quantity: 2, discountAmount: 10 },
+      false,
+    ).pricedItem;
+
+  it('copies only quote primitives in order without recalculating money', () => {
+    const rows = [
+      { ...resolvedRow(), extraUserInput: { note: 'not quote data' } },
+      {
+        ...resolvedRow(),
+        productId: 'free-item',
+        quantity: 3,
+        unitPrice: 0,
+        discountAmount: 0.125,
+      },
+    ];
+    const quote = buildSaleQuote(rows, 123.456789);
+    expect(quote).toEqual({
+      items: [
+        {
+          productId: 'product-1',
+          quantity: 2,
+          resolvedUnitPrice: 80,
+          discountAmount: 10,
+        },
+        {
+          productId: 'free-item',
+          quantity: 3,
+          resolvedUnitPrice: 0,
+          discountAmount: 0.125,
+        },
+      ],
+      agreedCustomerTotal: 123.456789,
+    });
+    expect(Object.keys(quote).sort()).toEqual(['agreedCustomerTotal', 'items']);
+    for (const row of quote.items) {
+      expect(Object.keys(row).sort()).toEqual([
+        'discountAmount',
+        'productId',
+        'quantity',
+        'resolvedUnitPrice',
+      ]);
+    }
+  });
+
+  it('freezes the root, array and every owned row and rejects mutations', () => {
+    const quote = buildSaleQuote([resolvedRow(), resolvedRow()], 173.5);
+    expect(Object.isFrozen(quote)).toBe(true);
+    expect(Object.isFrozen(quote.items)).toBe(true);
+    for (const row of quote.items) expect(Object.isFrozen(row)).toBe(true);
+    expect(Reflect.set(quote, 'agreedCustomerTotal', 1)).toBe(false);
+    expect(Reflect.set(quote.items[0], 'resolvedUnitPrice', 1)).toBe(false);
+    expect(Reflect.set(quote.items, '0', {})).toBe(false);
+    expect(Reflect.set(quote.items, 'length', 0)).toBe(false);
+    expect(quote.agreedCustomerTotal).toBe(173.5);
+    expect(quote.items).toHaveLength(2);
+    expect(quote.items[0].resolvedUnitPrice).toBe(80);
+  });
+
+  it('owns each copy while leaving caller rows and catalog writable', () => {
+    const product = productFixture();
+    const row = resolveSaleItemPricing(
+      product,
+      { quantity: 2 },
+      false,
+    ).pricedItem;
+    const rows = [row];
+    const quote = buildSaleQuote(rows, 190.4);
+    const secondQuote = buildSaleQuote(rows, 190.4);
+    expect(secondQuote).not.toBe(quote);
+    expect(secondQuote.items).not.toBe(quote.items);
+    expect(secondQuote.items[0]).not.toBe(quote.items[0]);
+    expect(quote.items).not.toBe(rows);
+    expect(quote.items[0]).not.toBe(row);
+    expect(Object.isFrozen(rows)).toBe(false);
+    expect(Object.isFrozen(row)).toBe(false);
+    expect(Object.isFrozen(product)).toBe(false);
+    row.unitPrice = 999;
+    row.quantity = 7;
+    row.discountAmount = 12;
+    rows.push(resolvedRow());
+    product.salePrice = new Prisma.Decimal(900);
+    product.promotionValue = new Prisma.Decimal(50);
+    expect(quote).toEqual({
+      items: [
+        {
+          productId: 'product-1',
+          quantity: 2,
+          resolvedUnitPrice: 80,
+          discountAmount: 0,
+        },
+      ],
+      agreedCustomerTotal: 190.4,
+    });
+    expect(secondQuote).toEqual(quote);
+  });
+
+  it('copies an empty value without adding sale-validity policy', () => {
+    const quote = buildSaleQuote([], 0);
+    expect(quote).toEqual({ items: [], agreedCustomerTotal: 0 });
+    expect(Object.isFrozen(quote.items)).toBe(true);
+  });
+});
 
 describe('resolveSaleItemPricing contract', () => {
   it.each([
