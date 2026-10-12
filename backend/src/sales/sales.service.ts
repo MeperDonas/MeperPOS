@@ -16,9 +16,8 @@ import {
 } from '../common/utils/bogota-date';
 import { CacheService } from '../common/services/cache.service';
 import { SettingsService } from '../settings/settings.service';
-import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
 import { computeSkipTake } from '../common/utils/pagination';
-import { computeEffectiveSalePrice } from '../products/products.service';
+import { resolveSaleItemPricing } from './sale-pricing';
 import { tracksStock } from '../products/product-type.logic';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { SequenceService } from '../common/sequences/sequence.service';
@@ -125,7 +124,9 @@ export class SalesService {
     user?: RequestUser,
   ) {
     if (!organizationId) {
-      throw new BadRequestException('Organization ID is required for this operation');
+      throw new BadRequestException(
+        'Organization ID is required for this operation',
+      );
     }
     const { customerId, items, discountAmount = 0, payments } = createSaleDto;
 
@@ -181,80 +182,16 @@ export class SalesService {
         throw new BadRequestException(`Product ${product.name} is not active`);
       }
 
-      // The server owns the price. `computeEffectiveSalePrice` is the single
-      // source of truth (promotion-aware); a client-supplied `unitPrice` is
-      // never a default to fall back to, it is a request to override it — and
-      // overriding is a manager-only, audited act.
-      const serverUnitPrice = Number(
-        computeEffectiveSalePrice(product) ?? product.salePrice,
+      // Overrides authorize an audited POS price, not a catalog price edit.
+      const { pricedItem, taxAmount, override } = resolveSaleItemPricing(
+        product,
+        item,
+        this.canOverridePrice(user),
       );
-      const requestedUnitPrice =
-        item.unitPrice === undefined || item.unitPrice === null
-          ? null
-          : Number(item.unitPrice);
-
-      // Defensive: the DTO's @Min(0) already rejects negatives, but the service
-      // is also reachable from paths that skip the ValidationPipe, and a
-      // negative price would flip the sale into money owed rather than paid.
-      if (requestedUnitPrice !== null && requestedUnitPrice < 0) {
-        throw new BadRequestException(
-          `Unit price for product ${product.name} cannot be negative`,
-        );
-      }
-
-      // 0.01 tolerance absorbs float noise between a client that round-trips
-      // the server price and the DECIMAL(10,2) value it was derived from.
-      const isOverride =
-        requestedUnitPrice !== null &&
-        Math.abs(requestedUnitPrice - serverUnitPrice) > 0.01;
-
-      if (isOverride && !this.canOverridePrice(user)) {
-        throw new ForbiddenException(
-          `Only an ADMIN, OWNER, SUPER_ADMIN or CASHIER may override the unit price of ${product.name}`,
-        );
-      }
-
-      const unitPrice = isOverride ? requestedUnitPrice : serverUnitPrice;
-
-      if (isOverride) {
-        priceOverrides.push({
-          productId: product.id,
-          productName: product.name,
-          quantity: item.quantity,
-          serverUnitPrice,
-          overriddenUnitPrice: unitPrice,
-        });
-      }
-
-      const grossSubtotal = unitPrice * item.quantity;
-      const itemDiscount = Math.max(0, item.discountAmount || 0);
-
-      if (itemDiscount > grossSubtotal) {
-        throw new BadRequestException(
-          `Item discount for product ${product.name} cannot exceed item subtotal`,
-        );
-      }
-
-      const itemSubtotal = grossSubtotal - itemDiscount;
-      const effectiveTaxRate = resolveEffectiveTaxRate(product, product.category);
-      const itemTax = itemSubtotal * (effectiveTaxRate / 100);
-      const itemTotal = itemSubtotal + itemTax;
-
-      subtotal += itemSubtotal;
-      totalTax += itemTax;
-
-      saleItems.push({
-        productId: product.id,
-        productType: product.type,
-        productTracksStock: product.tracksStock,
-        quantity: item.quantity,
-        unitPrice,
-        costPriceSnapshot: product.costPrice,
-        taxRate: effectiveTaxRate,
-        discountAmount: itemDiscount,
-        subtotal: itemSubtotal,
-        total: itemTotal,
-      });
+      if (override) priceOverrides.push(override);
+      subtotal += pricedItem.subtotal;
+      totalTax += taxAmount;
+      saleItems.push(pricedItem);
     }
 
     const total = subtotal + totalTax - discountAmount;
@@ -553,7 +490,11 @@ export class SalesService {
     };
   }
 
-  async findOne(id: string, organizationId: string | undefined, user?: RequestUser) {
+  async findOne(
+    id: string,
+    organizationId: string | undefined,
+    user?: RequestUser,
+  ) {
     const sale = await this.prisma.sale.findFirst({
       where: { id, ...(organizationId ? { organizationId } : {}) },
       include: {
@@ -619,7 +560,9 @@ export class SalesService {
     user?: RequestUser,
   ) {
     if (!organizationId) {
-      throw new BadRequestException('Organization ID is required for this operation');
+      throw new BadRequestException(
+        'Organization ID is required for this operation',
+      );
     }
     const existingSale = await this.prisma.sale.findFirst({
       where: { id, organizationId },
@@ -731,9 +674,15 @@ export class SalesService {
    * as COMPLETED). This method is preserved for future use when open-sale
    * workflows are implemented.
    */
-  async forceClose(id: string, organizationId: string | undefined, reason?: string) {
+  async forceClose(
+    id: string,
+    organizationId: string | undefined,
+    reason?: string,
+  ) {
     if (!organizationId) {
-      throw new BadRequestException('Organization ID is required for this operation');
+      throw new BadRequestException(
+        'Organization ID is required for this operation',
+      );
     }
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
