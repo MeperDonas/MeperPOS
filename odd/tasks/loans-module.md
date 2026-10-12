@@ -79,11 +79,7 @@ No operational physical-loan endpoint/module/controller export before L3C-C life
 
 ## C-C-A normalized verification
 
-- Continuation mv13hkrw-16-uffh: seven sources+314/-5 including090600; read guard+2/-1 RED135/1 -> GREEN136; pure/DDL64 and final497/tsc/lint0. Typed helper fixed seven warnings. Earlier actual guarded Prisma0 reused honestly, not rerun. Rollout OFF/migrations unapplied.
-- Independent mv13mxne-17-c1rd repeated497/tsc/lint0, confirmed close policy, additive CLOSED event shape and explicit read guard; frozen090400/090500, HEAD878266a and protected index unchanged. Whitespace clean (new-file difference-only exit1); parent spot checked helper.
-- Fresh independent Prisma validation was BLOCKED/NOT ATTEMPTED: safe dotenv/environment isolation was not established. Writer's actual earlier CLI validation/generation remains supplied evidence only, never relabelled independent. Actual SQL execution/PostgreSQL-version/FK/trigger/rollback/race proof remains L7. Whole C-C remains incomplete.
-- Checked scoped commit **9bf1964d578c76cf025524586fd63f42dafef594**, `feat(loans): add physical lifecycle vocabulary and close planning`: eight files+339/-11 including tracking; source seven+314/-5. Frozen090400/090500 and unread staged script preserved. No publish.
-- Committed ASSESS878266a: medium8files350lines/unconsumed/unknown/under_budget. INSPECT ready sha256:486839ab2396c303caed389a659f25d6996e2678a05d27ac6d11212b7cd037e3 excludes script; noSTART/consent/lineage. DEFERRED into next foundation+service slice, not approved/declined/excluded; then-approved878266a, not9bf1964.
+Historical foundation `9bf1964d578c76cf025524586fd63f42dafef594`: seven source paths+314/-5; committed eight+339/-11 with tracking. Pure/DDL RED4+4/34 -> focused64; explicit OPEN/CANCELLED query guard RED135/1 ->136; independent497/tsc/lint0 after typed helper warning fix. Prior writer guarded Prisma validate/generate0 only; fresh independent validation blocked, SQL/PG unproved. Frozen090400/090500 preserved. Initial committed inspect/ASSESS878266a medium350 under_budget: deferred, no START/approval then. Included later in burned `review-c39541f614018732` through819287c; never reopen this authority. Rollout remained OFF.
 
 ## Completed units and evidence
 
@@ -145,7 +141,7 @@ All commits path-scoped; script index preserved, migrations unapplied. Approved 
 
 ## Linux reconciliation and baseline
 
-Historical Linux baseline (not current readiness): branch `worktree-feat-loans-module`, source-identical5f4524f after approved6d5e360 plus tracking-only commit. Protected script absent from Linux index; original staging unknown, never read/restore. CachedNode24.21.0/npm11.19.0 locked `npm ci --ignore-scripts --no-audit --no-fund` passed/893; manifest/lock unchanged, no global changes/CI22 proof. GuardedPrisma6.19.2 validate/generate0 with dummy URLs/pinned engines, no SQL/config/schema change; temporary guards removed. Independent1247/1247; initialTS6053/tsc2 and skippedlint caused config-source guard, corrected source-read/no-execution probe gave tsc0/three-terminal-filelint0/whitespace0 with env/dotenv/TCP blocked. Ignored dependency/cache/dist outputs only; not build/PG/race/rollback/HTTP proof.
+Historical only: source-identical5f4524f after approved6d5e360. Protected script absent on Linux; original staging unknown, content never read/restored. CachedNode24/npm11 script-suppressed ci893; manifest/lock unchanged, no CI22 proof. Guarded credential-free Prisma6.19.2 validate/generate0 without SQL changes. Independent1247/tsc0/terminal lint0 after config-source read guard correction (initial TS6053/exit2); environment/dotenv/network blocked. Ignored outputs only; no production-build, PostgreSQL, race or HTTP proof.
 
 ## Current product eligibility work unit
 
@@ -190,11 +186,15 @@ Scout mv1u5qy5-a-jpcc/settled writer mv1ucch7-b-97ne: service(+2/-1), spec(+96/-
 
 M1 `49721fc8ea7ffdb2bfbd4eba1093e9b13767fb19`: source300/commit326diff; humanUNREVIEWED1919/nativeblocked1917/no receipt. CLI/gen0/client6.19.2/1375PASS/prodNoEmit0; full22specerrors/lintunavailable/PGnotrun.
 
-M2 SOURCE167/00322024+60aad324; 894+1379/prodNoEmit0 GREEN1942; humanUNREVIEWED1944/RESUMED/local commit next.
+M2 `4608161fab420b6285b02201fb33d6eb7b841119`: source167/commit184diff; 894+1379/prodNoEmit0 GREEN1942; humanUNREVIEWED1944. Verified hashes unchanged on resume.
 Allowed source surfaces:
 - `backend/src/loans/inventory-loans.service.ts`
 - `backend/src/loans/inventory-loans.service.spec.ts`
 
 Serializable order: loan/itemCAS -> sorted productCAS -> completedop -> itemevent.create.id -> linkedmovement -> audit. Signed LOAN_DELIVERY/RETURN; tenant/item/product/actor/op correlation, saleIdnull. Same-product items need distinct event IDs/chained stock snapshots; inactive RETURN allowed. Replay no writes; movementfailure rollsback ALLstores. Keep financial prohibitions/CREATECANCELCLOSE no movements. Target150-280lines/stop>400/no test deletion. FocusedRED/GREEN; parentindependent11/types.
 
-M1schema/090400-090700/client frozen. No API/DB/deps/publication. Helpers0600/cache126 retained/cleanupNO; .codegraph excluded/unread. Base49721fc/RDDon/M2freshINSPECT mandatory, no inherited M1 bypass. M3consumers/API, L4pricing/L7 separate.
+M1schema/090400-090700/client frozen. No API/DB/deps/publication. Helpers0600/cache126 retained/cleanupNO; .codegraph excluded/unread. M2base49721fc/nativeINSPECT blocked1943/humanUNREVIEWED1944. RDDon/newunits fresh review. L4pricing/L7 separate.
+
+## Next bounded unit: M3A movement consumers
+
+Scout `mv5f4i1f-1-1o1u` SETTLED1953: backend history/export naturally includes signed loans; finance RETURN is sale-scoped. M3A exact source: `frontend/src/types/index.ts` InventoryMovement union + nullable event link. Source11diff/bcc671; static1955 PASS30sources(1app29libs)/0 diagnostics; legacy fields preserved. NativeM3A blocked1958; humanUNREVIEWED1960 current-only/local commit next; no future exemption. Physical transfers must not become sales, revenue or COGS. Derive minimal writer surfaces and test-first checks; no new probes or dependency setup. Subsequent M3B API preparation must retain rollout OFF until lifecycle/consumer and authorized PostgreSQL gates pass. Parent owns tracking; no new API activation or DB access.

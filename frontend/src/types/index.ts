@@ -116,13 +116,22 @@ export interface InventoryMovement {
   id: string;
   productId: string;
   product?: Product;
-  type: "PURCHASE" | "SALE" | "ADJUSTMENT_IN" | "ADJUSTMENT_OUT" | "DAMAGE" | "RETURN";
+  type:
+    | "PURCHASE"
+    | "SALE"
+    | "ADJUSTMENT_IN"
+    | "ADJUSTMENT_OUT"
+    | "DAMAGE"
+    | "RETURN"
+    | "LOAN_DELIVERY"
+    | "LOAN_RETURN";
   quantity: number;
   previousStock: number;
   newStock: number;
   reason: string;
   userId: string;
   saleId: string | null;
+  inventoryLoanEventId: string | null;
   createdAt: string;
 }
 
