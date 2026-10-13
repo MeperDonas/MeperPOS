@@ -182,3 +182,175 @@ describe('POS loan sale intent declarations (not executed SQL)', () => {
     expect(modelBody('Sale')).not.toMatch(/^\s*(?:supplierId|employeeId)\s/m);
   });
 });
+
+const quoteMigrationPath = resolve(
+  __dirname,
+  '../../prisma/migrations/20261009090000_pos_loan_sale_quote/migration.sql',
+);
+// Missing planned DDL must fail assertions, never module loading.
+const quoteSql = existsSync(quoteMigrationPath)
+  ? readFileSync(quoteMigrationPath, 'utf8')
+  : '';
+const quoteDdl = quoteSql.replace(/--[^\n]*|\/\*[\s\S]*?\*\//g, '');
+const quoteFunctions = [
+  ...quoteDdl.matchAll(
+    /CREATE\s+FUNCTION\s+"([^"]+)"\([^)]*\)\s+RETURNS\s+\w+\s+AS\s+\$\$([\s\S]*?)\$\$\s+LANGUAGE\s+plpgsql/gi,
+  ),
+];
+const quoteTrigger = quoteDdl.match(
+  /BEFORE\s+INSERT\s+OR\s+UPDATE\s+ON\s+"PosLoanSaleIntent"\s+FOR\s+EACH\s+ROW\s+EXECUTE\s+FUNCTION\s+"([^"]+)"\(\)/i,
+);
+const quoteGuard =
+  quoteFunctions.find((match) => match[1] === quoteTrigger?.[1])?.[2] ?? '';
+const quoteValidation = quoteFunctions.map((match) => match[2]).join('\n');
+const declares = (source: string, patterns: RegExp[]) => {
+  for (const pattern of patterns) expect(source).toMatch(pattern);
+};
+
+// Deliberately structural RED: execution, atomic initiation and serialization
+// belong to later coverage; these declarations do not prove PostgreSQL behavior.
+describe('POS loan frozen quote declarations (not executed SQL)', () => {
+  it('adds only two nullable quote fields at the existing loan precision', () => {
+    expect(existsSync(quoteMigrationPath)).toBe(true);
+    declares(intent, [
+      /\bquoteSnapshot\s+Json\?/,
+      /\bagreedCustomerTotal\s+Decimal\?\s+@db\.Decimal\(10,\s*2\)/,
+    ]);
+    declares(modelBody('MoneyLoan'), [
+      /\bamount\s+Decimal\s+@db\.Decimal\(10,\s*2\)/,
+    ]);
+    declares(quoteDdl, [
+      /ADD\s+COLUMN\s+"quoteSnapshot"\s+JSONB\s*[,;]/i,
+      /ADD\s+COLUMN\s+"agreedCustomerTotal"\s+DECIMAL\(10,\s*2\)\s*[,;]/i,
+    ]);
+    const added = [...quoteDdl.matchAll(/ADD\s+COLUMN\s+"([^"]+)"/gi)];
+    expect(added.map((m) => m[1])).toEqual([
+      'quoteSnapshot',
+      'agreedCustomerTotal',
+    ]);
+    expect(quoteDdl).not.toMatch(/\b(?:NOT\s+NULL|DEFAULT)\b/i);
+  });
+
+  it('declares a both-null or both-populated pair and a positive quoted scalar', () => {
+    declares(quoteDdl, [
+      /CHECK\s*\([\s\S]*?\("quoteSnapshot"\s+IS\s+NULL\)\s*=\s*\("agreedCustomerTotal"\s+IS\s+NULL\)/i,
+      /CHECK\s*\(\s*"agreedCustomerTotal"\s*>\s*0\s*\)/i,
+    ]);
+    expect(quoteTrigger).not.toBeNull();
+    declares(quoteGuard, [
+      /NEW\."quoteSnapshot"\s+IS\s+NULL\s+THEN\s+RETURN\s+NEW/i,
+    ]);
+  });
+
+  it('rejects every quote update, including clearing and legacy null-to-value filling', () => {
+    // No OLD-is-not-null qualification: legacy nulls are frozen from insertion too.
+    declares(quoteGuard, [
+      /IF\s+TG_OP\s*=\s*'UPDATE'\s+THEN/i,
+      /IF\s+NEW\."quoteSnapshot"\s+IS\s+DISTINCT\s+FROM\s+OLD\."quoteSnapshot"\s+OR\s+NEW\."agreedCustomerTotal"\s+IS\s+DISTINCT\s+FROM\s+OLD\."agreedCustomerTotal"\s+THEN\s+RAISE\s+EXCEPTION/i,
+    ]);
+    expect(quoteGuard).not.toMatch(
+      /OLD\."(?:quoteSnapshot|agreedCustomerTotal)"\s+IS\s+NOT\s+NULL/i,
+    );
+  });
+
+  it('returns unchanged updates before insert validation, preserving final-sale claims', () => {
+    // Required declaration shape: update guard, then early RETURN, then insert checks.
+    declares(quoteGuard, [
+      /IF\s+TG_OP\s*=\s*'UPDATE'\s+THEN[\s\S]*?RAISE\s+EXCEPTION[\s\S]*?END\s+IF\s*;\s*RETURN\s+NEW\s*;\s*END\s+IF\s*;/i,
+    ]);
+    const updateBlock = quoteGuard.match(
+      /IF\s+TG_OP\s*=\s*'UPDATE'\s+THEN[\s\S]*?RAISE\s+EXCEPTION[\s\S]*?END\s+IF\s*;\s*RETURN\s+NEW\s*;\s*END\s+IF\s*;/i,
+    );
+    expect(updateBlock).not.toBeNull();
+    const afterUpdate = updateBlock
+      ? quoteGuard.slice((updateBlock.index ?? 0) + updateBlock[0].length)
+      : '';
+    expect(afterUpdate).toMatch(/FROM\s+"MoneyLoan"/i);
+    expect(afterUpdate).toMatch(/FROM\s+"Product"/i);
+    expect(quoteGuard).not.toMatch(/NEW\."finalSaleId"/);
+    expect(quoteDdl).not.toMatch(
+      /protect_pos_loan_sale_intent|PosLoanSaleIntent_protect/,
+    );
+  });
+
+  it('declares exact quote root and item keys, object types and a nonempty item array', () => {
+    declares(quoteValidation, [
+      /jsonb_typeof\([^)]*\)\s*(?:<>|!=|IS\s+DISTINCT\s+FROM)\s*'object'/i,
+      /-\s*ARRAY\s*\[\s*'items'\s*,\s*'agreedCustomerTotal'\s*\][\s\S]*?'\{\}'/i,
+      /-\s*ARRAY\s*\[\s*'productId'\s*,\s*'quantity'\s*,\s*'resolvedUnitPrice'\s*,\s*'discountAmount'\s*\][\s\S]*?'\{\}'/i,
+      /jsonb_typeof\([^\n;]*->\s*'items'\)\s*(?:<>|!=|IS\s+DISTINCT\s+FROM)\s*'array'/i,
+      /jsonb_array_length\([^)]*\)\s*=\s*0/i,
+      /jsonb_array_elements\(/i,
+      /RAISE\s+EXCEPTION/i,
+    ]);
+    for (const field of [
+      'productId',
+      'resolvedUnitPrice',
+      'discountAmount',
+      'agreedCustomerTotal',
+    ]) {
+      const typeCheck = `jsonb_typeof\\([^\\n;]*->\\s*'${field}'\\)`;
+      declares(quoteValidation, [
+        new RegExp(
+          `${typeCheck}\\s*(?:<>|!=|IS\\s+DISTINCT\\s+FROM)\\s*'string'`,
+          'i',
+        ),
+      ]);
+    }
+  });
+
+  it('declares positive Prisma-int quantities and canonical bounded monetary strings', () => {
+    declares(quoteValidation, [
+      /jsonb_typeof\([^\n;]*->\s*'quantity'\)\s*(?:<>|!=|IS\s+DISTINCT\s+FROM)\s*'number'/i,
+      /->>\s*'quantity'\)?\s*!~\s*'\^\[1-9\]\[0-9\]\*\$'/i,
+      /->>\s*'quantity'[\s\S]*?>\s*2147483647/,
+    ]);
+    // 8 integral digits + exactly 2 fractional digits: Decimal(10,2), no sign,
+    // exponent, leading zero, excess precision or negative discount/price.
+    expect(quoteValidation).toContain("'^(0|[1-9][0-9]{0,7})[.][0-9]{2}$'");
+    for (const field of [
+      'resolvedUnitPrice',
+      'discountAmount',
+      'agreedCustomerTotal',
+    ]) {
+      const canonical =
+        "'\\^\\(0\\|\\[1-9\\]\\[0-9\\]\\{0,7\\}\\)\\[\\.\\]\\[0-9\\]\\{2\\}\\$'";
+      declares(quoteValidation, [
+        new RegExp(`->>\\s*'${field}'\\)?\\s*!~\\s*${canonical}`),
+      ]);
+    }
+  });
+
+  it('binds the canonical JSON total to the scalar and the scoped parent at insert', () => {
+    declares(quoteGuard, [
+      /->>\s*'agreedCustomerTotal'[\s\S]*?IS\s+DISTINCT\s+FROM\s+NEW\."agreedCustomerTotal"/i,
+      /FROM\s+"MoneyLoan"[\s\S]*?"id"\s*=\s*NEW\."loanId"/i,
+      /"amount"\s*=\s*NEW\."agreedCustomerTotal"/i,
+      /IF\s+NOT\s+EXISTS\s*\([\s\S]*?FROM\s+"MoneyLoan"[\s\S]*?THEN\s+RAISE\s+EXCEPTION/i,
+    ]);
+    for (const field of ['organizationId', 'customerId']) {
+      const scoped = `"${field}"\\s*=\\s*NEW\\."${field}"`;
+      declares(quoteGuard, [
+        new RegExp(`FROM\\s+"MoneyLoan"[\\s\\S]*?${scoped}`, 'i'),
+      ]);
+    }
+  });
+
+  it('checks nonblank same-org product IDs only, without recatalog or financial writes', () => {
+    declares(quoteValidation, [/btrim\([^\n;]*->>\s*'productId'\)\s*=\s*''/i]);
+    declares(quoteGuard, [
+      /IF\s+NOT\s+EXISTS\s*\([\s\S]*?FROM\s+"Product"[\s\S]*?"id"\s*=\s*[^\n;]*->>\s*'productId'[\s\S]*?"organizationId"\s*=\s*NEW\."organizationId"[\s\S]*?THEN\s+RAISE\s+EXCEPTION/i,
+    ]);
+    const altered = [...quoteDdl.matchAll(/ALTER\s+TABLE\s+"([^"]+)"/gi)];
+    expect(altered.map((m) => m[1])).toEqual(['PosLoanSaleIntent']);
+    expect(quoteDdl).not.toMatch(
+      /\b(?:DROP|TRUNCATE|CREATE\s+OR\s+REPLACE|CREATE\s+TABLE|ALTER\s+TYPE)\b|\bUPDATE\s+"|\bDELETE\s+FROM|\bINSERT\s+INTO/i,
+    );
+    expect(quoteDdl).not.toMatch(
+      /"(?:Sale|SaleItem|Payment|MoneyLoanEvent|AuditLog)"/,
+    );
+    expect(quoteValidation).not.toMatch(
+      /"(?:price|salePrice|cost|taxRate|stock|active|type)"|\bSUM\s*\(/i,
+    );
+  });
+});

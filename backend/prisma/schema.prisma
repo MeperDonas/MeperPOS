@@ -476,6 +476,8 @@ model PosLoanSaleIntent {
   customerId     String
   createdAt      DateTime     @default(now())
   finalSaleId    String?      @unique
+  quoteSnapshot  Json?
+  agreedCustomerTotal Decimal? @db.Decimal(10, 2)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   customer       Customer     @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
   loan           MoneyLoan    @relation(fields: [loanId, organizationId, customerId], references: [id, organizationId, customerId], onDelete: Restrict, onUpdate: Restrict)
