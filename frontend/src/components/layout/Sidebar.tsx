@@ -235,6 +235,12 @@ export function Sidebar() {
     minute: "2-digit",
   }).format(now);
 
+  const timeMatch = formattedTime.match(/^(\d{1,2}:\d{2})\s*(.*)$/);
+  const timeDigits = timeMatch ? timeMatch[1] : formattedTime;
+  const timePeriod = timeMatch && timeMatch[2]
+    ? timeMatch[2].replace(/[\.\s]/g, "").toUpperCase()
+    : "";
+
   const sidebarContent = (
     <>
       {/* Block 1: Brand - logo and wordmark sized to read as one lockup */}
@@ -289,18 +295,27 @@ export function Sidebar() {
           className={cn(
             "font-mono text-muted-foreground text-center bg-muted/60 rounded-lg border border-border/40 transition-all",
             isCollapsed
-              ? "text-[10px] py-1.5 px-0.5 leading-tight"
+              ? "py-1.5 px-1"
               : "text-[11px] py-1.5 px-2"
           )}
           title={`${formattedDate}, ${formattedTime}`}
         >
           {isCollapsed ? (
-            <>
-              <span className="font-semibold block">{formattedTime}</span>
+            <div className="flex flex-col items-center justify-center">
+              <span className="font-bold text-[11px] font-mono tracking-tight leading-none text-foreground">
+                {timeDigits}
+              </span>
+              {timePeriod && (
+                <span className="text-[8px] font-mono font-bold tracking-widest uppercase text-muted-foreground mt-0.5 leading-none">
+                  {timePeriod}
+                </span>
+              )}
               <span className="sr-only">, {formattedDate}</span>
-            </>
+            </div>
           ) : (
-            `${formattedDate}, ${formattedTime}`
+            <span className="whitespace-nowrap">
+              {formattedDate}, {formattedTime}
+            </span>
           )}
         </div>
       </div>
