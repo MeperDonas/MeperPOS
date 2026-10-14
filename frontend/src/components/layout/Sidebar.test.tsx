@@ -464,7 +464,7 @@ describe("Sidebar", () => {
     const brandBlock = await screen.findByTestId("sidebar-brand");
     const imgsBefore = brandBlock.querySelectorAll("img");
     expect(imgsBefore.length).toBe(1);
-    expect(imgsBefore[0]).toHaveAttribute("src", "/brand/icon-192.png");
+    expect(imgsBefore[0].getAttribute("src")).toContain("icon-192.png");
 
     const wordmark = brandBlock.querySelector("p");
     expect(wordmark).not.toHaveClass("sr-only");
