@@ -237,14 +237,14 @@ export type { Task };
 // ─── Category stacked chart helpers ───────────────────────────────────────────
 
 export const CATEGORY_CHART_PALETTE = [
-  "#C25E36", // terracotta (primary)
-  "#3B82F6", // blue
-  "#22C55E", // green
-  "#8B5CF6", // violet
-  "#F59E0B", // amber
-  "#06B6D4", // cyan
-  "#EC4899", // pink
-  "#E0524C", // coral
+  "#C25E36", // terracotta (brand primary)
+  "#2563EB", // royal blue
+  "#059669", // emerald green
+  "#7C3AED", // deep violet
+  "#D97706", // warm amber
+  "#0891B2", // deep cyan
+  "#DB2777", // rose pink
+  "#EA580C", // rust orange
 ] as const;
 
 export interface CategoryDailySegment {

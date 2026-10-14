@@ -11,8 +11,8 @@ import { formatCurrency, formatPaymentMethod } from "@/lib/utils";
  */
 const PAYMENT_METHODS = [
   { method: "CASH", label: formatPaymentMethod("CASH"), color: "#C25E36" },
-  { method: "CARD", label: formatPaymentMethod("CARD"), color: "#3B82F6" },
-  { method: "TRANSFER", label: formatPaymentMethod("TRANSFER"), color: "#22C55E" },
+  { method: "CARD", label: formatPaymentMethod("CARD"), color: "#2563EB" },
+  { method: "TRANSFER", label: formatPaymentMethod("TRANSFER"), color: "#059669" },
 ] as const;
 
 interface PaymentSlice {
@@ -76,16 +76,19 @@ export function PaymentMethodsCard({
       <div className="mt-3 flex min-h-0 flex-1 items-center gap-4">
         <div
           data-testid="payment-methods-chart"
-          className="relative h-[132px] w-[132px] shrink-0"
+          className="relative h-[136px] w-[136px] shrink-0"
         >
-          <PieChart width={132} height={132}>
+          <PieChart width={136} height={136}>
             <Pie
               data={slices}
               dataKey="value"
               nameKey="name"
-              innerRadius={40}
-              outerRadius={62}
-              paddingAngle={2}
+              innerRadius={43}
+              outerRadius={64}
+              paddingAngle={3}
+              cornerRadius={3}
+              stroke="var(--card)"
+              strokeWidth={2}
               isAnimationActive={false}
             >
               {slices.map((slice) => (
@@ -94,26 +97,26 @@ export function PaymentMethodsCard({
             </Pie>
           </PieChart>
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
               Total
             </span>
             <span
               data-testid="payment-methods-total"
-              className="font-mono text-sm font-extrabold text-foreground tabular-nums"
+              className="max-w-[82px] truncate px-1 text-center font-mono text-xs font-extrabold tracking-tight text-foreground tabular-nums sm:text-[13px]"
             >
               {formatCurrency(total)}
             </span>
           </div>
         </div>
 
-        <ul className="min-w-0 flex-1 space-y-1.5">
+        <ul className="min-w-0 flex-1 space-y-2">
           {slices.map((slice) => (
             <li
               key={slice.method}
               data-testid="payment-method-row"
               className="flex items-center justify-between gap-2 text-xs"
             >
-              <span className="flex min-w-0 items-center gap-1.5">
+              <span className="flex min-w-0 items-center gap-2">
                 <span
                   className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{ backgroundColor: slice.color }}
@@ -125,7 +128,7 @@ export function PaymentMethodsCard({
               <span className="flex shrink-0 items-center gap-2">
                 <span
                   data-testid="payment-method-percentage"
-                  className="font-mono text-[11px] font-bold text-muted-foreground tabular-nums"
+                  className="rounded-full bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] font-bold text-muted-foreground tabular-nums"
                 >
                   {slice.percentage}%
                 </span>
