@@ -57,6 +57,7 @@ describe("LoginPage Redesign", () => {
     expect(screen.getByText(/Bucaramanga • es-CO/i)).toBeInTheDocument();
     expect(screen.queryByTestId("login-hero-emblem")).not.toBeInTheDocument();
     expect(screen.getByTestId("pos-isometric-showcase")).toBeInTheDocument();
+    expect(screen.getByText(/Reportes & Margen Real/i)).toBeInTheDocument();
     expect(screen.getByTestId("login-form-emblem")).toBeInTheDocument();
     expect(
       screen.getByAltText(/MeperPOS emblema oficial Lucky/i)

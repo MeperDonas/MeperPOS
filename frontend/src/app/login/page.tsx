@@ -21,6 +21,7 @@ import {
   Moon,
   Receipt,
   Package,
+  TrendingUp,
   AlertCircle,
   CheckCircle2,
   HelpCircle,
@@ -145,8 +146,8 @@ export default function LoginPage() {
                 Stock & Lotes
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/70 bg-background/60">
-                <span className="text-primary font-bold">$</span>
-                Arqueo COP
+                <TrendingUp className="w-3.5 h-3.5 text-primary" />
+                Reportes & Margen Real
               </span>
             </div>
           </div>

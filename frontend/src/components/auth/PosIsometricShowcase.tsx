@@ -494,193 +494,109 @@ export function PosIsometricShowcase() {
           </g>
         </g>
 
-        {/* ─── Companion Tabby Cat ("Lucky") Sitting in Bottom-Right ─── */}
+        {/* ─── Isometric Contactless Card Terminal ("Datáfono") + Card (Bottom-Right) ─── */}
         <g
-          transform="translate(472, 294)"
+          transform="translate(458, 316)"
           stroke="#1C1B22"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          {/* Soft ground shadow */}
+          {/* Terminal Ground Shadow */}
           <ellipse
-            cx="54"
-            cy="146"
-            rx="44"
-            ry="10"
+            cx="58"
+            cy="112"
+            rx="46"
+            ry="12"
             fill="#1C1B22"
-            fillOpacity="0.4"
+            fillOpacity="0.38"
             stroke="none"
           />
 
-          {/* Fluffy Striped Tail curving gracefully */}
+          {/* Thermal Voucher Slip Emerging from Top of Datáfono */}
           <path
-            d="M 80 132 C 110 132 122 104 116 78 C 113 64 123 56 129 62 C 135 68 128 88 125 106 C 120 132 102 144 78 140 Z"
-            fill="#E59859"
+            d="M 20 34 C 16 18 22 4 32 0 L 66 20 C 58 24 52 38 56 54 Z"
+            fill="#F7F4EE"
           />
-          {/* Tail ring stripes */}
-          <path d="M 106 122 C 111 119 116 119 120 121" stroke="#9C4A24" strokeWidth="3.5" fill="none" />
-          <path d="M 113 105 C 118 103 122 103 126 105" stroke="#9C4A24" strokeWidth="3.5" fill="none" />
-          <path d="M 115 88 C 120 87 124 88 128 90" stroke="#9C4A24" strokeWidth="3.5" fill="none" />
-          <path d="M 118 72 C 122 71 126 72 130 75" stroke="#9C4A24" strokeWidth="3.2" fill="none" />
+          <line x1="30" y1="14" x2="48" y2="24" stroke="#545E56" strokeWidth="1.8" />
+          <line x1="27" y1="22" x2="45" y2="32" stroke="#545E56" strokeWidth="1.8" />
+          <line x1="25" y1="30" x2="39" y2="38" stroke="#C25E36" strokeWidth="2" />
 
-          {/* Main Seated Body & Haunch (Three-quarter warm orange silhouette) */}
+          {/* Datáfono Base Body (Terracotta Lower Casing) */}
           <path
-            d="M 28 60 C 16 84 14 114 22 142 L 84 142 C 96 124 94 88 72 60 Z"
-            fill="#E59859"
+            d="M 10 52 L 54 26 Q 62 22 70 26 L 116 53 Q 124 58 116 64 L 72 90 Q 62 96 52 90 L 10 64 Q 4 58 10 52 Z"
+            fill="#D88C56"
           />
-          {/* Warm shading on right haunch */}
           <path
-            d="M 68 64 C 86 90 88 122 78 140 L 84 142 C 96 124 94 88 72 60 Z"
-            fill="#CC7739"
-            stroke="none"
+            d="M 6 58 L 52 86 Q 62 92 72 86 L 118 58 L 118 70 Q 118 76 112 80 L 72 104 Q 62 110 52 104 L 12 80 Q 6 76 6 70 Z"
+            fill="#C25E36"
           />
 
-          {/* Organic Tabby Back Stripes */}
-          <path d="M 68 74 C 58 76 52 81 48 87" stroke="#9C4A24" strokeWidth="3.8" fill="none" />
-          <path d="M 76 90 C 64 93 56 99 52 106" stroke="#9C4A24" strokeWidth="3.8" fill="none" />
-          <path d="M 80 107 C 68 110 61 116 57 123" stroke="#9C4A24" strokeWidth="3.8" fill="none" />
-
-          {/* Cream Chest Ruff (Soft fur bib) */}
+          {/* Datáfono Top Deck (Sage Bezel) */}
           <path
-            d="M 31 66 C 28 80 33 95 45 99 C 57 95 62 80 59 66 Z"
-            fill="#F6E9D7"
-            stroke="#1C1B22"
-            strokeWidth="1.6"
+            d="M 12 48 L 54 23 Q 62 19 70 23 L 114 49 Q 120 53 114 58 L 70 84 Q 62 88 54 84 L 12 58 Q 6 53 12 48 Z"
+            fill="#8D998F"
           />
-          {/* Subtle chest fur tuft */}
-          <path d="M 41 84 L 45 89 L 49 84" stroke="#D5BC9D" strokeWidth="1.5" fill="none" />
 
-          {/* Front Legs & Paws */}
-          <path
-            d="M 29 88 L 27 142 L 42 142 L 44 102 L 48 142 L 63 142 L 61 88"
-            fill="#E59859"
-          />
-          {/* Cream Paws with toe lines */}
-          <ellipse cx="34" cy="142" rx="9" ry="5" fill="#F6E9D7" />
-          <line x1="31" y1="140" x2="31" y2="145" stroke="#1C1B22" strokeWidth="1.3" />
-          <line x1="36" y1="140" x2="36" y2="145" stroke="#1C1B22" strokeWidth="1.3" />
-
-          <ellipse cx="56" cy="142" rx="9" ry="5" fill="#F6E9D7" />
-          <line x1="53" y1="140" x2="53" y2="145" stroke="#1C1B22" strokeWidth="1.3" />
-          <line x1="58" y1="140" x2="58" y2="145" stroke="#1C1B22" strokeWidth="1.3" />
-
-          {/* Back Hind Paw */}
-          <ellipse cx="76" cy="141" rx="9.5" ry="5" fill="#D98548" />
-
-          {/* ─── Lucky's Signature Bandana (Yellow Collar + Red Tied Knot) ─── */}
-          <path
-            d="M 23 58 C 34 66 58 66 69 58 L 66 66 C 54 73 36 73 25 66 Z"
-            fill="#F4C430"
-            stroke="#1C1B22"
+          {/* Datáfono Screen (Cream Display with NFC Wave) */}
+          <polygon
+            points="24,49 58,29 84,44 50,64"
+            fill="#EBE6DC"
             strokeWidth="1.8"
           />
-          {/* Red Bandana Tails & Knot */}
-          <path
-            d="M 38 66 L 26 74 L 33 78 L 43 69 Z"
-            fill="#D63B2F"
-            stroke="#1C1B22"
-            strokeWidth="1.6"
-          />
-          <path
-            d="M 45 67 L 43 81 L 51 79 L 50 67 Z"
-            fill="#C22F24"
-            stroke="#1C1B22"
-            strokeWidth="1.6"
-          />
-          <circle
-            cx="44"
-            cy="67"
-            r="4.2"
-            fill="#E04336"
-            stroke="#1C1B22"
-            strokeWidth="1.7"
-          />
-
-          {/* ─── Expressive Feline Head & Ears ─── */}
-          <path
-            d="M 16 28 L 10 3 C 18 3 27 9 33 16 Q 46 13 59 16 C 65 9 74 3 82 3 L 76 28 C 86 41 80 60 46 62 C 12 60 6 41 16 28 Z"
-            fill="#E59859"
-          />
-
-          {/* Inner Ears (Warm terracotta-pink + ear tufts) */}
-          <path d="M 17 25 L 14 9 L 29 18 Z" fill="#D98274" stroke="none" />
-          <path d="M 75 25 L 78 9 L 63 18 Z" fill="#D98274" stroke="none" />
-          <path d="M 18 24 L 24 21" stroke="#F6E9D7" strokeWidth="1.6" />
-          <path d="M 74 24 L 68 21" stroke="#F6E9D7" strokeWidth="1.6" />
-
-          {/* Classic Tabby "M" Forehead Markings */}
-          <path
-            d="M 34 26 L 38 18 L 46 24 L 54 18 L 58 26"
-            stroke="#9C4A24"
-            strokeWidth="2.4"
-            fill="none"
-          />
-
-          {/* Cheek Tabby Stripes */}
-          <path d="M 15 41 Q 21 42 25 44" stroke="#9C4A24" strokeWidth="2.2" fill="none" />
-          <path d="M 16 47 Q 22 48 26 49" stroke="#9C4A24" strokeWidth="2.2" fill="none" />
-          <path d="M 77 41 Q 71 42 67 44" stroke="#9C4A24" strokeWidth="2.2" fill="none" />
-          <path d="M 76 47 Q 70 48 66 49" stroke="#9C4A24" strokeWidth="2.2" fill="none" />
-
-          {/* Expressive Almond Green-Amber Feline Eyes */}
-          <g>
-            {/* Left Eye */}
-            <ellipse
-              cx="33"
-              cy="36"
-              rx="6.2"
-              ry="5.4"
-              transform="rotate(-8 33 36)"
-              fill="#C8D655"
-              stroke="#1C1B22"
-              strokeWidth="1.8"
-            />
-            <ellipse cx="33.5" cy="36" rx="2.2" ry="4.2" fill="#1C1B22" stroke="none" />
-            <circle cx="31.5" cy="34" r="1.5" fill="#FFFFFF" stroke="none" />
-
-            {/* Right Eye */}
-            <ellipse
-              cx="59"
-              cy="36"
-              rx="6.2"
-              ry="5.4"
-              transform="rotate(8 59 36)"
-              fill="#C8D655"
-              stroke="#1C1B22"
-              strokeWidth="1.8"
-            />
-            <ellipse cx="58.5" cy="36" rx="2.2" ry="4.2" fill="#1C1B22" stroke="none" />
-            <circle cx="56.5" cy="34" r="1.5" fill="#FFFFFF" stroke="none" />
-          </g>
-
-          {/* Soft Cream Muzzle Pads */}
-          <path
-            d="M 35 46 C 35 41 42 40 46 43 C 50 40 57 41 57 46 C 57 51 50 53 46 49 C 42 53 35 51 35 46 Z"
-            fill="#F6E9D7"
+          {/* Screen approved accent bar */}
+          <polygon
+            points="29,49 57,33 65,38 37,54"
+            fill="#E07A4B"
             stroke="none"
           />
-
-          {/* Pink Nose & Gentle Cat Mouth */}
-          <polygon
-            points="42.5,42 49.5,42 46,46.5"
-            fill="#DF7A72"
-            stroke="#1C1B22"
+          {/* NFC / Contactless arcs on screen */}
+          <path
+            d="M 55 46 Q 61 44 63 50"
+            stroke="#545E56"
             strokeWidth="1.5"
+            fill="none"
           />
           <path
-            d="M 38 49 Q 42 52.5 46 48.5 Q 50 52.5 54 49"
-            stroke="#1C1B22"
-            strokeWidth="1.7"
+            d="M 52 43 Q 62 40 66 49"
+            stroke="#545E56"
+            strokeWidth="1.5"
             fill="none"
           />
 
-          {/* Delicate Whiskers */}
-          <g stroke="#F6E9D7" strokeOpacity="0.85" strokeWidth="1.2">
-            <path d="M 34 46 Q 18 44 6 46" fill="none" />
-            <path d="M 34 49 Q 18 50 8 53" fill="none" />
-            <path d="M 58 46 Q 74 44 86 46" fill="none" />
-            <path d="M 58 49 Q 74 50 84 53" fill="none" />
+          {/* Datáfono Mini Keypad Matrix */}
+          <g strokeWidth="1.3">
+            <polygon points="56,67 65,61 72,65 63,71" fill="#EBE6DC" />
+            <polygon points="68,60 77,54 84,58 75,64" fill="#EBE6DC" />
+            <polygon points="80,53 89,47 96,51 87,57" fill="#EBE6DC" />
+
+            <polygon points="66,73 75,67 82,71 73,77" fill="#EBE6DC" />
+            <polygon points="78,66 87,60 94,64 85,70" fill="#EBE6DC" />
+            <polygon points="90,59 99,53 106,57 97,63" fill="#D88C56" />
+          </g>
+
+          {/* Floating Payment Card Hovering Above Terminal */}
+          <g transform="translate(56, -8)">
+            <polygon
+              points="0,20 38,0 68,17 30,37"
+              fill="#EBE6DC"
+              stroke="#1C1B22"
+              strokeWidth="1.8"
+            />
+            {/* Card Magnetic / Accent Stripe */}
+            <polygon
+              points="7,16 45,-4 52,0 14,20"
+              fill="#C25E36"
+              stroke="none"
+              transform="translate(2, 6)"
+            />
+            {/* EMV Gold Chip */}
+            <polygon
+              points="16,21 24,17 30,20 22,24"
+              fill="#E59866"
+              stroke="#1C1B22"
+              strokeWidth="1.2"
+            />
           </g>
         </g>
       </svg>
