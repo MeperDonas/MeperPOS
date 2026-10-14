@@ -274,44 +274,12 @@ h4 {
 /* ─── Sidebar Styles ───────────────────────────────────── */
 .sidebar-item {
     position: relative;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.625rem 0.875rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--sidebar-fg);
-    text-decoration: none;
-    transition: all 0.18s ease;
     cursor: pointer;
+    text-decoration: none;
     border: none;
     background: transparent;
-    width: 100%;
     text-align: left;
     font-family: var(--font-geist), system-ui, sans-serif;
-}
-
-.sidebar-item:hover {
-    color: var(--sidebar-hover-fg);
-    background: var(--sidebar-hover-bg);
-}
-
-.sidebar-item.active {
-    color: var(--sidebar-active-fg);
-    background: var(--sidebar-active-bg);
-}
-
-.sidebar-item.active::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 55%;
-    background: var(--sidebar-active-fg);
-    border-radius: 0 3px 3px 0;
 }
 
 /* ─── Scrollbars ───────────────────────────────────────── */
