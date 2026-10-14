@@ -415,11 +415,11 @@ export function Sidebar() {
           data-testid="sidebar-user"
           className={cn(
             "border-t border-border/70 shrink-0 transition-all",
-            isCollapsed ? "p-2" : "p-4"
+            isCollapsed ? "px-2 py-3" : "px-5 py-4"
           )}
         >
           {isCollapsed ? (
-            <div className="rounded-2xl border border-border/80 bg-muted/30 p-2 flex flex-col items-center gap-2.5 shadow-xs">
+            <div className="flex flex-col items-center gap-2.5">
               <div
                 className="w-10 h-10 rounded-xl bg-primary-light border border-primary/30 text-primary flex items-center justify-center font-bold text-sm shrink-0"
                 title={`${user.name} (${roleLabels[user.role] ?? user.role})`}
@@ -497,7 +497,7 @@ export function Sidebar() {
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-border/80 bg-muted/30 p-3.5 flex flex-col gap-3 shadow-xs">
+            <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary-light border border-primary/30 text-primary flex items-center justify-center font-bold text-sm shrink-0">
                   {initials}
@@ -512,7 +512,7 @@ export function Sidebar() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-border/60 pt-2.5">
+              <div className="flex items-center justify-between border-t border-border/60 pt-3">
                 <div className="flex items-center bg-muted/80 rounded-lg p-0.5 border border-border/40">
                   <button
                     type="button"
