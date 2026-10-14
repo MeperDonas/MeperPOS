@@ -255,20 +255,36 @@ export function Sidebar() {
       >
         <div className={cn("flex items-center gap-3 min-w-0", isCollapsed && "justify-center")}>
           <Image
-            src="/brand/meperpos-mark-160.png"
+            src="/brand/icon-128.png"
             alt={`${APP_NAME} logo`}
-            width={160}
-            height={89}
-            className={cn("w-auto shrink-0 transition-all", isCollapsed ? "h-8" : "h-9")}
-          />
-          <p
+            width={128}
+            height={128}
             className={cn(
-              "text-2xl font-extrabold text-foreground truncate leading-none tracking-tight transition-all",
-              isCollapsed ? "sr-only" : "min-w-0"
+              "shrink-0 rounded-xl shadow-xs ring-1 ring-border/50 transition-all object-cover",
+              isCollapsed ? "w-9 h-9" : "w-9 h-9"
             )}
-          >
-            {APP_NAME}
-          </p>
+          />
+          {!isCollapsed && (
+            <div className="flex items-center min-w-0">
+              <Image
+                src="/brand/wordmark-light.png"
+                alt=""
+                aria-hidden="true"
+                width={1000}
+                height={300}
+                className="h-6 w-auto block dark:hidden object-contain"
+              />
+              <Image
+                src="/brand/wordmark-dark.png"
+                alt=""
+                aria-hidden="true"
+                width={1000}
+                height={300}
+                className="h-6 w-auto hidden dark:block object-contain"
+              />
+            </div>
+          )}
+          <p className="sr-only">{APP_NAME}</p>
         </div>
         <button
           type="button"
@@ -569,11 +585,11 @@ export function Sidebar() {
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 bg-card border-b border-border">
         <div className="flex items-center gap-2.5">
           <Image
-            src="/brand/meperpos-mark-160.png"
+            src="/brand/icon-128.png"
             alt={`${APP_NAME} logo`}
-            width={160}
-            height={89}
-            className="h-8 w-auto shrink-0"
+            width={128}
+            height={128}
+            className="w-8 h-8 rounded-lg shrink-0 shadow-xs ring-1 ring-border/50 object-cover"
           />
           <span className="text-sm font-bold text-foreground">
             {APP_NAME}
