@@ -933,43 +933,37 @@ export default function TasksPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-2.5">
+                    <div className="space-y-2">
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-0.5">
                           Descripción
                         </span>
-                        <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed bg-card p-2.5 sm:p-3 rounded-xl border border-border/60 max-h-24 overflow-y-auto">
-                          {selectedTask.description?.trim() || "Sin descripción adicional por ahora."}
-                        </p>
+                        {selectedTask.description?.trim() ? (
+                          <p className="text-xs text-foreground/90 leading-relaxed bg-card p-2 rounded-lg border border-border/50 max-h-16 overflow-y-auto">
+                            {selectedTask.description}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground/60 italic py-0.5">
+                            Sin descripción adicional por ahora.
+                          </p>
+                        )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="flex items-center gap-2.5 p-2 sm:p-2.5 rounded-xl bg-card border border-border/60 min-w-0">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                            <UserIcon className="h-3.5 w-3.5" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block">
-                              Asignado
-                            </span>
-                            <span className="font-semibold text-foreground text-xs truncate block mt-0.5">
-                              {selectedTask.assignedTo?.name ?? "Sin asignar"}
-                            </span>
-                          </div>
+                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/40 text-xs">
+                        <div className="inline-flex items-center gap-1.5 rounded-lg bg-card border border-border/50 px-2.5 py-1 min-w-0">
+                          <UserIcon className="h-3 w-3 text-primary shrink-0" />
+                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Asignado:</span>
+                          <span className="font-semibold text-foreground text-xs truncate">
+                            {selectedTask.assignedTo?.name ?? "Sin asignar"}
+                          </span>
                         </div>
 
-                        <div className="flex items-center gap-2.5 p-2 sm:p-2.5 rounded-xl bg-card border border-border/60 min-w-0">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                            <Calendar className="h-3.5 w-3.5" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block">
-                              Fecha Límite
-                            </span>
-                            <span className="font-semibold text-foreground text-xs truncate block mt-0.5">
-                              {selectedTask.dueDate ? formatDate(selectedTask.dueDate) : "Sin fecha"}
-                            </span>
-                          </div>
+                        <div className="inline-flex items-center gap-1.5 rounded-lg bg-card border border-border/50 px-2.5 py-1 min-w-0">
+                          <Calendar className="h-3 w-3 text-primary shrink-0" />
+                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Límite:</span>
+                          <span className="font-semibold text-foreground text-xs truncate">
+                            {selectedTask.dueDate ? formatDate(selectedTask.dueDate) : "Sin fecha"}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -978,7 +972,7 @@ export default function TasksPage() {
 
                 {/* Timeline / Historial Section */}
                 <div className="flex flex-1 min-h-0 flex-col p-3.5 sm:p-4">
-                  <div className="flex items-center justify-between mb-2.5 shrink-0">
+                  <div className="flex items-center justify-between mb-2 shrink-0">
                     <div className="flex items-center gap-2">
                       <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
                         Historial
@@ -991,39 +985,36 @@ export default function TasksPage() {
                   </div>
 
                   {selectedTaskTimeline.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 p-3 text-center text-xs text-muted-foreground">
                       Todavía no hay eventos registrados para esta tarea.
                     </div>
                   ) : (
-                    <div className="space-y-2 flex-1 min-h-0 max-h-56 sm:max-h-64 lg:max-h-72 overflow-y-auto pr-1">
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                       {selectedTaskTimeline.map((event) => (
                         <div
                           key={event.id}
-                          className="rounded-xl border border-border/50 bg-muted/15 hover:bg-muted/25 transition-colors p-2.5 text-xs space-y-1"
+                          className="flex items-start gap-2.5 rounded-lg border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors p-2 text-xs"
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="font-semibold text-foreground">
-                              {getTaskEventLabel(event.type)}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground shrink-0">
-                              {formatDateTime(event.createdAt)}
-                            </span>
-                          </div>
-
-                          <div className="text-muted-foreground text-[11px]">
-                            {event.fromStatus && event.fromStatus !== event.toStatus ? (
-                              <span>
-                                {getTaskStatusLabel(event.fromStatus)} → {getTaskStatusLabel(event.toStatus)}
+                          <div className="mt-1 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-semibold text-foreground text-[11px] truncate">
+                                {getTaskEventLabel(event.type)}
+                                {event.fromStatus && event.fromStatus !== event.toStatus && (
+                                  <span className="ml-1.5 font-normal text-muted-foreground">
+                                    ({getTaskStatusLabel(event.fromStatus)} → {getTaskStatusLabel(event.toStatus)})
+                                  </span>
+                                )}
                               </span>
-                            ) : (
-                              <span>{getTaskStatusLabel(event.toStatus)}</span>
-                            )}
+                              <span className="text-[10px] text-muted-foreground shrink-0">
+                                {formatDateTime(event.createdAt)}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {event.createdBy?.name ?? "Sistema"}
+                              {event.note ? ` - ${event.note}` : ""}
+                            </p>
                           </div>
-
-                          <p className="text-[11px] text-muted-foreground pt-0.5 border-t border-border/40">
-                            {event.createdBy?.name ?? "Sistema"}
-                            {event.note ? ` - ${event.note}` : ""}
-                          </p>
                         </div>
                       ))}
                     </div>
