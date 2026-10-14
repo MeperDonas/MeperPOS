@@ -933,37 +933,43 @@ export default function TasksPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
                           Descripción
                         </span>
-                        {selectedTask.description?.trim() ? (
-                          <p className="text-xs text-foreground/90 leading-relaxed bg-card p-2 rounded-lg border border-border/50 max-h-16 overflow-y-auto">
-                            {selectedTask.description}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground/60 italic py-0.5">
-                            Sin descripción adicional por ahora.
-                          </p>
-                        )}
+                        <p className="text-xs text-foreground/90 leading-relaxed bg-card p-2.5 rounded-xl border border-border/60 max-h-20 overflow-y-auto">
+                          {selectedTask.description?.trim() || "Sin descripción adicional por ahora."}
+                        </p>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/40 text-xs">
-                        <div className="inline-flex items-center gap-1.5 rounded-lg bg-card border border-border/50 px-2.5 py-1 min-w-0">
-                          <UserIcon className="h-3 w-3 text-primary shrink-0" />
-                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Asignado:</span>
-                          <span className="font-semibold text-foreground text-xs truncate">
-                            {selectedTask.assignedTo?.name ?? "Sin asignar"}
-                          </span>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-2.5 p-2 sm:p-2.5 rounded-xl bg-card border border-border/60 min-w-0">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <UserIcon className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block">
+                              Asignado
+                            </span>
+                            <span className="font-semibold text-foreground text-xs truncate block mt-0.5">
+                              {selectedTask.assignedTo?.name ?? "Sin asignar"}
+                            </span>
+                          </div>
                         </div>
 
-                        <div className="inline-flex items-center gap-1.5 rounded-lg bg-card border border-border/50 px-2.5 py-1 min-w-0">
-                          <Calendar className="h-3 w-3 text-primary shrink-0" />
-                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Límite:</span>
-                          <span className="font-semibold text-foreground text-xs truncate">
-                            {selectedTask.dueDate ? formatDate(selectedTask.dueDate) : "Sin fecha"}
-                          </span>
+                        <div className="flex items-center gap-2.5 p-2 sm:p-2.5 rounded-xl bg-card border border-border/60 min-w-0">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <Calendar className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block">
+                              Fecha Límite
+                            </span>
+                            <span className="font-semibold text-foreground text-xs truncate block mt-0.5">
+                              {selectedTask.dueDate ? formatDate(selectedTask.dueDate) : "Sin fecha"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
