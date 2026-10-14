@@ -313,36 +313,19 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* ─── Soporte para Registro en Standby ─── */}
-          <div className="mt-8 pt-6 border-t border-border/70 space-y-3.5 text-left">
-            <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-muted/30 border border-border/60">
-              <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-              <div className="text-xs text-muted-foreground leading-relaxed">
-                <p className="font-semibold text-foreground">
-                  Acceso restringido por organización
-                </p>
-                <p className="mt-0.5 text-muted-foreground/90">
-                  El registro público está en pausa. Las cuentas de cajero, inventario y
-                  administración son creadas exclusivamente por el titular de tu negocio.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-xs px-1">
-              <span className="text-muted-foreground">
-                ¿Problemas para acceder a tu turno?
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowSupportModal(true)}
-                className="font-semibold text-primary hover:text-primary-dark transition-colors inline-flex items-center gap-1 underline underline-offset-2"
-              >
-                <HelpCircle className="w-3.5 h-3.5" />
-                <span>Ayuda y soporte</span>
-              </button>
-            </div>
+          {/* ─── Soporte de Acceso ─── */}
+          <div className="mt-6 pt-5 border-t border-border/70 flex items-center justify-between text-xs px-1">
+            <span className="text-muted-foreground">
+              ¿Problemas para acceder a tu turno?
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowSupportModal(true)}
+              className="font-semibold text-primary hover:text-primary-dark transition-colors inline-flex items-center gap-1 underline underline-offset-2"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Ayuda y soporte</span>
+            </button>
           </div>
         </div>
 
@@ -371,6 +354,21 @@ export default function LoginPage() {
         size="sm"
       >
         <div className="space-y-4 text-xs sm:text-sm text-foreground p-1">
+          <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-muted/40 border border-border/70">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div className="text-xs text-muted-foreground leading-relaxed">
+              <p className="font-semibold text-foreground">
+                Acceso restringido por organización
+              </p>
+              <p className="mt-0.5 text-muted-foreground/90">
+                El registro público está en pausa. Las cuentas de cajero, inventario y
+                administración son creadas exclusivamente por el titular de tu negocio.
+              </p>
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <h4 className="font-bold text-foreground flex items-center gap-1.5 text-xs sm:text-sm">
               <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />

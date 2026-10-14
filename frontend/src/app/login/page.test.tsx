@@ -136,11 +136,18 @@ describe("LoginPage Redesign", () => {
   it("opens and closes the access support modal", async () => {
     render(<LoginPage />);
 
+    expect(
+      screen.queryByText("Acceso restringido por organización")
+    ).not.toBeInTheDocument();
+
     const helpBtn = screen.getByRole("button", { name: /Ayuda y soporte/i });
     await userEvent.click(helpBtn);
 
     expect(
       await screen.findByRole("heading", { name: "Ayuda y Soporte de Acceso" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Acceso restringido por organización")
     ).toBeInTheDocument();
     expect(
       screen.getByText(/soporte@meperpos.com/i)

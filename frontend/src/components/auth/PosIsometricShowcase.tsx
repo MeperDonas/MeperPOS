@@ -99,8 +99,7 @@ export function PosIsometricShowcase() {
 
           {/* Grid intersection accent nodes */}
           <circle cx="250" cy="445" r="3.5" fill="#C25E36" />
-          <circle cx="535" cy="312" r="3.5" fill="#C25E36" />
-          <circle cx="515" cy="362" r="3" fill="#C25E36" />
+          <circle cx="445" cy="336" r="3" fill="#C25E36" />
           <circle cx="388" cy="396" r="2.5" fill="#7C887E" />
         </g>
 
@@ -496,71 +495,193 @@ export function PosIsometricShowcase() {
         </g>
 
         {/* ─── Companion Tabby Cat ("Lucky") Sitting in Bottom-Right ─── */}
-        <g transform="translate(476, 304)" stroke="#1C1B22" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          {/* Ground shadow */}
-          <ellipse cx="48" cy="134" rx="38" ry="9" fill="#1C1B22" fillOpacity="0.35" stroke="none" />
-
-          {/* Curled Striped Tail */}
-          <path
-            d="M 74 122 C 102 122 108 92 102 72 C 98 58 108 48 115 54 C 122 60 114 78 112 96 C 108 122 92 134 72 130 Z"
-            fill="#E09F67"
-          />
-          {/* Tail stripes */}
-          <path d="M 98 112 L 108 108" stroke="#9C5230" strokeWidth="3.5" />
-          <path d="M 102 96 L 112 94" stroke="#9C5230" strokeWidth="3.5" />
-          <path d="M 101 80 L 112 80" stroke="#9C5230" strokeWidth="3.5" />
-          <path d="M 103 65 L 113 67" stroke="#9C5230" strokeWidth="3.5" />
-
-          {/* Main Torso / Haunches */}
-          <path
-            d="M 24 54 C 16 78 14 106 20 130 L 76 130 C 86 112 82 80 64 54 Z"
-            fill="#E09F67"
+        <g
+          transform="translate(472, 294)"
+          stroke="#1C1B22"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          {/* Soft ground shadow */}
+          <ellipse
+            cx="54"
+            cy="146"
+            rx="44"
+            ry="10"
+            fill="#1C1B22"
+            fillOpacity="0.4"
+            stroke="none"
           />
 
-          {/* Back / Side Tabby Stripes */}
-          <path d="M 66 68 Q 54 72 50 78" stroke="#9C5230" strokeWidth="4" fill="none" />
-          <path d="M 74 82 Q 58 86 52 94" stroke="#9C5230" strokeWidth="4" fill="none" />
-          <path d="M 78 98 Q 62 102 58 110" stroke="#9C5230" strokeWidth="4" fill="none" />
-
-          {/* Chest / Front Legs */}
+          {/* Fluffy Striped Tail curving gracefully */}
           <path
-            d="M 26 78 L 24 130 L 38 130 L 40 94 L 44 130 L 58 130 L 56 80"
-            fill="#E09F67"
+            d="M 80 132 C 110 132 122 104 116 78 C 113 64 123 56 129 62 C 135 68 128 88 125 106 C 120 132 102 144 78 140 Z"
+            fill="#E59859"
           />
-          {/* Paws */}
-          <ellipse cx="30" cy="130" rx="8" ry="4.5" fill="#E8B486" />
-          <ellipse cx="51" cy="130" rx="8" ry="4.5" fill="#E8B486" />
-          <ellipse cx="68" cy="129" rx="9" ry="4.5" fill="#D58952" />
+          {/* Tail ring stripes */}
+          <path d="M 106 122 C 111 119 116 119 120 121" stroke="#9C4A24" strokeWidth="3.5" fill="none" />
+          <path d="M 113 105 C 118 103 122 103 126 105" stroke="#9C4A24" strokeWidth="3.5" fill="none" />
+          <path d="M 115 88 C 120 87 124 88 128 90" stroke="#9C4A24" strokeWidth="3.5" fill="none" />
+          <path d="M 118 72 C 122 71 126 72 130 75" stroke="#9C4A24" strokeWidth="3.2" fill="none" />
 
-          {/* Cat Head */}
+          {/* Main Seated Body & Haunch (Three-quarter warm orange silhouette) */}
           <path
-            d="M 16 26 L 12 2 L 32 16 Q 44 13 56 16 L 74 2 L 70 26 C 78 38 74 56 44 58 C 14 56 10 38 16 26 Z"
-            fill="#E09F67"
+            d="M 28 60 C 16 84 14 114 22 142 L 84 142 C 96 124 94 88 72 60 Z"
+            fill="#E59859"
           />
-          {/* Inner Ears */}
-          <polygon points="16,22 15,8 27,18" fill="#C26D53" stroke="none" />
-          <polygon points="70,22 71,8 59,18" fill="#C26D53" stroke="none" />
+          {/* Warm shading on right haunch */}
+          <path
+            d="M 68 64 C 86 90 88 122 78 140 L 84 142 C 96 124 94 88 72 60 Z"
+            fill="#CC7739"
+            stroke="none"
+          />
 
-          {/* Forehead Tabby Stripes */}
-          <line x1="44" y1="16" x2="44" y2="26" stroke="#9C5230" strokeWidth="3" />
-          <line x1="37" y1="18" x2="39" y2="26" stroke="#9C5230" strokeWidth="2.5" />
-          <line x1="51" y1="18" x2="49" y2="26" stroke="#9C5230" strokeWidth="2.5" />
+          {/* Organic Tabby Back Stripes */}
+          <path d="M 68 74 C 58 76 52 81 48 87" stroke="#9C4A24" strokeWidth="3.8" fill="none" />
+          <path d="M 76 90 C 64 93 56 99 52 106" stroke="#9C4A24" strokeWidth="3.8" fill="none" />
+          <path d="M 80 107 C 68 110 61 116 57 123" stroke="#9C4A24" strokeWidth="3.8" fill="none" />
 
-          {/* Cheek Stripes */}
-          <line x1="18" y1="38" x2="26" y2="40" stroke="#9C5230" strokeWidth="2.2" />
-          <line x1="19" y1="44" x2="27" y2="45" stroke="#9C5230" strokeWidth="2.2" />
-          <line x1="70" y1="38" x2="62" y2="40" stroke="#9C5230" strokeWidth="2.2" />
-          <line x1="69" y1="44" x2="61" y2="45" stroke="#9C5230" strokeWidth="2.2" />
+          {/* Cream Chest Ruff (Soft fur bib) */}
+          <path
+            d="M 31 66 C 28 80 33 95 45 99 C 57 95 62 80 59 66 Z"
+            fill="#F6E9D7"
+            stroke="#1C1B22"
+            strokeWidth="1.6"
+          />
+          {/* Subtle chest fur tuft */}
+          <path d="M 41 84 L 45 89 L 49 84" stroke="#D5BC9D" strokeWidth="1.5" fill="none" />
 
-          {/* Eyes */}
-          <circle cx="32" cy="34" r="3.2" fill="#1C1B22" stroke="none" />
-          <circle cx="56" cy="34" r="3.2" fill="#1C1B22" stroke="none" />
-          <circle cx="31" cy="33" r="1" fill="#FFFFFF" stroke="none" />
-          <circle cx="55" cy="33" r="1" fill="#FFFFFF" stroke="none" />
+          {/* Front Legs & Paws */}
+          <path
+            d="M 29 88 L 27 142 L 42 142 L 44 102 L 48 142 L 63 142 L 61 88"
+            fill="#E59859"
+          />
+          {/* Cream Paws with toe lines */}
+          <ellipse cx="34" cy="142" rx="9" ry="5" fill="#F6E9D7" />
+          <line x1="31" y1="140" x2="31" y2="145" stroke="#1C1B22" strokeWidth="1.3" />
+          <line x1="36" y1="140" x2="36" y2="145" stroke="#1C1B22" strokeWidth="1.3" />
 
-          {/* Pink Nose & Smile */}
-          <polygon points="41,40 47,40 44,44" fill="#C26D53" stroke="none" />
-          <path d="M 39 46 Q 44 50 49 46" stroke="#1C1B22" strokeWidth="1.8" fill="none" />
+          <ellipse cx="56" cy="142" rx="9" ry="5" fill="#F6E9D7" />
+          <line x1="53" y1="140" x2="53" y2="145" stroke="#1C1B22" strokeWidth="1.3" />
+          <line x1="58" y1="140" x2="58" y2="145" stroke="#1C1B22" strokeWidth="1.3" />
+
+          {/* Back Hind Paw */}
+          <ellipse cx="76" cy="141" rx="9.5" ry="5" fill="#D98548" />
+
+          {/* ─── Lucky's Signature Bandana (Yellow Collar + Red Tied Knot) ─── */}
+          <path
+            d="M 23 58 C 34 66 58 66 69 58 L 66 66 C 54 73 36 73 25 66 Z"
+            fill="#F4C430"
+            stroke="#1C1B22"
+            strokeWidth="1.8"
+          />
+          {/* Red Bandana Tails & Knot */}
+          <path
+            d="M 38 66 L 26 74 L 33 78 L 43 69 Z"
+            fill="#D63B2F"
+            stroke="#1C1B22"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M 45 67 L 43 81 L 51 79 L 50 67 Z"
+            fill="#C22F24"
+            stroke="#1C1B22"
+            strokeWidth="1.6"
+          />
+          <circle
+            cx="44"
+            cy="67"
+            r="4.2"
+            fill="#E04336"
+            stroke="#1C1B22"
+            strokeWidth="1.7"
+          />
+
+          {/* ─── Expressive Feline Head & Ears ─── */}
+          <path
+            d="M 16 28 L 10 3 C 18 3 27 9 33 16 Q 46 13 59 16 C 65 9 74 3 82 3 L 76 28 C 86 41 80 60 46 62 C 12 60 6 41 16 28 Z"
+            fill="#E59859"
+          />
+
+          {/* Inner Ears (Warm terracotta-pink + ear tufts) */}
+          <path d="M 17 25 L 14 9 L 29 18 Z" fill="#D98274" stroke="none" />
+          <path d="M 75 25 L 78 9 L 63 18 Z" fill="#D98274" stroke="none" />
+          <path d="M 18 24 L 24 21" stroke="#F6E9D7" strokeWidth="1.6" />
+          <path d="M 74 24 L 68 21" stroke="#F6E9D7" strokeWidth="1.6" />
+
+          {/* Classic Tabby "M" Forehead Markings */}
+          <path
+            d="M 34 26 L 38 18 L 46 24 L 54 18 L 58 26"
+            stroke="#9C4A24"
+            strokeWidth="2.4"
+            fill="none"
+          />
+
+          {/* Cheek Tabby Stripes */}
+          <path d="M 15 41 Q 21 42 25 44" stroke="#9C4A24" strokeWidth="2.2" fill="none" />
+          <path d="M 16 47 Q 22 48 26 49" stroke="#9C4A24" strokeWidth="2.2" fill="none" />
+          <path d="M 77 41 Q 71 42 67 44" stroke="#9C4A24" strokeWidth="2.2" fill="none" />
+          <path d="M 76 47 Q 70 48 66 49" stroke="#9C4A24" strokeWidth="2.2" fill="none" />
+
+          {/* Expressive Almond Green-Amber Feline Eyes */}
+          <g>
+            {/* Left Eye */}
+            <ellipse
+              cx="33"
+              cy="36"
+              rx="6.2"
+              ry="5.4"
+              transform="rotate(-8 33 36)"
+              fill="#C8D655"
+              stroke="#1C1B22"
+              strokeWidth="1.8"
+            />
+            <ellipse cx="33.5" cy="36" rx="2.2" ry="4.2" fill="#1C1B22" stroke="none" />
+            <circle cx="31.5" cy="34" r="1.5" fill="#FFFFFF" stroke="none" />
+
+            {/* Right Eye */}
+            <ellipse
+              cx="59"
+              cy="36"
+              rx="6.2"
+              ry="5.4"
+              transform="rotate(8 59 36)"
+              fill="#C8D655"
+              stroke="#1C1B22"
+              strokeWidth="1.8"
+            />
+            <ellipse cx="58.5" cy="36" rx="2.2" ry="4.2" fill="#1C1B22" stroke="none" />
+            <circle cx="56.5" cy="34" r="1.5" fill="#FFFFFF" stroke="none" />
+          </g>
+
+          {/* Soft Cream Muzzle Pads */}
+          <path
+            d="M 35 46 C 35 41 42 40 46 43 C 50 40 57 41 57 46 C 57 51 50 53 46 49 C 42 53 35 51 35 46 Z"
+            fill="#F6E9D7"
+            stroke="none"
+          />
+
+          {/* Pink Nose & Gentle Cat Mouth */}
+          <polygon
+            points="42.5,42 49.5,42 46,46.5"
+            fill="#DF7A72"
+            stroke="#1C1B22"
+            strokeWidth="1.5"
+          />
+          <path
+            d="M 38 49 Q 42 52.5 46 48.5 Q 50 52.5 54 49"
+            stroke="#1C1B22"
+            strokeWidth="1.7"
+            fill="none"
+          />
+
+          {/* Delicate Whiskers */}
+          <g stroke="#F6E9D7" strokeOpacity="0.85" strokeWidth="1.2">
+            <path d="M 34 46 Q 18 44 6 46" fill="none" />
+            <path d="M 34 49 Q 18 50 8 53" fill="none" />
+            <path d="M 58 46 Q 74 44 86 46" fill="none" />
+            <path d="M 58 49 Q 74 50 84 53" fill="none" />
+          </g>
         </g>
       </svg>
     </div>
