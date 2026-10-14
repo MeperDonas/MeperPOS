@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import LoginPage from "./page";
 
@@ -158,5 +158,46 @@ describe("LoginPage Redesign", () => {
     await userEvent.click(themeBtn);
 
     expect(toggleThemeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("prevents submission and displays message when email is empty", async () => {
+    render(<LoginPage />);
+
+    await userEvent.type(
+      screen.getByLabelText(/contraseña/i, { selector: "input" }),
+      "ClubDeMotos2026"
+    );
+
+    const submitBtn = screen.getByRole("button", {
+      name: /Ingresar al Sistema/i,
+    });
+    const form = submitBtn.closest("form")!;
+    fireEvent.submit(form);
+
+    expect(loginMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Por favor ingresa tu correo electrónico.")
+    ).toBeInTheDocument();
+  });
+
+  it("reconciles autofilled credentials directly from DOM inputs", async () => {
+    loginMock.mockResolvedValueOnce(undefined);
+    render(<LoginPage />);
+
+    const emailInput = screen.getByLabelText(/Correo Electrónico/i) as HTMLInputElement;
+    const passwordInput = screen.getByLabelText(/contraseña/i, { selector: "input" }) as HTMLInputElement;
+
+    // Simulate password manager directly populating DOM values
+    emailInput.value = "autofill@clubdemotos.com";
+    passwordInput.value = "ClubDeMotos2026";
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Ingresar al Sistema/i })
+    );
+
+    expect(loginMock).toHaveBeenCalledWith(
+      "autofill@clubdemotos.com",
+      "ClubDeMotos2026"
+    );
   });
 });

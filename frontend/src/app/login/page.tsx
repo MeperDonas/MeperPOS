@@ -46,11 +46,41 @@ export default function LoginPage() {
 
   const isDark = mounted && theme === "dark";
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+
+    // Reconcile credentials directly from the DOM form elements in case
+    // browser autofill or a password manager filled them without dispatching
+    // a synthetic React onChange event.
+    const form = e.currentTarget;
+    const emailInput = form.elements.namedItem("email") as HTMLInputElement | null;
+    const passwordInput = form.elements.namedItem("password") as HTMLInputElement | null;
+
+    const resolvedEmail = (emailInput?.value || email || "").trim();
+    const resolvedPassword = passwordInput?.value || password || "";
+
+    if (resolvedEmail !== email) {
+      setEmail(resolvedEmail);
+    }
+    if (resolvedPassword !== password) {
+      setPassword(resolvedPassword);
+    }
+
+    if (!resolvedEmail) {
+      setError("Por favor ingresa tu correo electrónico.");
+      emailInput?.focus();
+      return;
+    }
+
+    if (!resolvedPassword) {
+      setError("Por favor ingresa tu contraseña.");
+      passwordInput?.focus();
+      return;
+    }
+
     try {
-      await login(email, password);
+      await login(resolvedEmail, resolvedPassword);
     } catch (err) {
       setError(
         getApiErrorMessage(
@@ -223,17 +253,22 @@ export default function LoginPage() {
             )}
 
             <Input
+              id="email"
+              name="email"
               type="email"
               label="Correo Electrónico"
               placeholder="usuario@negocio.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={(e) => setEmail(e.target.value.trim())}
               required
-              autoComplete="email"
+              autoComplete="username email"
               icon={<Mail className="w-4 h-4" />}
             />
 
             <Input
+              id="password"
+              name="password"
               type={showPassword ? "text" : "password"}
               label="Contraseña"
               placeholder="••••••••"
