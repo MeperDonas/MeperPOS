@@ -259,35 +259,28 @@ export function Sidebar() {
             : "px-5 py-5 flex items-center justify-between gap-3"
         )}
       >
-        <div className={cn("flex items-center gap-3 min-w-0", isCollapsed && "justify-center")}>
+        <div className={cn("flex items-center gap-3.5 min-w-0", isCollapsed && "justify-center")}>
           <Image
-            src="/brand/icon-128.png"
+            src="/brand/icon-192.png"
             alt={`${APP_NAME} logo`}
-            width={128}
-            height={128}
-            className="w-9 h-9 shrink-0 rounded-xl shadow-xs ring-1 ring-border/50 object-cover"
+            width={192}
+            height={192}
+            className={cn(
+              "shrink-0 object-contain drop-shadow-xs",
+              isCollapsed ? "w-11 h-11" : "w-12 h-12"
+            )}
           />
-          {!isCollapsed && (
-            <div className="flex items-center min-w-0">
-              <Image
-                src="/brand/wordmark-light.png"
-                alt=""
-                aria-hidden="true"
-                width={1000}
-                height={300}
-                className="h-6 w-auto block dark:hidden object-contain"
-              />
-              <Image
-                src="/brand/wordmark-dark.png"
-                alt=""
-                aria-hidden="true"
-                width={1000}
-                height={300}
-                className="h-6 w-auto hidden dark:block object-contain"
-              />
-            </div>
-          )}
-          <p className="sr-only">{APP_NAME}</p>
+          <p
+            className={cn(
+              "text-[26px] font-black text-foreground truncate leading-none tracking-tight",
+              isCollapsed ? "sr-only" : "min-w-0"
+            )}
+          >
+            Meper
+            <span className="text-[#FF9933] underline decoration-[#FF9933] decoration-[3px] underline-offset-[5px]">
+              POS
+            </span>
+          </p>
         </div>
         <button
           type="button"
@@ -591,14 +584,17 @@ export function Sidebar() {
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 bg-card border-b border-border">
         <div className="flex items-center gap-2.5">
           <Image
-            src="/brand/icon-128.png"
+            src="/brand/icon-192.png"
             alt={`${APP_NAME} logo`}
-            width={128}
-            height={128}
-            className="w-8 h-8 rounded-lg shrink-0 shadow-xs ring-1 ring-border/50 object-cover"
+            width={192}
+            height={192}
+            className="w-9 h-9 shrink-0 object-contain drop-shadow-xs"
           />
-          <span className="text-sm font-bold text-foreground">
-            {APP_NAME}
+          <span className="text-lg font-black tracking-tight text-foreground">
+            Meper
+            <span className="text-[#FF9933] underline decoration-[#FF9933] decoration-2 underline-offset-4">
+              POS
+            </span>
           </span>
         </div>
         <button
