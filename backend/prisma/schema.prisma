@@ -50,6 +50,7 @@ model Organization {
   moneyLoanEvents    MoneyLoanEvent[]
   inventoryLoans     InventoryLoan[]
   posLoanSaleIntents PosLoanSaleIntent[]
+  posLoanSaleReservations PosLoanSaleReservation[]
 
   @@index([status, trialEndsAt])
 }
@@ -74,6 +75,8 @@ model User {
   tasksAssigned      Task[]              @relation("TaskAssignedTo")
   tasksCreated       Task[]              @relation("TaskCreatedBy")
   taskEvents         TaskEvent[]         @relation("TaskEventCreatedBy")
+  posLoanSaleIntentsInitiated PosLoanSaleIntent[] @relation("PosLoanSaleInitiatedBy")
+  posLoanSaleReservationsFinalized PosLoanSaleReservation[] @relation("PosLoanSaleReservationFinalizedBy")
   moneyLoansCreated  MoneyLoan[]         @relation("MoneyLoanCreatedBy")
   moneyLoansEmployee MoneyLoan[]         @relation("MoneyLoanEmployee")
   moneyLoanEvents    MoneyLoanEvent[]    @relation("MoneyLoanEventCreatedBy")
@@ -192,6 +195,7 @@ model Product {
   purchaseItems       PurchaseOrderItem[]
   saleItems           SaleItem[]
   inventoryLoanItems  InventoryLoanItem[]
+  posLoanSaleReservations PosLoanSaleReservation[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, sku])
@@ -478,6 +482,12 @@ model PosLoanSaleIntent {
   finalSaleId    String?      @unique
   quoteSnapshot  Json?
   agreedCustomerTotal Decimal? @db.Decimal(10, 2)
+  initiationRequestKey String? @db.VarChar(100)
+  initiationRequestHash String? @db.VarChar(64)
+  initiatedById  String?
+  initiationResult Json?
+  initiatedBy    User?        @relation("PosLoanSaleInitiatedBy", fields: [initiatedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reservations   PosLoanSaleReservation[]
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   customer       Customer     @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
   loan           MoneyLoan    @relation(fields: [loanId, organizationId, customerId], references: [id, organizationId, customerId], onDelete: Restrict, onUpdate: Restrict)
@@ -486,6 +496,33 @@ model PosLoanSaleIntent {
   // Composite keys declare the one-to-one relation tuples to Prisma.
   @@unique([loanId, organizationId, customerId])
   @@unique([finalSaleId, organizationId, customerId])
+  @@unique([organizationId, initiationRequestKey])
+  @@unique([id, organizationId])
+}
+
+// SQL freezes ownership and validates insert eligibility and terminal claims.
+enum PosLoanSaleReservationState {
+  HELD
+  CONSUMED
+  RELEASED
+}
+
+model PosLoanSaleReservation {
+  id             String       @id @default(uuid())
+  intentId       String
+  organizationId String
+  productId      String
+  quantity       Int
+  state          PosLoanSaleReservationState @default(HELD)
+  createdAt      DateTime     @default(now())
+  finalizedAt    DateTime?
+  finalizedById  String?
+  intent         PosLoanSaleIntent @relation(fields: [intentId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  product        Product      @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
+  finalizedBy    User?        @relation("PosLoanSaleReservationFinalizedBy", fields: [finalizedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([intentId, productId])
 }
 
 enum MoneyLoanStatus {
