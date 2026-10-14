@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis } from "recharts";
 import { X } from "lucide-react";
 import { useSalesByCategoryDaily } from "@/hooks/useReports";
@@ -40,14 +41,11 @@ interface CategoryTooltipContentProps {
 
 /**
  * Recharts tooltip content: the hovered day's total plus its per-category
- * breakdown. Centers smoothly above the active bar with a downward pointer caret,
- * clamped within the chart bounds so it never overflows left or right edges.
+ * breakdown in a dark-glass card that follows the active bar dynamically.
  */
 export function CategoryTooltipContent({
   active,
   payload,
-  coordinate,
-  viewBox,
 }: CategoryTooltipContentProps) {
   if (!active || !payload || payload.length === 0) {
     return null;
@@ -60,28 +58,10 @@ export function CategoryTooltipContent({
       : payload.reduce((sum, entry) => sum + (Number(entry.value) || 0), 0);
   const segments = payload.filter((entry) => Number(entry.value) > 0);
 
-  // Position math: center on coordinate.x, clamping within chart width
-  const x = coordinate?.x;
-  const chartWidth = viewBox?.width ?? 0;
-  const estimatedHalfWidth = 85;
-  const minMargin = 8;
-
-  let clampPx = 0;
-  if (typeof x === "number" && chartWidth > 0) {
-    if (x - estimatedHalfWidth < minMargin) {
-      clampPx = minMargin - (x - estimatedHalfWidth);
-    } else if (x + estimatedHalfWidth > chartWidth - minMargin) {
-      clampPx = chartWidth - minMargin - (x + estimatedHalfWidth);
-    }
-  }
-
   return (
     <div
       data-testid="category-tooltip"
-      className="relative min-w-[170px] rounded-xl border border-white/10 bg-black/90 px-3.5 py-2.5 shadow-2xl backdrop-blur-md"
-      style={{
-        transform: `translateX(calc(-50% + ${clampPx}px))`,
-      }}
+      className="pointer-events-none min-w-[175px] rounded-xl border border-white/10 bg-black/95 px-3.5 py-2.5 shadow-2xl backdrop-blur-md"
     >
       <p className="text-center text-[10px] font-semibold uppercase tracking-wider text-white/60">
         {formatCategoryTooltipDate(typeof row?.date === "string" ? row.date : "")}
@@ -121,9 +101,9 @@ interface CategoryDayDetailModalProps {
 }
 
 /**
- * Mini-modal triggered when clicking a day on the bar chart.
- * Follows the dark-glass theme of the tooltip with complete category breakdown,
- * units sold, and proportion progress bars.
+ * Modal triggered when clicking a day on the bar chart.
+ * Uses createPortal to render outside any parent container transforms,
+ * locks body scroll, and offers a spacious, detailed dark-glass breakdown.
  */
 export function CategoryDayDetailModal({
   day,
@@ -132,22 +112,29 @@ export function CategoryDayDetailModal({
 }: CategoryDayDetailModalProps) {
   useEffect(() => {
     if (!day) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [day, onClose]);
 
-  if (!day) return null;
+  if (!day || typeof document === "undefined") return null;
 
   const totalQuantity = day.segments.reduce((sum, s) => sum + s.quantity, 0);
   const activeSegments = day.segments.filter((s) => s.total > 0);
 
-  return (
+  return createPortal(
     <div
       data-testid="category-day-detail-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 sm:p-6 backdrop-blur-md overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -156,15 +143,18 @@ export function CategoryDayDetailModal({
         data-testid="category-day-detail-modal"
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-black/95 p-5 shadow-2xl backdrop-blur-md text-white"
+        className="relative w-full max-w-lg rounded-3xl border border-white/15 bg-zinc-950/95 p-6 sm:p-7 shadow-2xl backdrop-blur-xl text-white my-auto"
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-              Detalle del día
-            </span>
-            <h3 className="text-base font-bold text-white capitalize mt-0.5">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                Detalle del día
+              </span>
+            </div>
+            <h3 className="text-xl font-bold text-white capitalize mt-2 tracking-tight">
               {formatCategoryTooltipDate(day.date)}
             </h3>
           </div>
@@ -172,44 +162,51 @@ export function CategoryDayDetailModal({
             type="button"
             onClick={onClose}
             aria-label="Cerrar detalle"
-            className="rounded-lg p-1 text-white/50 hover:bg-white/10 hover:text-white transition-colors"
+            className="rounded-full border border-white/10 bg-white/5 p-2 text-white/60 hover:bg-white/15 hover:text-white transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Total Highlight */}
-        <div className="mt-3.5 rounded-xl border border-white/10 bg-white/5 p-3.5 text-center">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-            Total recaudado
-          </span>
-          <p className="mt-0.5 text-2xl font-black font-mono text-white tabular-nums tracking-tight">
-            {formatCurrency(day.total)}
-          </p>
-          <div className="mt-1 flex items-center justify-center gap-2 text-[11px] text-white/60">
-            <span>
+        {/* Highlight KPI metrics */}
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block">
+              Total Recaudado
+            </span>
+            <p className="mt-1 text-2xl sm:text-3xl font-black font-mono text-white tabular-nums tracking-tight">
+              {formatCurrency(day.total)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block">
+              Unidades Vendidas
+            </span>
+            <p className="mt-1 text-2xl sm:text-3xl font-black font-mono text-white tabular-nums tracking-tight">
               {totalQuantity} {totalQuantity === 1 ? "unidad" : "unidades"}
-            </span>
-            <span>·</span>
-            <span>
-              {activeSegments.length}{" "}
-              {activeSegments.length === 1 ? "categoría activa" : "categorías activas"}
-            </span>
+            </p>
           </div>
         </div>
 
         {/* Breakdown by category */}
-        <div className="mt-4">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-white/50 block mb-2">
-            Desglose por categoría
-          </span>
+        <div className="mt-5">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-xs font-bold uppercase tracking-wider text-white/70">
+              Desglose por categoría
+            </span>
+            <span className="text-[11px] font-mono text-white/50">
+              {activeSegments.length}{" "}
+              {activeSegments.length === 1 ? "categoría activa" : "categorías activas"}
+            </span>
+          </div>
 
           {activeSegments.length === 0 ? (
-            <p className="py-4 text-center text-xs text-white/40 italic">
+            <div className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-xs text-white/40 italic">
               Sin ventas registradas en esta fecha.
-            </p>
+            </div>
           ) : (
-            <ul className="space-y-2 max-h-52 overflow-y-auto pr-1">
+            <ul className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
               {activeSegments.map((segment) => {
                 const color = colorMap.get(segment.category) ?? "#C25E36";
                 const percentage =
@@ -218,31 +215,34 @@ export function CategoryDayDetailModal({
                 return (
                   <li
                     key={segment.category}
-                    className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-xs space-y-1.5"
+                    className="rounded-2xl border border-white/10 bg-white/5 p-3.5 space-y-2 hover:bg-white/[0.08] transition-colors"
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-2 font-medium text-white/90 truncate">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-2.5 font-medium text-sm text-white truncate">
                         <span
-                          className="inline-block h-2.5 w-2.5 rounded-[3px] shrink-0"
+                          className="inline-block h-3 w-3 rounded-[4px] shrink-0"
                           style={{ backgroundColor: color }}
                         />
                         <span className="truncate">{segment.category}</span>
                       </span>
-                      <span className="font-mono font-bold text-white tabular-nums shrink-0">
+                      <span className="font-mono font-bold text-sm text-white tabular-nums shrink-0">
                         {formatCurrency(segment.total)}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
                         <div
-                          className="h-full rounded-full transition-all"
+                          className="h-full rounded-full transition-all duration-300"
                           style={{ width: `${percentage}%`, backgroundColor: color }}
                         />
                       </div>
-                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-white/60 shrink-0">
-                        <span>{segment.quantity} u</span>
-                        <span>({percentage}%)</span>
+                      <div className="flex items-center gap-2 text-xs font-mono text-white/60 shrink-0">
+                        <span>
+                          {segment.quantity} {segment.quantity === 1 ? "ud" : "uds"}
+                        </span>
+                        <span>·</span>
+                        <span className="text-white/80 font-bold">{percentage}%</span>
                       </div>
                     </div>
                   </li>
@@ -256,12 +256,13 @@ export function CategoryDayDetailModal({
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 w-full rounded-xl border border-white/10 bg-white/10 hover:bg-white/15 py-2 text-xs font-semibold text-white transition-colors"
+          className="mt-6 w-full rounded-2xl border border-white/10 bg-white/10 hover:bg-white/15 py-3 text-sm font-semibold text-white transition-colors"
         >
           Cerrar
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -390,8 +391,8 @@ export function CategoryStackedChart({
             tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
           />
           <Tooltip
-            offset={0}
-            position={{ y: 8 }}
+            offset={12}
+            allowEscapeViewBox={{ x: false, y: true }}
             cursor={{ fill: "var(--primary)", fillOpacity: 0.07, rx: 6, ry: 6 }}
             content={<CategoryTooltipContent />}
           />
