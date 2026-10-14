@@ -204,14 +204,20 @@ export function Sidebar() {
     return () => window.clearInterval(intervalId);
   }, []);
 
-  // Scroll the active nav item into view on mount / pathname change
+  // Scroll the active nav item into view only if it is actually hidden outside the viewport
   useEffect(() => {
     const nav = navRef.current;
     if (!nav) return;
 
     const activeLink = nav.querySelector<HTMLElement>(".sidebar-item.active");
-    if (activeLink?.scrollIntoView) {
-      activeLink.scrollIntoView({ block: "center", behavior: "instant" });
+    if (!activeLink) return;
+
+    const navRect = nav.getBoundingClientRect();
+    const linkRect = activeLink.getBoundingClientRect();
+    const isOutOfView = linkRect.top < navRect.top || linkRect.bottom > navRect.bottom;
+
+    if (isOutOfView && activeLink.scrollIntoView) {
+      activeLink.scrollIntoView({ block: "nearest", behavior: "instant" });
     }
   }, [pathname]);
 
@@ -241,7 +247,7 @@ export function Sidebar() {
       <div
         data-testid="sidebar-brand"
         className={cn(
-          "border-b border-border/70 shrink-0 transition-all duration-300",
+          "border-b border-border/70 shrink-0",
           isCollapsed
             ? "px-2 py-4 flex flex-col items-center gap-3"
             : "px-5 py-5 flex items-center justify-between gap-3"
@@ -253,11 +259,11 @@ export function Sidebar() {
             alt={`${APP_NAME} logo`}
             width={160}
             height={89}
-            className={cn("w-auto shrink-0 transition-all", isCollapsed ? "h-8" : "h-9")}
+            className={cn("w-auto shrink-0", isCollapsed ? "h-8" : "h-9")}
           />
           <p
             className={cn(
-              "text-2xl font-extrabold text-foreground truncate leading-none tracking-tight transition-all",
+              "text-2xl font-extrabold text-foreground truncate leading-none tracking-tight",
               isCollapsed ? "sr-only" : "min-w-0"
             )}
           >
@@ -283,11 +289,11 @@ export function Sidebar() {
       {/* Block 2: Date + time - es-CO formatting with the 60s live tick */}
       <div
         data-testid="sidebar-clock"
-        className={cn("shrink-0 transition-all", isCollapsed ? "px-2 pt-3" : "px-4 pt-4")}
+        className={cn("shrink-0", isCollapsed ? "px-2 pt-3" : "px-4 pt-4")}
       >
         <div
           className={cn(
-            "font-mono text-muted-foreground text-center bg-muted/60 rounded-lg border border-border/40 transition-all",
+            "font-mono text-muted-foreground text-center bg-muted/60 rounded-lg border border-border/40",
             isCollapsed
               ? "text-[10px] py-1.5 px-0.5 leading-tight"
               : "text-[11px] py-1.5 px-2"
@@ -310,7 +316,7 @@ export function Sidebar() {
         data-testid="sidebar-nav"
         ref={navRef}
         className={cn(
-          "flex-1 overflow-y-auto overscroll-contain transition-all pb-20 lg:pb-3 scrollbar-app",
+          "flex-1 overflow-y-auto overscroll-contain pb-20 lg:pb-3 scrollbar-app",
           isCollapsed ? "px-2 py-3 space-y-2" : "px-3 py-3 space-y-1"
         )}
       >
@@ -323,7 +329,10 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              onClick={closeMobileMenu}
+              onClick={() => {
+                closeMobileMenu();
+                setHoveredTooltip(null);
+              }}
               onMouseEnter={(e) => {
                 if (isCollapsed) {
                   const rect = e.currentTarget.getBoundingClientRect();
@@ -335,10 +344,10 @@ export function Sidebar() {
               }}
               onMouseLeave={() => setHoveredTooltip(null)}
               className={cn(
-                "sidebar-item flex items-center rounded-xl text-xs font-semibold transition-all duration-150",
+                "sidebar-item flex items-center rounded-xl text-xs font-semibold select-none",
                 isCollapsed
                   ? "justify-center p-0 w-11 h-11 mx-auto"
-                  : "gap-3 px-3.5 py-2.5",
+                  : "gap-3 px-3.5 py-2.5 w-full",
                 isActive
                   ? cn(
                       "active bg-primary-light text-primary relative shadow-xs",
@@ -346,13 +355,13 @@ export function Sidebar() {
                         "after:absolute after:left-0 after:w-1 after:h-2/3 after:bg-primary after:rounded-r-full",
                       isCollapsed && "ring-1.5 ring-primary/40 font-bold"
                     )
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors duration-100"
               )}
               title={isCollapsed ? item.label : undefined}
             >
               <span
                 className={cn(
-                  "shrink-0 transition-colors duration-150 flex items-center justify-center",
+                  "shrink-0 flex items-center justify-center",
                   isActive ? "text-primary" : "text-muted-foreground"
                 )}
               >
@@ -383,7 +392,7 @@ export function Sidebar() {
         <div
           data-testid="sidebar-user"
           className={cn(
-            "border-t border-border/70 shrink-0 transition-all",
+            "border-t border-border/70 shrink-0",
             isCollapsed ? "p-2" : "p-4"
           )}
         >
@@ -586,7 +595,7 @@ export function Sidebar() {
         className={cn(
           "fixed top-14 bottom-0 left-0 lg:top-0 lg:bottom-auto lg:h-screen flex flex-col z-50",
           "bg-card border-r border-border/80 shadow-2xl lg:shadow-none",
-          "transition-all duration-300 ease-in-out",
+          "transition-[width,transform] duration-300 ease-in-out",
           "lg:translate-x-0",
           isCollapsed ? "lg:w-[72px]" : "lg:w-[320px]",
           "w-[280px] sm:w-[320px]",
