@@ -11,10 +11,24 @@ import {
   MonetaryLoanType,
   PaymentMethod,
   Prisma,
+  type PosLoanSaleIntent,
 } from '@prisma/client';
+import { createHash, randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
+import { plainToInstance } from 'class-transformer';
+import { validateSync } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { CounterpartyType, CreateLoanDto } from './dto/create-loan.dto';
 import { QueryLoansDto } from './dto/query-loans.dto';
+import { CreatePosLoanDto } from './dto/create-pos-loan.dto';
+import type { RequestUser } from '../common/interfaces/request-user.interface';
+import {
+  buildSaleQuote,
+  canOverrideSalePrice,
+  resolveSaleItemPricing,
+} from '../sales/sale-pricing';
+import { prepareSaleQuoteForStorage } from '../sales/sale-quote-storage';
+import { tracksStock } from '../products/product-type.logic';
 
 const personSelect = { id: true, name: true } as const;
 const loanSelect = {
@@ -106,6 +120,285 @@ function pagination(query: QueryLoansDto) {
 @Injectable()
 export class LoansService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async initiateFromPos(
+    dto: CreatePosLoanDto,
+    organizationId: string | undefined,
+    actor: RequestUser | undefined,
+  ): Promise<Prisma.JsonObject> {
+    const orgId = requireOrganization(organizationId);
+    if (
+      !actor?.userId ||
+      (!actor.isSuperAdmin &&
+        actor.role !== 'SUPER_ADMIN' &&
+        (actor.organizationId !== orgId ||
+          !['OWNER', 'ADMIN', 'CASHIER', 'MEMBER'].includes(actor.role)))
+    ) {
+      throw new ForbiddenException('No tiene permiso para financiar ventas');
+    }
+    dto = plainToInstance(CreatePosLoanDto, dto);
+    const payload = this.posRequestPayload(dto);
+    const hash = createHash('sha256')
+      .update(JSON.stringify(payload))
+      .digest('hex');
+    const where = {
+      organizationId: orgId,
+      initiationRequestKey: dto.requestKey,
+    };
+    const replay = (intent: PosLoanSaleIntent) =>
+      this.posInitiationReplay(
+        intent,
+        orgId,
+        actor.userId,
+        dto.requestKey,
+        hash,
+      );
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const prior = await tx.posLoanSaleIntent.findFirst({ where });
+          if (prior) return replay(prior);
+          if (
+            validateSync(dto, { whitelist: true, forbidNonWhitelisted: true })
+              .length ||
+            (dto.dueAt != null && dto.dueAt < dto.issuedAt)
+          ) {
+            throw new BadRequestException('Solicitud de financiación inválida');
+          }
+          const user = await tx.user.findFirst({
+            where: { id: actor.userId, active: true },
+            select: { id: true },
+          });
+          if (!user) throw new ForbiddenException('El actor no está activo');
+          await this.validateCounterparty(
+            tx,
+            {
+              counterpartyType: CounterpartyType.CUSTOMER,
+              counterpartyId: dto.customerId,
+            },
+            orgId,
+          );
+          const products = await tx.product.findMany({
+            where: {
+              organizationId: orgId,
+              active: true,
+              id: { in: [...new Set(dto.items.map((item) => item.productId))] },
+            },
+            include: { category: true },
+          });
+          const byId = new Map(
+            products.map((product) => [product.id, product]),
+          );
+          const quantities = new Map<string, number>();
+          let subtotal = 0;
+          let totalTax = 0;
+          const priced = dto.items.map((item) => {
+            const product = byId.get(item.productId);
+            if (!product) {
+              throw new NotFoundException(
+                `Product with ID ${item.productId} not found`,
+              );
+            }
+            const row = resolveSaleItemPricing(
+              product,
+              item,
+              canOverrideSalePrice(actor),
+            );
+            subtotal += row.pricedItem.subtotal;
+            totalTax += row.taxAmount;
+            if (tracksStock(product)) {
+              const quantity =
+                (quantities.get(product.id) ?? 0) + item.quantity;
+              if (quantity > 2147483647) {
+                throw new BadRequestException(
+                  'Cantidad agregada fuera de rango',
+                );
+              }
+              quantities.set(product.id, quantity);
+            }
+            return row;
+          });
+          // Preserve SalesService's original tax before B4 normalization.
+          const prepared = prepareSaleQuoteForStorage(
+            buildSaleQuote(
+              priced.map((row) => row.pricedItem),
+              subtotal + totalTax,
+            ),
+          );
+          const holds = [...quantities].sort(([a], [b]) => a.localeCompare(b));
+          for (const [id, quantity] of holds) {
+            const product = byId.get(id)!;
+            if (
+              !Number.isInteger(product.stock) ||
+              !Number.isInteger(product.reservedStock) ||
+              product.reservedStock < 0 ||
+              product.stock - product.reservedStock < quantity
+            ) {
+              throw new ConflictException(
+                'Existencias disponibles insuficientes',
+              );
+            }
+            const changed = await tx.product.updateMany({
+              where: {
+                id,
+                organizationId: orgId,
+                active: true,
+                type: product.type,
+                tracksStock: product.tracksStock,
+                version: product.version,
+                stock: product.stock,
+                reservedStock: product.reservedStock,
+              },
+              data: {
+                reservedStock: { increment: quantity },
+                version: { increment: 1 },
+              },
+            });
+            if (changed.count !== 1) {
+              throw new ConflictException(
+                'El producto cambió; reintente la solicitud',
+              );
+            }
+          }
+          const loan = await tx.moneyLoan.create({
+            data: {
+              organizationId: orgId,
+              type: MonetaryLoanType.MONEY,
+              amount: prepared.agreedCustomerTotal,
+              customerId: dto.customerId,
+              createdById: actor.userId,
+              issuedAt: new Date(payload.issuedAt),
+              dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
+              reason: payload.reason,
+            },
+            select: { id: true },
+          });
+          const intentId = randomUUID();
+          // Own JSON containers while retaining B4's canonical money strings.
+          const snapshot = {
+            items: prepared.snapshot.items.map((item) => ({ ...item })),
+            agreedCustomerTotal: prepared.snapshot.agreedCustomerTotal,
+          };
+          snapshot.items.forEach((item) => Object.freeze(item));
+          Object.freeze(snapshot.items);
+          Object.freeze(snapshot);
+          const result = {
+            intentId,
+            loanId: loan.id,
+            organizationId: orgId,
+            customerId: dto.customerId,
+            agreedCustomerTotal: prepared.agreedCustomerTotal.toFixed(2),
+            quoteSnapshot: snapshot,
+          };
+          await tx.posLoanSaleIntent.create({
+            data: {
+              id: intentId,
+              organizationId: orgId,
+              loanId: loan.id,
+              customerId: dto.customerId,
+              agreedCustomerTotal: prepared.agreedCustomerTotal,
+              quoteSnapshot: snapshot,
+              initiationRequestKey: dto.requestKey,
+              initiationRequestHash: hash,
+              initiatedById: actor.userId,
+              initiationResult: result,
+            },
+          });
+          for (const [productId, quantity] of holds) {
+            await tx.posLoanSaleReservation.create({
+              data: {
+                intentId,
+                organizationId: orgId,
+                productId,
+                quantity,
+                state: 'HELD',
+              },
+            });
+          }
+          await tx.moneyLoanEvent.create({
+            data: {
+              loanId: loan.id,
+              organizationId: orgId,
+              createdById: actor.userId,
+              type: MoneyLoanEventType.CREATED,
+              reason: payload.reason,
+            },
+          });
+          await tx.auditLog.create({
+            data: {
+              organizationId: orgId,
+              userId: actor.userId,
+              action: 'LOAN_CREATED',
+              resource: 'MoneyLoan',
+              resourceId: loan.id,
+              metadata: {
+                type: MonetaryLoanType.MONEY,
+                amount: result.agreedCustomerTotal,
+                issuedAt: payload.issuedAt,
+                dueAt: payload.dueAt,
+                reason: payload.reason,
+                counterpartyType: CounterpartyType.CUSTOMER,
+                counterpartyId: dto.customerId,
+                intentId,
+              },
+            },
+          });
+          for (const { override } of priced) {
+            if (!override) continue;
+            await tx.auditLog.create({
+              data: {
+                organizationId: orgId,
+                userId: actor.userId,
+                action: 'SALE_PRICE_OVERRIDE',
+                resource: 'MoneyLoan',
+                resourceId: loan.id,
+                metadata: {
+                  loanId: loan.id,
+                  intentId,
+                  productId: override.productId,
+                  productName: override.productName,
+                  quantity: override.quantity,
+                  originalUnitPrice: override.serverUnitPrice,
+                  overriddenUnitPrice: override.overriddenUnitPrice,
+                  actorRole: actor.role,
+                  timestamp: new Date().toISOString(),
+                  summary: `Price override on financed loan ${loan.id}: ${override.productName} charged at ${override.overriddenUnitPrice} instead of ${override.serverUnitPrice}`,
+                },
+              },
+            });
+          }
+          return result;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      // Reconcile only this intent's key constraint, outside the aborted callback.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const target = error.meta?.target;
+        const ownKey =
+          target ===
+            'PosLoanSaleIntent_organizationId_initiationRequestKey_key' ||
+          (error.meta?.modelName === 'PosLoanSaleIntent' &&
+            Array.isArray(target) &&
+            target.length === 2 &&
+            target.includes('organizationId') &&
+            target.includes('initiationRequestKey'));
+        if (ownKey) {
+          const winner = await this.prisma.posLoanSaleIntent.findFirst({
+            where,
+          });
+          if (winner) return replay(winner);
+          throw new ConflictException(
+            'No se encontró evidencia de la solicitud concurrente',
+          );
+        }
+      }
+      throw error;
+    }
+  }
 
   async create(
     dto: CreateLoanDto,
@@ -398,6 +691,90 @@ export class LoansService {
             throw new ConflictException(
               'El préstamo cambió; reintente con la misma clave de solicitud',
             );
+          if (kind === 'CANCELLED') {
+            const intent = await tx.posLoanSaleIntent.findFirst({
+              where: { loanId: id, organizationId: orgId },
+            });
+            if (intent) {
+              if (intent.finalSaleId != null) {
+                throw new ConflictException(
+                  'La financiación ya tiene venta final',
+                );
+              }
+              const holds = await tx.posLoanSaleReservation.findMany({
+                where: {
+                  intentId: intent.id,
+                  organizationId: orgId,
+                  state: 'HELD',
+                },
+                orderBy: { productId: 'asc' },
+              });
+              const finalizedAt = new Date();
+              for (const hold of holds) {
+                const product = await tx.product.findFirst({
+                  where: { id: hold.productId, organizationId: orgId },
+                  select: {
+                    id: true,
+                    stock: true,
+                    reservedStock: true,
+                    version: true,
+                  },
+                });
+                if (
+                  !Number.isInteger(hold.quantity) ||
+                  hold.quantity < 1 ||
+                  hold.quantity > 2147483647 ||
+                  !product ||
+                  !Number.isInteger(product.stock) ||
+                  product.stock > 2147483647 ||
+                  !Number.isInteger(product.reservedStock) ||
+                  product.reservedStock < hold.quantity ||
+                  product.reservedStock > product.stock ||
+                  !Number.isInteger(product.version) ||
+                  product.version < 0 ||
+                  product.version >= 2147483647
+                ) {
+                  throw new ConflictException(
+                    'Reserva o contadores históricos inconsistentes',
+                  );
+                }
+                const released = await tx.product.updateMany({
+                  where: {
+                    id: hold.productId,
+                    organizationId: orgId,
+                    version: product.version,
+                    stock: product.stock,
+                    reservedStock: product.reservedStock,
+                  },
+                  data: {
+                    reservedStock: { decrement: hold.quantity },
+                    version: { increment: 1 },
+                  },
+                });
+                if (released.count !== 1) {
+                  throw new ConflictException(
+                    'Los contadores de la reserva cambiaron',
+                  );
+                }
+                const claimed = await tx.posLoanSaleReservation.updateMany({
+                  where: {
+                    id: hold.id,
+                    intentId: intent.id,
+                    organizationId: orgId,
+                    state: 'HELD',
+                  },
+                  data: {
+                    state: 'RELEASED',
+                    finalizedAt,
+                    finalizedById: actorId,
+                  },
+                });
+                if (claimed.count !== 1) {
+                  throw new ConflictException('La reserva ya fue reclamada');
+                }
+              }
+            }
+          }
           const type = kind as MoneyLoanEventType;
           const result = {
             type: loan.type,
@@ -458,9 +835,113 @@ export class LoansService {
     }
   }
 
+  private posRequestPayload(dto: CreatePosLoanDto) {
+    if (
+      !dto ||
+      typeof dto.requestKey !== 'string' ||
+      !dto.requestKey.trim() ||
+      dto.requestKey.length > 100 ||
+      typeof dto.reason !== 'string' ||
+      !Array.isArray(dto.items)
+    ) {
+      throw new BadRequestException('Solicitud de financiación inválida');
+    }
+    const items = dto.items.map((item) => {
+      if (
+        !item ||
+        typeof item.productId !== 'string' ||
+        !item.productId.trim() ||
+        !Number.isInteger(item.quantity) ||
+        item.quantity < 1 ||
+        item.quantity > 2147483647
+      ) {
+        throw new BadRequestException('Línea de financiación inválida');
+      }
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice ?? null,
+        discountAmount: item.discountAmount ?? 0,
+      };
+    });
+    return {
+      customerId: dto.customerId,
+      issuedAt: dto.issuedAt,
+      dueAt: dto.dueAt ?? null,
+      reason: dto.reason.trim(),
+      items,
+    };
+  }
+
+  private posInitiationReplay(
+    intent: PosLoanSaleIntent,
+    orgId: string,
+    actorId: string,
+    key: string,
+    hash: string,
+  ): Prisma.JsonObject {
+    const conflict = () => {
+      throw new ConflictException(
+        'La clave no corresponde a una iniciación válida de este actor',
+      );
+    };
+    const object = (value: Prisma.JsonValue): value is Prisma.JsonObject =>
+      value !== null && typeof value === 'object' && !Array.isArray(value);
+    const money = (value: Prisma.JsonValue | undefined): value is string =>
+      typeof value === 'string' &&
+      /^(0|[1-9][0-9]{0,7})[.][0-9]{2}$/.test(value);
+    const result = intent.initiationResult;
+    const snapshot = intent.quoteSnapshot;
+    if (
+      !intent.id.trim() ||
+      !intent.loanId.trim() ||
+      !intent.customerId.trim() ||
+      intent.organizationId !== orgId ||
+      intent.initiatedById !== actorId ||
+      intent.initiationRequestKey !== key ||
+      intent.initiationRequestHash !== hash ||
+      !intent.agreedCustomerTotal ||
+      !object(result) ||
+      !object(snapshot)
+    )
+      return conflict();
+    if (
+      Object.keys(result).length !== 6 ||
+      Object.keys(snapshot).length !== 2 ||
+      result.intentId !== intent.id ||
+      result.loanId !== intent.loanId ||
+      result.organizationId !== orgId ||
+      result.customerId !== intent.customerId ||
+      !money(result.agreedCustomerTotal) ||
+      result.agreedCustomerTotal !== intent.agreedCustomerTotal.toFixed(2) ||
+      intent.agreedCustomerTotal.lte(0) ||
+      snapshot.agreedCustomerTotal !== result.agreedCustomerTotal ||
+      !isDeepStrictEqual(result.quoteSnapshot, snapshot) ||
+      !Array.isArray(snapshot.items) ||
+      !snapshot.items.length
+    )
+      return conflict();
+    for (const item of snapshot.items) {
+      if (
+        !object(item) ||
+        Object.keys(item).length !== 4 ||
+        typeof item.productId !== 'string' ||
+        !item.productId.trim() ||
+        typeof item.quantity !== 'number' ||
+        !Number.isInteger(item.quantity) ||
+        item.quantity < 1 ||
+        item.quantity > 2147483647 ||
+        !money(item.resolvedUnitPrice) ||
+        !money(item.discountAmount)
+      )
+        return conflict();
+    }
+    return result;
+  }
+
   private async validateCounterparty(
     tx: Prisma.TransactionClient,
-    dto: CreateLoanDto,
+    dto: Pick<CreateLoanDto, 'counterpartyType' | 'counterpartyId'>,
     organizationId: string,
   ) {
     let exists: unknown;

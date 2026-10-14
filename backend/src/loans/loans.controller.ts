@@ -19,6 +19,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { CreateLoanDto } from './dto/create-loan.dto';
+import { CreatePosLoanDto } from './dto/create-pos-loan.dto';
 import {
   CollectLoanDto,
   LoanOperationDto,
@@ -35,6 +36,15 @@ import { LoansService } from './loans.service';
 @UseInterceptors(AdminOrganizationInterceptor)
 export class LoansController {
   constructor(private readonly loansService: LoansService) {}
+
+  @Post('pos-initiation')
+  @Roles(OrgRole.CASHIER)
+  async initiateFromPos(
+    @Body() dto: CreatePosLoanDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.loansService.initiateFromPos(dto, user.organizationId, user);
+  }
 
   @Post()
   @Roles(OrgRole.ADMIN)

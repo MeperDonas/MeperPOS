@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import type { Category, Product } from '@prisma/client';
+import { OrgRole, type Category, type Product } from '@prisma/client';
+import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { resolveEffectiveTaxRate } from '../common/utils/tax.util';
 import { computeEffectiveSalePrice } from '../products/products.service';
 import type { SaleItemDto } from './dto/sales.dto';
@@ -17,6 +18,17 @@ export type SalePricingProduct = Pick<
   | 'taxable'
   | 'taxRate'
 > & { category: Pick<Category, 'taxable' | 'defaultTaxRate'> | null };
+
+/** Shared POS permission; overrides never grant catalog editing rights. */
+export function canOverrideSalePrice(user: RequestUser | undefined): boolean {
+  if (!user) return false;
+  if (user.isSuperAdmin || user.role === 'SUPER_ADMIN') return true;
+  return (
+    user.role === OrgRole.ADMIN ||
+    user.role === OrgRole.OWNER ||
+    user.role === OrgRole.CASHIER
+  );
+}
 
 /** Server-resolved POS pricing; override permission stays with the caller. */
 export function resolveSaleItemPricing(

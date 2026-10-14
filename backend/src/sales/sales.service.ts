@@ -17,7 +17,7 @@ import {
 import { CacheService } from '../common/services/cache.service';
 import { SettingsService } from '../settings/settings.service';
 import { computeSkipTake } from '../common/utils/pagination';
-import { resolveSaleItemPricing } from './sale-pricing';
+import { canOverrideSalePrice, resolveSaleItemPricing } from './sale-pricing';
 import { tracksStock } from '../products/product-type.logic';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { SequenceService } from '../common/sequences/sequence.service';
@@ -58,13 +58,7 @@ export class SalesService {
    * Missing principals are denied; this permission does not change role inheritance.
    */
   private canOverridePrice(user: RequestUser | undefined): boolean {
-    if (!user) return false;
-    if (user.isSuperAdmin || user.role === 'SUPER_ADMIN') return true;
-    return (
-      user.role === OrgRole.ADMIN ||
-      user.role === OrgRole.OWNER ||
-      user.role === OrgRole.CASHIER
-    );
+    return canOverrideSalePrice(user);
   }
 
   /**

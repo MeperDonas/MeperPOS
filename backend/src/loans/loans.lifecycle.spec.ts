@@ -65,6 +65,7 @@ function lifecycleFixture(type: string) {
       }),
     },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
+    posLoanSaleIntent: { findFirst: jest.fn().mockResolvedValue(null) },
   };
   const prisma = {
     ...tx,
