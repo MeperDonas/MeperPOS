@@ -55,11 +55,17 @@ describe("LoginPage Redesign", () => {
       screen.getByText(/Control contable, existencias y caja para tu negocio/i)
     ).toBeInTheDocument();
     expect(screen.getByText(/Bucaramanga • es-CO/i)).toBeInTheDocument();
-    expect(screen.getByTestId("login-hero-emblem")).toBeInTheDocument();
+    expect(screen.queryByTestId("login-hero-emblem")).not.toBeInTheDocument();
+    expect(screen.getByTestId("pos-isometric-showcase")).toBeInTheDocument();
+    expect(screen.getByText(/Reportes & Margen Real/i)).toBeInTheDocument();
+    expect(screen.getByText(/Préstamos/i)).toBeInTheDocument();
+    expect(screen.getByText(/Gastos & Salidas/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tareas en Equipo/i)).toBeInTheDocument();
     expect(screen.getByTestId("login-form-emblem")).toBeInTheDocument();
     expect(
       screen.getByAltText(/MeperPOS emblema oficial Lucky/i)
     ).toHaveAttribute("src", "/brand/login-icon.png");
+    expect(screen.getAllByAltText("MeperSoft logo").length).toBeGreaterThanOrEqual(1);
     expect(
       screen.getAllByRole("link", { name: /folio\.mepersoft\.app/i }).length
     ).toBeGreaterThanOrEqual(1);
@@ -134,11 +140,18 @@ describe("LoginPage Redesign", () => {
   it("opens and closes the access support modal", async () => {
     render(<LoginPage />);
 
+    expect(
+      screen.queryByText("Acceso restringido por organización")
+    ).not.toBeInTheDocument();
+
     const helpBtn = screen.getByRole("button", { name: /Ayuda y soporte/i });
     await userEvent.click(helpBtn);
 
     expect(
       await screen.findByRole("heading", { name: "Ayuda y Soporte de Acceso" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Acceso restringido por organización")
     ).toBeInTheDocument();
     expect(
       screen.getByText(/soporte@meperpos.com/i)
