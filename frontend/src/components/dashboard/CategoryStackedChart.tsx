@@ -134,7 +134,7 @@ export function CategoryDayDetailModal({
   return createPortal(
     <div
       data-testid="category-day-detail-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 sm:p-6 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 sm:p-6 backdrop-blur-md overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -143,18 +143,18 @@ export function CategoryDayDetailModal({
         data-testid="category-day-detail-modal"
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-lg rounded-3xl border border-white/15 bg-zinc-950/95 p-6 sm:p-7 shadow-2xl backdrop-blur-xl text-white my-auto"
+        className="relative w-full max-w-xl md:max-w-2xl rounded-3xl border border-white/15 bg-zinc-950/98 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl text-white my-auto"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-primary">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
+                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                 Detalle del día
               </span>
             </div>
-            <h3 className="text-xl font-bold text-white capitalize mt-2 tracking-tight">
+            <h3 className="text-2xl sm:text-3xl font-black text-white capitalize mt-2.5 tracking-tight">
               {formatCategoryTooltipDate(day.date)}
             </h3>
           </div>
@@ -162,51 +162,69 @@ export function CategoryDayDetailModal({
             type="button"
             onClick={onClose}
             aria-label="Cerrar detalle"
-            className="rounded-full border border-white/10 bg-white/5 p-2 text-white/60 hover:bg-white/15 hover:text-white transition-colors"
+            className="rounded-full border border-white/15 bg-white/5 p-2.5 text-white/70 hover:bg-white/15 hover:text-white transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Highlight KPI metrics */}
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        {/* Highlight KPI metrics in 3 columns */}
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
             <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block">
               Total Recaudado
             </span>
             <p className="mt-1 text-2xl sm:text-3xl font-black font-mono text-white tabular-nums tracking-tight">
               {formatCurrency(day.total)}
             </p>
+            <span className="text-[11px] text-white/40 block mt-1">
+              Ventas del día
+            </span>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
             <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block">
               Unidades Vendidas
             </span>
             <p className="mt-1 text-2xl sm:text-3xl font-black font-mono text-white tabular-nums tracking-tight">
               {totalQuantity} {totalQuantity === 1 ? "unidad" : "unidades"}
             </p>
+            <span className="text-[11px] text-white/40 block mt-1">
+              Productos despachados
+            </span>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block">
+              Categorías con Venta
+            </span>
+            <p className="mt-1 text-2xl sm:text-3xl font-black font-mono text-white tabular-nums tracking-tight">
+              {activeSegments.length}
+            </p>
+            <span className="text-[11px] text-white/40 block mt-1">
+              {activeSegments.length === 1 ? "categoría activa" : "categorías activas"}
+            </span>
           </div>
         </div>
 
         {/* Breakdown by category */}
-        <div className="mt-5">
-          <div className="flex items-center justify-between mb-2.5">
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-white/70">
               Desglose por categoría
             </span>
-            <span className="text-[11px] font-mono text-white/50">
+            <span className="text-xs font-mono text-white/50">
               {activeSegments.length}{" "}
               {activeSegments.length === 1 ? "categoría activa" : "categorías activas"}
             </span>
           </div>
 
           {activeSegments.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-xs text-white/40 italic">
+            <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-xs text-white/40 italic">
               Sin ventas registradas en esta fecha.
             </div>
           ) : (
-            <ul className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+            <ul className="space-y-3 max-h-72 overflow-y-auto pr-1.5">
               {activeSegments.map((segment) => {
                 const color = colorMap.get(segment.category) ?? "#C25E36";
                 const percentage =
@@ -215,34 +233,34 @@ export function CategoryDayDetailModal({
                 return (
                   <li
                     key={segment.category}
-                    className="rounded-2xl border border-white/10 bg-white/5 p-3.5 space-y-2 hover:bg-white/[0.08] transition-colors"
+                    className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-2.5 hover:bg-white/[0.08] transition-colors"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <span className="flex items-center gap-2.5 font-medium text-sm text-white truncate">
+                      <span className="flex items-center gap-2.5 font-semibold text-sm sm:text-base text-white truncate">
                         <span
-                          className="inline-block h-3 w-3 rounded-[4px] shrink-0"
+                          className="inline-block h-3.5 w-3.5 rounded-[4px] shrink-0"
                           style={{ backgroundColor: color }}
                         />
                         <span className="truncate">{segment.category}</span>
                       </span>
-                      <span className="font-mono font-bold text-sm text-white tabular-nums shrink-0">
+                      <span className="font-mono font-bold text-sm sm:text-base text-white tabular-nums shrink-0">
                         {formatCurrency(segment.total)}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+                      <div className="flex-1 h-2.5 rounded-full bg-white/10 overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-300"
                           style={{ width: `${percentage}%`, backgroundColor: color }}
                         />
                       </div>
-                      <div className="flex items-center gap-2 text-xs font-mono text-white/60 shrink-0">
-                        <span>
+                      <div className="flex items-center gap-2 text-xs font-mono text-white/70 shrink-0">
+                        <span className="font-medium">
                           {segment.quantity} {segment.quantity === 1 ? "ud" : "uds"}
                         </span>
                         <span>·</span>
-                        <span className="text-white/80 font-bold">{percentage}%</span>
+                        <span className="text-white font-bold">{percentage}%</span>
                       </div>
                     </div>
                   </li>
@@ -256,7 +274,7 @@ export function CategoryDayDetailModal({
         <button
           type="button"
           onClick={onClose}
-          className="mt-6 w-full rounded-2xl border border-white/10 bg-white/10 hover:bg-white/15 py-3 text-sm font-semibold text-white transition-colors"
+          className="mt-6 w-full rounded-2xl border border-white/10 bg-white/10 hover:bg-white/15 py-3.5 text-sm font-semibold text-white transition-colors"
         >
           Cerrar
         </button>
@@ -282,6 +300,7 @@ export function CategoryStackedChart({
   const containerRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState<number>(500);
   const [selectedDay, setSelectedDay] = useState<StackedDay | null>(null);
+  const hoveredDayRef = useRef<StackedDay | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -333,7 +352,7 @@ export function CategoryStackedChart({
   const barSize = days.length <= 7 ? 32 : days.length <= 15 ? 20 : 10;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-visible">
       <div className="flex items-start justify-between gap-2">
         <p
           data-testid="category-chart-title"
@@ -355,24 +374,55 @@ export function CategoryStackedChart({
         data-day-count={series.length}
         data-start-date={startDate}
         data-end-date={endDate}
-        className="mt-4 min-h-0 w-full flex-1"
+        className="mt-4 min-h-0 w-full flex-1 overflow-visible relative cursor-pointer"
+        onClick={() => {
+          if (hoveredDayRef.current) {
+            setSelectedDay(hoveredDayRef.current);
+          }
+        }}
       >
         <BarChart
           width={chartWidth}
           height={300}
           data={chartData}
           barSize={barSize}
-          margin={{ top: 8, right: 8, bottom: 0, left: 8 }}
+          margin={{ top: 12, right: 12, bottom: 0, left: 12 }}
           className="cursor-pointer"
+          onMouseMove={(state) => {
+            if (typeof state?.activeLabel === "string") {
+              const match = series.find((s) => s.date === state.activeLabel);
+              if (match) hoveredDayRef.current = match;
+            } else {
+              const rawIdx = state?.activeTooltipIndex ?? state?.activeIndex;
+              if (rawIdx !== undefined && rawIdx !== null) {
+                const idx = Number(rawIdx);
+                if (!isNaN(idx) && series[idx]) {
+                  hoveredDayRef.current = series[idx];
+                }
+              }
+            }
+          }}
+          onMouseLeave={() => {
+            hoveredDayRef.current = null;
+          }}
           onClick={(state) => {
-            const index =
-              typeof state?.activeTooltipIndex === "number"
-                ? state.activeTooltipIndex
-                : typeof state?.activeIndex === "number"
-                ? state.activeIndex
-                : -1;
-            if (index >= 0 && series[index]) {
-              setSelectedDay(series[index]);
+            if (typeof state?.activeLabel === "string") {
+              const match = series.find((s) => s.date === state.activeLabel);
+              if (match) {
+                setSelectedDay(match);
+                return;
+              }
+            }
+            const rawIdx = state?.activeTooltipIndex ?? state?.activeIndex;
+            if (rawIdx !== undefined && rawIdx !== null) {
+              const idx = Number(rawIdx);
+              if (!isNaN(idx) && series[idx]) {
+                setSelectedDay(series[idx]);
+                return;
+              }
+            }
+            if (hoveredDayRef.current) {
+              setSelectedDay(hoveredDayRef.current);
             }
           }}
         >
@@ -391,9 +441,10 @@ export function CategoryStackedChart({
             tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
           />
           <Tooltip
-            offset={12}
-            allowEscapeViewBox={{ x: false, y: true }}
-            cursor={{ fill: "var(--primary)", fillOpacity: 0.07, rx: 6, ry: 6 }}
+            offset={14}
+            allowEscapeViewBox={{ x: true, y: true }}
+            wrapperStyle={{ zIndex: 50, outline: "none", pointerEvents: "none" }}
+            cursor={{ fill: "var(--primary)", fillOpacity: 0.08, rx: 8, ry: 8 }}
             content={<CategoryTooltipContent />}
           />
           {categories.map((category) => (

@@ -56,7 +56,7 @@ export function RevenueSectionInner({ today }: { today: string }) {
       </div>
 
       <div className="mt-3 grid gap-3 lg:h-[26rem] lg:grid-cols-5">
-        <div className="flex h-[24rem] min-w-0 flex-col overflow-hidden rounded-3xl border border-primary/20 bg-card p-4 text-foreground transition-colors hover:border-primary/35 sm:p-6 lg:col-span-3 lg:h-full lg:min-h-0">
+        <div className="flex h-[24rem] min-w-0 flex-col overflow-visible relative rounded-3xl border border-primary/20 bg-card p-4 text-foreground transition-colors hover:border-primary/35 sm:p-6 lg:col-span-3 lg:h-full lg:min-h-0">
           <CategoryStackedChart startDate={startDate} endDate={endDate} />
         </div>
 
