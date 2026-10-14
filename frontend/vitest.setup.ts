@@ -22,22 +22,26 @@ const createStorageMock = () => {
   };
 };
 
-try {
-  const testKey = "__test_storage__";
-  window.localStorage.setItem(testKey, "1");
-  window.localStorage.removeItem(testKey);
-} catch {
-  const mockStorage = createStorageMock();
-  Object.defineProperty(window, "localStorage", {
-    value: mockStorage,
-    writable: true,
-    configurable: true,
-  });
-  Object.defineProperty(globalThis, "localStorage", {
-    value: mockStorage,
-    writable: true,
-    configurable: true,
-  });
+if (typeof window !== "undefined") {
+  try {
+    const testKey = "__test_storage__";
+    window.localStorage.setItem(testKey, "1");
+    window.localStorage.removeItem(testKey);
+  } catch {
+    const mockStorage = createStorageMock();
+    Object.defineProperty(window, "localStorage", {
+      value: mockStorage,
+      writable: true,
+      configurable: true,
+    });
+    if (typeof globalThis !== "undefined") {
+      Object.defineProperty(globalThis, "localStorage", {
+        value: mockStorage,
+        writable: true,
+        configurable: true,
+      });
+    }
+  }
 }
 
 afterEach(() => {
