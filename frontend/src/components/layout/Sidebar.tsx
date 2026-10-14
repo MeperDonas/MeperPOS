@@ -420,13 +420,8 @@ export function Sidebar() {
         <div
           data-testid="sidebar-user"
           className={cn(
-<<<<<<< HEAD
-            "border-t border-border/70 shrink-0 transition-all",
-            isCollapsed ? "px-2 py-3" : "px-5 py-4"
-=======
             "border-t border-border/70 shrink-0",
-            isCollapsed ? "p-2" : "p-4"
->>>>>>> origin/master
+            isCollapsed ? "px-2 py-3" : "px-5 py-4"
           )}
         >
           {isCollapsed ? (
