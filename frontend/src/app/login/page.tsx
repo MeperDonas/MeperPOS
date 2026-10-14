@@ -7,6 +7,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { PosIsometricShowcase } from "@/components/auth/PosIsometricShowcase";
 import { getApiErrorMessage } from "@/lib/api";
 import { APP_NAME } from "@/lib/constants";
 import {
@@ -126,46 +127,27 @@ export default function LoginPage() {
           </span>
         </div>
 
-        {/* Narrativa central */}
-        <div className="relative z-10 space-y-6 max-w-lg my-auto py-10">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-semibold">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span>Punto de Venta e Inventario Operativo</span>
-          </div>
+        {/* Escena visual isométrica + leve información operativa */}
+        <div className="relative z-10 flex flex-col items-center justify-center my-auto py-6 space-y-5">
+          <PosIsometricShowcase />
 
-          <h2 className="text-3xl xl:text-4xl font-extrabold tracking-tight text-foreground leading-[1.18]">
-            Control contable, existencias y caja para tu negocio.
-          </h2>
-
-          <p className="text-sm xl:text-base text-muted-foreground leading-relaxed">
-            Diseñado especialmente para el comercio colombiano: facturación rápida,
-            arqueo de turnos, auditoría de stock y conciliación en pesos (COP).
-          </p>
-
-          {/* Cards operativas de valor */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <div className="p-4 rounded-2xl border border-border/80 bg-background/80 backdrop-blur-xs space-y-1.5 shadow-xs">
-              <div className="flex items-center gap-2 text-primary">
-                <Receipt className="w-4 h-4" />
-                <span className="font-mono text-xs font-bold uppercase tracking-wider">
-                  POS & Ventas
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-snug">
-                Cobro ágil, split-payments (efectivo/tarjeta) y tirilla térmica.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl border border-border/80 bg-background/80 backdrop-blur-xs space-y-1.5 shadow-xs">
-              <div className="flex items-center gap-2 text-terracotta">
-                <Package className="w-4 h-4" />
-                <span className="font-mono text-xs font-bold uppercase tracking-wider">
-                  Stock & Lotes
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-snug">
-                Control estricto de existencias y auditoría de movimientos.
-              </p>
+          <div className="text-center max-w-md space-y-2.5">
+            <p className="text-sm xl:text-base font-semibold text-foreground/90 tracking-tight">
+              Control contable, existencias y caja para tu negocio.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/70 bg-background/60">
+                <Receipt className="w-3.5 h-3.5 text-primary" />
+                POS & Tirilla
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/70 bg-background/60">
+                <Package className="w-3.5 h-3.5 text-terracotta" />
+                Stock & Lotes
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/70 bg-background/60">
+                <span className="text-primary font-bold">$</span>
+                Arqueo COP
+              </span>
             </div>
           </div>
         </div>
