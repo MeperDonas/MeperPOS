@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { DashboardLayout } from "./DashboardLayout";
+import { SidebarProvider, useSidebar } from "@/contexts/SidebarContext";
 
 const replaceMock = vi.fn();
 const pushMock = vi.fn();
@@ -103,5 +105,32 @@ describe("DashboardLayout route gating for /expenses", () => {
     );
 
     expect(replaceMock).toHaveBeenCalledWith("/pos");
+  });
+
+  it("synchronizes the desktop left margin with the collapsed sidebar state", async () => {
+    setUser("ADMIN");
+
+    function ToggleProbe() {
+      const { toggleCollapse } = useSidebar();
+      return <button onClick={toggleCollapse}>Toggle</button>;
+    }
+
+    const { container } = render(
+      <SidebarProvider>
+        <ToggleProbe />
+        <DashboardLayout>
+          <p>Contenido</p>
+        </DashboardLayout>
+      </SidebarProvider>
+    );
+
+    const mainElement = container.querySelector("main");
+    expect(mainElement).toHaveClass("lg:ml-[320px]");
+
+    await userEvent.click(screen.getByRole("button", { name: "Toggle" }));
+    expect(mainElement).toHaveClass("lg:ml-[72px]");
+
+    await userEvent.click(screen.getByRole("button", { name: "Toggle" }));
+    expect(mainElement).toHaveClass("lg:ml-[320px]");
   });
 });

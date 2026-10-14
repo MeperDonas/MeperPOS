@@ -26,9 +26,13 @@ import {
   ClipboardList,
   Truck,
   Wallet,
+  Building2,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
-import { cn } from "@/lib/utils";
+import { useSidebar } from "@/contexts/SidebarContext";
+import { cn, safeGetItem, safeSetItem, safeRemoveItem } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { hasAnyRole, type AppRole } from "@/lib/auth";
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -153,9 +157,9 @@ export function applyOrganizationScope(
   organizationId: string | null
 ): void {
   if (organizationId) {
-    localStorage.setItem(SELECTED_ORGANIZATION_KEY, organizationId);
+    safeSetItem(SELECTED_ORGANIZATION_KEY, organizationId);
   } else {
-    localStorage.removeItem(SELECTED_ORGANIZATION_KEY);
+    safeRemoveItem(SELECTED_ORGANIZATION_KEY);
   }
   void queryClient.resetQueries();
 }
@@ -164,14 +168,16 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, logout, switchOrganization } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { isCollapsed, toggleCollapse } = useSidebar();
   const queryClient = useQueryClient();
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(SELECTED_ORGANIZATION_KEY);
-    }
-    return null;
+    return safeGetItem(SELECTED_ORGANIZATION_KEY);
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [hoveredTooltip, setHoveredTooltip] = useState<{
+    label: string;
+    top: number;
+  } | null>(null);
   const [now, setNow] = useState(() => new Date());
   const navRef = useRef<HTMLElement>(null);
 
@@ -234,24 +240,68 @@ export function Sidebar() {
       {/* Block 1: Brand - logo and wordmark sized to read as one lockup */}
       <div
         data-testid="sidebar-brand"
-        className="px-5 py-5 border-b border-border/70 flex items-center gap-3 shrink-0"
+        className={cn(
+          "border-b border-border/70 shrink-0 transition-all duration-300",
+          isCollapsed
+            ? "px-2 py-4 flex flex-col items-center gap-3"
+            : "px-5 py-5 flex items-center justify-between gap-3"
+        )}
       >
-        <Image
-          src="/brand/meperpos-mark-160.png"
-          alt={`${APP_NAME} logo`}
-          width={160}
-          height={89}
-          className="h-9 w-auto shrink-0"
-        />
-        <p className="min-w-0 text-2xl font-extrabold text-foreground truncate leading-none tracking-tight">
-          {APP_NAME}
-        </p>
+        <div className={cn("flex items-center gap-3 min-w-0", isCollapsed && "justify-center")}>
+          <Image
+            src="/brand/meperpos-mark-160.png"
+            alt={`${APP_NAME} logo`}
+            width={160}
+            height={89}
+            className={cn("w-auto shrink-0 transition-all", isCollapsed ? "h-8" : "h-9")}
+          />
+          <p
+            className={cn(
+              "text-2xl font-extrabold text-foreground truncate leading-none tracking-tight transition-all",
+              isCollapsed ? "sr-only" : "min-w-0"
+            )}
+          >
+            {APP_NAME}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={toggleCollapse}
+          data-testid="sidebar-collapse-toggle"
+          className="hidden lg:flex items-center justify-center p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+          aria-label={isCollapsed ? "Expandir barra lateral" : "Colapsar barra lateral"}
+          title={isCollapsed ? "Expandir barra lateral (Ctrl+B)" : "Colapsar barra lateral (Ctrl+B)"}
+        >
+          {isCollapsed ? (
+            <PanelLeftOpen className="w-4 h-4" />
+          ) : (
+            <PanelLeftClose className="w-4 h-4" />
+          )}
+        </button>
       </div>
 
       {/* Block 2: Date + time - es-CO formatting with the 60s live tick */}
-      <div data-testid="sidebar-clock" className="px-4 pt-4 shrink-0">
-        <div className="font-mono text-[11px] text-muted-foreground text-center bg-muted/60 py-1.5 rounded-lg border border-border/40">
-          {formattedDate}, {formattedTime}
+      <div
+        data-testid="sidebar-clock"
+        className={cn("shrink-0 transition-all", isCollapsed ? "px-2 pt-3" : "px-4 pt-4")}
+      >
+        <div
+          className={cn(
+            "font-mono text-muted-foreground text-center bg-muted/60 rounded-lg border border-border/40 transition-all",
+            isCollapsed
+              ? "text-[10px] py-1.5 px-0.5 leading-tight"
+              : "text-[11px] py-1.5 px-2"
+          )}
+          title={`${formattedDate}, ${formattedTime}`}
+        >
+          {isCollapsed ? (
+            <>
+              <span className="font-semibold block">{formattedTime}</span>
+              <span className="sr-only">, {formattedDate}</span>
+            </>
+          ) : (
+            `${formattedDate}, ${formattedTime}`
+          )}
         </div>
       </div>
 
@@ -259,7 +309,10 @@ export function Sidebar() {
       <nav
         data-testid="sidebar-nav"
         ref={navRef}
-        className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-1 pb-20 lg:pb-3 scrollbar-app"
+        className={cn(
+          "flex-1 overflow-y-auto overscroll-contain transition-all pb-20 lg:pb-3 scrollbar-app",
+          isCollapsed ? "px-2 py-3 space-y-2" : "px-3 py-3 space-y-1"
+        )}
       >
         {filteredItems.map((item) => {
           const isActive =
@@ -271,109 +324,225 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               onClick={closeMobileMenu}
+              onMouseEnter={(e) => {
+                if (isCollapsed) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setHoveredTooltip({
+                    label: item.label,
+                    top: rect.top + rect.height / 2,
+                  });
+                }
+              }}
+              onMouseLeave={() => setHoveredTooltip(null)}
               className={cn(
-                "sidebar-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150",
+                "sidebar-item flex items-center rounded-xl text-xs font-semibold transition-all duration-150",
+                isCollapsed
+                  ? "justify-center p-0 w-11 h-11 mx-auto"
+                  : "gap-3 px-3.5 py-2.5",
                 isActive
-                  ? "active bg-primary-light text-primary relative after:absolute after:left-0 after:w-1 after:h-2/3 after:bg-primary after:rounded-r-full shadow-xs"
+                  ? cn(
+                      "active bg-primary-light text-primary relative shadow-xs",
+                      !isCollapsed &&
+                        "after:absolute after:left-0 after:w-1 after:h-2/3 after:bg-primary after:rounded-r-full",
+                      isCollapsed && "ring-1.5 ring-primary/40 font-bold"
+                    )
                   : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               )}
+              title={isCollapsed ? item.label : undefined}
             >
               <span
                 className={cn(
-                  "shrink-0 transition-colors duration-150",
+                  "shrink-0 transition-colors duration-150 flex items-center justify-center",
                   isActive ? "text-primary" : "text-muted-foreground"
                 )}
               >
                 {item.icon}
               </span>
-              <span className="truncate">{item.label}</span>
+              <span className={cn("truncate", isCollapsed ? "sr-only" : "inline")}>
+                {item.label}
+              </span>
             </Link>
           );
         })}
       </nav>
 
+      {/* Floating tooltip for collapsed rail items */}
+      {isCollapsed && hoveredTooltip && (
+        <div
+          data-testid="sidebar-rail-tooltip"
+          style={{ top: hoveredTooltip.top }}
+          className="fixed left-[78px] -translate-y-1/2 z-[70] px-3 py-1.5 rounded-lg bg-foreground text-background dark:bg-card dark:text-foreground text-xs font-semibold shadow-xl border border-border/80 pointer-events-none whitespace-nowrap animate-in fade-in-0 zoom-in-95 duration-150 flex items-center gap-2"
+        >
+          <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+          <span>{hoveredTooltip.label}</span>
+        </div>
+      )}
+
       {/* Block 4: User - avatar, name, role badge, theme toggle and logout */}
       {user && (
         <div
           data-testid="sidebar-user"
-          className="p-4 border-t border-border/70 shrink-0"
+          className={cn(
+            "border-t border-border/70 shrink-0 transition-all",
+            isCollapsed ? "p-2" : "p-4"
+          )}
         >
-          <div className="rounded-2xl border border-border/80 bg-muted/30 p-3.5 flex flex-col gap-3 shadow-xs">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary-light border border-primary/30 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+          {isCollapsed ? (
+            <div className="rounded-2xl border border-border/80 bg-muted/30 p-2 flex flex-col items-center gap-2.5 shadow-xs">
+              <div
+                className="w-10 h-10 rounded-xl bg-primary-light border border-primary/30 text-primary flex items-center justify-center font-bold text-sm shrink-0"
+                title={`${user.name} (${roleLabels[user.role] ?? user.role})`}
+              >
                 {initials}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-foreground truncate leading-tight">
-                  {user.name}
-                </p>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-mono text-[10px] font-semibold mt-0.5">
-                  {roleLabels[user.role] ?? user.role}
+                <span className="sr-only">
+                  {user.name} ({roleLabels[user.role] ?? user.role})
                 </span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-border/60 pt-2.5">
-              <div className="flex items-center bg-muted/80 rounded-lg p-0.5 border border-border/40">
-                <button
-                  type="button"
-                  onClick={toggleTheme}
-                  aria-label="Cambiar a modo claro"
-                  className={cn(
-                    "p-1 rounded-md transition-colors",
-                    theme === "light"
-                      ? "bg-card text-primary shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Sun className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleTheme}
-                  aria-label="Cambiar a modo oscuro"
-                  className={cn(
-                    "p-1 rounded-md transition-colors",
-                    theme === "dark"
-                      ? "bg-card text-primary shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Moon className="w-3.5 h-3.5" />
-                </button>
               </div>
 
               <button
                 type="button"
+                onClick={toggleTheme}
+                aria-label={
+                  theme === "dark"
+                    ? "Cambiar a modo claro"
+                    : "Cambiar a modo oscuro"
+                }
+                title={
+                  theme === "dark"
+                    ? "Cambiar a modo claro"
+                    : "Cambiar a modo oscuro"
+                }
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+              >
+                {theme === "dark" ? (
+                  <Sun className="w-4 h-4 text-primary" />
+                ) : (
+                  <Moon className="w-4 h-4 text-primary" />
+                )}
+              </button>
+
+              <button
+                type="button"
                 onClick={logout}
-                className="p-1.5 rounded-lg text-danger hover:bg-danger/10 transition-colors"
+                className="p-2 rounded-lg text-danger hover:bg-danger/10 transition-colors"
                 aria-label="Cerrar sesion"
                 title="Cerrar sesion"
               >
                 <LogOut className="w-4 h-4" />
               </button>
-            </div>
 
-            {user.isSuperAdmin ? (
-              <OrganizationSwitcher
-                currentOrganizationId={selectedOrgId}
-                onSwitch={async (orgId) => {
-                  setSelectedOrgId(orgId);
-                  applyOrganizationScope(queryClient, orgId);
-                }}
-                isSuperAdmin
-                onSelectAll={() => {
-                  setSelectedOrgId(null);
-                  applyOrganizationScope(queryClient, null);
-                }}
-              />
-            ) : (
-              <OrganizationSwitcher
-                currentOrganizationId={user.organizationId ?? undefined}
-                onSwitch={switchOrganization}
-              />
-            )}
-          </div>
+              <div className="border-t border-border/60 pt-2 w-full flex justify-center">
+                <button
+                  type="button"
+                  onClick={toggleCollapse}
+                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                  aria-label="Cambiar organizacion (expandir)"
+                  title="Cambiar organizacion (expandir barra)"
+                >
+                  <Building2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="hidden">
+                {user.isSuperAdmin ? (
+                  <OrganizationSwitcher
+                    currentOrganizationId={selectedOrgId}
+                    onSwitch={async (orgId) => {
+                      setSelectedOrgId(orgId);
+                      applyOrganizationScope(queryClient, orgId);
+                    }}
+                    isSuperAdmin
+                    onSelectAll={() => {
+                      setSelectedOrgId(null);
+                      applyOrganizationScope(queryClient, null);
+                    }}
+                  />
+                ) : (
+                  <OrganizationSwitcher
+                    currentOrganizationId={user.organizationId ?? undefined}
+                    onSwitch={switchOrganization}
+                  />
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-border/80 bg-muted/30 p-3.5 flex flex-col gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary-light border border-primary/30 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                  {initials}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-foreground truncate leading-tight">
+                    {user.name}
+                  </p>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-mono text-[10px] font-semibold mt-0.5">
+                    {roleLabels[user.role] ?? user.role}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-border/60 pt-2.5">
+                <div className="flex items-center bg-muted/80 rounded-lg p-0.5 border border-border/40">
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    aria-label="Cambiar a modo claro"
+                    className={cn(
+                      "p-1 rounded-md transition-colors",
+                      theme === "light"
+                        ? "bg-card text-primary shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Sun className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    aria-label="Cambiar a modo oscuro"
+                    className={cn(
+                      "p-1 rounded-md transition-colors",
+                      theme === "dark"
+                        ? "bg-card text-primary shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Moon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="p-1.5 rounded-lg text-danger hover:bg-danger/10 transition-colors"
+                  aria-label="Cerrar sesion"
+                  title="Cerrar sesion"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+
+              {user.isSuperAdmin ? (
+                <OrganizationSwitcher
+                  currentOrganizationId={selectedOrgId}
+                  onSwitch={async (orgId) => {
+                    setSelectedOrgId(orgId);
+                    applyOrganizationScope(queryClient, orgId);
+                  }}
+                  isSuperAdmin
+                  onSelectAll={() => {
+                    setSelectedOrgId(null);
+                    applyOrganizationScope(queryClient, null);
+                  }}
+                />
+              ) : (
+                <OrganizationSwitcher
+                  currentOrganizationId={user.organizationId ?? undefined}
+                  onSwitch={switchOrganization}
+                />
+              )}
+            </div>
+          )}
         </div>
       )}
     </>
@@ -412,13 +581,15 @@ export function Sidebar() {
         />
       )}
 
-      {/* Sidebar (Fixed 320px Desktop / Responsive Drawer Mobile) */}
+      {/* Sidebar (Fixed Desktop / Responsive Drawer Mobile) */}
       <aside
         className={cn(
-          "fixed top-14 bottom-0 left-0 lg:top-0 lg:bottom-auto lg:h-screen flex flex-col z-50 w-[280px] sm:w-[320px]",
+          "fixed top-14 bottom-0 left-0 lg:top-0 lg:bottom-auto lg:h-screen flex flex-col z-50",
           "bg-card border-r border-border/80 shadow-2xl lg:shadow-none",
-          "transition-transform duration-300 ease-in-out",
+          "transition-all duration-300 ease-in-out",
           "lg:translate-x-0",
+          isCollapsed ? "lg:w-[72px]" : "lg:w-[320px]",
+          "w-[280px] sm:w-[320px]",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -429,3 +600,4 @@ export function Sidebar() {
     </>
   );
 }
+

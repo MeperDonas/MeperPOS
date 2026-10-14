@@ -6,6 +6,8 @@ import { useEffect, memo } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PlanLimitBanner } from "@/components/billing/PlanLimitBanner";
 import { hasAnyRole, type AppRole } from "@/lib/auth";
+import { useSidebar } from "@/contexts/SidebarContext";
+import { cn } from "@/lib/utils";
 
 type UserRole = AppRole;
 
@@ -34,6 +36,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
   const { isAuthenticated, loading, user, organization } = useAuth();
+  const { isCollapsed } = useSidebar();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -82,7 +85,12 @@ export const DashboardLayout = memo(function DashboardLayout({
   return (
     <div className="min-h-screen bg-background" data-org-status={organizationStatus}>
       <Sidebar />
-      <main className="px-4 pb-6 pt-16 lg:ml-[320px] lg:px-8 lg:pb-8 lg:pt-8">
+      <main
+        className={cn(
+          "px-4 pb-6 pt-16 lg:px-8 lg:pb-8 lg:pt-8 transition-all duration-300 ease-in-out",
+          isCollapsed ? "lg:ml-[72px]" : "lg:ml-[320px]"
+        )}
+      >
         <div className="mx-auto w-full max-w-[1600px]">
           <PlanLimitBanner />
           {children}

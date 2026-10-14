@@ -3,6 +3,8 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Sidebar, applyOrganizationScope } from "./Sidebar";
+import { SidebarProvider, SIDEBAR_COLLAPSED_KEY } from "@/contexts/SidebarContext";
+import { safeGetItem } from "@/lib/utils";
 import { api } from "@/lib/api";
 
 const pushMock = vi.fn();
@@ -374,4 +376,69 @@ describe("Sidebar", () => {
     expect(clock).toHaveTextContent(/\d{4}/);
     expect(clock).toHaveTextContent(/\d{1,2}:\d{2}/);
   });
+
+  it("renders the collapse toggle button and toggles collapsed state", async () => {
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { organizations: [organizations[0]] },
+    });
+
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+          })
+        }
+      >
+        <SidebarProvider>
+          <Sidebar />
+        </SidebarProvider>
+      </QueryClientProvider>
+    );
+
+    const toggleBtn = await screen.findByTestId("sidebar-collapse-toggle");
+    expect(toggleBtn).toBeInTheDocument();
+    expect(toggleBtn).toHaveAttribute("aria-label", "Colapsar barra lateral");
+
+    // Click to collapse
+    await userEvent.click(toggleBtn);
+    expect(toggleBtn).toHaveAttribute("aria-label", "Expandir barra lateral");
+    expect(safeGetItem(SIDEBAR_COLLAPSED_KEY)).toBe("true");
+
+    // Click to expand again
+    await userEvent.click(toggleBtn);
+    expect(toggleBtn).toHaveAttribute("aria-label", "Colapsar barra lateral");
+    expect(safeGetItem(SIDEBAR_COLLAPSED_KEY)).toBe("false");
+  });
+
+  it("shows floating tooltip on link hover when sidebar is collapsed", async () => {
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { organizations: [organizations[0]] },
+    });
+
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+          })
+        }
+      >
+        <SidebarProvider>
+          <Sidebar />
+        </SidebarProvider>
+      </QueryClientProvider>
+    );
+
+    const toggleBtn = await screen.findByTestId("sidebar-collapse-toggle");
+    await userEvent.click(toggleBtn);
+
+    const dashboardLink = screen.getByRole("link", { name: "Dashboard" });
+    await userEvent.hover(dashboardLink);
+
+    const tooltip = await screen.findByTestId("sidebar-rail-tooltip");
+    expect(tooltip).toBeInTheDocument();
+    expect(tooltip).toHaveTextContent("Dashboard");
+  });
 });
+
