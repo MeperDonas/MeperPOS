@@ -442,7 +442,7 @@ describe("Sidebar", () => {
     expect(tooltip).toHaveTextContent("Dashboard");
   });
 
-  it("renders the Lucky square icon and hides wordmark images when collapsed", async () => {
+  it("renders the Lucky square icon and hides wordmark text when collapsed", async () => {
     (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { organizations: [organizations[0]] },
     });
@@ -463,13 +463,16 @@ describe("Sidebar", () => {
 
     const brandBlock = await screen.findByTestId("sidebar-brand");
     const imgsBefore = brandBlock.querySelectorAll("img");
-    expect(imgsBefore.length).toBe(3);
+    expect(imgsBefore.length).toBe(1);
+    expect(imgsBefore[0]).toHaveAttribute("src", "/brand/icon-192.png");
+
+    const wordmark = brandBlock.querySelector("p");
+    expect(wordmark).not.toHaveClass("sr-only");
 
     const toggleBtn = await screen.findByTestId("sidebar-collapse-toggle");
     await userEvent.click(toggleBtn);
 
-    const imgsAfter = brandBlock.querySelectorAll("img");
-    expect(imgsAfter.length).toBe(1);
+    expect(wordmark).toHaveClass("sr-only");
   });
 });
 
