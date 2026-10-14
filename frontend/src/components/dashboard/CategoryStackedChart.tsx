@@ -143,18 +143,16 @@ export function CategoryDayDetailModal({
         data-testid="category-day-detail-modal"
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-xl md:max-w-2xl rounded-3xl border border-white/15 bg-zinc-950/98 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl text-white my-auto"
+        className="relative w-full max-w-xl md:max-w-2xl rounded-3xl border border-white/15 bg-zinc-950/98 p-8 sm:p-12 md:p-14 shadow-2xl backdrop-blur-2xl text-white my-auto"
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
-                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                Detalle del día
-              </span>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
+              <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+              Detalle del día
             </div>
-            <h3 className="text-2xl sm:text-3xl font-black text-white capitalize mt-2.5 tracking-tight">
+            <h3 className="text-2xl sm:text-3xl font-black text-white capitalize mt-2.5 tracking-tight truncate">
               {formatCategoryTooltipDate(day.date)}
             </h3>
           </div>
@@ -162,46 +160,47 @@ export function CategoryDayDetailModal({
             type="button"
             onClick={onClose}
             aria-label="Cerrar detalle"
-            className="rounded-full border border-white/15 bg-white/5 p-2.5 text-white/70 hover:bg-white/15 hover:text-white transition-colors"
+            className="rounded-full border border-white/15 bg-white/5 p-2.5 text-white/70 hover:bg-white/15 hover:text-white transition-colors shrink-0 self-start sm:self-center"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Highlight KPI metrics in 3 columns */}
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block">
-              Total Recaudado
-            </span>
-            <p className="mt-1 text-2xl sm:text-3xl font-black font-mono text-white tabular-nums tracking-tight">
-              {formatCurrency(day.total)}
-            </p>
-            <span className="text-[11px] text-white/40 block mt-1">
-              Ventas del día
-            </span>
-          </div>
+        {/* Hero Card: Total Recaudado (Centered, full-width, zero overflow) */}
+        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6 text-center flex flex-col items-center justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block">
+            Total Recaudado
+          </span>
+          <p className="mt-1 text-3xl sm:text-4xl font-black font-mono text-white tabular-nums tracking-tight">
+            {formatCurrency(day.total)}
+          </p>
+          <span className="text-xs text-white/40 block mt-1">
+            Ventas totales del día
+          </span>
+        </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
+        {/* Secondary metrics (2 equal centered columns below) */}
+        <div className="mt-3.5 grid grid-cols-2 gap-3.5">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5 text-center flex flex-col items-center justify-center">
             <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block">
               Unidades Vendidas
             </span>
             <p className="mt-1 text-2xl sm:text-3xl font-black font-mono text-white tabular-nums tracking-tight">
-              {totalQuantity} {totalQuantity === 1 ? "unidad" : "unidades"}
+              {totalQuantity}
             </p>
-            <span className="text-[11px] text-white/40 block mt-1">
-              Productos despachados
+            <span className="text-xs text-white/40 block mt-1">
+              {totalQuantity} {totalQuantity === 1 ? "unidad" : "unidades"}
             </span>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5 text-center flex flex-col items-center justify-center">
             <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block">
               Categorías con Venta
             </span>
             <p className="mt-1 text-2xl sm:text-3xl font-black font-mono text-white tabular-nums tracking-tight">
               {activeSegments.length}
             </p>
-            <span className="text-[11px] text-white/40 block mt-1">
+            <span className="text-xs text-white/40 block mt-1">
               {activeSegments.length === 1 ? "categoría activa" : "categorías activas"}
             </span>
           </div>
@@ -248,14 +247,14 @@ export function CategoryDayDetailModal({
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 pt-0.5">
                       <div className="flex-1 h-2.5 rounded-full bg-white/10 overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-300"
                           style={{ width: `${percentage}%`, backgroundColor: color }}
                         />
                       </div>
-                      <div className="flex items-center gap-2 text-xs font-mono text-white/70 shrink-0">
+                      <div className="flex items-center gap-1.5 text-xs font-mono text-white/70 shrink-0">
                         <span className="font-medium">
                           {segment.quantity} {segment.quantity === 1 ? "ud" : "uds"}
                         </span>
@@ -274,7 +273,7 @@ export function CategoryDayDetailModal({
         <button
           type="button"
           onClick={onClose}
-          className="mt-6 w-full rounded-2xl border border-white/10 bg-white/10 hover:bg-white/15 py-3.5 text-sm font-semibold text-white transition-colors"
+          className="mt-6 w-full rounded-2xl border border-white/10 bg-white/10 hover:bg-white/15 py-3.5 text-sm font-semibold text-white transition-colors text-center"
         >
           Cerrar
         </button>
