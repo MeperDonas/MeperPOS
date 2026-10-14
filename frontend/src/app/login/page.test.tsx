@@ -1,0 +1,162 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import LoginPage from "./page";
+
+const loginMock = vi.fn();
+const toggleThemeMock = vi.fn();
+let currentTheme = "light";
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({
+    login: loginMock,
+    loading: false,
+    user: null,
+    isAuthenticated: false,
+  }),
+}));
+
+vi.mock("@/contexts/ThemeContext", () => ({
+  useTheme: () => ({
+    theme: currentTheme,
+    toggleTheme: toggleThemeMock,
+  }),
+}));
+
+vi.mock("next/image", () => ({
+  default: ({
+    src,
+    alt,
+    className,
+  }: {
+    src: string;
+    alt: string;
+    className?: string;
+  }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt={alt} className={className} />
+  ),
+}));
+
+describe("LoginPage Redesign", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    currentTheme = "light";
+  });
+
+  it("renders the left-aligned header and operational showcase", () => {
+    render(<LoginPage />);
+
+    expect(screen.getByText("Acceso al Sistema")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Iniciar sesión" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Control contable, existencias y caja para tu negocio/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Bucaramanga • es-CO/i)).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: /folio\.mepersoft\.app/i }).length
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("toggles password visibility with the eye icon", async () => {
+    render(<LoginPage />);
+
+    const passwordInput = screen.getByLabelText(/contraseña/i, {
+      selector: "input",
+    });
+    expect(passwordInput).toHaveAttribute("type", "password");
+
+    const toggleBtn = screen.getByLabelText("Ver contraseña");
+    await userEvent.click(toggleBtn);
+
+    expect(passwordInput).toHaveAttribute("type", "text");
+    expect(screen.getByLabelText("Ocultar contraseña")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByLabelText("Ocultar contraseña"));
+    expect(passwordInput).toHaveAttribute("type", "password");
+  });
+
+  it("submits the login form with entered credentials", async () => {
+    loginMock.mockResolvedValueOnce(undefined);
+    render(<LoginPage />);
+
+    await userEvent.type(
+      screen.getByLabelText(/Correo Electrónico/i),
+      "admin@meperpos.com"
+    );
+    await userEvent.type(
+      screen.getByLabelText(/contraseña/i, { selector: "input" }),
+      "admin123"
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Ingresar al Sistema/i })
+    );
+
+    expect(loginMock).toHaveBeenCalledWith(
+      "admin@meperpos.com",
+      "admin123"
+    );
+  });
+
+  it("displays an alert error when login fails", async () => {
+    loginMock.mockRejectedValueOnce(new Error("Unauthorized"));
+    render(<LoginPage />);
+
+    await userEvent.type(
+      screen.getByLabelText(/Correo Electrónico/i),
+      "wrong@meperpos.com"
+    );
+    await userEvent.type(
+      screen.getByLabelText(/contraseña/i, { selector: "input" }),
+      "wrongpass"
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Ingresar al Sistema/i })
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(/Credenciales incorrectas. Verifica tu correo y contraseña/i)
+    ).toBeInTheDocument();
+  });
+
+  it("opens and closes the access support modal", async () => {
+    render(<LoginPage />);
+
+    const helpBtn = screen.getByRole("button", { name: /Ayuda y soporte/i });
+    await userEvent.click(helpBtn);
+
+    expect(
+      await screen.findByRole("heading", { name: "Ayuda y Soporte de Acceso" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/soporte@meperpos.com/i)
+    ).toBeInTheDocument();
+
+    const closeBtn = screen.getByRole("button", { name: "Entendido" });
+    await userEvent.click(closeBtn);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("heading", { name: "Ayuda y Soporte de Acceso" })
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("triggers theme toggle on theme switch button click", async () => {
+    render(<LoginPage />);
+
+    const themeBtn = screen.getByRole("button", {
+      name: "Cambiar a modo oscuro",
+    });
+    await userEvent.click(themeBtn);
+
+    expect(toggleThemeMock).toHaveBeenCalledTimes(1);
+  });
+});
