@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import {
+  CategoryDayDetailModal,
   CategoryStackedChart,
   CategoryTooltipContent,
 } from "./CategoryStackedChart";
@@ -126,5 +127,49 @@ describe("CategoryTooltipContent (Recharts custom tooltip)", () => {
     render(<CategoryTooltipContent active={false} payload={[]} />);
 
     expect(screen.queryByTestId("category-tooltip")).toBeNull();
+  });
+});
+
+describe("CategoryDayDetailModal", () => {
+  const day = {
+    date: "2026-08-21",
+    total: 150000,
+    segments: [
+      { category: "Bebidas", total: 100000, quantity: 4 },
+      { category: "Snacks", total: 50000, quantity: 2 },
+    ],
+  };
+  const colorMap = new Map([
+    ["Bebidas", "#C25E36"],
+    ["Snacks", "#2563EB"],
+  ]);
+
+  it("renders full category breakdown and total for the clicked day", () => {
+    const onClose = vi.fn();
+    render(
+      <CategoryDayDetailModal day={day} onClose={onClose} colorMap={colorMap} />,
+    );
+
+    expect(screen.getByTestId("category-day-detail-modal")).toBeTruthy();
+    expect(screen.getByText("Detalle del día")).toBeTruthy();
+    expect(screen.getByText(/\$\s150\.000/)).toBeTruthy();
+    expect(screen.getByText(/6 unidades/)).toBeTruthy();
+    expect(screen.getByText("Bebidas")).toBeTruthy();
+    expect(screen.getByText("Snacks")).toBeTruthy();
+  });
+
+  it("calls onClose when the close button is clicked", () => {
+    const onClose = vi.fn();
+    render(
+      <CategoryDayDetailModal day={day} onClose={onClose} colorMap={colorMap} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("renders nothing when day is null", () => {
+    render(<CategoryDayDetailModal day={null} onClose={vi.fn()} colorMap={colorMap} />);
+    expect(screen.queryByTestId("category-day-detail-modal")).toBeNull();
   });
 });
