@@ -22,6 +22,9 @@ import {
   Receipt,
   Package,
   TrendingUp,
+  HandCoins,
+  Wallet,
+  ClipboardCheck,
   AlertCircle,
   CheckCircle2,
   HelpCircle,
@@ -132,7 +135,7 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col items-center justify-center my-auto py-6 space-y-5">
           <PosIsometricShowcase />
 
-          <div className="text-center max-w-md space-y-2.5">
+          <div className="text-center max-w-lg space-y-2.5">
             <p className="text-sm xl:text-base font-semibold text-foreground/90 tracking-tight">
               Control contable, existencias y caja para tu negocio.
             </p>
@@ -148,6 +151,18 @@ export default function LoginPage() {
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/70 bg-background/60">
                 <TrendingUp className="w-3.5 h-3.5 text-primary" />
                 Reportes & Margen Real
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/70 bg-background/60">
+                <HandCoins className="w-3.5 h-3.5 text-terracotta" />
+                Préstamos
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/70 bg-background/60">
+                <Wallet className="w-3.5 h-3.5 text-primary" />
+                Gastos & Salidas
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/70 bg-background/60">
+                <ClipboardCheck className="w-3.5 h-3.5 text-terracotta" />
+                Tareas en Equipo
               </span>
             </div>
           </div>

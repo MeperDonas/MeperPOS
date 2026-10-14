@@ -58,6 +58,9 @@ describe("LoginPage Redesign", () => {
     expect(screen.queryByTestId("login-hero-emblem")).not.toBeInTheDocument();
     expect(screen.getByTestId("pos-isometric-showcase")).toBeInTheDocument();
     expect(screen.getByText(/Reportes & Margen Real/i)).toBeInTheDocument();
+    expect(screen.getByText(/Préstamos/i)).toBeInTheDocument();
+    expect(screen.getByText(/Gastos & Salidas/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tareas en Equipo/i)).toBeInTheDocument();
     expect(screen.getByTestId("login-form-emblem")).toBeInTheDocument();
     expect(
       screen.getByAltText(/MeperPOS emblema oficial Lucky/i)
