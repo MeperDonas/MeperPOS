@@ -111,28 +111,56 @@ export default function LoginPage() {
         {/* Marca superior */}
         <div className="relative z-10">
           <Image
-            src="/brand/meperpos-lockup-on-light-384.png"
+            src="/brand/lockup-horizontal-light.png"
             alt={`${APP_NAME} logo`}
-            width={384}
-            height={247}
-            className="w-44 xl:w-48 h-auto block dark:hidden"
+            width={1200}
+            height={300}
+            className="h-10 xl:h-11 w-auto block dark:hidden"
             priority
           />
           <Image
-            src="/brand/meperpos-lockup-on-dark-384.png"
+            src="/brand/lockup-horizontal-dark.png"
             alt={`${APP_NAME} logo`}
-            width={384}
-            height={247}
-            className="w-44 xl:w-48 h-auto hidden dark:block"
+            width={1200}
+            height={300}
+            className="h-10 xl:h-11 w-auto hidden dark:block"
             priority
           />
         </div>
 
-        {/* Narrativa central */}
-        <div className="relative z-10 space-y-6 max-w-lg my-auto py-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-semibold">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span>Punto de Venta e Inventario Operativo</span>
+        {/* Narrativa central + Vitrina Emblema Lucky */}
+        <div className="relative z-10 space-y-6 max-w-lg my-auto py-10">
+          {/* Lucky Hero Emblem Showcase */}
+          <div
+            data-testid="login-hero-emblem"
+            className="relative inline-flex items-center gap-4 p-3.5 pr-5 rounded-3xl border border-border/80 bg-background/85 backdrop-blur-md shadow-lg overflow-hidden"
+          >
+            <div
+              className="absolute -left-6 -top-6 w-28 h-28 rounded-full opacity-25 blur-2xl pointer-events-none"
+              style={{
+                background:
+                  "radial-gradient(circle, #FF9933 0%, #0C3F60 70%, transparent 100%)",
+              }}
+            />
+            <div className="relative shrink-0 p-1 rounded-2xl bg-gradient-to-br from-[#0C3F60] via-[#0C3F60]/90 to-[#FF9933]/80 shadow-md">
+              <Image
+                src="/brand/login-icon.png"
+                alt={`${APP_NAME} emblema oficial Lucky`}
+                width={512}
+                height={512}
+                className="w-20 h-20 xl:w-24 xl:h-24 rounded-xl shadow-lg ring-1 ring-white/15 object-cover"
+                priority
+              />
+            </div>
+            <div className="relative space-y-1.5">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-semibold">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span>Punto de Venta e Inventario Operativo</span>
+              </div>
+              <p className="text-xs font-mono font-semibold text-muted-foreground tracking-tight">
+                Identidad oficial MeperPOS • Precisión y agilidad en caja
+              </p>
+            </div>
           </div>
 
           <h2 className="text-3xl xl:text-4xl font-extrabold tracking-tight text-foreground leading-[1.18]">
@@ -189,18 +217,20 @@ export default function LoginPage() {
           {/* Logo visible solo en móvil */}
           <div className="lg:hidden flex items-center">
             <Image
-              src="/brand/meperpos-lockup-on-light-384.png"
+              src="/brand/lockup-horizontal-light.png"
               alt={`${APP_NAME} logo`}
-              width={384}
-              height={247}
-              className="w-32 sm:w-36 h-auto block dark:hidden"
+              width={1200}
+              height={300}
+              className="h-8 sm:h-9 w-auto block dark:hidden"
+              priority
             />
             <Image
-              src="/brand/meperpos-lockup-on-dark-384.png"
+              src="/brand/lockup-horizontal-dark.png"
               alt={`${APP_NAME} logo`}
-              width={384}
-              height={247}
-              className="w-32 sm:w-36 h-auto hidden dark:block"
+              width={1200}
+              height={300}
+              className="h-8 sm:h-9 w-auto hidden dark:block"
+              priority
             />
           </div>
 
@@ -227,16 +257,32 @@ export default function LoginPage() {
 
         {/* Contenedor central del formulario */}
         <div className="w-full max-w-sm sm:max-w-md mx-auto my-auto py-8">
-          {/* Encabezado con jerarquía limpia (Adiós a los dos títulos centrados) */}
-          <div className="space-y-2 mb-8 text-left">
-            <div className="flex items-center gap-2 text-primary font-mono text-xs font-bold uppercase tracking-wider">
-              <ShieldCheck className="w-4 h-4" />
-              <span>Acceso al Sistema</span>
+          {/* Encabezado con jerarquía limpia e insignia oficial */}
+          <div className="space-y-2.5 mb-8 text-left">
+            <div className="flex items-center gap-3.5">
+              <div
+                data-testid="login-form-emblem"
+                className="shrink-0 p-0.5 rounded-2xl bg-gradient-to-br from-[#0C3F60] to-[#FF9933]/70 shadow-sm"
+              >
+                <Image
+                  src="/brand/icon-128.png"
+                  alt={`${APP_NAME} icono`}
+                  width={128}
+                  height={128}
+                  className="w-11 h-11 rounded-[14px] shadow-xs ring-1 ring-border/60 object-cover"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-primary font-mono text-xs font-bold uppercase tracking-wider">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Acceso al Sistema</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight leading-none">
+                  Iniciar sesión
+                </h1>
+              </div>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
-              Iniciar sesión
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed pt-0.5">
               Ingresa tus credenciales autorizadas para comenzar tu turno.
             </p>
           </div>

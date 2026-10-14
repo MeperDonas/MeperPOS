@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Sidebar, applyOrganizationScope } from "./Sidebar";
 import { SidebarProvider, SIDEBAR_COLLAPSED_KEY } from "@/contexts/SidebarContext";
-import { safeGetItem } from "@/lib/utils";
+import { safeGetItem, safeSetItem } from "@/lib/utils";
 import { api } from "@/lib/api";
 
 const pushMock = vi.fn();
@@ -90,6 +90,7 @@ const organizations = [
 describe("Sidebar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    safeSetItem(SIDEBAR_COLLAPSED_KEY, "false");
     useAuthMock.mockReturnValue({
       user: {
         id: "user-1",
@@ -439,6 +440,36 @@ describe("Sidebar", () => {
     const tooltip = await screen.findByTestId("sidebar-rail-tooltip");
     expect(tooltip).toBeInTheDocument();
     expect(tooltip).toHaveTextContent("Dashboard");
+  });
+
+  it("renders the Lucky square icon and hides wordmark images when collapsed", async () => {
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { organizations: [organizations[0]] },
+    });
+
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+          })
+        }
+      >
+        <SidebarProvider>
+          <Sidebar />
+        </SidebarProvider>
+      </QueryClientProvider>
+    );
+
+    const brandBlock = await screen.findByTestId("sidebar-brand");
+    const imgsBefore = brandBlock.querySelectorAll("img");
+    expect(imgsBefore.length).toBe(3);
+
+    const toggleBtn = await screen.findByTestId("sidebar-collapse-toggle");
+    await userEvent.click(toggleBtn);
+
+    const imgsAfter = brandBlock.querySelectorAll("img");
+    expect(imgsAfter.length).toBe(1);
   });
 });
 

@@ -241,6 +241,12 @@ export function Sidebar() {
     minute: "2-digit",
   }).format(now);
 
+  const timeMatch = formattedTime.match(/^(\d{1,2}:\d{2})\s*(.*)$/);
+  const timeDigits = timeMatch ? timeMatch[1] : formattedTime;
+  const timePeriod = timeMatch && timeMatch[2]
+    ? timeMatch[2].replace(/[\.\s]/g, "").toUpperCase()
+    : "";
+
   const sidebarContent = (
     <>
       {/* Block 1: Brand - logo and wordmark sized to read as one lockup */}
@@ -255,20 +261,33 @@ export function Sidebar() {
       >
         <div className={cn("flex items-center gap-3 min-w-0", isCollapsed && "justify-center")}>
           <Image
-            src="/brand/meperpos-mark-160.png"
+            src="/brand/icon-128.png"
             alt={`${APP_NAME} logo`}
-            width={160}
-            height={89}
-            className={cn("w-auto shrink-0", isCollapsed ? "h-8" : "h-9")}
+            width={128}
+            height={128}
+            className="w-9 h-9 shrink-0 rounded-xl shadow-xs ring-1 ring-border/50 object-cover"
           />
-          <p
-            className={cn(
-              "text-2xl font-extrabold text-foreground truncate leading-none tracking-tight",
-              isCollapsed ? "sr-only" : "min-w-0"
-            )}
-          >
-            {APP_NAME}
-          </p>
+          {!isCollapsed && (
+            <div className="flex items-center min-w-0">
+              <Image
+                src="/brand/wordmark-light.png"
+                alt=""
+                aria-hidden="true"
+                width={1000}
+                height={300}
+                className="h-6 w-auto block dark:hidden object-contain"
+              />
+              <Image
+                src="/brand/wordmark-dark.png"
+                alt=""
+                aria-hidden="true"
+                width={1000}
+                height={300}
+                className="h-6 w-auto hidden dark:block object-contain"
+              />
+            </div>
+          )}
+          <p className="sr-only">{APP_NAME}</p>
         </div>
         <button
           type="button"
@@ -295,18 +314,27 @@ export function Sidebar() {
           className={cn(
             "font-mono text-muted-foreground text-center bg-muted/60 rounded-lg border border-border/40",
             isCollapsed
-              ? "text-[10px] py-1.5 px-0.5 leading-tight"
+              ? "py-1.5 px-1"
               : "text-[11px] py-1.5 px-2"
           )}
           title={`${formattedDate}, ${formattedTime}`}
         >
           {isCollapsed ? (
-            <>
-              <span className="font-semibold block">{formattedTime}</span>
+            <div className="flex flex-col items-center justify-center">
+              <span className="font-bold text-[11px] font-mono tracking-tight leading-none text-foreground">
+                {timeDigits}
+              </span>
+              {timePeriod && (
+                <span className="text-[8px] font-mono font-bold tracking-widest uppercase text-muted-foreground mt-0.5 leading-none">
+                  {timePeriod}
+                </span>
+              )}
               <span className="sr-only">, {formattedDate}</span>
-            </>
+            </div>
           ) : (
-            `${formattedDate}, ${formattedTime}`
+            <span className="whitespace-nowrap">
+              {formattedDate}, {formattedTime}
+            </span>
           )}
         </div>
       </div>
@@ -393,11 +421,11 @@ export function Sidebar() {
           data-testid="sidebar-user"
           className={cn(
             "border-t border-border/70 shrink-0",
-            isCollapsed ? "p-2" : "p-4"
+            isCollapsed ? "px-2 py-3" : "px-5 py-4"
           )}
         >
           {isCollapsed ? (
-            <div className="rounded-2xl border border-border/80 bg-muted/30 p-2 flex flex-col items-center gap-2.5 shadow-xs">
+            <div className="flex flex-col items-center gap-2.5">
               <div
                 className="w-10 h-10 rounded-xl bg-primary-light border border-primary/30 text-primary flex items-center justify-center font-bold text-sm shrink-0"
                 title={`${user.name} (${roleLabels[user.role] ?? user.role})`}
@@ -475,7 +503,7 @@ export function Sidebar() {
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-border/80 bg-muted/30 p-3.5 flex flex-col gap-3 shadow-xs">
+            <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary-light border border-primary/30 text-primary flex items-center justify-center font-bold text-sm shrink-0">
                   {initials}
@@ -490,7 +518,7 @@ export function Sidebar() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-border/60 pt-2.5">
+              <div className="flex items-center justify-between border-t border-border/60 pt-3">
                 <div className="flex items-center bg-muted/80 rounded-lg p-0.5 border border-border/40">
                   <button
                     type="button"
@@ -563,11 +591,11 @@ export function Sidebar() {
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 bg-card border-b border-border">
         <div className="flex items-center gap-2.5">
           <Image
-            src="/brand/meperpos-mark-160.png"
+            src="/brand/icon-128.png"
             alt={`${APP_NAME} logo`}
-            width={160}
-            height={89}
-            className="h-8 w-auto shrink-0"
+            width={128}
+            height={128}
+            className="w-8 h-8 rounded-lg shrink-0 shadow-xs ring-1 ring-border/50 object-cover"
           />
           <span className="text-sm font-bold text-foreground">
             {APP_NAME}

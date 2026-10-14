@@ -14,6 +14,7 @@
     --primary-light: #FAECE5;
     --accent: #C25E36;
     --accent-light: #FAECE5;
+    --terracotta: #C25E36;
     /* --accent: #7BA08B; es una segunda opción de reemplazo al terracota */
     --card: #FFFFFF;
     --card-foreground: #131B2E;
@@ -45,6 +46,7 @@
     --primary-light: #2C1D18;
     --accent: #C25E36;
     --accent-light: #2C1D18;
+    --terracotta: #E0764C;
     /* --accent: #8BB59D; es una segunda opción de reemplazo al terracota */
     --card: #18181C;
     --card-foreground: #F2F2F5;
@@ -76,6 +78,7 @@
     --color-primary-light: var(--primary-light);
     --color-accent: var(--accent);
     --color-accent-light: var(--accent-light);
+    --color-terracotta: var(--terracotta);
     --color-card: var(--card);
     --color-card-foreground: var(--card-foreground);
     --color-border: var(--border);
