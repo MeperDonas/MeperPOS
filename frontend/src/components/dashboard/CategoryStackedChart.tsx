@@ -81,14 +81,6 @@ export function CategoryTooltipContent({
         transform: `translateX(calc(-50% + ${clampPx}px))`,
       }}
     >
-      {/* Downward pointer caret aligned with the bar center */}
-      <div
-        className="pointer-events-none absolute -bottom-1.5 left-1/2 h-2.5 w-2.5 -translate-x-1/2 rotate-45 border-b border-r border-white/10 bg-black/90"
-        style={{
-          transform: `translateX(calc(-50% - ${clampPx}px)) rotate(45deg)`,
-        }}
-        aria-hidden="true"
-      />
       <p className="text-center text-[10px] font-semibold uppercase tracking-wider text-white/60">
         {formatCategoryTooltipDate(typeof row?.date === "string" ? row.date : "")}
       </p>
