@@ -267,17 +267,17 @@ export function Sidebar() {
             height={192}
             className={cn(
               "shrink-0 object-contain drop-shadow-xs",
-              isCollapsed ? "w-11 h-11" : "w-12 h-12"
+              isCollapsed ? "w-11 h-11" : "w-14 h-14"
             )}
           />
           <p
             className={cn(
-              "text-[26px] font-black text-foreground truncate leading-none tracking-tight",
+              "text-[30px] font-black text-foreground truncate leading-none tracking-tight",
               isCollapsed ? "sr-only" : "min-w-0"
             )}
           >
             Meper
-            <span className="text-[#FF9933] underline decoration-[#FF9933] decoration-[3px] underline-offset-[5px]">
+            <span className="text-[#FF9933] underline decoration-[#FF9933] decoration-[3.5px] underline-offset-[6px]">
               POS
             </span>
           </p>

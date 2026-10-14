@@ -55,11 +55,12 @@ describe("LoginPage Redesign", () => {
       screen.getByText(/Control contable, existencias y caja para tu negocio/i)
     ).toBeInTheDocument();
     expect(screen.getByText(/Bucaramanga • es-CO/i)).toBeInTheDocument();
-    expect(screen.getByTestId("login-hero-emblem")).toBeInTheDocument();
+    expect(screen.queryByTestId("login-hero-emblem")).not.toBeInTheDocument();
     expect(screen.getByTestId("login-form-emblem")).toBeInTheDocument();
     expect(
       screen.getByAltText(/MeperPOS emblema oficial Lucky/i)
     ).toHaveAttribute("src", "/brand/login-icon.png");
+    expect(screen.getAllByAltText("MeperSoft logo").length).toBeGreaterThanOrEqual(1);
     expect(
       screen.getAllByRole("link", { name: /folio\.mepersoft\.app/i }).length
     ).toBeGreaterThanOrEqual(1);

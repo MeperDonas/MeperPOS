@@ -108,52 +108,29 @@ export default function LoginPage() {
         <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-terracotta/10 blur-3xl pointer-events-none" />
 
-        {/* Marca superior */}
-        <div className="relative z-10 flex items-center gap-4">
+        {/* Marca superior: Ecosistema MeperSoft (Kiroi) */}
+        <div className="relative z-10 flex items-center gap-3">
           <Image
-            src="/brand/icon-192.png"
-            alt={`${APP_NAME} logo`}
+            src="/brand/mepersoft-icon-192.png"
+            alt="MeperSoft logo"
             width={192}
             height={192}
-            className="w-14 h-14 xl:w-16 xl:h-16 shrink-0 object-contain drop-shadow-sm"
+            className="w-10 h-10 xl:w-11 xl:h-11 shrink-0 object-contain drop-shadow-xs"
             priority
           />
-          <span className="text-3xl xl:text-4xl font-black tracking-tight text-foreground leading-none">
+          <span className="text-xl xl:text-2xl font-black tracking-tight text-foreground leading-none">
             Meper
-            <span className="text-[#FF9933] underline decoration-[#FF9933] decoration-[3.5px] underline-offset-[6px]">
-              POS
+            <span className="text-[#00B392] underline decoration-[#00B392] decoration-[2.5px] underline-offset-[5px]">
+              Soft
             </span>
           </span>
         </div>
 
-        {/* Narrativa central + Vitrina Emblema Lucky */}
+        {/* Narrativa central */}
         <div className="relative z-10 space-y-6 max-w-lg my-auto py-10">
-          {/* Lucky Hero Emblem Showcase (sin doble marco en el icono y sin frase IA) */}
-          <div
-            data-testid="login-hero-emblem"
-            className="relative inline-flex items-center gap-4 p-3.5 pr-6 rounded-3xl border border-border/80 bg-background/85 backdrop-blur-md shadow-lg overflow-hidden"
-          >
-            <div
-              className="absolute -left-6 -top-6 w-28 h-28 rounded-full opacity-25 blur-2xl pointer-events-none"
-              style={{
-                background:
-                  "radial-gradient(circle, #FF9933 0%, #0C3F60 70%, transparent 100%)",
-              }}
-            />
-            <Image
-              src="/brand/login-icon.png"
-              alt={`${APP_NAME} emblema oficial Lucky`}
-              width={512}
-              height={512}
-              className="relative w-20 h-20 xl:w-22 xl:h-22 shrink-0 object-contain drop-shadow-md"
-              priority
-            />
-            <div className="relative">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-semibold">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <span>Punto de Venta e Inventario Operativo</span>
-              </div>
-            </div>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-semibold">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span>Punto de Venta e Inventario Operativo</span>
           </div>
 
           <h2 className="text-3xl xl:text-4xl font-extrabold tracking-tight text-foreground leading-[1.18]">
@@ -207,20 +184,20 @@ export default function LoginPage() {
       <div className="col-span-1 lg:col-span-6 xl:col-span-5 flex flex-col justify-between p-6 sm:p-10 lg:p-12 xl:p-16 relative">
         {/* Barra superior de utilidades (Toggle de tema) */}
         <div className="flex items-center justify-between lg:justify-end w-full">
-          {/* Logo visible solo en móvil */}
-          <div className="lg:hidden flex items-center gap-3">
+          {/* Marca del ecosistema visible en móvil */}
+          <div className="lg:hidden flex items-center gap-2.5">
             <Image
-              src="/brand/icon-192.png"
-              alt={`${APP_NAME} logo`}
+              src="/brand/mepersoft-icon-192.png"
+              alt="MeperSoft logo"
               width={192}
               height={192}
-              className="w-11 h-11 shrink-0 object-contain drop-shadow-xs"
+              className="w-9 h-9 shrink-0 object-contain drop-shadow-xs"
               priority
             />
-            <span className="text-2xl font-black tracking-tight text-foreground leading-none">
+            <span className="text-xl font-black tracking-tight text-foreground leading-none">
               Meper
-              <span className="text-[#FF9933] underline decoration-[#FF9933] decoration-[3px] underline-offset-[5px]">
-                POS
+              <span className="text-[#00B392] underline decoration-[#00B392] decoration-[2.5px] underline-offset-[4px]">
+                Soft
               </span>
             </span>
           </div>
@@ -251,20 +228,20 @@ export default function LoginPage() {
           {/* Lockup vertical protagonista encima del login (estilo lámina oficial) */}
           <div
             data-testid="login-form-emblem"
-            className="flex flex-col items-center text-center mb-7"
+            className="flex flex-col items-center text-center mb-8"
           >
             <Image
               src="/brand/login-icon.png"
-              alt={`${APP_NAME} icono`}
+              alt={`${APP_NAME} emblema oficial Lucky`}
               width={512}
               height={512}
-              className="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-lg mb-3"
+              className="w-28 h-28 sm:w-32 sm:h-32 object-contain drop-shadow-lg mb-3.5"
               priority
             />
-            <div className="text-3xl sm:text-4xl font-black tracking-tight text-foreground leading-none">
+            <div className="text-4xl sm:text-[42px] font-black tracking-tight text-foreground leading-none">
               Meper<span className="text-[#FF9933]">POS</span>
             </div>
-            <div className="w-9 h-1.5 rounded-full bg-[#FF9933] mt-2" />
+            <div className="w-11 h-1.5 rounded-full bg-[#FF9933] mt-2.5" />
           </div>
 
           {/* Encabezado del formulario */}
