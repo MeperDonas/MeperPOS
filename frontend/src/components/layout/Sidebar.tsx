@@ -26,6 +26,7 @@ import {
   ClipboardList,
   Truck,
   Wallet,
+  HandCoins,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,12 @@ const navItems: NavItem[] = [
     label: "Clientes",
     href: "/customers",
     icon: <Users className="w-4 h-4" />,
+    roles: ["ADMIN", "CASHIER"],
+  },
+  {
+    label: "Préstamos",
+    href: "/loans",
+    icon: <HandCoins className="w-4 h-4" />,
     roles: ["ADMIN", "CASHIER"],
   },
   {

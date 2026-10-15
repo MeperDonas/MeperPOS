@@ -163,6 +163,7 @@ describe("Sidebar", () => {
       "POS",
       "Ventas",
       "Clientes",
+      "Préstamos",
       "Inventario",
       "Categorías",
       "Proveedores",
