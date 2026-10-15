@@ -58,9 +58,9 @@ BEGIN
         IF jsonb_typeof(item) IS DISTINCT FROM 'object' THEN
             RAISE EXCEPTION 'POS loan sale quote item must be an object';
         END IF;
-        IF item - CASE WHEN extended THEN
+        IF item - (CASE WHEN extended THEN
             ARRAY['productId', 'quantity', 'resolvedUnitPrice', 'discountAmount', 'taxRate', 'costPriceSnapshot']
-            ELSE ARRAY['productId', 'quantity', 'resolvedUnitPrice', 'discountAmount'] END <> '{}'::jsonb THEN
+            ELSE ARRAY['productId', 'quantity', 'resolvedUnitPrice', 'discountAmount'] END) <> '{}'::jsonb THEN
             RAISE EXCEPTION 'POS loan sale quote item contains unknown keys';
         END IF;
         IF jsonb_typeof(item -> 'productId') IS DISTINCT FROM 'string'
