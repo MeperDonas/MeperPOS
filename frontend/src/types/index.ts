@@ -728,6 +728,16 @@ export interface LoanParty {
 }
 
 /**
+ * The POS financing behind a loan, or `null` for an ordinary loan. Mirrors the
+ * additive `posFinancing` field the backend `present()` projects; `finalSaleId`
+ * is `null` until the financed checkout is finalized into a sale.
+ */
+export interface PosLoanFinancing {
+  intentId: string;
+  finalSaleId: string | null;
+}
+
+/**
  * Money loan as returned by GET /loans and GET /loans/:id. The backend omits
  * `version`/`events` and adds the server-owned `collected`/`balance` strings and
  * `paymentStatus`; the UI reads those and never recomputes them.
@@ -752,6 +762,12 @@ export interface Loan {
   collected: string;
   balance: string;
   paymentStatus: LoanPaymentStatus;
+  /**
+   * Present on every backend projection, `null` for an ordinary loan with no
+   * POS financing intent; `finalSaleId` stays `null` until the financed
+   * checkout is finalized into a sale.
+   */
+  posFinancing: PosLoanFinancing | null;
 }
 
 export interface PosLoanItemInput {

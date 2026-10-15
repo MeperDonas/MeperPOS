@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
-import { HandCoins } from "lucide-react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { HandCoins, User, Wrench } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import {
   useCollectLoan,
@@ -20,10 +20,9 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
 import { Select } from "@/components/ui/Select";
-import { Table, TableCell, TableHeader, TableRow } from "@/components/ui/Table";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage } from "@/lib/api";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatDateTime, toFiniteNumber } from "@/lib/utils";
 import type {
   CollectLoanInput,
   Loan,
@@ -80,16 +79,107 @@ function counterpartyName(loan: Loan): string {
 }
 
 /**
- * The server finalizes only a paid POS financing: a MONEY loan that is still
- * OPEN, with its linked customer and a zero balance. Intent membership is not
- * part of the loan projection, so this mirrors what the row actually exposes.
+ * A loan the projection marks as POS financing is the only one that can be
+ * completed, and only once its balance is fully paid. An ordinary loan carries
+ * no `posFinancing`, so this action never appears for it.
  */
 function canCompletePosLoan(loan: Loan): boolean {
+  return Boolean(loan.posFinancing) && toFiniteNumber(loan.balance) === 0;
+}
+
+/** One labelled fact inside the detail modal. */
+function DetailField({
+  label,
+  value,
+  testId,
+}: {
+  label: string;
+  value: ReactNode;
+  testId?: string;
+}) {
   return (
-    loan.type === "MONEY" &&
-    loan.status === "OPEN" &&
-    loan.customer !== null &&
-    loan.balance === "0.00"
+    <div className="min-w-0">
+      <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </dt>
+      <dd
+        data-testid={testId}
+        className="mt-1 truncate text-sm font-medium text-foreground"
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+/** One money figure inside a loan card; the balance carries the visual weight. */
+function MoneyStat({
+  label,
+  value,
+  emphasis = false,
+}: {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="min-w-0 rounded-xl bg-muted/40 p-2.5">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-0.5 font-mono text-xs font-bold tabular-nums sm:text-sm",
+          emphasis ? "text-primary" : "text-foreground",
+        )}
+      >
+        {money(value)}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * One loan as a scannable card: type and status up top, the counterparty below
+ * and the server-owned money triple at the foot, mirroring the detail modal.
+ */
+function LoanCard({ loan, onOpen }: { loan: Loan; onOpen: () => void }) {
+  const TypeIcon = loan.type === "MONEY" ? HandCoins : Wrench;
+
+  return (
+    <Card onClick={onOpen} className="flex h-full flex-col p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <TypeIcon className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+              Tipo
+            </p>
+            <p className="truncate text-sm font-semibold text-foreground">
+              {TYPE_LABELS[loan.type]}
+            </p>
+          </div>
+        </div>
+        <Badge variant={STATUS_VARIANTS[loan.status]} dot>
+          {STATUS_LABELS[loan.status]}
+        </Badge>
+      </div>
+
+      <div className="mt-3 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+        <User className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span className="truncate font-medium text-foreground">
+          {counterpartyName(loan)}
+        </span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/40 pt-3">
+        <MoneyStat label="Monto" value={loan.amount} />
+        <MoneyStat label="Abonado" value={loan.collected} />
+        <MoneyStat label="Saldo" value={loan.balance} emphasis />
+      </div>
+    </Card>
   );
 }
 
@@ -189,43 +279,22 @@ export default function LoansPage() {
               subtitle="Las obligaciones y las ventas financiadas aparecerán aquí."
             />
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableCell as="th">Tipo</TableCell>
-                    <TableCell as="th">Contraparte</TableCell>
-                    <TableCell as="th">Monto</TableCell>
-                    <TableCell as="th">Abonado</TableCell>
-                    <TableCell as="th">Saldo</TableCell>
-                    <TableCell as="th">Estado</TableCell>
-                  </TableRow>
-                </TableHeader>
-                <tbody>
-                  {loans.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        setSelectedId(row.id);
-                        setAmount(undefined);
-                      }}
-                    >
-                      <TableCell>{TYPE_LABELS[row.type]}</TableCell>
-                      <TableCell>{counterpartyName(row)}</TableCell>
-                      <TableCell>{money(row.amount)}</TableCell>
-                      <TableCell>{money(row.collected)}</TableCell>
-                      <TableCell>{money(row.balance)}</TableCell>
-                      <TableCell>
-                        <Badge variant={STATUS_VARIANTS[row.status]}>
-                          {STATUS_LABELS[row.status]}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
+            <ul
+              data-testid="loan-cards"
+              className="stagger-children grid auto-rows-fr grid-cols-1 gap-3.5 p-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:grid-cols-4"
+            >
+              {loans.map((row) => (
+                <li key={row.id} data-testid="loan-card" className="min-w-0">
+                  <LoanCard
+                    loan={row}
+                    onOpen={() => {
+                      setSelectedId(row.id);
+                      setAmount(undefined);
+                    }}
+                  />
+                </li>
+              ))}
+            </ul>
           )}
           <div className="border-t border-border/60 p-4">
             <Pagination
@@ -247,6 +316,7 @@ export default function LoansPage() {
           setAmount(undefined);
         }}
         title="Detalle del préstamo"
+        size="lg"
       >
         {loanQuery.isLoading ? (
           <LoadingState
@@ -263,8 +333,9 @@ export default function LoansPage() {
             onRetry={() => void loanQuery.refetch()}
           />
         ) : (
-          <div className="space-y-5 p-4 sm:p-6">
-            <div className="grid grid-cols-3 gap-3 text-center">
+          <div data-testid="loan-detail" className="space-y-6">
+            {/* Server-owned money triple. */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {(
                 [
                   ["Monto", loan.amount],
@@ -272,53 +343,147 @@ export default function LoansPage() {
                   ["Saldo", loan.balance],
                 ] as const
               ).map(([label, value]) => (
-                <div key={label} className="rounded-xl bg-muted/40 p-3">
+                <div
+                  key={label}
+                  className="rounded-xl bg-muted/40 p-4 text-center"
+                >
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                     {label}
                   </p>
-                  <p className="text-sm font-bold text-foreground">
+                  <p className="mt-1 font-mono text-base font-bold tabular-nums text-foreground">
                     {money(value)}
                   </p>
                 </div>
               ))}
             </div>
 
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{counterpartyName(loan)}</span>
-              <Badge variant={STATUS_VARIANTS[loan.status]}>
-                {STATUS_LABELS[loan.status]}
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">{loan.reason}</p>
+            {/* Everything the projection knows about the loan itself. */}
+            <section className="rounded-2xl border border-border/60 p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Datos del préstamo
+              </h3>
+              <dl className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <DetailField
+                  label="Tipo"
+                  value={TYPE_LABELS[loan.type]}
+                  testId="loan-type"
+                />
+                <DetailField
+                  label="Estado"
+                  value={
+                    <Badge variant={STATUS_VARIANTS[loan.status]}>
+                      {STATUS_LABELS[loan.status]}
+                    </Badge>
+                  }
+                />
+                <DetailField
+                  label="Contraparte"
+                  value={counterpartyName(loan)}
+                  testId="loan-counterparty"
+                />
+                <DetailField
+                  label="Creado por"
+                  value={loan.createdBy.name}
+                  testId="loan-created-by"
+                />
+                <DetailField
+                  label="Fecha de creación"
+                  value={formatDateTime(loan.createdAt)}
+                  testId="loan-created-at"
+                />
+                {loan.dueAt && (
+                  <DetailField
+                    label="Vencimiento"
+                    value={formatDateTime(loan.dueAt)}
+                    testId="loan-due-at"
+                  />
+                )}
+              </dl>
+              <p className="mt-4 border-t border-border/40 pt-3 text-xs text-muted-foreground">
+                {loan.reason}
+              </p>
+            </section>
 
-            <div>
+            {/* The additive POS financing reference, when the loan has one. */}
+            {loan.posFinancing && (
+              <section
+                data-testid="pos-financing"
+                className="rounded-2xl border border-primary/25 bg-primary/5 p-4"
+              >
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-primary">
+                  Venta financiada asociada
+                </h3>
+                {loan.posFinancing.finalSaleId ? (
+                  <p className="mt-2 text-sm text-foreground">
+                    Venta vinculada:{" "}
+                    <span
+                      data-testid="pos-financing-sale"
+                      className="font-mono font-semibold"
+                    >
+                      {loan.posFinancing.finalSaleId}
+                    </span>
+                  </p>
+                ) : (
+                  <p
+                    data-testid="pos-financing-pending"
+                    className="mt-2 text-sm text-muted-foreground"
+                  >
+                    La venta aún no ha sido vinculada.
+                  </p>
+                )}
+              </section>
+            )}
+
+            {/* Each event carries its own date and author. */}
+            <section>
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Historial
               </h3>
-              <ul className="mt-2 space-y-1.5">
+              <ul className="mt-2 space-y-2">
                 {history.map((event) => (
                   <li
                     key={event.id}
-                    className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2 text-xs"
+                    data-testid="loan-history-row"
+                    className="flex items-center justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2.5 text-xs"
                   >
-                    <span className="font-semibold text-foreground">
-                      {EVENT_LABELS[event.type]}
-                    </span>
-                    <span className="text-muted-foreground">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-foreground">
+                        {EVENT_LABELS[event.type]}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        <span>{formatDateTime(event.createdAt)}</span>
+                        <span className="mx-1">·</span>
+                        <span>{event.createdBy.name}</span>
+                      </p>
+                    </div>
+                    <span className="shrink-0 font-mono text-muted-foreground">
                       {event.amount ? money(event.amount) : event.reason}
                     </span>
                   </li>
                 ))}
               </ul>
-            </div>
+            </section>
 
             {loan.status === "OPEN" && (
-              <form onSubmit={handleCollect} className="space-y-3">
+              <form
+                onSubmit={handleCollect}
+                className="space-y-3 border-t border-border/40 pt-4"
+              >
                 <CurrencyInput
                   label="Monto del abono"
                   value={amount}
                   onChange={setAmount}
                 />
+                {toFiniteNumber(loan.balance) > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAmount(toFiniteNumber(loan.balance))}
+                  >
+                    Pagar saldo restante
+                  </Button>
+                )}
                 <Select
                   label="Método"
                   options={METHOD_OPTIONS}

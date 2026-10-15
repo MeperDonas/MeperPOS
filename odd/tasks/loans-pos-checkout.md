@@ -38,6 +38,13 @@ Continuation of `odd/tasks/loans-module.md` (issue #209).
    Honest limitation: under `Serializable` isolation the losing concurrent caller cannot see the winner's committed event, so it receives `409` and only a later retry with the same key replays the stored result; the one-sale guarantee still holds. Still unproven: browser usability, Node 22 and the frontend production build.
    Model tests and noEmit are not PostgreSQL or browser proof. Physical API rollout remains OFF. Record unavailable checks honestly.
 
+6. [ ] **Q6 — Ask before financing from the POS.** — IN PROGRESS (writer `mv91ry70-i-8vhe`).
+   Reuse the existing `frontend/src/components/ui/ConfirmDialog.tsx`; create no new dialog component and do not restyle it. Confirming runs the initiation; cancelling leaves cart, customer and discount untouched and must not burn or rotate the request key. Spec S1.
+7. [ ] **Q7 — Show the loans list as cards.** — NEXT.
+   Replace the table with cards carrying type, counterparty, amount, collected, balance and status, keeping pagination, the loading, empty and error states, and the detail modal. Spec S2.
+8. [ ] **Q8 — Enrich the loan detail modal.** — NEXT.
+   Add creation and due dates, the loan type, the counterparty and who created it; a quick action to pay the whole remaining balance; the entry for the linked sale; close the linked sale based on the real POS intent instead of the current inference from MONEY plus OPEN plus customer plus a zero balance; history rows showing date and actor; and a roomier, better separated layout. Only the linked sale needs backend work: expose the POS intent and its final sale on the loan projection, which also removes the documented inference limitation behind the close action. Spec S3.
+
 ## Execution boundaries
 
 - Single bounded source writer; parent owns Git delivery and task/memory updates.
@@ -46,3 +53,10 @@ Continuation of `odd/tasks/loans-module.md` (issue #209).
 - Reuse the complete authorized public Node24 backend runner; never reconstruct or patch private Jest internals.
 - Frontend Vitest config/setup and declared dependencies are known; installed availability and safe execution still need verification.
 - Every write phase closes with actual checks and candidate-specific review/disposition. A prior unreviewed commit is not permission for a later candidate.
+
+## Log
+
+- L1 (user, verbatim): "Amigo por favor saquemos la feature jaja" and the follow-up "commitea y continua con la priorizacion de la pantalla pos y completar la venta vinculada".
+- L2 (user, verbatim, the three new requests): "no me pidio confirmacion para financiar, al menos un popup de alerta. Si un popup de advertencia es algo nuevo recuerda hacerle el componente bien reutilizable jaja"; "la vdd me espere los prestamos como cards, mas lindo que una grilla."; "me esperaba un poco mas de esa modal la verdad".
+- L3 (user, multi-select answer about the modal): all four options selected, namely more loan data, quick actions, a more complete history, and a better visual presentation.
+- L4 (parent evidence): `ConfirmDialog` already exists with `isOpen`, `onClose`, `onConfirm`, `title`, `message`, `confirmText` and `cancelText`, and its bytes are identical in the loans and integration worktrees, so the reusable warning dialog the user asked for needs no new component. The `Loan` type already carries `issuedAt`, `dueAt`, `type`, the counterparty, `createdBy` and `createdAt`, and `LoanHistoryEvent` already carries `createdAt` and `createdBy`, so of the requested content only the linked sale is missing from the projection.

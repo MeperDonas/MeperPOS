@@ -220,6 +220,9 @@ export default function POSPage() {
     null,
   );
   const [showDeletePausedModal, setShowDeletePausedModal] = useState(false);
+  // Financing is the only action here that creates a real debt, so it waits for
+  // an explicit confirmation before the initiation request is built or sent.
+  const [showFinanceConfirm, setShowFinanceConfirm] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<ScanFeedback>(
     DEFAULT_SCAN_FEEDBACK,
   );
@@ -1232,7 +1235,7 @@ export default function POSPage() {
                   variant="secondary"
                   className="flex-1 h-11 text-sm font-bold"
                   size="lg"
-                  onClick={handleFinanceSale}
+                  onClick={() => setShowFinanceConfirm(true)}
                   disabled={cart.length === 0 || !selectedCustomer}
                   loading={createPosLoan.isPending}
                 >
@@ -1657,6 +1660,17 @@ export default function POSPage() {
           )}
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={showFinanceConfirm}
+        onClose={() => setShowFinanceConfirm(false)}
+        onConfirm={handleFinanceSale}
+        title="Confirmar venta financiada"
+        message={`Se iniciará una venta financiada a nombre de ${
+          selectedCustomerName ?? "el cliente seleccionado"
+        }. Monto a financiar: ${formatCurrency(total)} (calculado en el POS; el total final lo confirma el servidor).`}
+        confirmText="Financiar venta"
+      />
 
       <ConfirmDialog
         isOpen={showDeletePausedModal}

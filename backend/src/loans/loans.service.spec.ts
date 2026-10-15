@@ -434,6 +434,7 @@ describe('LoansService tenant reads', () => {
           balance: '120.25',
           collected: '0.00',
           paymentStatus: 'UNPAID',
+          posFinancing: null,
         },
       ],
       total: 1,
@@ -495,6 +496,49 @@ describe('LoansService tenant reads', () => {
     },
   );
 
+  it.each([{ finalSaleId: 'sale' }, { finalSaleId: null }])(
+    'projects POS financing with finalSaleId $finalSaleId on list and detail',
+    async ({ finalSaleId }) => {
+      const { service, tx } = fixture();
+      const loan = {
+        id: 'loan',
+        organizationId: 'org-a',
+        amount: new Prisma.Decimal('120.25'),
+        status: 'OPEN',
+        events: [],
+        posLoanSaleIntent: { id: 'intent', finalSaleId },
+      };
+      const expected = {
+        id: 'loan',
+        organizationId: 'org-a',
+        amount: new Prisma.Decimal('120.25'),
+        status: 'OPEN',
+        balance: '120.25',
+        collected: '0.00',
+        paymentStatus: 'UNPAID',
+        posFinancing: { intentId: 'intent', finalSaleId },
+      };
+      tx.moneyLoan.findFirst.mockResolvedValue(loan);
+      tx.moneyLoan.findMany.mockResolvedValue([loan]);
+      tx.moneyLoan.count.mockResolvedValue(1);
+      expect(await service.findOne('loan', 'org-a')).toEqual(expected);
+      expect(await service.findAll({}, 'org-a')).toEqual({
+        data: [expected],
+        total: 1,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+      });
+      expect(tx.moneyLoan.findMany).toHaveBeenCalledWith(
+        objectContaining({
+          select: objectContaining({
+            posLoanSaleIntent: { select: { id: true, finalSaleId: true } },
+          }),
+        }),
+      );
+    },
+  );
+
   it('scopes and paginates history with safe actor projection', async () => {
     const { service, tx } = fixture();
     tx.moneyLoan.findFirst.mockResolvedValue({
@@ -510,6 +554,7 @@ describe('LoansService tenant reads', () => {
       balance: '120.25',
       collected: '0.00',
       paymentStatus: 'UNPAID',
+      posFinancing: null,
     });
     await service.getHistory('loan', { page: 2, limit: 5 }, 'org-a');
     expect(tx.moneyLoanEvent.findMany).toHaveBeenCalledWith(

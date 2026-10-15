@@ -76,6 +76,7 @@ const loan: Loan = {
   collected: "0.00",
   balance: "12345.00",
   paymentStatus: "UNPAID",
+  posFinancing: null,
 };
 
 const historyEvent: LoanHistoryEvent = {

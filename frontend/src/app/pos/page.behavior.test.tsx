@@ -194,8 +194,46 @@ vi.mock("@/components/ui/Modal", () => ({
   }) => (isOpen ? <section aria-label={title}>{children}</section> : null),
 }));
 
+// ConfirmDialog is the shared warning dialog. The mock mirrors its documented
+// contract — isOpen gate, title, message, confirmText/cancelText, onClose wired
+// to both the cancel button and the backdrop, and the same close-after-confirm
+// semantics (await onConfirm, then onClose) — so POS tests can drive the
+// confirmation and observe exactly which words reach the cashier.
 vi.mock("@/components/ui/ConfirmDialog", () => ({
-  ConfirmDialog: () => null,
+  ConfirmDialog: ({
+    isOpen,
+    onClose,
+    onConfirm,
+    title,
+    message,
+    confirmText = "Confirmar",
+    cancelText = "Cancelar",
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void | Promise<void>;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+  }) =>
+    isOpen ? (
+      <div role="dialog" aria-label={title}>
+        <p data-testid="confirm-message">{message}</p>
+        <div data-testid="confirm-backdrop" onClick={onClose} />
+        <button type="button" onClick={onClose}>
+          {cancelText}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            void Promise.resolve(onConfirm()).then(onClose);
+          }}
+        >
+          {confirmText}
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock("@/hooks/useProducts", () => ({
@@ -1636,6 +1674,16 @@ describe("POS cart financing (pos-loan-initiation)", () => {
   }
 
   const financeAction = () => screen.getByRole("button", { name: /financiar/i });
+  const confirmFinance = async () => {
+    await userEvent.click(screen.getByRole("button", { name: "Financiar venta" }));
+  };
+  const cancelFinance = async () => {
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+  };
+  const dismissFinance = async () => {
+    await userEvent.click(screen.getByTestId("confirm-backdrop"));
+  };
+  const confirmMessage = () => screen.getByTestId("confirm-message").textContent ?? "";
 
   async function selectAnaPerez() {
     await userEvent.click(screen.getByRole("button", { name: /sin cliente/i }));
@@ -1699,6 +1747,65 @@ describe("POS cart financing (pos-loan-initiation)", () => {
     expect(financeAction()).not.toBeDisabled();
   });
 
+  it("opens a confirmation naming the customer and the amount to finance instead of initiating immediately", async () => {
+    const product = makeProduct("p1", "Producto Financiado", { salePrice: 50000 });
+    seedPausedCart(product, 5000);
+    renderWithProducts([product]);
+    await resumePausedCart();
+    await selectAnaPerez();
+
+    await userEvent.click(financeAction());
+
+    // Nothing is initiated until the cashier confirms the debt.
+    expect(createPosLoanMutateMock).not.toHaveBeenCalled();
+    // The confirm button reads like an action, not like a dismissal.
+    expect(screen.getByRole("button", { name: "Financiar venta" })).toBeTruthy();
+    const message = confirmMessage();
+    expect(message).toContain("Ana Perez");
+    // Pre-server figure: the client-computed amount to finance, not the agreed total.
+    expect(message).toContain(formatCurrency(45000));
+    expect(message).toContain("Monto a financiar");
+  });
+
+  it("cancelling the confirmation leaves the cart, the customer and the discount untouched and never calls the mutation", async () => {
+    const product = makeProduct("p1", "Producto Financiado", { salePrice: 50000 });
+    seedPausedCart(product, 5000);
+    renderWithProducts([product]);
+    await resumePausedCart();
+    await selectAnaPerez();
+
+    await userEvent.click(financeAction());
+    await cancelFinance();
+
+    expect(createPosLoanMutateMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Financiar venta" })).toBeNull();
+    expect(screen.getByTestId("line-unit-price")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /ana perez/i })).toBeTruthy();
+    expect(screen.getByText("Descuento")).toBeTruthy();
+  });
+
+  it("dismissing the confirmation does not consume the request key, and a later confirm uses one generated key", async () => {
+    const product = makeProduct("p1", "Producto Financiado", { salePrice: 50000 });
+    createPosLoanMutateMock.mockResolvedValue(initiation());
+    seedPausedCart(product, 5000);
+    renderWithProducts([product]);
+    await resumePausedCart();
+    await selectAnaPerez();
+
+    await userEvent.click(financeAction());
+    await dismissFinance();
+    expect(createPosLoanMutateMock).not.toHaveBeenCalled();
+
+    await userEvent.click(financeAction());
+    await confirmFinance();
+    await waitFor(() => expect(createPosLoanMutateMock).toHaveBeenCalledTimes(1));
+
+    const key = (createPosLoanMutateMock.mock.calls[0]?.[0] as { requestKey: string })
+      .requestKey;
+    expect(typeof key).toBe("string");
+    expect(key.length).toBeGreaterThan(0);
+  });
+
   it("initiates with the cart items, the selected customer, the global discount and a generated requestKey, surfacing the server total", async () => {
     const product = makeProduct("p1", "Producto Financiado", { salePrice: 50000 });
     createPosLoanMutateMock.mockResolvedValue(initiation());
@@ -1708,6 +1815,8 @@ describe("POS cart financing (pos-loan-initiation)", () => {
     await selectAnaPerez();
 
     await userEvent.click(financeAction());
+    expect(createPosLoanMutateMock).not.toHaveBeenCalled();
+    await confirmFinance();
     await waitFor(() => expect(createPosLoanMutateMock).toHaveBeenCalledTimes(1));
 
     const payload = createPosLoanMutateMock.mock.calls[0]?.[0] as {
@@ -1742,6 +1851,7 @@ describe("POS cart financing (pos-loan-initiation)", () => {
     await selectAnaPerez();
 
     await userEvent.click(financeAction());
+    await confirmFinance();
     await waitFor(() => expect(createPosLoanMutateMock).toHaveBeenCalledTimes(1));
 
     // A failed attempt must not clear the cart, the customer or the discount.
@@ -1750,6 +1860,7 @@ describe("POS cart financing (pos-loan-initiation)", () => {
     expect(screen.getByText("Descuento")).toBeTruthy();
 
     await userEvent.click(financeAction());
+    await confirmFinance();
     await waitFor(() => expect(createPosLoanMutateMock).toHaveBeenCalledTimes(2));
 
     const keys = createPosLoanMutateMock.mock.calls.map(
