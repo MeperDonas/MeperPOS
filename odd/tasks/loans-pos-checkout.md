@@ -26,7 +26,11 @@ Continuation of `odd/tasks/loans-module.md` (issue #209).
    Exact event-state and replay constraints must be checked against current SQL before writing. Do not silently reprice legacy snapshots missing required metadata.
 3. [ ] **Q3 — Recognize POS loan collections in cash flow once.**
    Separate cash collections from sale revenue. Follow stored collection date/method and correction semantics; REVERSED must not be invented as a cash refund. Do not silently change independent obligations or per-register allocation. Verify pending and completed financing do not double count.
-4. [ ] **Q4 — Connect POS initiation and a minimal servicing journey.** — IN PROGRESS (human priority).
+4. [x] **Q4 — Connect POS initiation and a minimal servicing journey.** — POS ENTRY DELIVERED; loans page pending.
+   Delivered as two independent local commits, natively UNREVIEWED, after a green frontend suite of 79 files/629 tests and a clean frontend typecheck, both run with the pinned Node 24 runtime because Node 26 leaves the localStorage global undefined and produces 40 bogus failures:
+   - `f1a8c7b85bc4deeec7a66d807bfe4397d76091dd` feat(pos): add financed checkout data layer — types, `useLoans` initiation hook, hook tests; 244 lines.
+   - `66aaf9d5b44c03e9d75fd65933a072bac3134ff2` feat(pos): finance the cart from the loans endpoint — POS action beside checkout, server-owned total, retry key stability; 252 lines.
+   Financing requires a selected customer and a non-empty cart, sends a generated `requestKey`, and shows `agreedCustomerTotal` from the server. The hook returns a plain `useMutation`, and the test awaits the settled value with `waitFor` per repo convention. Remaining for Q4: the loans page itself (list, detail, collection, explicit completion), navigation and route role gate.
    Preserve immediate checkout. Capture customer/cart/discount and a stable retry key; send only deliberate price overrides; display server-owned totals. Add minimal loan balance/history/collection and explicit completion UI, with navigation and behavior tests, not a redesign. Split into coherent reviewable UI units if necessary.
 5. [ ] **Q5 — Verify the usable journey in authorized environments.**
    Model tests and noEmit are not PostgreSQL or browser proof. Isolated PostgreSQL migrations/rollback/concurrency and HTTP/CSRF/browser checks need separate authorization. Physical API rollout remains OFF. Record unavailable checks honestly.
