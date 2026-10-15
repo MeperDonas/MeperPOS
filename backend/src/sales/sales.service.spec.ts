@@ -51,6 +51,7 @@ describe('SalesService', () => {
     customer: {
       findFirst: jest.fn(),
     },
+    posLoanSaleIntent: { findFirst: jest.fn().mockResolvedValue(null) },
   };
 
   const cacheMock = {

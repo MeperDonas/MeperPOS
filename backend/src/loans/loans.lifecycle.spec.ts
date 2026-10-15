@@ -66,6 +66,10 @@ function lifecycleFixture(type: string) {
     },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
     posLoanSaleIntent: { findFirst: jest.fn().mockResolvedValue(null) },
+    posLoanSaleReservation: {
+      findMany: jest.fn().mockResolvedValue([]),
+      updateMany: jest.fn(),
+    },
   };
   const prisma = {
     ...tx,
@@ -498,5 +502,145 @@ describe.each(['MONEY', 'SERVICE'])('Standalone %s lifecycle', (type) => {
       service.mutate('loan', 'COLLECTED', collection, 'actor', undefined),
     ).rejects.toThrow(ForbiddenException);
     expect(tx.moneyLoanEvent.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('POS financing lifecycle bypass protection', () => {
+  it('requires explicit completion instead of generic closure of a fully paid OPEN POS loan', async () => {
+    const { run, tx } = lifecycleFixture('MONEY');
+    tx.posLoanSaleIntent.findFirst.mockResolvedValue({
+      id: 'intent',
+      loanId: 'loan',
+      organizationId: 'org',
+      finalSaleId: null,
+    });
+    await expect(
+      run('COLLECTED', { ...collection, amount: 100.25 }),
+    ).resolves.toMatchObject({
+      status: 'OPEN',
+      paymentStatus: 'PAID',
+      balance: '0.00',
+    });
+    tx.moneyLoan.updateMany.mockClear();
+    tx.moneyLoanEvent.create.mockClear();
+    tx.auditLog.create.mockClear();
+
+    await expect(run('CLOSED', { requestKey: 'pos-close' })).rejects.toThrow(
+      ConflictException,
+    );
+    expect(tx.moneyLoan.updateMany).not.toHaveBeenCalled();
+    expect(tx.moneyLoanEvent.create).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
+    expect(tx.posLoanSaleReservation.findMany).not.toHaveBeenCalled();
+    expect(tx.posLoanSaleReservation.updateMany).not.toHaveBeenCalled();
+    expect(tx.product.updateMany).not.toHaveBeenCalled();
+    expect(tx.sale.create).not.toHaveBeenCalled();
+    expect(tx.payment.create).not.toHaveBeenCalled();
+    expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a valid collection reversal after the POS intent has a final sale, before writes', async () => {
+    const { run, tx, loan } = lifecycleFixture('MONEY');
+    await run('COLLECTED', { ...collection, amount: 100.25 });
+    // OPEN isolates the final-sale guard from the already-existing closed-status guard.
+    expect(loan.status).toBe('OPEN');
+    tx.posLoanSaleIntent.findFirst.mockResolvedValue({
+      id: 'intent',
+      loanId: 'loan',
+      organizationId: 'org',
+      finalSaleId: 'sale',
+    });
+    tx.moneyLoan.updateMany.mockClear();
+    tx.moneyLoanEvent.create.mockClear();
+    tx.auditLog.create.mockClear();
+
+    await expect(
+      run('REVERSED', {
+        requestKey: 'linked-reversal',
+        paymentId: 'event-1',
+        reason: 'Corrección',
+      }),
+    ).rejects.toThrow(ConflictException);
+    expect(tx.moneyLoan.updateMany).not.toHaveBeenCalled();
+    expect(tx.moneyLoanEvent.create).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
+    expect(tx.posLoanSaleReservation.updateMany).not.toHaveBeenCalled();
+    expect(tx.product.updateMany).not.toHaveBeenCalled();
+    expect(tx.sale.create).not.toHaveBeenCalled();
+    expect(tx.payment.create).not.toHaveBeenCalled();
+    expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
+  });
+
+  it('preserves valid POS collection corrections before the final-sale link', async () => {
+    const { run, tx, loan } = lifecycleFixture('MONEY');
+    tx.posLoanSaleIntent.findFirst.mockResolvedValue({
+      id: 'intent',
+      loanId: 'loan',
+      organizationId: 'org',
+      finalSaleId: null,
+    });
+    await run('COLLECTED', collection);
+    const collected = { ...loan.events[0] };
+    await expect(
+      run('REVERSED', {
+        requestKey: 'pre-link-reversal',
+        paymentId: collected.id,
+        reason: 'Corrección',
+      }),
+    ).resolves.toMatchObject({
+      status: 'OPEN',
+      collected: '0.00',
+      balance: '100.25',
+      paymentStatus: 'UNPAID',
+    });
+    expect(loan.events[0]).toEqual(collected);
+    expect(loan.events[1]).toMatchObject({
+      type: 'REVERSED',
+      reversesId: collected.id,
+      amount: new Prisma.Decimal('40.25'),
+    });
+    expect(tx.moneyLoanEvent.create).toHaveBeenCalledTimes(2);
+    expect(tx.sale.create).not.toHaveBeenCalled();
+  });
+
+  it('replays a stored pre-link correction before final-sale mutation guards', async () => {
+    const { run, tx, loan } = lifecycleFixture('MONEY');
+    tx.posLoanSaleIntent.findFirst.mockResolvedValue({
+      id: 'intent',
+      loanId: 'loan',
+      organizationId: 'org',
+      finalSaleId: null,
+    });
+    await run('COLLECTED', collection);
+    const body = {
+      requestKey: 'pre-link-reversal',
+      paymentId: 'event-1',
+      reason: 'Corrección',
+    };
+    const original = await run('REVERSED', body);
+    await expect(
+      run('COLLECTED', {
+        ...collection,
+        requestKey: 'replacement-collection',
+        amount: 100.25,
+      }),
+    ).resolves.toMatchObject({ paymentStatus: 'PAID', balance: '0.00' });
+    loan.status = 'CLOSED';
+    tx.posLoanSaleIntent.findFirst.mockResolvedValue({
+      id: 'intent',
+      loanId: 'loan',
+      organizationId: 'org',
+      finalSaleId: 'sale',
+    });
+    tx.posLoanSaleIntent.findFirst.mockClear();
+    tx.moneyLoan.updateMany.mockClear();
+    tx.moneyLoanEvent.create.mockClear();
+    tx.auditLog.create.mockClear();
+
+    expect(await run('REVERSED', body)).toEqual(original);
+    expect(tx.posLoanSaleIntent.findFirst).not.toHaveBeenCalled();
+    expect(tx.moneyLoan.updateMany).not.toHaveBeenCalled();
+    expect(tx.moneyLoanEvent.create).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
   });
 });

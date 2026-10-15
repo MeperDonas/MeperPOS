@@ -644,6 +644,22 @@ export class LoansService {
               'El préstamo está cerrado o cancelado; no admite operaciones ni reapertura automática',
             );
           }
+          if (kind === 'CLOSED' || kind === 'REVERSED') {
+            const intent = await tx.posLoanSaleIntent.findFirst({
+              where: { loanId: id, organizationId: orgId },
+              select: { id: true, finalSaleId: true },
+            });
+            if (intent && kind === 'CLOSED') {
+              throw new ConflictException(
+                'La financiación requiere completar la venta explícitamente',
+              );
+            }
+            if (intent && intent.finalSaleId != null) {
+              throw new ConflictException(
+                'No se pueden reversar abonos de una financiación con venta final',
+              );
+            }
+          }
           const before = totals(loan);
           let reversesId: string | null = null;
           let status: MoneyLoanStatus = loan.status;

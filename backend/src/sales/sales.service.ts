@@ -576,6 +576,21 @@ export class SalesService {
       throw new BadRequestException('Only completed sales can be updated');
     }
 
+    if (
+      updateSaleDto.status === 'CANCELLED' ||
+      updateSaleDto.status === 'RETURNED_PARTIAL'
+    ) {
+      const intent = await this.prisma.posLoanSaleIntent.findFirst({
+        where: { finalSaleId: existingSale.id, organizationId },
+        select: { id: true },
+      });
+      if (intent) {
+        throw new ConflictException(
+          'No se puede cancelar ni devolver una venta vinculada a financiación',
+        );
+      }
+    }
+
     if (updateSaleDto.status === 'CANCELLED') {
       await this.prisma.$transaction(async (tx) => {
         // Sale has no version column. Claim its expected state before effects;

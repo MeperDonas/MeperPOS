@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { ProductType } from '@prisma/client';
 import { SalesService } from './sales.service';
 
@@ -24,6 +25,7 @@ describe('SalesService — selling services', () => {
     customer: {
       findFirst: jest.fn(),
     },
+    posLoanSaleIntent: { findFirst: jest.fn() },
   };
 
   const cacheMock = { clear: jest.fn() };
@@ -96,6 +98,7 @@ describe('SalesService — selling services', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    prismaMock.posLoanSaleIntent.findFirst.mockResolvedValue(null);
     service = new SalesService(
       prismaMock as never,
       cacheMock as never,
@@ -454,6 +457,45 @@ describe('SalesService — selling services', () => {
       customer: null,
       user: { id: 'user-1', name: 'User', email: 'user@example.com' },
     };
+
+    it.each(['CANCELLED', 'RETURNED_PARTIAL'] as const)(
+      'rejects %s for a linked financed sale before any state or inventory writes',
+      async (status) => {
+        const intent = {
+          id: 'intent',
+          loanId: 'loan',
+          organizationId: 'org-1',
+          finalSaleId: 'sale-1',
+        };
+        prismaMock.posLoanSaleIntent.findFirst.mockResolvedValue(intent);
+        prismaMock.sale.findFirst.mockResolvedValue({
+          ...saleWithItem('prod-1', 2),
+          posLoanSaleIntent: intent,
+        });
+        prismaMock.sale.update.mockResolvedValue({ status });
+        const tx = {
+          sale: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+          posLoanSaleIntent: prismaMock.posLoanSaleIntent,
+          product: {
+            findFirst: jest.fn().mockResolvedValue(productRow({ stock: 5 })),
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          },
+          inventoryMovement: { create: jest.fn() },
+        };
+        prismaMock.$transaction.mockImplementation(
+          (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
+        );
+
+        await expect(
+          service.update('sale-1', { status }, 'user-1', 'org-1'),
+        ).rejects.toThrow(ConflictException);
+        expect(prismaMock.sale.update).not.toHaveBeenCalled();
+        expect(tx.sale.updateMany).not.toHaveBeenCalled();
+        expect(tx.product.findFirst).not.toHaveBeenCalled();
+        expect(tx.product.updateMany).not.toHaveBeenCalled();
+        expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
+      },
+    );
 
     it('does not restock RETURNED_PARTIAL sales', async () => {
       prismaMock.sale.findFirst.mockResolvedValue(saleWithItem('prod-1', 2));
