@@ -784,3 +784,56 @@ export interface PosLoanInitiation {
   agreedCustomerTotal: string;
   quoteSnapshot: unknown;
 }
+
+/** The five append-only money loan event kinds (`MoneyLoanEventType`). */
+export type MoneyLoanEventType =
+  | "CREATED"
+  | "COLLECTED"
+  | "REVERSED"
+  | "CLOSED"
+  | "CANCELLED";
+
+/** One event from GET /loans/:id/history (the backend `eventSelect`). */
+export interface LoanHistoryEvent {
+  id: string;
+  loanId: string;
+  type: MoneyLoanEventType;
+  amount: string | null;
+  method: "CASH" | "CARD" | "TRANSFER" | null;
+  reversesId: string | null;
+  reason: string;
+  createdById: string;
+  createdAt: string;
+  createdBy: LoanParty;
+}
+
+/** Filters accepted by GET /loans, mirroring `QueryLoansDto`. */
+export type LoanQueryParams = {
+  type?: MonetaryLoanType;
+  page?: number;
+  limit?: number;
+};
+
+/** POST /loans/:id/collections, and /pos-completion with `intentId`/`saleId`. */
+export interface LoanOperationResult {
+  type: MonetaryLoanType;
+  loanId: string;
+  status: MoneyLoanStatus;
+  collected: string;
+  balance: string;
+  paymentStatus: LoanPaymentStatus;
+  eventId: string;
+  intentId?: string;
+  saleId?: string;
+}
+
+/** Body the client sends on POST /loans/:id/collections. */
+export interface CollectLoanInput {
+  amount: number;
+  method: "CASH" | "CARD" | "TRANSFER";
+  /** Pin a stable key so a retried collection stays idempotent. */
+  requestKey?: string;
+}
+
+/** Flat pagination envelope returned by GET /loans and GET /loans/:id/history. */
+export type LoanPage<T> = { data: T[]; total: number; page: number; limit: number; totalPages: number };
