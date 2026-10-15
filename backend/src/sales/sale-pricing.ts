@@ -111,7 +111,12 @@ export function buildSaleQuote(
   rows: ReadonlyArray<
     Pick<
       PricedSaleItem,
-      'productId' | 'quantity' | 'unitPrice' | 'discountAmount'
+      | 'productId'
+      | 'quantity'
+      | 'unitPrice'
+      | 'discountAmount'
+      | 'taxRate'
+      | 'costPriceSnapshot'
     >
   >,
   agreedCustomerTotal: number,
@@ -122,6 +127,8 @@ export function buildSaleQuote(
       quantity: row.quantity,
       resolvedUnitPrice: row.unitPrice,
       discountAmount: row.discountAmount,
+      taxRate: row.taxRate,
+      costPriceSnapshot: row.costPriceSnapshot,
     }),
   );
   return Object.freeze({ items: Object.freeze(items), agreedCustomerTotal });

@@ -345,12 +345,15 @@ describe('POS financing through LoansService (unwired)', () => {
       agreedCustomerTotal: '178.50',
       quoteSnapshot: {
         agreedCustomerTotal: '178.50',
+        discountAmount: '0.00',
         items: [
           {
             productId: 'coffee',
             quantity: 2,
             resolvedUnitPrice: '80.00',
             discountAmount: '10.00',
+            taxRate: 19,
+            costPriceSnapshot: '40.00',
           },
         ],
       },
@@ -940,6 +943,78 @@ describe('POS financing through LoansService (unwired)', () => {
     expect(f.tx.product.updateMany).not.toHaveBeenCalled();
     expect(f.tx.posLoanSaleReservation.updateMany).not.toHaveBeenCalled();
     noSaleEffects(f.tx);
+  });
+
+  it('subtracts a provided sale-wide discount from the financed total like an ordinary sale', async () => {
+    const f = fixture();
+    const undiscounted = await f.initiate({
+      ...request({
+        requestKey: 'pos-key-full',
+        items: [{ productId: 'coffee', quantity: 2, unitPrice: 120 }],
+      }),
+    });
+    expect(undiscounted).toMatchObject({ agreedCustomerTotal: '285.60' });
+    const discounted = {
+      ...request({
+        requestKey: 'pos-key-discount',
+        items: [{ productId: 'coffee', quantity: 2, unitPrice: 120 }],
+      }),
+      discountAmount: 10,
+    };
+    const result = await f.initiate(discounted);
+    expect(result).toMatchObject({ agreedCustomerTotal: '275.60' });
+    const loanData = f.tx.moneyLoan.create.mock.calls[1][0].data;
+    expect((loanData.amount as Prisma.Decimal).toFixed(2)).toBe('275.60');
+    noSaleEffects(f.tx);
+  });
+
+  it.each([178.5, 200])(
+    'rejects discount %s leaving no positive principal',
+    async (discountAmount) => {
+      const f = fixture();
+      const dto = { ...request(), discountAmount };
+      await expect(f.initiate(dto)).rejects.toThrow(BadRequestException);
+      noNewWrites(f.tx);
+    },
+  );
+
+  it('conflicts when the same key changes only the sale-wide discount', async () => {
+    const f = fixture();
+    const original = { ...request(), discountAmount: 10 };
+    await f.initiate(original);
+    const changed = { ...request(), discountAmount: 5 };
+    await expect(f.initiate(changed)).rejects.toThrow(ConflictException);
+    expect(f.state().intents).toHaveLength(1);
+    expect(f.state().audits).toHaveLength(1);
+  });
+
+  it('replays a legacy intent when an explicit zero sale-wide discount matches the original payload', async () => {
+    const f = fixture();
+    const initiated = await f.initiate();
+    const quoteSnapshot = {
+      agreedCustomerTotal: '178.50',
+      items: [
+        {
+          productId: 'coffee',
+          quantity: 2,
+          resolvedUnitPrice: '80.00',
+          discountAmount: '10.00',
+        },
+      ],
+    };
+    const original = { ...initiated, quoteSnapshot };
+    Object.assign(f.state().intents[0], {
+      quoteSnapshot,
+      initiationResult: original,
+    });
+    f.state().loan.status = 'CANCELLED';
+    f.tx.product.findMany.mockClear();
+    f.tx.customer.findFirst.mockClear();
+    const zeroDiscount = { ...request(), discountAmount: 0 };
+    expect(await f.initiate(zeroDiscount)).toEqual(original);
+    expect(f.tx.moneyLoan.create).toHaveBeenCalledTimes(1);
+    expect(f.tx.product.findMany).not.toHaveBeenCalled();
+    expect(f.tx.customer.findFirst).not.toHaveBeenCalled();
   });
 });
 

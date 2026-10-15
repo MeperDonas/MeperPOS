@@ -49,12 +49,16 @@ describe('prepareSaleQuoteForStorage', () => {
         quantity: 2,
         resolvedUnitPrice: '10.01',
         discountAmount: '0.01',
+        taxRate: 19,
+        costPriceSnapshot: '5.00',
       },
       {
         productId: 'second',
         quantity: 1,
         resolvedUnitPrice: '0.00',
         discountAmount: '0.00',
+        taxRate: 0,
+        costPriceSnapshot: '0.00',
       },
     ]);
   });
@@ -158,7 +162,7 @@ describe('prepareSaleQuoteForStorage', () => {
     },
   );
 
-  it('preserves nonblank ID text and row order but excludes tax/cost metadata', () => {
+  it('preserves nonblank ID text, row order and resolved tax/cost metadata', () => {
     const input = makeQuote();
     const quote = {
       ...input,
@@ -173,6 +177,7 @@ describe('prepareSaleQuoteForStorage', () => {
     const prepared = prepareSaleQuoteForStorage(quote);
     expect(Object.keys(prepared.snapshot).sort()).toEqual([
       'agreedCustomerTotal',
+      'discountAmount',
       'items',
     ]);
     expect(prepared.snapshot.items.map((item) => item.productId)).toEqual([
@@ -181,10 +186,12 @@ describe('prepareSaleQuoteForStorage', () => {
     ]);
     for (const item of prepared.snapshot.items) {
       expect(Object.keys(item).sort()).toEqual([
+        'costPriceSnapshot',
         'discountAmount',
         'productId',
         'quantity',
         'resolvedUnitPrice',
+        'taxRate',
       ]);
     }
     expect(prepared.agreedCustomerTotal).not.toBe(
@@ -220,5 +227,67 @@ describe('prepareSaleQuoteForStorage', () => {
     expect(quote.items[0].resolvedUnitPrice).toBe(10.005);
     expect(quote.agreedCustomerTotal).toBe(123.455);
     expect(Reflect.set(prepared.snapshot.items[0], 'quantity', 9)).toBe(false);
+  });
+
+  it.each([-1, NaN, Infinity, 100000000])(
+    'rejects invalid sale-wide discount %s',
+    (discountAmount) => {
+      expect(() =>
+        prepareSaleQuoteForStorage({ ...makeQuote(), discountAmount }),
+      ).toThrow(BadRequestException);
+    },
+  );
+
+  it.each([-1, NaN, Infinity, 1000, 0.001])(
+    'rejects invalid resolved tax rate %s',
+    (taxRate) => {
+      expect(() => prepareSaleQuoteForStorage(withItem({ taxRate }))).toThrow(
+        BadRequestException,
+      );
+    },
+  );
+
+  it.each([-1, NaN, Infinity, 100000000])(
+    'rejects invalid resolved cost %s',
+    (cost) => {
+      const quote = withItem({ costPriceSnapshot: new Prisma.Decimal(cost) });
+      expect(() => prepareSaleQuoteForStorage(quote)).toThrow(
+        BadRequestException,
+      );
+    },
+  );
+
+  it('retains resolved line tax/cost metadata and a provided sale-wide discount', () => {
+    const quote = makeQuote();
+    const enriched = {
+      ...quote,
+      discountAmount: 10,
+      items: quote.items.map((item, index) => ({
+        ...item,
+        taxRate: index === 0 ? 19 : 0,
+        costPriceSnapshot: new Prisma.Decimal(index === 0 ? 5 : 0),
+      })),
+    };
+    const prepared = prepareSaleQuoteForStorage(enriched);
+    expect(Object.keys(prepared.snapshot).sort()).toEqual([
+      'agreedCustomerTotal',
+      'discountAmount',
+      'items',
+    ]);
+    expect(prepared.snapshot).toMatchObject({ discountAmount: '10.00' });
+    expect(prepared.snapshot.items[0]).toEqual(
+      expect.objectContaining({
+        taxRate: 19,
+        costPriceSnapshot: '5.00',
+      }),
+    );
+    expect(Object.keys(prepared.snapshot.items[0]).sort()).toEqual([
+      'costPriceSnapshot',
+      'discountAmount',
+      'productId',
+      'quantity',
+      'resolvedUnitPrice',
+      'taxRate',
+    ]);
   });
 });

@@ -131,12 +131,16 @@ describe('buildSaleQuote value ownership', () => {
           quantity: 2,
           resolvedUnitPrice: 80,
           discountAmount: 10,
+          taxRate: 19,
+          costPriceSnapshot: new Prisma.Decimal(40),
         },
         {
           productId: 'free-item',
           quantity: 3,
           resolvedUnitPrice: 0,
           discountAmount: 0.125,
+          taxRate: 19,
+          costPriceSnapshot: new Prisma.Decimal(40),
         },
       ],
       agreedCustomerTotal: 123.456789,
@@ -144,10 +148,12 @@ describe('buildSaleQuote value ownership', () => {
     expect(Object.keys(quote).sort()).toEqual(['agreedCustomerTotal', 'items']);
     for (const row of quote.items) {
       expect(Object.keys(row).sort()).toEqual([
+        'costPriceSnapshot',
         'discountAmount',
         'productId',
         'quantity',
         'resolvedUnitPrice',
+        'taxRate',
       ]);
     }
   });
@@ -197,6 +203,8 @@ describe('buildSaleQuote value ownership', () => {
           quantity: 2,
           resolvedUnitPrice: 80,
           discountAmount: 0,
+          taxRate: 19,
+          costPriceSnapshot: new Prisma.Decimal(40),
         },
       ],
       agreedCustomerTotal: 190.4,
@@ -208,6 +216,35 @@ describe('buildSaleQuote value ownership', () => {
     const quote = buildSaleQuote([], 0);
     expect(quote).toEqual({ items: [], agreedCustomerTotal: 0 });
     expect(Object.isFrozen(quote.items)).toBe(true);
+  });
+
+  it('keeps each resolved line tax rate and cost snapshot in the built quote', () => {
+    const resolved = resolveSaleItemPricing(
+      productFixture(),
+      { quantity: 2, discountAmount: 10 },
+      false,
+    ).pricedItem;
+    const quote = buildSaleQuote([resolved], 178.5);
+    expect(quote.agreedCustomerTotal).toBe(178.5);
+    expect(quote.items[0]).toEqual(
+      expect.objectContaining({
+        productId: 'product-1',
+        quantity: 2,
+        resolvedUnitPrice: 80,
+        discountAmount: 10,
+        taxRate: 19,
+        costPriceSnapshot: resolved.costPriceSnapshot,
+      }),
+    );
+    expect(Object.keys(quote.items[0]).sort()).toEqual([
+      'costPriceSnapshot',
+      'discountAmount',
+      'productId',
+      'quantity',
+      'resolvedUnitPrice',
+      'taxRate',
+    ]);
+    expect(Object.isFrozen(quote.items[0])).toBe(true);
   });
 });
 

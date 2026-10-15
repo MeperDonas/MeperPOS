@@ -183,6 +183,37 @@ describe('POS loan sale intent declarations (not executed SQL)', () => {
   });
 });
 
+const checkoutMigrationPath = resolve(
+  __dirname,
+  '../../prisma/migrations/20261009110000_pos_loan_checkout_quote/migration.sql',
+);
+const checkoutSql = existsSync(checkoutMigrationPath)
+  ? readFileSync(checkoutMigrationPath, 'utf8')
+  : '';
+
+describe('POS checkout quote extension declarations (not executed SQL)', () => {
+  it('retains legacy guards and strictly validates the complete extended shape', () => {
+    declares(checkoutSql, [
+      /CREATE OR REPLACE FUNCTION "protect_pos_loan_sale_quote"/,
+      /IF TG_OP = 'UPDATE'[\s\S]*?RETURN NEW;[\s\S]*?extended :=/,
+      /NEW\."quoteSnapshot" IS DISTINCT FROM OLD\."quoteSnapshot"/,
+      /NEW\."agreedCustomerTotal" IS DISTINCT FROM OLD\."agreedCustomerTotal"/,
+      /extended := snapshot \? 'discountAmount'/,
+      /ELSE ARRAY\['productId', 'quantity', 'resolvedUnitPrice', 'discountAmount'\]/,
+      /jsonb_typeof\(snapshot -> 'discountAmount'\) IS DISTINCT FROM 'string'/,
+      /jsonb_typeof\(item -> 'taxRate'\) IS DISTINCT FROM 'number'/,
+      /jsonb_typeof\(item -> 'costPriceSnapshot'\) IS DISTINCT FROM 'string'/,
+      /scale\(\(item ->> 'taxRate'\)::numeric\) > 2/,
+      /\(item ->> 'taxRate'\)::numeric > 999\.99/,
+      /l\."amount" = NEW\."agreedCustomerTotal"/,
+      /p\."organizationId" = NEW\."organizationId"/,
+    ]);
+    expect(checkoutSql).not.toMatch(
+      /ALTER TABLE|UPDATE "|DELETE FROM|INSERT INTO/,
+    );
+  });
+});
+
 const quoteMigrationPath = resolve(
   __dirname,
   '../../prisma/migrations/20261009090000_pos_loan_sale_quote/migration.sql',

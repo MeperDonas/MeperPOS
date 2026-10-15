@@ -4,10 +4,12 @@ import {
   ArrayMinSize,
   IsArray,
   IsDateString,
+  IsNumber,
   IsString,
   IsUUID,
   Matches,
   MaxLength,
+  Min,
   MinLength,
   IsOptional,
   ValidateNested,
@@ -44,6 +46,13 @@ export class CreatePosLoanDto {
   @MinLength(1)
   @MaxLength(500)
   reason: string;
+
+  @ApiPropertyOptional({ example: 0, minimum: 0 })
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  @Type(() => Number)
+  discountAmount?: number;
 
   @ApiProperty({ type: [SaleItemDto] })
   @IsArray()

@@ -1,0 +1,37 @@
+# POS financing checkout and linked completion
+
+Continuation of `odd/tasks/loans-module.md` (issue #209).
+
+## Authority and baseline
+
+- User requested local commit followed by prioritizing the POS screen and linked-sale completion.
+- Baseline: `a96c980fffac305268dd2e22c6a78c0d5be0d6a1`; initiation, unpaid cancellation and API boundary verified: 158 focused tests, 1598 regression tests, production noEmit: zero diagnostics.
+- The baseline is natively UNREVIEWED: managed-assets preflight blocked (memory 2176). No inherited waiver, hook bypass, global maintenance, push or database execution.
+- Confirmed policy (2186): collections enter cash flow once at their collection date/method; explicit completion recognizes the sale without another cash charge.
+- Preserve Customer-only MONEY financing, immutable customer pricing/principal, owned reservations, tenant/actor-scoped replay and ordinary immediate checkout.
+- Review target: at most 400 changed source/readable-test lines per next unit. This is not an extension of the previous 1600-line exception. Stop on a concrete overage; do not compress tests or omit valid cases.
+
+## Tasks
+
+1. [ ] **Q1 — Correct financed checkout quote parity** — IN PROGRESS.
+   Preserve the checkout sale-wide discount and resolved line tax/cost snapshots in initiation and its stored quote. Update strict JSON validation with a new migration; preserve old immutable snapshots and old-key replay. This delivers corrected financing behavior, not a storage-only precursor.
+   Test-first: observe meaningful failures for discounted principal, frozen metadata and replay before implementation. Preserve normal Sales characterization and all valid existing tests. No migration application.
+   Evidence: discovery 2188. Stage A: append focused pricing/storage/initiation regression tests, preserving existing cases; no production changes until observed RED. Stage A formal handoff 2207: 5 cases, 104 added lines, no production changes or test execution. Parent verified existing `discountAmount` convention (2208). Alignment SETTLED (2210): storage `ead15768`, POS `6366f85a`, pricing `3c99c28e`; 104 test lines, no production changes. 2213 FORMAL partial RED: 226 tests, 222 PASS / 4 FAIL, runtime 0. All 221 old cases and zero-discount replay PASS. Metadata loss reached; principal/fingerprint assertions blocked by DTO rejection. 2215 DTO-only handoff SETTLED: optional nonnegative `discountAmount`, +9 lines, SHA `afd1b167`; whole unit 113 lines. No calculation/hash/storage changes. 2217 FORMAL reached RED: same four suites, 226 tests, 222 PASS / 4 FAIL, runtime 0, 2.74s. Accepted discount 10 produces 285.60 instead of 275.60; changing discount to 5 with the same key replays 178.50 instead of ConflictException. All 221 prior cases and zero-discount replay PASS. Built metadata and missing stored discount remain RED; later stored item assertions and loan-amount assertion remain unreached. All controls/hashes unchanged; cache 1006 retained. Writer `mv8rj0qx-n-y049` settled without edits: estimate 399 lines, precautionary stop only; no concrete overage. Parent decision 2219: proceed with the already authorized connected attempt under the unchanged 400-line cap. Preserve readable tests and strict SQL; stop on an actual overage, not merely low margin. 2221: writer `mv8rkzbd-o-9n7b` SETTLED with connected candidate: 390 additions + 11 deletions = 401 source/test lines, including new SQL. Concrete one-line overage; preserved without trimming. Scoped diff-check PASS; tests/noEmit/PG unrun, no GREEN claim. Old migrations/schema/Sales/controller/lifecycle unchanged. Human selected `verify_exact_401` (2219): authorize verification of this exact 401-line candidate only, without applying migrations or publishing. No general budget increase or future waiver. ASSESS unassessable (untracked declaration), so independent high-risk verification required. All writers settled. 2224 FORMAL GREEN: five focused suites 255/255 PASS; retained 17-suite regression 1619/1619 PASS; public TS 5.9.3 production 199 roots/1792 sources/0 specs/0 diagnostics. All nine hashes stable before/after every process; all original controls PASS, cache 1105 retained. Reached discounted total AND loan principal 275.60, changed-discount Conflict, exact legacy cancellation replay before catalog reads, and tax/cost validation. SQL read as data only; PostgreSQL/HTTP/browser/Node22/lint/build remain unverified. 2225 candidate-specific native inspect STOP: managed_assets_outdated, stale asset `8a69be58`; selected new SQL/task doc, excluded unread .codegraph. No START/lineage/approval/consumption. 2228: human selected `commit_q1_exact401_unreviewed`: ordinary local commit for this verified 401-line candidate, then continue explicit linked-sale completion. This is not native approval, receipt consumption, a future waiver, hook bypass, global maintenance, PostgreSQL execution or push. Parent preparing exact-path delivery; all delegated actors settled.
+2. [ ] **Q2 — Complete a fully-paid financed sale explicitly.**
+   Use existing scoped finalSaleId, persisted event result and owned HELD-to-CONSUMED transitions. In one Serializable transaction create the frozen sale, link it, consume owned stock/holds, close the loan and append history/audit. No new Payment/cash charge. Replay before catalog reads. Prevent generic loan closure/reversal and sale cancellation from bypassing financed completion. Refund/credit processing is not part of this slice.
+   Exact event-state and replay constraints must be checked against current SQL before writing. Do not silently reprice legacy snapshots missing required metadata.
+3. [ ] **Q3 — Recognize POS loan collections in cash flow once.**
+   Separate cash collections from sale revenue. Follow stored collection date/method and correction semantics; REVERSED must not be invented as a cash refund. Do not silently change independent obligations or per-register allocation. Verify pending and completed financing do not double count.
+4. [ ] **Q4 — Connect POS initiation and a minimal servicing journey.**
+   Preserve immediate checkout. Capture customer/cart/discount and a stable retry key; send only deliberate price overrides; display server-owned totals. Add minimal loan balance/history/collection and explicit completion UI, with navigation and behavior tests, not a redesign. Split into coherent reviewable UI units if necessary.
+5. [ ] **Q5 — Verify the usable journey in authorized environments.**
+   Model tests and noEmit are not PostgreSQL or browser proof. Isolated PostgreSQL migrations/rollback/concurrency and HTTP/CSRF/browser checks need separate authorization. Physical API rollout remains OFF. Record unavailable checks honestly.
+
+## Execution boundaries
+
+- Single bounded source writer; parent owns Git delivery and task/memory updates.
+- No original dotenv/config execution, network, dependency upgrades/install, seeds/reset, PostgreSQL writes or global harness repair without explicit scope authorization.
+- Keep protected reset script and `.codegraph` unread and excluded; retain ignored regular0600 helpers and legitimate caches.
+- Reuse the complete authorized public Node24 backend runner; never reconstruct or patch private Jest internals.
+- Frontend Vitest config/setup and declared dependencies are known; installed availability and safe execution still need verification.
+- Every write phase closes with actual checks and candidate-specific review/disposition. A prior unreviewed commit is not permission for a later candidate.

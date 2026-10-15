@@ -219,12 +219,14 @@ export class LoansService {
             return row;
           });
           // Preserve SalesService's original tax before B4 normalization.
-          const prepared = prepareSaleQuoteForStorage(
-            buildSaleQuote(
+          const discountAmount = Number(payload.discountAmount ?? 0);
+          const prepared = prepareSaleQuoteForStorage({
+            ...buildSaleQuote(
               priced.map((row) => row.pricedItem),
-              subtotal + totalTax,
+              subtotal + totalTax - discountAmount,
             ),
-          );
+            discountAmount,
+          });
           const holds = [...quantities].sort(([a], [b]) => a.localeCompare(b));
           for (const [id, quantity] of holds) {
             const product = byId.get(id)!;
@@ -276,8 +278,8 @@ export class LoansService {
           const intentId = randomUUID();
           // Own JSON containers while retaining B4's canonical money strings.
           const snapshot = {
+            ...prepared.snapshot,
             items: prepared.snapshot.items.map((item) => ({ ...item })),
-            agreedCustomerTotal: prepared.snapshot.agreedCustomerTotal,
           };
           snapshot.items.forEach((item) => Object.freeze(item));
           Object.freeze(snapshot.items);
@@ -846,6 +848,21 @@ export class LoansService {
     ) {
       throw new BadRequestException('Solicitud de financiación inválida');
     }
+    const discount = dto.discountAmount ?? 0;
+    if (
+      typeof discount !== 'number' ||
+      !Number.isFinite(discount) ||
+      discount < 0
+    ) {
+      throw new BadRequestException('Descuento de financiación inválido');
+    }
+    const normalizedDiscount = new Prisma.Decimal(discount).toDecimalPlaces(
+      2,
+      Prisma.Decimal.ROUND_HALF_UP,
+    );
+    if (normalizedDiscount.gt('99999999.99')) {
+      throw new BadRequestException('Descuento de financiación fuera de rango');
+    }
     const items = dto.items.map((item) => {
       if (
         !item ||
@@ -870,6 +887,10 @@ export class LoansService {
       dueAt: dto.dueAt ?? null,
       reason: dto.reason.trim(),
       items,
+      // Omit canonical zero: historical request hashes remain byte-for-byte valid.
+      ...(normalizedDiscount.isZero()
+        ? {}
+        : { discountAmount: normalizedDiscount.toFixed(2) }),
     };
   }
 
@@ -905,9 +926,11 @@ export class LoansService {
       !object(snapshot)
     )
       return conflict();
+    const extended = Object.hasOwn(snapshot, 'discountAmount');
     if (
       Object.keys(result).length !== 6 ||
-      Object.keys(snapshot).length !== 2 ||
+      Object.keys(snapshot).length !== (extended ? 3 : 2) ||
+      (extended && !money(snapshot.discountAmount)) ||
       result.intentId !== intent.id ||
       result.loanId !== intent.loanId ||
       result.organizationId !== orgId ||
@@ -924,7 +947,7 @@ export class LoansService {
     for (const item of snapshot.items) {
       if (
         !object(item) ||
-        Object.keys(item).length !== 4 ||
+        Object.keys(item).length !== (extended ? 6 : 4) ||
         typeof item.productId !== 'string' ||
         !item.productId.trim() ||
         typeof item.quantity !== 'number' ||
@@ -932,7 +955,14 @@ export class LoansService {
         item.quantity < 1 ||
         item.quantity > 2147483647 ||
         !money(item.resolvedUnitPrice) ||
-        !money(item.discountAmount)
+        !money(item.discountAmount) ||
+        (extended &&
+          (!money(item.costPriceSnapshot) ||
+            typeof item.taxRate !== 'number' ||
+            !Number.isFinite(item.taxRate) ||
+            item.taxRate < 0 ||
+            item.taxRate > 999.99 ||
+            new Prisma.Decimal(item.taxRate).decimalPlaces() > 2))
       )
         return conflict();
     }
