@@ -518,7 +518,7 @@ export function Sidebar() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-border/60 pt-3">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center bg-muted/80 rounded-lg p-0.5 border border-border/40">
                   <button
                     type="button"
