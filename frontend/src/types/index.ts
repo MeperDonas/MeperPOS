@@ -714,3 +714,73 @@ export type ExpenseQueryParams = {
   status?: ExpenseStatus;
   search?: string;
 };
+
+export type MonetaryLoanType = "MONEY" | "SERVICE";
+
+export type MoneyLoanStatus = "OPEN" | "CLOSED" | "CANCELLED";
+
+export type LoanPaymentStatus = "UNPAID" | "PARTIAL" | "PAID";
+
+/** Minimal party projection returned by the loans selects. */
+export interface LoanParty {
+  id: string;
+  name: string;
+}
+
+/**
+ * Money loan as returned by GET /loans and GET /loans/:id. The backend omits
+ * `version`/`events` and adds the server-owned `collected`/`balance` strings and
+ * `paymentStatus`; the UI reads those and never recomputes them.
+ */
+export interface Loan {
+  type: MonetaryLoanType;
+  id: string;
+  amount: string;
+  status: MoneyLoanStatus;
+  issuedAt: string;
+  dueAt: string | null;
+  reason: string;
+  customerId: string | null;
+  supplierId: string | null;
+  employeeId: string | null;
+  createdById: string;
+  createdAt: string;
+  customer: LoanParty | null;
+  supplier: LoanParty | null;
+  employee: LoanParty | null;
+  createdBy: LoanParty;
+  collected: string;
+  balance: string;
+  paymentStatus: LoanPaymentStatus;
+}
+
+export interface PosLoanItemInput {
+  productId: string;
+  quantity: number;
+  /** Send only for a deliberate manager override; the server prices the line otherwise. */
+  unitPrice?: number;
+  discountAmount?: number;
+}
+
+export interface CreatePosLoanInput {
+  customerId: string;
+  reason: string;
+  items: PosLoanItemInput[];
+  /** Defaults to the current date (YYYY-MM-DD) when the caller omits it. */
+  issuedAt?: string;
+  dueAt?: string;
+  /** Sale-wide discount. */
+  discountAmount?: number;
+  /** Pin a stable idempotency key so a retried attempt reuses it. */
+  requestKey?: string;
+}
+
+/** POST /loans/pos-initiation response. `agreedCustomerTotal` is the server total to display. */
+export interface PosLoanInitiation {
+  intentId: string;
+  loanId: string;
+  organizationId: string;
+  customerId: string;
+  agreedCustomerTotal: string;
+  quoteSnapshot: unknown;
+}
