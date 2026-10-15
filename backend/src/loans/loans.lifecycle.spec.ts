@@ -80,7 +80,11 @@ function lifecycleFixture(type: string) {
       fn(tx),
     ),
   };
-  const service = new LoansService(prisma as unknown as PrismaService);
+  const sequence = { nextNumber: jest.fn() } as never;
+  const service = new LoansService(
+    prisma as unknown as PrismaService,
+    sequence,
+  );
   const run = (
     kind: string,
     body: Record<string, unknown>,

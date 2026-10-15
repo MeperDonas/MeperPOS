@@ -3,17 +3,20 @@ import {
   CallHandler,
   ExecutionContext,
   ForbiddenException,
+  RequestMethod,
   ValidationPipe,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { OrgRole } from '@prisma/client';
 import { of } from 'rxjs';
 import { JwtAuthGuard } from '../auth/jwt.strategy';
+import { ROLES_KEY } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { OrganizationRequiredGuard } from '../common/guards/organization-required.guard';
 import { AdminOrganizationInterceptor } from '../common/interceptors/admin-organization.interceptor';
 import { LoansController } from './loans.controller';
 import { CounterpartyType, CreateLoanDto } from './dto/create-loan.dto';
+import { LoanOperationDto } from './dto/loan-operation.dto';
 import { QueryLoansDto } from './dto/query-loans.dto';
 
 const valid = {
@@ -195,4 +198,40 @@ describe('Loan backend role boundary', () => {
       expect(request.user.userId).toBe('actor');
     },
   );
+});
+
+describe('POS completion route boundary', () => {
+  const user = {
+    userId: 'actor',
+    organizationId: 'org',
+    role: OrgRole.CASHIER,
+    isSuperAdmin: false,
+  } as never;
+
+  it('declares the CASHIER POST pos-completion route', () => {
+    const handler = LoansController.prototype.completePosSale;
+    expect(Reflect.getMetadata('path', handler)).toBe(':id/pos-completion');
+    expect(Reflect.getMetadata('method', handler)).toBe(RequestMethod.POST);
+    expect(Reflect.getMetadata(ROLES_KEY, handler)).toEqual([OrgRole.CASHIER]);
+  });
+
+  it('forwards the id, validated body, organization and actor', async () => {
+    const service = {
+      completePosSale: jest.fn().mockResolvedValue({ saleId: 'sale' }),
+    };
+    const controller = new LoansController(service as never);
+    const dto = await pipe.transform(
+      { requestKey: 'complete-1' },
+      { type: 'body', metatype: LoanOperationDto },
+    );
+    await expect(
+      controller.completePosSale('sale-id', dto, user),
+    ).resolves.toEqual({ saleId: 'sale' });
+    expect(service.completePosSale).toHaveBeenCalledWith(
+      'sale-id',
+      dto,
+      'org',
+      user,
+    );
+  });
 });

@@ -139,6 +139,7 @@ function fixture() {
           where: Row;
           data: {
             reservedStock: { increment?: number; decrement?: number };
+            stock?: { decrement: number };
             version: { increment: number };
           };
         }) => {
@@ -147,6 +148,7 @@ function fixture() {
             row.reservedStock +=
               (data.reservedStock.increment ?? 0) -
               (data.reservedStock.decrement ?? 0);
+            row.stock -= data.stock?.decrement ?? 0;
             row.version += data.version.increment;
           }
           return { count: rows.length };
@@ -200,10 +202,17 @@ function fixture() {
           pending.intents.find((row) => matches(row, where)) ?? null,
       ),
       create: jest.fn(async ({ data }: { data: Row }) => {
-        const row = { id: 'intent', ...data };
+        const row = { id: 'intent', finalSaleId: null, ...data };
         pending.intents.push(row);
         return row;
       }),
+      updateMany: jest.fn(
+        async ({ where, data }: { where: Row; data: Row }) => {
+          const rows = pending.intents.filter((row) => matches(row, where));
+          for (const row of rows) Object.assign(row, data);
+          return { count: rows.length };
+        },
+      ),
     },
     posLoanSaleReservation: {
       findMany: jest.fn(async ({ where }: { where: Row }) =>
@@ -232,7 +241,8 @@ function fixture() {
         return data;
       }),
     },
-    sale: { create: jest.fn() },
+    sale: { create: jest.fn().mockResolvedValue({ id: 'sale' }) },
+    saleItem: { create: jest.fn() },
     payment: { create: jest.fn() },
     inventoryMovement: { create: jest.fn() },
   };
@@ -260,6 +270,7 @@ function fixture() {
       findFirst: readIntent,
       findUnique: readIntent,
       create: outsideWrite,
+      updateMany: outsideWrite,
     },
     posLoanSaleReservation: {
       ...tx.posLoanSaleReservation,
@@ -267,6 +278,9 @@ function fixture() {
       updateMany: outsideWrite,
     },
     auditLog: { create: outsideWrite },
+    sale: { create: outsideWrite },
+    saleItem: { create: outsideWrite },
+    inventoryMovement: { create: outsideWrite },
     $transaction: jest.fn(
       async (fn: (client: typeof tx) => Promise<unknown>) => {
         pending = {
@@ -288,7 +302,13 @@ function fixture() {
       },
     ),
   };
-  const service = new LoansService(prisma as unknown as PrismaService);
+  const sequence = {
+    nextNumber: jest.fn().mockResolvedValue({ number: 42, formatted: '42' }),
+  };
+  const service = new LoansService(
+    prisma as unknown as PrismaService,
+    sequence as never,
+  );
   const initiate = (
     dto = request(),
     user: RequestUser | undefined = actor(),
@@ -306,6 +326,20 @@ function fixture() {
     tx,
     prisma,
     service,
+    sequence,
+    complete: (requestKey = 'complete-key', user = actor()) =>
+      service.completePosSale('loan', { requestKey }, 'org', user),
+    collect: (
+      amount = Number(committed.loan.amount),
+      requestKey = 'collection-key',
+    ) =>
+      service.mutate(
+        'loan',
+        'COLLECTED',
+        { requestKey, amount, method: 'CASH' },
+        'actor',
+        'org',
+      ),
     initiate,
     cancel,
     outsideWrite,
@@ -1095,4 +1129,289 @@ describe('POS initiation controller boundary', () => {
     expect(Reflect.getMetadata('method', handler)).toBe(RequestMethod.POST);
     expect(Reflect.getMetadata(ROLES_KEY, handler)).toEqual([OrgRole.CASHIER]);
   });
+});
+
+describe('Explicit POS sale completion', () => {
+  it.each(['tracked', 'SERVICE', 'untracked'])(
+    'completes a paid OPEN %s cart from frozen money without another Payment',
+    async (kind) => {
+      const f = fixture();
+      if (kind === 'SERVICE') f.state().products[0].type = 'SERVICE';
+      if (kind === 'untracked') f.state().products[0].tracksStock = false;
+      const dto = { ...request(), discountAmount: 10 };
+      const initiated = await f.initiate(dto);
+      await expect(f.collect()).resolves.toMatchObject({
+        status: 'OPEN',
+        paymentStatus: 'PAID',
+        balance: '0.00',
+      });
+      const foreign = {
+        id: 'foreign-hold',
+        intentId: 'other-intent',
+        organizationId: 'org',
+        productId: 'other-product',
+        quantity: 3,
+        state: 'HELD',
+      };
+      f.state().holds.push(foreign);
+      Object.assign(f.state().products[0], {
+        salePrice: new Prisma.Decimal(999),
+        taxRate: new Prisma.Decimal(99),
+        costPrice: new Prisma.Decimal(900),
+      });
+
+      const result = await f.complete();
+      expect(result).toMatchObject({
+        loanId: 'loan',
+        saleId: 'sale',
+        status: 'CLOSED',
+      });
+      expect(f.state().loan.amount.toFixed(2)).toBe('168.50');
+      expect(f.tx.sale.create.mock.calls[0][0].data).toMatchObject({
+        organizationId: 'org',
+        customerId: request().customerId,
+        status: 'COMPLETED',
+        saleNumber: 42,
+        change: null,
+        subtotal: new Prisma.Decimal(150),
+        taxAmount: new Prisma.Decimal('28.50'),
+        discountAmount: new Prisma.Decimal(10),
+        total: new Prisma.Decimal('168.50'),
+        amountPaid: new Prisma.Decimal('168.50'),
+      });
+      expect(f.tx.saleItem.create.mock.calls[0][0].data).toMatchObject({
+        saleId: 'sale',
+        productId: 'coffee',
+        quantity: 2,
+        taxRate: 19,
+        unitPrice: new Prisma.Decimal(80),
+        costPriceSnapshot: new Prisma.Decimal(40),
+        discountAmount: new Prisma.Decimal(10),
+      });
+      expect(f.state().intents[0].finalSaleId).toBe('sale');
+      expect(f.state().loan.status).toBe('CLOSED');
+      expect(f.state().holds.find((hold) => hold.id === foreign.id)).toEqual(
+        foreign,
+      );
+      if (kind === 'tracked') {
+        expect(f.state().products[0]).toMatchObject({
+          stock: 10,
+          reservedStock: 3,
+        });
+        const owned = f
+          .state()
+          .holds.find((hold) => hold.intentId === initiated.intentId);
+        expect(owned).toMatchObject({
+          state: 'CONSUMED',
+          finalizedById: 'actor',
+          finalizedAt: expect.any(Date),
+        });
+        expect(f.tx.product.updateMany.mock.calls[1][0]).toEqual({
+          where: {
+            id: 'coffee',
+            organizationId: 'org',
+            version: 8,
+            stock: 12,
+            reservedStock: 5,
+          },
+          data: {
+            stock: { decrement: 2 },
+            reservedStock: { decrement: 2 },
+            version: { increment: 1 },
+          },
+        });
+        const movement = f.tx.inventoryMovement.create.mock.calls[0][0].data;
+        expect(movement).toMatchObject({
+          saleId: 'sale',
+          type: 'SALE',
+          quantity: -2,
+        });
+        expect(f.tx.sale.create.mock.invocationCallOrder[0]).toBeLessThan(
+          f.tx.posLoanSaleIntent.updateMany.mock.invocationCallOrder[0],
+        );
+        const linkOrder =
+          f.tx.posLoanSaleIntent.updateMany.mock.invocationCallOrder[0];
+        const consumeOrder =
+          f.tx.posLoanSaleReservation.updateMany.mock.invocationCallOrder[0];
+        expect(linkOrder).toBeLessThan(consumeOrder);
+      } else {
+        expect(f.tx.product.updateMany).not.toHaveBeenCalled();
+        expect(f.tx.posLoanSaleReservation.updateMany).not.toHaveBeenCalled();
+        expect(f.tx.inventoryMovement.create).not.toHaveBeenCalled();
+      }
+      expect(f.tx.payment.create).not.toHaveBeenCalled();
+      expect(f.outsideWrite).not.toHaveBeenCalled();
+      expect(f.sequence.nextNumber).toHaveBeenCalledWith(
+        f.tx,
+        'org',
+        'SALE',
+        expect.any(Number),
+      );
+      expect(f.tx.moneyLoanEvent.create).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: 'CLOSED',
+            requestKey: 'complete-key',
+            result: expect.objectContaining({ saleId: 'sale' }),
+          }),
+        }),
+      );
+      expect(f.tx.auditLog.create).toHaveBeenCalledTimes(3);
+      expect(f.prisma.$transaction).toHaveBeenLastCalledWith(
+        expect.any(Function),
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    },
+  );
+
+  it.each([
+    'unpaid',
+    'partial',
+    'standalone',
+    'cancelled',
+    'closed',
+    'legacy',
+    'wrong-type',
+    'used-key',
+  ])('rejects %s completion before writes', async (kind) => {
+    const f = fixture();
+    if (kind !== 'standalone') await f.initiate();
+    if (kind === 'cancelled') await f.cancel();
+    else if (kind !== 'unpaid')
+      await f.collect(kind === 'partial' ? 10 : undefined);
+    if (kind === 'closed') f.state().loan.status = 'CLOSED';
+    if (kind === 'wrong-type') f.state().loan.type = 'SERVICE';
+    if (kind === 'legacy') {
+      f.state().intents[0].quoteSnapshot = {
+        agreedCustomerTotal: '178.50',
+        items: [
+          {
+            productId: 'coffee',
+            quantity: 2,
+            resolvedUnitPrice: '80.00',
+            discountAmount: '10.00',
+          },
+        ],
+      };
+    }
+    const writes = [
+      f.tx.moneyLoan.updateMany,
+      f.tx.moneyLoanEvent.create,
+      f.tx.auditLog.create,
+      f.tx.product.updateMany,
+      f.tx.posLoanSaleIntent.updateMany,
+      f.tx.posLoanSaleReservation.updateMany,
+    ];
+    const counts = writes.map((write) => write.mock.calls.length);
+    const key = kind === 'used-key' ? 'collection-key' : 'complete-key';
+    await expect(f.complete(key)).rejects.toThrow(ConflictException);
+    writes.forEach((write, index) =>
+      expect(write).toHaveBeenCalledTimes(counts[index]),
+    );
+    noSaleEffects(f.tx);
+    expect(f.tx.saleItem.create).not.toHaveBeenCalled();
+    expect(f.sequence.nextNumber).not.toHaveBeenCalled();
+  });
+
+  it('rejects a valid Q1 quote whose rounded line discounts cannot reconstruct its fixed principal', async () => {
+    const f = fixture();
+    await f.initiate(
+      request({
+        items: [
+          { productId: 'coffee', quantity: 1, discountAmount: 0.005 },
+          { productId: 'coffee', quantity: 1, discountAmount: 0.005 },
+        ],
+      }),
+    );
+    await f.collect();
+    expect(f.state().loan.amount.toFixed(2)).toBe('190.39');
+    expect(f.state().intents[0].quoteSnapshot).toMatchObject({
+      items: [
+        { resolvedUnitPrice: '80.00', discountAmount: '0.01', taxRate: 19 },
+        { resolvedUnitPrice: '80.00', discountAmount: '0.01', taxRate: 19 },
+      ],
+    });
+    const reconstructed = new Prisma.Decimal(80)
+      .minus('0.01')
+      .times(2)
+      .times('1.19');
+    expect(reconstructed.toFixed(2, Prisma.Decimal.ROUND_HALF_UP)).toBe(
+      '190.38',
+    );
+    const before = f.state();
+    f.tx.moneyLoan.updateMany.mockClear();
+    f.tx.moneyLoanEvent.create.mockClear();
+    f.tx.auditLog.create.mockClear();
+    f.tx.product.updateMany.mockClear();
+    await expect(f.complete()).rejects.toThrow(ConflictException);
+    noSaleEffects(f.tx);
+    expect(f.tx.moneyLoan.updateMany).not.toHaveBeenCalled();
+    expect(f.tx.moneyLoanEvent.create).not.toHaveBeenCalled();
+    expect(f.tx.auditLog.create).not.toHaveBeenCalled();
+    expect(f.tx.product.updateMany).not.toHaveBeenCalled();
+    expect(f.tx.posLoanSaleIntent.updateMany).not.toHaveBeenCalled();
+    expect(f.sequence.nextNumber).not.toHaveBeenCalled();
+    expect(f.state()).toEqual(before);
+  });
+
+  it('replays the stored completion before live reads and conflicts on another actor or key', async () => {
+    const f = fixture();
+    await f.initiate();
+    await f.collect();
+    const original = await f.complete();
+    for (const mock of [
+      f.tx.product.findFirst,
+      f.tx.product.findMany,
+      f.tx.customer.findFirst,
+      f.sequence.nextNumber,
+      f.tx.sale.create,
+      f.tx.saleItem.create,
+      f.tx.moneyLoan.updateMany,
+      f.tx.moneyLoanEvent.create,
+      f.tx.auditLog.create,
+      f.tx.product.updateMany,
+      f.tx.posLoanSaleIntent.updateMany,
+      f.tx.posLoanSaleReservation.updateMany,
+      f.tx.inventoryMovement.create,
+    ])
+      mock.mockClear();
+    expect(await f.complete()).toEqual(original);
+    const changedActor = { ...actor(), userId: 'other-actor' };
+    await expect(f.complete('complete-key', changedActor)).rejects.toThrow(
+      ConflictException,
+    );
+    const duplicate = f.complete('second-key');
+    await expect(duplicate).rejects.toThrow(ConflictException);
+    expect(f.tx.product.findFirst).not.toHaveBeenCalled();
+    expect(f.tx.product.findMany).not.toHaveBeenCalled();
+    expect(f.tx.customer.findFirst).not.toHaveBeenCalled();
+    expect(f.sequence.nextNumber).not.toHaveBeenCalled();
+    noSaleEffects(f.tx);
+    expect(f.tx.saleItem.create).not.toHaveBeenCalled();
+    expect(f.tx.moneyLoan.updateMany).not.toHaveBeenCalled();
+    expect(f.tx.moneyLoanEvent.create).not.toHaveBeenCalled();
+    expect(f.tx.auditLog.create).not.toHaveBeenCalled();
+    expect(f.tx.posLoanSaleIntent.updateMany).not.toHaveBeenCalled();
+    expect(f.tx.posLoanSaleReservation.updateMany).not.toHaveBeenCalled();
+  });
+
+  it.each(['loan-CAS', 'link-claim', 'stock-CAS'])(
+    'propagates %s failure and discards local staged loan/intent/hold/counter changes',
+    async (stage) => {
+      const f = fixture();
+      await f.initiate();
+      await f.collect();
+      const before = f.state();
+      if (stage === 'loan-CAS')
+        f.tx.moneyLoan.updateMany.mockResolvedValue({ count: 0 });
+      if (stage === 'link-claim')
+        f.tx.posLoanSaleIntent.updateMany.mockResolvedValue({ count: 0 });
+      if (stage === 'stock-CAS')
+        f.tx.product.updateMany.mockResolvedValue({ count: 0 });
+      await expect(f.complete()).rejects.toThrow(ConflictException);
+      expect(f.state()).toEqual(before);
+      expect(f.tx.payment.create).not.toHaveBeenCalled();
+      expect(f.outsideWrite).not.toHaveBeenCalled();
+    },
+  );
 });

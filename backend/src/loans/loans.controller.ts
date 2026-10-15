@@ -46,6 +46,21 @@ export class LoansController {
     return this.loansService.initiateFromPos(dto, user.organizationId, user);
   }
 
+  @Post(':id/pos-completion')
+  @Roles(OrgRole.CASHIER)
+  completePosSale(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: LoanOperationDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.loansService.completePosSale(
+      id,
+      dto,
+      user.organizationId,
+      user,
+    );
+  }
+
   @Post()
   @Roles(OrgRole.ADMIN)
   create(@Body() dto: CreateLoanDto, @CurrentUser() user: RequestUser) {

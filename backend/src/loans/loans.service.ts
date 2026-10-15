@@ -21,14 +21,19 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CounterpartyType, CreateLoanDto } from './dto/create-loan.dto';
 import { QueryLoansDto } from './dto/query-loans.dto';
 import { CreatePosLoanDto } from './dto/create-pos-loan.dto';
+import { LoanOperationDto } from './dto/loan-operation.dto';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import {
   buildSaleQuote,
   canOverrideSalePrice,
   resolveSaleItemPricing,
 } from '../sales/sale-pricing';
-import { prepareSaleQuoteForStorage } from '../sales/sale-quote-storage';
+import {
+  prepareSaleQuoteForStorage,
+  type PreparedSaleQuote,
+} from '../sales/sale-quote-storage';
 import { tracksStock } from '../products/product-type.logic';
+import { SequenceService } from '../common/sequences/sequence.service';
 
 const personSelect = { id: true, name: true } as const;
 const loanSelect = {
@@ -119,7 +124,351 @@ function pagination(query: QueryLoansDto) {
 
 @Injectable()
 export class LoansService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly sequence: SequenceService,
+  ) {}
+
+  async completePosSale(
+    id: string,
+    dto: LoanOperationDto,
+    organizationId: string | undefined,
+    actor: RequestUser | undefined,
+  ): Promise<Prisma.JsonObject> {
+    const orgId = requireOrganization(organizationId);
+    if (
+      !actor?.userId ||
+      (!actor.isSuperAdmin &&
+        actor.role !== 'SUPER_ADMIN' &&
+        (actor.organizationId !== orgId ||
+          !['OWNER', 'ADMIN', 'CASHIER', 'MEMBER'].includes(actor.role)))
+    ) {
+      throw new ForbiddenException('No tiene permiso para completar ventas');
+    }
+    dto = plainToInstance(LoanOperationDto, dto);
+    if (
+      validateSync(dto, { whitelist: true, forbidNonWhitelisted: true }).length
+    ) {
+      throw new BadRequestException('Solicitud de finalización inválida');
+    }
+    const requestPayload = JSON.stringify({
+      kind: 'POS_COMPLETION',
+      actorId: actor.userId,
+    });
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const loan = await tx.moneyLoan.findFirst({
+            where: { id, organizationId: orgId },
+            select: loanSelect,
+          });
+          if (!loan) throw new NotFoundException('Préstamo no encontrado');
+          const intent = await tx.posLoanSaleIntent.findFirst({
+            where: { loanId: id, organizationId: orgId },
+          });
+          if (!intent) {
+            throw new ConflictException(
+              'El préstamo no es una financiación POS',
+            );
+          }
+          const prior = await tx.moneyLoanEvent.findFirst({
+            where: {
+              loanId: id,
+              organizationId: orgId,
+              requestKey: dto.requestKey,
+            },
+          });
+          if (prior) {
+            const result = prior.result;
+            if (
+              prior.type !== MoneyLoanEventType.CLOSED ||
+              prior.createdById !== actor.userId ||
+              prior.requestPayload !== requestPayload ||
+              !result ||
+              typeof result !== 'object' ||
+              Array.isArray(result) ||
+              result.loanId !== id ||
+              result.saleId !== intent.finalSaleId ||
+              result.status !== 'CLOSED'
+            ) {
+              throw new ConflictException(
+                'La clave ya fue utilizada con otra solicitud',
+              );
+            }
+            return { ...result, eventId: prior.id };
+          }
+          const before = totals(loan);
+          if (
+            loan.type !== MonetaryLoanType.MONEY ||
+            loan.status !== MoneyLoanStatus.OPEN ||
+            !loan.customerId ||
+            loan.customerId !== intent.customerId ||
+            intent.finalSaleId != null ||
+            before.balance !== '0.00' ||
+            !intent.initiatedById ||
+            !intent.initiationRequestKey ||
+            !intent.initiationRequestHash
+          ) {
+            throw new ConflictException(
+              'La financiación no admite finalización',
+            );
+          }
+          // Reuse the complete frozen-quote validator, never catalog pricing.
+          this.posInitiationReplay(
+            intent,
+            orgId,
+            intent.initiatedById,
+            intent.initiationRequestKey,
+            intent.initiationRequestHash,
+          );
+          const quote = intent.quoteSnapshot as PreparedSaleQuote['snapshot'];
+          if (!Object.hasOwn(quote, 'discountAmount')) {
+            throw new ConflictException(
+              'La cotización histórica no contiene impuestos y costos',
+            );
+          }
+          const money = (value: Prisma.Decimal) => {
+            const rounded = value.toDecimalPlaces(
+              2,
+              Prisma.Decimal.ROUND_HALF_UP,
+            );
+            if (!value.isFinite() || value.lt(0) || rounded.gt('99999999.99')) {
+              throw new ConflictException(
+                'Importe de cotización fuera de rango',
+              );
+            }
+            return rounded;
+          };
+          const items = quote.items.map((item) => {
+            const unitPrice = new Prisma.Decimal(item.resolvedUnitPrice);
+            const discountAmount = new Prisma.Decimal(item.discountAmount);
+            const subtotal = money(
+              unitPrice.times(item.quantity).minus(discountAmount),
+            );
+            return {
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice,
+              discountAmount,
+              taxRate: item.taxRate,
+              costPriceSnapshot: new Prisma.Decimal(item.costPriceSnapshot),
+              subtotal,
+              total: money(
+                subtotal.plus(subtotal.times(item.taxRate).div(100)),
+              ),
+            };
+          });
+          const subtotal = money(
+            items.reduce(
+              (sum, item) => sum.plus(item.subtotal),
+              new Prisma.Decimal(0),
+            ),
+          );
+          const rawTax = items.reduce(
+            (sum, item) => sum.plus(item.subtotal.times(item.taxRate).div(100)),
+            new Prisma.Decimal(0),
+          );
+          const taxAmount = money(rawTax);
+          const discountAmount = new Prisma.Decimal(quote.discountAmount);
+          const total = money(subtotal.plus(rawTax).minus(discountAmount));
+          if (
+            !total.eq(loan.amount) ||
+            !total.eq(intent.agreedCustomerTotal!) ||
+            total.lte(0)
+          ) {
+            throw new ConflictException(
+              'La cotización no reconstruye el importe acordado',
+            );
+          }
+          const user = await tx.user.findFirst({
+            where: { id: actor.userId, active: true },
+            select: { id: true },
+          });
+          if (!user) throw new ForbiddenException('El actor no está activo');
+          const changed = await tx.moneyLoan.updateMany({
+            where: {
+              id,
+              organizationId: orgId,
+              status: MoneyLoanStatus.OPEN,
+              version: loan.version,
+            },
+            data: { status: MoneyLoanStatus.CLOSED, version: { increment: 1 } },
+          });
+          if (changed.count !== 1) {
+            throw new ConflictException('El préstamo cambió; reintente');
+          }
+          const { number: saleNumber } = await this.sequence.nextNumber(
+            tx,
+            orgId,
+            'SALE',
+            new Date().getFullYear(),
+          );
+          const sale = await tx.sale.create({
+            data: {
+              saleNumber,
+              customerId: loan.customerId,
+              userId: actor.userId,
+              organizationId: orgId,
+              subtotal,
+              taxAmount,
+              discountAmount,
+              total,
+              amountPaid: total,
+              change: null,
+              status: 'COMPLETED',
+            },
+          });
+          for (const item of items) {
+            await tx.saleItem.create({
+              data: { ...item, saleId: sale.id, organizationId: orgId },
+            });
+          }
+          const linked = await tx.posLoanSaleIntent.updateMany({
+            where: {
+              id: intent.id,
+              loanId: id,
+              organizationId: orgId,
+              finalSaleId: null,
+            },
+            data: { finalSaleId: sale.id },
+          });
+          if (linked.count !== 1) {
+            throw new ConflictException('La financiación ya tiene venta final');
+          }
+          const holds = await tx.posLoanSaleReservation.findMany({
+            where: {
+              intentId: intent.id,
+              organizationId: orgId,
+              state: 'HELD',
+            },
+            orderBy: { productId: 'asc' },
+          });
+          const finalizedAt = new Date();
+          for (const hold of holds) {
+            const quantity = items
+              .filter((item) => item.productId === hold.productId)
+              .reduce((sum, item) => sum + item.quantity, 0);
+            const product = await tx.product.findFirst({
+              where: { id: hold.productId, organizationId: orgId },
+              select: { stock: true, reservedStock: true, version: true },
+            });
+            if (
+              !product ||
+              !Number.isInteger(hold.quantity) ||
+              hold.quantity < 1 ||
+              hold.quantity !== quantity ||
+              !Number.isInteger(product.stock) ||
+              product.stock > 2147483647 ||
+              !Number.isInteger(product.reservedStock) ||
+              product.reservedStock < hold.quantity ||
+              product.reservedStock > product.stock ||
+              !Number.isInteger(product.version) ||
+              product.version < 0 ||
+              product.version >= 2147483647
+            ) {
+              throw new ConflictException(
+                'Reserva o contadores históricos inconsistentes',
+              );
+            }
+            const consumed = await tx.product.updateMany({
+              where: {
+                id: hold.productId,
+                organizationId: orgId,
+                version: product.version,
+                stock: product.stock,
+                reservedStock: product.reservedStock,
+              },
+              data: {
+                stock: { decrement: hold.quantity },
+                reservedStock: { decrement: hold.quantity },
+                version: { increment: 1 },
+              },
+            });
+            if (consumed.count !== 1) {
+              throw new ConflictException(
+                'Los contadores de la reserva cambiaron',
+              );
+            }
+            await tx.inventoryMovement.create({
+              data: {
+                productId: hold.productId,
+                organizationId: orgId,
+                saleId: sale.id,
+                userId: actor.userId,
+                type: 'SALE',
+                quantity: -hold.quantity,
+                previousStock: product.stock,
+                newStock: product.stock - hold.quantity,
+                reason: `Sale #${saleNumber}`,
+              },
+            });
+            const claimed = await tx.posLoanSaleReservation.updateMany({
+              where: {
+                id: hold.id,
+                intentId: intent.id,
+                organizationId: orgId,
+                state: 'HELD',
+              },
+              data: {
+                state: 'CONSUMED',
+                finalizedAt,
+                finalizedById: actor.userId,
+              },
+            });
+            if (claimed.count !== 1) {
+              throw new ConflictException('La reserva ya fue reclamada');
+            }
+          }
+          const result = {
+            type: loan.type,
+            loanId: id,
+            intentId: intent.id,
+            saleId: sale.id,
+            status: 'CLOSED',
+            ...before,
+          };
+          const event = await tx.moneyLoanEvent.create({
+            data: {
+              loanId: id,
+              organizationId: orgId,
+              createdById: actor.userId,
+              type: MoneyLoanEventType.CLOSED,
+              reason: 'Venta financiada completada',
+              requestKey: dto.requestKey,
+              requestPayload,
+              result,
+            },
+          });
+          await tx.auditLog.create({
+            data: {
+              organizationId: orgId,
+              userId: actor.userId,
+              action: 'LOAN_CLOSED',
+              resource: 'MoneyLoan',
+              resourceId: id,
+              metadata: {
+                ...result,
+                eventId: event.id,
+                requestKey: dto.requestKey,
+              },
+            },
+          });
+          return { ...result, eventId: event.id };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        ['P2034', 'P2002'].includes(error.code)
+      ) {
+        throw new ConflictException(
+          'Operación concurrente; reintente con la misma clave de solicitud',
+        );
+      }
+      throw error;
+    }
+  }
 
   async initiateFromPos(
     dto: CreatePosLoanDto,

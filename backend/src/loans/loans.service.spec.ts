@@ -81,7 +81,10 @@ function fixture() {
   return {
     tx,
     prisma,
-    service: new LoansService(prisma as unknown as PrismaService),
+    service: new LoansService(
+      prisma as unknown as PrismaService,
+      { nextNumber: jest.fn() } as never,
+    ),
   };
 }
 
