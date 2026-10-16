@@ -48,6 +48,11 @@ Evidence: `~/Downloads/urlreporter-pos.mepersoft.app-20261016-025712.md` (B+ 76/
 - T7 — Shared throttler storage behind `REDIS_URL` (compatible with `@nestjs/throttler` 6.7.x) with a documented safe fallback when Redis is unavailable, correct keys/windows, and a two-instance 429 proof using a user-space Redis (S4.3, S4.5, S4.6, S4.8, S4 final). Route: worker. Commit: pending.
 - T8 — Consolidated verification and close-out report: changed dependencies, vulnerabilities closed, unverified items, deploy readiness (S5 final). Route: parent. No commit.
 
+## Delivery slices
+
+- Slice 1 (closed): `26638c9` docs spec, `028ed05` next 16.4.2, `176277c` exports formula injection, `2f2a126` security.txt — tasks T1, T4, T5. Authored changed lines excluding lockfiles: ~435, at the ~400 limit, so this slice ends here and the next commit opens slice 2.
+- Slice 2 (open): T2, T3, T6, T7 and, when the user decides, T9. Review slice 1 before slice 2 grows past the same budget.
+
 ## Redis: cost and single-replica alternative (required by S4)
 
 - **Replica count: NOT verifiable from this machine.** There is no `railway` CLI installed and no Railway API token, so the real replica count must be confirmed by the user in the Railway dashboard (Service → Settings → replicas, or `Deployments` scaling). Everything below is written so that it is correct for N ≥ 1.
@@ -67,3 +72,4 @@ Evidence: `~/Downloads/urlreporter-pos.mepersoft.app-20261016-025712.md` (B+ 76/
 - L8 (user request): install the Railway CLI and document how to obtain the token so the Railway integration exists in this environment for future work (answers S4.1: the replica count is not verifiable without it).
 - L9 (parent differential, T9): lint on `master`'s installed versions = 25 problems (4 errors, 21 warnings); on this branch's versions = 30 problems (7 errors, 23 warnings). All are `react-hooks/set-state-in-effect`; 4 sites failed on both sides, 3 sites are new. Cause: `eslint-plugin-react-hooks` 7.0.1 → 7.1.1, pulled transitively by `eslint-config-next` 16.4.2. The base already exited 1, and CI does not run frontend lint.
 - L10 (bug found, pre-existing, not fixed): `getHeaders('products')` emits 7 headers while `getRowData('products')` emits 8 values, so the products export has a column/value mismatch. Out of scope for T4; the new byte-identity control test locks the current shape on purpose. Flagged for the user.
+- L11 (environment): Railway CLI 5.69.0 installed user-space and activated globally with `mise use -g railway@latest`; authentication is the user's step (`railway login` / `--browserless`, or a token in the shell env, never pasted into the chat log).
