@@ -7,6 +7,19 @@ jest.mock('@fast-csv/format', () => ({
   write: jest.fn(() => ({ pipe: jest.fn() })),
 }));
 
+// Capture the rows handed to the XLSX worksheet so the neutralization rule can
+// be asserted on the exact cell values that reach a workbook.
+jest.mock('exceljs', () => {
+  const addRow = jest.fn();
+  return {
+    __addRow: addRow,
+    Workbook: jest.fn().mockImplementation(() => ({
+      addWorksheet: jest.fn().mockReturnValue({ addRow }),
+      xlsx: { write: jest.fn().mockResolvedValue(undefined) },
+    })),
+  };
+});
+
 describe('ExportsService', () => {
   let service: ExportsService;
 
@@ -31,6 +44,8 @@ describe('ExportsService', () => {
   const reportsMock = { getEconomicExport: jest.fn() };
 
   const ORG_ID = 'org-1';
+
+  const exceljsMock = jest.requireMock<{ __addRow: jest.Mock }>('exceljs');
 
   const buildResMock = () => ({
     setHeader: jest.fn(),
@@ -65,15 +80,33 @@ describe('ExportsService', () => {
   });
 
   it('exports expense group and label columns', async () => {
-    prismaMock.expense.findMany.mockResolvedValue([{
-      date: '2026-08-15', label: { name: 'Arriendo', group: { name: 'Gastos del local' } },
-      description: 'Office', total: new Prisma.Decimal(100), status: 'PAID',
-    }]);
-    await service.exportExpenses(ORG_ID, { format: 'csv', type: 'expenses' } as ExportQueryDto, buildResMock());
-    expect(csv.write).toHaveBeenCalledWith(expect.arrayContaining([
-      ['Date', 'Group', 'Label', 'Description', 'Total', 'Status'],
-      expect.arrayContaining(['Gastos del local', 'Arriendo', 'Office', '100.00', 'PAID']),
-    ]), { headers: false });
+    prismaMock.expense.findMany.mockResolvedValue([
+      {
+        date: '2026-08-15',
+        label: { name: 'Arriendo', group: { name: 'Gastos del local' } },
+        description: 'Office',
+        total: new Prisma.Decimal(100),
+        status: 'PAID',
+      },
+    ]);
+    await service.exportExpenses(
+      ORG_ID,
+      { format: 'csv', type: 'expenses' } as ExportQueryDto,
+      buildResMock(),
+    );
+    expect(csv.write).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        ['Date', 'Group', 'Label', 'Description', 'Total', 'Status'],
+        expect.arrayContaining([
+          'Gastos del local',
+          'Arriendo',
+          'Office',
+          '100.00',
+          'PAID',
+        ]),
+      ]),
+      { headers: false },
+    );
   });
 
   it('exportSales filters by organizationId', async () => {
@@ -290,7 +323,9 @@ describe('ExportsService', () => {
           },
         },
         orderBy: { date: 'desc' },
-        include: { label: { select: { name: true, group: { select: { name: true } } } } },
+        include: {
+          label: { select: { name: true, group: { select: { name: true } } } },
+        },
       }),
     );
   });
@@ -315,11 +350,11 @@ describe('ExportsService', () => {
 
     expect(csv.write).toHaveBeenCalledWith(
       [
-          ['Date', 'Group', 'Label', 'Description', 'Total', 'Status'],
+        ['Date', 'Group', 'Label', 'Description', 'Total', 'Status'],
         [
           expenseDate.toLocaleDateString(),
-            'Gastos del local',
-            'Arriendo',
+          'Gastos del local',
+          'Arriendo',
           'Arriendo agosto',
           '500000.00',
           'PAID',
@@ -346,14 +381,34 @@ describe('ExportsService', () => {
 
   it('exports the Reports financial contract without converting decimal strings to numbers', async () => {
     reportsMock.getEconomicExport.mockResolvedValue({
-      financial: { current: { netIncome: '100.10', grossProfit: '40.05', netProfit: '30.05' } },
-      cash: { collections: { total: '120.10' }, expensePayments: { total: '10.00' } },
-      inventory: { current: { stockValue: '50.00', retailValue: '80.00', potentialProfit: '30.00' } },
+      financial: {
+        current: {
+          netIncome: '100.10',
+          grossProfit: '40.05',
+          netProfit: '30.05',
+        },
+      },
+      cash: {
+        collections: { total: '120.10' },
+        expensePayments: { total: '10.00' },
+      },
+      inventory: {
+        current: {
+          stockValue: '50.00',
+          retailValue: '80.00',
+          potentialProfit: '30.00',
+        },
+      },
     });
 
     await service.exportEconomic(
       ORG_ID,
-      { format: 'csv', type: 'economic', startDate: '2026-03-01', endDate: '2026-03-31' } as ExportQueryDto,
+      {
+        format: 'csv',
+        type: 'economic',
+        startDate: '2026-03-01',
+        endDate: '2026-03-31',
+      } as ExportQueryDto,
       buildResMock(),
     );
 
@@ -410,7 +465,174 @@ describe('ExportsService', () => {
 
     // Columns: Date, Product, Product Type, Type, Quantity, Previous Stock, New Stock, User.
     // csv.write is called with [headers, ...dataRows], so index 1 is the first data row.
-    const writtenRows = (csv.write as jest.Mock).mock.calls[0][0] as unknown[][];
+    const writtenRows = (csv.write as jest.Mock).mock
+      .calls[0][0] as unknown[][];
     expect(writtenRows[1][2]).toBe('SERVICE');
+  });
+
+  // CWE-1236: a cell whose text starts with =, +, -, @, TAB or CR is executed
+  // as a formula by Excel/Sheets/LibreOffice. The neutralized cell must render
+  // the original text in a spreadsheet, so the prefix is a single quote.
+  const DANGEROUS_PREFIXES: Array<[string, string]> = [
+    ['=', '=SUM(A1)'],
+    ['+', '+SUM(A1)'],
+    ['-', '-SUM(A1)'],
+    ['@', '@SUM(A1)'],
+    ['TAB', '\tSUM(A1)'],
+    ['CR', '\rSUM(A1)'],
+  ];
+
+  const buildProduct = (name: string) => ({
+    name,
+    sku: 'SKU-1',
+    label: { group: { name: 'Grupo' }, name: 'Etiqueta' },
+    salePrice: new Prisma.Decimal('10.00'),
+    costPrice: new Prisma.Decimal('5.00'),
+    stock: 3,
+    minStock: 1,
+  });
+
+  const csvRows = () =>
+    (csv.write as jest.Mock).mock.calls[0][0] as unknown[][];
+
+  // addRow is called once with the header row and once with the data row; each
+  // mock.calls entry is the call's argument list, so [1][0] is the data row.
+  const xlsxRow = () => exceljsMock.__addRow.mock.calls[1][0] as unknown[];
+
+  it.each(DANGEROUS_PREFIXES)(
+    'neutralizes a CSV cell value beginning with %s',
+    async (_label, payload) => {
+      prismaMock.product.findMany.mockResolvedValue([buildProduct(payload)]);
+
+      await service.exportProducts(
+        ORG_ID,
+        { format: 'csv', type: 'products' } as ExportQueryDto,
+        buildResMock(),
+      );
+
+      expect(csvRows()[1][0]).toBe(`'${payload}`);
+    },
+  );
+
+  it.each(DANGEROUS_PREFIXES)(
+    'neutralizes an XLSX cell value beginning with %s',
+    async (_label, payload) => {
+      prismaMock.product.findMany.mockResolvedValue([buildProduct(payload)]);
+
+      await service.exportProducts(
+        ORG_ID,
+        { format: 'excel', type: 'products' } as ExportQueryDto,
+        buildResMock(),
+      );
+
+      // addRow is called once with the header row and once with the data row.
+      expect(xlsxRow()[0]).toBe(`'${payload}`);
+    },
+  );
+
+  it('keeps benign strings, numbers, nulls and decimals byte-identical in CSV and XLSX', async () => {
+    prismaMock.product.findMany.mockResolvedValue([
+      {
+        name: 'Coca Cola 1.5L',
+        sku: null,
+        label: { group: { name: 'Bebidas' }, name: 'Gaseosas' },
+        salePrice: new Prisma.Decimal('1.5'),
+        costPrice: new Prisma.Decimal('0.9'),
+        stock: 12,
+        minStock: 0,
+      },
+    ]);
+
+    const expectedRow = [
+      'Coca Cola 1.5L',
+      null,
+      'Bebidas',
+      'Gaseosas',
+      '1.50',
+      '0.90',
+      12,
+      0,
+    ];
+
+    await service.exportProducts(
+      ORG_ID,
+      { format: 'csv', type: 'products' } as ExportQueryDto,
+      buildResMock(),
+    );
+    expect(csvRows()[1]).toEqual(expectedRow);
+
+    await service.exportProducts(
+      ORG_ID,
+      { format: 'excel', type: 'products' } as ExportQueryDto,
+      buildResMock(),
+    );
+    expect(xlsxRow()).toEqual(expectedRow);
+  });
+
+  it('does not double-prefix an already neutralized value', async () => {
+    prismaMock.product.findMany.mockResolvedValue([buildProduct("'=SUM(A1)")]);
+
+    await service.exportProducts(
+      ORG_ID,
+      { format: 'csv', type: 'products' } as ExportQueryDto,
+      buildResMock(),
+    );
+
+    expect(csvRows()[1][0]).toBe("'=SUM(A1)");
+  });
+
+  it('neutralizes dangerous text in the expense row while leaving money and dates alone', async () => {
+    const expenseDate = new Date('2026-08-15T00:00:00.000Z');
+    prismaMock.expense.findMany.mockResolvedValue([
+      {
+        date: expenseDate,
+        label: { name: '=LABEL', group: { name: '@GROUP' } },
+        description: '+DESC',
+        total: new Prisma.Decimal(500000),
+        status: '-PAID',
+      },
+    ]);
+
+    await service.exportExpenses(
+      ORG_ID,
+      { format: 'csv', type: 'expenses' } as ExportQueryDto,
+      buildResMock(),
+    );
+
+    expect(csvRows()[1]).toEqual([
+      expenseDate.toLocaleDateString(),
+      "'@GROUP",
+      "'=LABEL",
+      "'+DESC",
+      '500000.00',
+      "'-PAID",
+    ]);
+  });
+
+  it('neutralizes the inventory text columns while leaving numeric stock cells alone', async () => {
+    prismaMock.inventoryMovement.findMany.mockResolvedValue([
+      {
+        createdAt: new Date('2026-05-02T10:00:00.000Z'),
+        type: '=TYPE',
+        quantity: 5,
+        previousStock: 0,
+        newStock: 5,
+        product: { name: '@Producto', sku: 'SERV 4', type: '+SERVICE' },
+        user: { name: '-User' },
+      },
+    ]);
+
+    await service.exportInventory(
+      ORG_ID,
+      { format: 'csv', type: 'inventory' } as ExportQueryDto,
+      buildResMock(),
+    );
+
+    const row = csvRows()[1];
+    expect(row[1]).toBe("'@Producto");
+    expect(row[2]).toBe("'+SERVICE");
+    expect(row[3]).toBe("'=TYPE");
+    expect(row[4]).toBe(5);
+    expect(row[7]).toBe("'-User");
   });
 });
