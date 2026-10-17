@@ -11,6 +11,7 @@ import { CustomersModule } from './customers/customers.module';
 import { SalesModule } from './sales/sales.module';
 import { ReportsModule } from './reports/reports.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { throttlerModuleOptions } from './common/throttling/throttler-storage.factory';
 import { SettingsModule } from './settings/settings.module';
 import { ExportsModule } from './exports/exports.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
@@ -34,12 +35,11 @@ import { ExpensesModule } from './expenses/expenses.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 100,
-      },
-    ]),
+    // Global limit 100 req/60 s. The options are resolved here, inside the
+    // imports array and after ConfigModule, so a `.env` value of REDIS_URL is
+    // already visible and the shared storage is used when it is configured
+    // (spec S4.3, S4.5).
+    ThrottlerModule.forRoot(throttlerModuleOptions()),
     CacheModule,
     PrismaModule,
     AuthModule,

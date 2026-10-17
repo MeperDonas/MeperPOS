@@ -52,6 +52,7 @@
     "cookie-parser": "^1.4.7",
     "exceljs": "^4.4.0",
     "helmet": "^8.3.0",
+    "ioredis": "^6.0.0",
     "jspdf": "^4.0.0",
     "multer": "^2.0.2",
     "passport": "^0.7.0",
