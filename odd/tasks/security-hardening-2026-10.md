@@ -51,7 +51,8 @@ Evidence: `~/Downloads/urlreporter-pos.mepersoft.app-20261016-025712.md` (B+ 76/
 ## Delivery slices
 
 - Slice 1 (closed): `26638c9` docs spec, `028ed05` next 16.4.2, `176277c` exports formula injection, `2f2a126` security.txt — tasks T1, T4, T5. Authored changed lines excluding lockfiles: ~435, at the ~400 limit, so this slice ends here and the next commit opens slice 2.
-- Slice 2 (open): T2, T3, T6, T7 and, when the user decides, T9. Review slice 1 before slice 2 grows past the same budget.
+- Slice 2 (closed): `e6f2be3` doc record, `233d8c6` CSP sanitization + `no-store` on the authenticated routes — tasks T2 and the frontend half of T3. Authored changed lines excluding lockfiles: ~457. Verified: 23/23 unit tests for the two files, 693/693 frontend tests, `tsc` clean, build green (32/32 static pages), and a served `/login` with the exact new CSP plus prerender and CDN HIT while `/register` stays cacheable and `/dashboard` is `no-store`.
+- Slice 3 (open): T3 backend half, T6, T7 and, when the user decides, T9. This slice's commits land the slice-2 boundary record above; apply the same ~400-line review budget and stop to record again before exceeding it.
 
 ## Redis: cost and single-replica alternative (required by S4)
 
