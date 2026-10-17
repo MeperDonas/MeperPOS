@@ -435,8 +435,7 @@ export class ExportsService {
       products: (item) => [
         this.neutralizeFormulaText(item.name),
         this.neutralizeFormulaText(item.sku),
-        this.neutralizeFormulaText(item.label?.group?.name || 'N/A'),
-        this.neutralizeFormulaText(item.label?.name || 'N/A'),
+        this.neutralizeFormulaText(item.category?.name || 'N/A'),
         Number(item.salePrice).toFixed(2),
         Number(item.costPrice).toFixed(2),
         item.stock,

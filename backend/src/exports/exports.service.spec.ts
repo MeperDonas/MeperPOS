@@ -160,6 +160,67 @@ describe('ExportsService', () => {
     );
   });
 
+  // `exportToCSV`/`exportToExcel` pair one header row with one row per
+  // product, and `getColumnWidths('products')` supplies one width per header.
+  // A data row with a different cell count than the headers shifts every
+  // following value under the wrong header and pushes the last one out, so the
+  // count and the order are the contract. Product owns a `category` relation
+  // and has no `label`, and `getProductsData` selects `category.name`.
+  it('keeps the products export aligned: one cell per header, in header order', async () => {
+    prismaMock.product.findMany.mockResolvedValue([
+      {
+        name: 'Coca Cola 1.5L',
+        sku: 'SKU-1',
+        category: { name: 'Bebidas' },
+        salePrice: new Prisma.Decimal('2500.00'),
+        costPrice: new Prisma.Decimal('1800.00'),
+        stock: 12,
+        minStock: 4,
+      },
+    ]);
+
+    await service.exportProducts(
+      ORG_ID,
+      { format: 'csv', type: 'products' } as ExportQueryDto,
+      buildResMock(),
+    );
+    await service.exportProducts(
+      ORG_ID,
+      { format: 'excel', type: 'products' } as ExportQueryDto,
+      buildResMock(),
+    );
+
+    const [headers, csvRow] = csvRows();
+    const xlsxHeaders = xlsxRow(0);
+    const xlsxDataRow = xlsxRow();
+
+    expect(headers).toEqual([
+      'Name',
+      'SKU',
+      'Category',
+      'Price',
+      'Cost',
+      'Stock',
+      'Min Stock',
+    ]);
+    expect(xlsxHeaders).toEqual(headers);
+
+    const expectedRow = [
+      'Coca Cola 1.5L',
+      'SKU-1',
+      'Bebidas',
+      '2500.00',
+      '1800.00',
+      12,
+      4,
+    ];
+
+    expect(csvRow).toHaveLength(headers.length);
+    expect(csvRow).toEqual(expectedRow);
+    expect(xlsxDataRow).toHaveLength(xlsxHeaders.length);
+    expect(xlsxDataRow).toEqual(expectedRow);
+  });
+
   it('exportCustomers filters by organizationId', async () => {
     prismaMock.customer.findMany.mockResolvedValue([]);
     const res = {
@@ -485,7 +546,7 @@ describe('ExportsService', () => {
   const buildProduct = (name: string) => ({
     name,
     sku: 'SKU-1',
-    label: { group: { name: 'Grupo' }, name: 'Etiqueta' },
+    category: { name: 'Bebidas' },
     salePrice: new Prisma.Decimal('10.00'),
     costPrice: new Prisma.Decimal('5.00'),
     stock: 3,
@@ -495,9 +556,11 @@ describe('ExportsService', () => {
   const csvRows = () =>
     (csv.write as jest.Mock).mock.calls[0][0] as unknown[][];
 
-  // addRow is called once with the header row and once with the data row; each
-  // mock.calls entry is the call's argument list, so [1][0] is the data row.
-  const xlsxRow = () => exceljsMock.__addRow.mock.calls[1][0] as unknown[];
+  // addRow is called once with the header row and once with each data row;
+  // each mock.calls entry is the call's argument list, so [index][0] is that
+  // row (0 = headers, 1 = first data row).
+  const xlsxRow = (index = 1) =>
+    exceljsMock.__addRow.mock.calls[index][0] as unknown[];
 
   it.each(DANGEROUS_PREFIXES)(
     'neutralizes a CSV cell value beginning with %s',
@@ -535,7 +598,7 @@ describe('ExportsService', () => {
       {
         name: 'Coca Cola 1.5L',
         sku: null,
-        label: { group: { name: 'Bebidas' }, name: 'Gaseosas' },
+        category: { name: 'Bebidas' },
         salePrice: new Prisma.Decimal('1.5'),
         costPrice: new Prisma.Decimal('0.9'),
         stock: 12,
@@ -547,7 +610,6 @@ describe('ExportsService', () => {
       'Coca Cola 1.5L',
       null,
       'Bebidas',
-      'Gaseosas',
       '1.50',
       '0.90',
       12,
