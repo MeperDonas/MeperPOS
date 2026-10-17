@@ -53,7 +53,7 @@
     "exceljs": "^4.4.0",
     "helmet": "^8.3.0",
     "ioredis": "^6.0.0",
-    "jspdf": "^4.0.0",
+    "jspdf": "^4.2.1",
     "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -98,6 +98,10 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.20.0"
+  },
+  "overrides": {
+    "handlebars": "^4.7.10",
+    "proxy-addr": "^2.0.8"
   },
   "jest": {
     "moduleFileExtensions": [
